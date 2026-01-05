@@ -5,11 +5,13 @@ import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:media_kit/media_kit.dart';
 import '../services/file_label_service.dart';
+import '../services/rename_service.dart';
 
 class FilePreview extends StatefulWidget {
   final FileSystemEntity? file;
+  final Function(FileSystemEntity)? onRenamed;
 
-  const FilePreview({super.key, this.file});
+  const FilePreview({super.key, this.file, this.onRenamed});
 
   @override
   State<FilePreview> createState() => _FilePreviewState();
@@ -21,6 +23,10 @@ class _FilePreviewState extends State<FilePreview> {
   String _fileSize = '';
   Duration? _videoDuration;
   Size? _videoResolution;
+
+  // State for TV Show renaming
+  int _lastSeason = 1;
+  int _lastEpisode = 1;
 
   @override
   void didUpdateWidget(FilePreview oldWidget) {
@@ -60,7 +66,6 @@ class _FilePreviewState extends State<FilePreview> {
       if (label == 'Video') {
         try {
           await _player!.open(Media(file.path), play: false);
-          // Wait a bit for metadata to be loaded
           await Future.delayed(const Duration(milliseconds: 500));
           _videoDuration = _player!.state.duration;
           _videoResolution = Size(
@@ -110,6 +115,193 @@ class _FilePreviewState extends State<FilePreview> {
     }
   }
 
+  Future<void> _handleRename(RenameRule rule, {String? extra}) async {
+    if (widget.file is! File) return;
+    final file = widget.file as File;
+    final oldName = p.basename(file.path);
+    final newName = RenameService.getNewName(file, rule, extra: extra);
+
+    if (oldName == newName) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File already has this name')),
+      );
+      return;
+    }
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Rename'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure you want to rename this file?'),
+            const SizedBox(height: 16),
+            const Text('From:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(oldName, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 8),
+            const Text('To:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(newName, style: const TextStyle(color: Colors.green)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final newFile = await RenameService.rename(file, newName);
+        widget.onRenamed?.call(newFile);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error renaming file: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showTVShowDialog() async {
+    int tempSeason = _lastSeason;
+    int tempEpisode = _lastEpisode;
+
+    final String? result = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          String formatNum(int n) => n.toString().padLeft(2, '0');
+
+          return AlertDialog(
+            title: const Text('TV Show Naming (SxxExx)'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Text('Season: '),
+                    const Spacer(),
+                    DropdownButton<int>(
+                      value: tempSeason,
+                      items: List.generate(11, (i) => i).map((i) {
+                        return DropdownMenuItem(value: i, child: Text(formatNum(i)));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => tempSeason = val);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Episode: '),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.remove),
+                      onPressed: tempEpisode > 0 ? () => setDialogState(() => tempEpisode--) : null,
+                    ),
+                    SizedBox(
+                      width: 40,
+                      child: Text(formatNum(tempEpisode), textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () => setDialogState(() => tempEpisode++),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'S${formatNum(tempSeason)}E${formatNum(tempEpisode)}'),
+                child: const Text('Apply'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (result != null) {
+      // Update persistent state
+      setState(() {
+        _lastSeason = tempSeason;
+        _lastEpisode = tempEpisode;
+      });
+      _handleRename(RenameRule.tvShow, extra: result);
+    }
+  }
+
+  Future<void> _showPartDialog() async {
+    final TextEditingController customPartController = TextEditingController();
+    final List<String> commonParts = ['1', '2', '3', '4'];
+
+    final String? selectedPart = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Part Number'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Wrap(
+              spacing: 8,
+              children: commonParts.map((part) {
+                return ElevatedButton(
+                  onPressed: () => Navigator.pop(context, part),
+                  child: Text('Part $part'),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: customPartController,
+              decoration: const InputDecoration(
+                labelText: 'Custom Part Number',
+                hintText: 'e.g. 5',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (customPartController.text.isNotEmpty) {
+                Navigator.pop(context, customPartController.text);
+              }
+            },
+            child: const Text('Apply Custom'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedPart != null) {
+      _handleRename(RenameRule.part, extra: selectedPart);
+    }
+  }
+
   Widget _buildMetadataInfo() {
     List<Widget> info = [
       Text('Size: $_fileSize'),
@@ -147,6 +339,76 @@ class _FilePreviewState extends State<FilePreview> {
     final extension = p.extension(f.path);
     final label = FileLabelService.getLabel(extension);
 
+    return Column(
+      children: [
+        Expanded(
+          child: _buildPreview(label, f),
+        ),
+        _buildMetadataInfo(),
+        const Divider(),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text('Operations', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  PopupMenuButton<RenameRule>(
+                    onSelected: (rule) {
+                      if (rule == RenameRule.part) {
+                        _showPartDialog();
+                      } else if (rule == RenameRule.tvShow) {
+                        _showTVShowDialog();
+                      } else {
+                        _handleRename(rule);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: RenameRule.matchFolder,
+                        child: Text('Match Folder Name'),
+                      ),
+                      const PopupMenuItem(
+                        value: RenameRule.featurette,
+                        child: Text('Rename to Featurette'),
+                      ),
+                      const PopupMenuItem(
+                        value: RenameRule.interview,
+                        child: Text('Rename to Interview'),
+                      ),
+                      const PopupMenuItem(
+                        value: RenameRule.part,
+                        child: Text('Rename to Part...'),
+                      ),
+                      const PopupMenuItem(
+                        value: RenameRule.tvShow,
+                        child: Text('Rename to TV Show (SxxExx)...'),
+                      ),
+                    ],
+                    child: ElevatedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.drive_file_rename_outline),
+                      label: const Text('Rename File'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: _openFile,
+                    icon: const Icon(Icons.open_in_new),
+                    label: Text(label == 'Video' ? 'Open in System Player' : 'Open in System App'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreview(String label, File f) {
     switch (label) {
       case 'Video':
         return Center(
@@ -156,67 +418,30 @@ class _FilePreviewState extends State<FilePreview> {
               const Icon(Icons.video_library, size: 100, color: Colors.blue),
               const SizedBox(height: 20),
               Text(p.basename(f.path), style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-              _buildMetadataInfo(),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _openFile,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Open in System Player'),
-              ),
             ],
           ),
         );
       case 'Image':
-        return Column(
-          children: [
-            Expanded(
-              child: InteractiveViewer(
-                minScale: 0.1,
-                maxScale: 5.0,
-                child: Image.file(f),
-              ),
-            ),
-            _buildMetadataInfo(),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ElevatedButton.icon(
-                onPressed: _openFile,
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Open in System Viewer'),
-              ),
-            ),
-          ],
+        return InteractiveViewer(
+          minScale: 0.1,
+          maxScale: 5.0,
+          child: Image.file(f),
         );
       case 'Subtitle':
       case 'Metadata':
-        return Column(
-          children: [
-            Expanded(
-              child: FutureBuilder<String>(
-                future: f.readAsString(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(snapshot.data!),
-                    );
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error loading file: ${snapshot.error}'));
-                  }
-                  return const Center(child: CircularProgressIndicator());
-                },
-              ),
-            ),
-            _buildMetadataInfo(),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ElevatedButton.icon(
-                onPressed: _openFile,
-                icon: const Icon(Icons.edit),
-                label: const Text('Open in System Editor'),
-              ),
-            ),
-          ],
+        return FutureBuilder<String>(
+          future: f.readAsString(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(snapshot.data!),
+              );
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error loading file: ${snapshot.error}'));
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
         );
       default:
         return Center(
@@ -226,13 +451,6 @@ class _FilePreviewState extends State<FilePreview> {
               const Icon(Icons.insert_drive_file, size: 100, color: Colors.grey),
               const SizedBox(height: 20),
               Text('No preview available for $label files'),
-              _buildMetadataInfo(),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _openFile,
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Open with System App'),
-              ),
             ],
           ),
         );

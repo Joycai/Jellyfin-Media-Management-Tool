@@ -86,6 +86,57 @@ class _MainWorkspaceState extends State<MainWorkspace> {
     }
   }
 
+  Future<void> _createNewFolder() async {
+    if (_currentDirectory == null) return;
+
+    final TextEditingController folderNameController = TextEditingController();
+    final String? folderName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create New Folder'),
+        content: TextField(
+          controller: folderNameController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Folder Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, folderNameController.text),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+
+    if (folderName != null && folderName.isNotEmpty) {
+      final newPath = p.join(_currentDirectory!, folderName);
+      try {
+        await Directory(newPath).create();
+        _loadFiles();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error creating folder: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  void _onFileRenamed(FileSystemEntity newEntity) {
+    setState(() {
+      _selectedFile = newEntity;
+      _loadFiles();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,6 +168,11 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                           icon: const Icon(Icons.folder_open),
                           onPressed: _pickDirectory,
                           tooltip: 'Open Directory',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.create_new_folder),
+                          onPressed: _currentDirectory != null ? _createNewFolder : null,
+                          tooltip: 'Create New Folder',
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -183,7 +239,10 @@ class _MainWorkspaceState extends State<MainWorkspace> {
           // Right Side: Operations / Preview
           Expanded(
             flex: 2,
-            child: FilePreview(file: _selectedFile),
+            child: FilePreview(
+              file: _selectedFile,
+              onRenamed: _onFileRenamed,
+            ),
           ),
         ],
       ),
