@@ -1,121 +1,191 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:media_kit/media_kit.dart';
+import 'services/file_label_service.dart';
+import 'widgets/file_preview.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Jellyfin Media Management Tool',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MainWorkspace(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class MainWorkspace extends StatefulWidget {
+  const MainWorkspace({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainWorkspace> createState() => _MainWorkspaceState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MainWorkspaceState extends State<MainWorkspace> {
+  String? _currentDirectory;
+  List<FileSystemEntity> _files = [];
+  FileSystemEntity? _selectedFile;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  Future<void> _pickDirectory() async {
+    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+
+    if (selectedDirectory != null) {
+      setState(() {
+        _currentDirectory = selectedDirectory;
+        _selectedFile = null;
+        _loadFiles();
+      });
+    }
+  }
+
+  void _loadFiles() {
+    if (_currentDirectory != null) {
+      final directory = Directory(_currentDirectory!);
+      try {
+        setState(() {
+          _files = directory.listSync().toList();
+          _files.sort((a, b) {
+            if (a is Directory && b is! Directory) return -1;
+            if (a is! Directory && b is Directory) return 1;
+            return a.path.toLowerCase().compareTo(b.path.toLowerCase());
+          });
+        });
+      } catch (e) {
+        debugPrint('Error listing files: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error accessing directory: $e')),
+        );
+      }
+    }
+  }
+
+  void _goToParent() {
+    if (_currentDirectory != null) {
+      final parent = Directory(_currentDirectory!).parent;
+      if (parent.path != _currentDirectory) {
+        setState(() {
+          _currentDirectory = parent.path;
+          _selectedFile = null;
+          _loadFiles();
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Jellyfin Media Management Tool'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Row(
+        children: [
+          // Left Side: File Browser
+          Expanded(
+            flex: 1,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(right: BorderSide(color: Colors.grey.shade300)),
+              ),
+              child: Column(
+                children: [
+                  // Browser Toolbar
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_upward),
+                          onPressed: _currentDirectory != null ? _goToParent : null,
+                          tooltip: 'Go to Parent Folder',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.folder_open),
+                          onPressed: _pickDirectory,
+                          tooltip: 'Open Directory',
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _currentDirectory ?? 'No directory selected',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // File List
+                  Expanded(
+                    child: _currentDirectory == null
+                        ? const Center(child: Text('Please select a directory'))
+                        : ListView.builder(
+                            itemCount: _files.length,
+                            itemBuilder: (context, index) {
+                              final entity = _files[index];
+                              final name = p.basename(entity.path);
+                              final isDirectory = entity is Directory;
+                              final extension = p.extension(entity.path);
+                              final label = isDirectory ? 'Folder' : FileLabelService.getLabel(extension);
+                              final isSelected = _selectedFile?.path == entity.path;
+
+                              return InkWell(
+                                onDoubleTap: isDirectory
+                                    ? () {
+                                        setState(() {
+                                          _currentDirectory = entity.path;
+                                          _selectedFile = null;
+                                          _loadFiles();
+                                        });
+                                      }
+                                    : null,
+                                child: ListTile(
+                                  leading: Icon(isDirectory ? Icons.folder : Icons.insert_drive_file),
+                                  title: Text(name),
+                                  subtitle: Text(label),
+                                  selected: isSelected,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedFile = entity;
+                                    });
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+          ),
+          // Right Side: Operations / Preview
+          Expanded(
+            flex: 2,
+            child: FilePreview(file: _selectedFile),
+          ),
+        ],
       ),
     );
   }
