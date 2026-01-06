@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:provider/provider.dart';
 import 'screens/media_manager_screen.dart';
+import 'services/settings_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  runApp(const MyApp());
+  
+  final settingsService = SettingsService();
+  await settingsService.init();
+
+  runApp(
+    ChangeNotifierProvider.value(
+      value: settingsService,
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -13,34 +26,36 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsService>();
+
     return MaterialApp(
       title: 'Jellyfin Media Management Tool',
       debugShowCheckedModeBanner: false,
+      themeMode: settings.themeMode,
+      locale: settings.locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('zh'),
+      ],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF005AC1), // A more professional Jellyfin-like blue
+          seedColor: const Color(0xFF005AC1),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        navigationRailTheme: NavigationRailThemeData(
-          backgroundColor: Colors.grey.shade50,
-          selectedIconTheme: const IconThemeData(color: Color(0xFF005AC1), size: 28),
-          unselectedIconTheme: IconThemeData(color: Colors.grey.shade600, size: 24),
-          selectedLabelTextStyle: const TextStyle(
-            color: Color(0xFF005AC1),
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
-          unselectedLabelTextStyle: TextStyle(
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-            fontSize: 12,
-          ),
-          indicatorColor: const Color(0xFFD1E4FF),
-          indicatorShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF005AC1),
+          brightness: Brightness.dark,
         ),
+        useMaterial3: true,
       ),
       home: const MainWorkspace(),
     );
@@ -57,23 +72,16 @@ class MainWorkspace extends StatefulWidget {
 class _MainWorkspaceState extends State<MainWorkspace> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const MediaManagerScreen(),
-    const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.settings_suggest_outlined, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('Settings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          Text('Configuration options coming soon...', style: TextStyle(color: Colors.grey)),
-        ],
-      ),
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsService>();
+
+    final List<Widget> _screens = [
+      const MediaManagerScreen(),
+      _buildSettingsScreen(context, l10n, settings),
+    ];
+
     return Scaffold(
       body: Row(
         children: [
@@ -84,8 +92,7 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                 _selectedIndex = index;
               });
             },
-            extended: false,
-            minWidth: 80,
+            labelType: NavigationRailLabelType.all,
             leading: Column(
               children: [
                 const SizedBox(height: 16),
@@ -103,17 +110,16 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                 const SizedBox(height: 24),
               ],
             ),
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
+            destinations: [
               NavigationRailDestination(
-                icon: Icon(Icons.folder_copy_outlined),
-                selectedIcon: Icon(Icons.folder_copy),
-                label: Text('Manager'),
+                icon: const Icon(Icons.folder_copy_outlined),
+                selectedIcon: const Icon(Icons.folder_copy),
+                label: Text(l10n.manager),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: Text('Settings'),
+                icon: const Icon(Icons.settings_outlined),
+                selectedIcon: const Icon(Icons.settings),
+                label: Text(l10n.settings),
               ),
             ],
           ),
@@ -121,30 +127,22 @@ class _MainWorkspaceState extends State<MainWorkspace> {
           Expanded(
             child: Column(
               children: [
-                // Custom App Bar for a more integrated look
                 Container(
                   height: 64,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade200),
+                      bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
                     ),
                   ),
                   child: Row(
                     children: [
                       Text(
-                        _selectedIndex == 0 ? 'Media Manager' : 'Settings',
+                        _selectedIndex == 0 ? l10n.mediaManager : l10n.settings,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
                             ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.help_outline),
-                        onPressed: () {},
-                        tooltip: 'Help',
                       ),
                     ],
                   ),
@@ -157,6 +155,49 @@ class _MainWorkspaceState extends State<MainWorkspace> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSettingsScreen(BuildContext context, AppLocalizations l10n, SettingsService settings) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Text(l10n.themeMode, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        SegmentedButton<ThemeMode>(
+          segments: [
+            ButtonSegment(value: ThemeMode.light, label: Text(l10n.light), icon: const Icon(Icons.light_mode)),
+            ButtonSegment(value: ThemeMode.dark, label: Text(l10n.dark), icon: const Icon(Icons.dark_mode)),
+            ButtonSegment(value: ThemeMode.system, label: Text(l10n.system), icon: const Icon(Icons.brightness_auto)),
+          ],
+          selected: {settings.themeMode},
+          onSelectionChanged: (Set<ThemeMode> newSelection) {
+            settings.setThemeMode(newSelection.first);
+          },
+        ),
+        const SizedBox(height: 32),
+        Text(l10n.language, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('English'),
+              selected: settings.locale?.languageCode == 'en' || settings.locale == null,
+              onSelected: (selected) {
+                if (selected) settings.setLocale(const Locale('en'));
+              },
+            ),
+            ChoiceChip(
+              label: const Text('中文'),
+              selected: settings.locale?.languageCode == 'zh',
+              onSelected: (selected) {
+                if (selected) settings.setLocale(const Locale('zh'));
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

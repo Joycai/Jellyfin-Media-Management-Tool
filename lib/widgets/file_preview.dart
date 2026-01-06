@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:media_kit/media_kit.dart';
+import '../l10n/app_localizations.dart';
 import '../services/file_label_service.dart';
 import '../services/rename_service.dart';
 
@@ -121,42 +122,40 @@ class _FilePreviewState extends State<FilePreview> {
 
   Future<void> _handleRename(RenameRule rule, {String? extra}) async {
     if (widget.file is! File) return;
+    final l10n = AppLocalizations.of(context)!;
     final file = widget.file as File;
     final oldName = p.basename(file.path);
     final newName = RenameService.getNewName(file, rule, extra: extra);
 
     if (oldName == newName) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File already has this name')),
-      );
       return;
     }
 
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Rename'),
+        title: Text(l10n.confirmRename),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Are you sure you want to rename this file?'),
+            const Text('Are you sure?'),
             const SizedBox(height: 16),
-            const Text('From:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(l10n.renameFrom, style: const TextStyle(fontWeight: FontWeight.bold)),
             Text(oldName, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 8),
-            const Text('To:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(l10n.renameTo, style: const TextStyle(fontWeight: FontWeight.bold)),
             Text(newName, style: const TextStyle(color: Colors.green)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Rename'),
+            child: Text(l10n.rename),
           ),
         ],
       ),
@@ -169,7 +168,7 @@ class _FilePreviewState extends State<FilePreview> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error renaming file: $e')),
+            SnackBar(content: Text('Error: $e')),
           );
         }
       }
@@ -178,6 +177,7 @@ class _FilePreviewState extends State<FilePreview> {
 
   Future<void> _showSubtitleDialog() async {
     if (widget.file is! File) return;
+    final l10n = AppLocalizations.of(context)!;
     final file = widget.file as File;
     final parentDir = file.parent;
     final List<File> videoFiles = parentDir
@@ -186,12 +186,7 @@ class _FilePreviewState extends State<FilePreview> {
         .where((f) => FileLabelService.getLabel(p.extension(f.path)) == 'Video')
         .toList();
 
-    if (videoFiles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No video files found in the same directory')),
-      );
-      return;
-    }
+    if (videoFiles.isEmpty) return;
 
     File selectedVideo = videoFiles.first;
     String selectedLang = _lastLangCode;
@@ -203,13 +198,13 @@ class _FilePreviewState extends State<FilePreview> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Subtitle Naming'),
+            title: Text(l10n.jellyfinSubtitle),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<File>(
                   value: selectedVideo,
-                  decoration: const InputDecoration(labelText: 'Target Video'),
+                  decoration: const InputDecoration(labelText: 'Video'),
                   items: videoFiles.map((v) {
                     return DropdownMenuItem(value: v, child: Text(p.basename(v.path), overflow: TextOverflow.ellipsis));
                   }).toList(),
@@ -220,7 +215,7 @@ class _FilePreviewState extends State<FilePreview> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedLang,
-                  decoration: const InputDecoration(labelText: 'Language Code'),
+                  decoration: const InputDecoration(labelText: 'Language'),
                   items: langCodes.map((code) {
                     return DropdownMenuItem(value: code, child: Text(code));
                   }).toList(),
@@ -230,7 +225,7 @@ class _FilePreviewState extends State<FilePreview> {
                 ),
                 const SizedBox(height: 16),
                 CheckboxListTile(
-                  title: const Text('Default Subtitle'),
+                  title: const Text('Default'),
                   value: isDefault,
                   onChanged: (val) {
                     if (val != null) setDialogState(() => isDefault = val);
@@ -242,7 +237,7 @@ class _FilePreviewState extends State<FilePreview> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(l10n.cancel),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -278,7 +273,7 @@ class _FilePreviewState extends State<FilePreview> {
           String formatNum(int n) => n.toString().padLeft(2, '0');
 
           return AlertDialog(
-            title: const Text('TV Show Naming (SxxExx)'),
+            title: const Text('TV Show (SxxExx)'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -321,7 +316,7 @@ class _FilePreviewState extends State<FilePreview> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(AppLocalizations.of(context)!.cancel),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, 'S${formatNum(tempSeason)}E${formatNum(tempEpisode)}'),
@@ -349,7 +344,7 @@ class _FilePreviewState extends State<FilePreview> {
     final String? selectedPart = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Part Number'),
+        title: const Text('Select Part'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -366,7 +361,7 @@ class _FilePreviewState extends State<FilePreview> {
             TextField(
               controller: customPartController,
               decoration: const InputDecoration(
-                labelText: 'Custom Part Number',
+                labelText: 'Custom Part',
                 hintText: 'e.g. 5',
                 border: OutlineInputBorder(),
               ),
@@ -377,7 +372,7 @@ class _FilePreviewState extends State<FilePreview> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -385,7 +380,7 @@ class _FilePreviewState extends State<FilePreview> {
                 Navigator.pop(context, customPartController.text);
               }
             },
-            child: const Text('Apply Custom'),
+            child: const Text('Apply'),
           ),
         ],
       ),
@@ -421,6 +416,7 @@ class _FilePreviewState extends State<FilePreview> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (widget.file == null) {
       return const Center(child: Text('Select a file to preview'));
     }
@@ -451,7 +447,7 @@ class _FilePreviewState extends State<FilePreview> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              const Text('Operations', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(l10n.operations, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -471,52 +467,52 @@ class _FilePreviewState extends State<FilePreview> {
                     offset: const Offset(0, 60),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: RenameRule.matchFolder,
                         child: ListTile(
-                          leading: Icon(Icons.folder_copy, color: Colors.blue),
-                          title: Text('Match Folder Name'),
+                          leading: const Icon(Icons.folder_copy, color: Colors.blue),
+                          title: Text(l10n.matchFolderName),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: RenameRule.featurette,
                         child: ListTile(
-                          leading: Icon(Icons.star, color: Colors.orange),
-                          title: Text('Rename to Featurette'),
+                          leading: const Icon(Icons.star, color: Colors.orange),
+                          title: Text(l10n.renameToFeaturette),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: RenameRule.interview,
                         child: ListTile(
-                          leading: Icon(Icons.mic, color: Colors.purple),
-                          title: Text('Rename to Interview'),
+                          leading: const Icon(Icons.mic, color: Colors.purple),
+                          title: Text(l10n.renameToInterview),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: RenameRule.part,
                         child: ListTile(
-                          leading: Icon(Icons.segment, color: Colors.green),
-                          title: Text('Rename to Part...'),
+                          leading: const Icon(Icons.segment, color: Colors.green),
+                          title: Text(l10n.renameToPart),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: RenameRule.tvShow,
                         child: ListTile(
-                          leading: Icon(Icons.tv, color: Colors.red),
-                          title: Text('Rename to TV Show...'),
+                          leading: const Icon(Icons.tv, color: Colors.red),
+                          title: Text(l10n.renameToTVShow),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
                       if (label == 'Subtitle')
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: RenameRule.subtitle,
                           child: ListTile(
-                            leading: Icon(Icons.subtitles, color: Colors.teal),
-                            title: Text('Jellyfin Subtitle...'),
+                            leading: const Icon(Icons.subtitles, color: Colors.teal),
+                            title: Text(l10n.jellyfinSubtitle),
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
@@ -524,22 +520,24 @@ class _FilePreviewState extends State<FilePreview> {
                     child: ElevatedButton.icon(
                       onPressed: null,
                       style: buttonStyle.copyWith(
-                        backgroundColor: MaterialStateProperty.all(Colors.blue.shade700),
-                        foregroundColor: MaterialStateProperty.all(Colors.white),
+                        backgroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.primary),
+                        foregroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.onPrimary),
                       ),
                       icon: const Icon(Icons.drive_file_rename_outline),
-                      label: const Text('Rename File'),
+                      label: Text(l10n.renameFile),
                     ),
                   ),
                   const SizedBox(width: 16),
                   ElevatedButton.icon(
                     onPressed: _openFile,
                     style: buttonStyle.copyWith(
-                      backgroundColor: MaterialStateProperty.all(Colors.grey.shade800),
-                      foregroundColor: MaterialStateProperty.all(Colors.white),
+                      backgroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.secondaryContainer),
+                      foregroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.onSecondaryContainer),
                     ),
                     icon: const Icon(Icons.open_in_new),
-                    label: Text(label == 'Video' ? 'Play Video' : 'Open File'),
+                    label: Text(
+                      label == 'Video' ? l10n.playVideo : l10n.openFile,
+                    ),
                   ),
                 ],
               ),
@@ -591,9 +589,9 @@ class _FilePreviewState extends State<FilePreview> {
         return Container(
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
           ),
           child: FutureBuilder<String>(
             future: f.readAsString(),
@@ -607,7 +605,7 @@ class _FilePreviewState extends State<FilePreview> {
                   ),
                 );
               } else if (snapshot.hasError) {
-                return Center(child: Text('Error loading file: ${snapshot.error}'));
+                return Center(child: Text('Error: ${snapshot.error}'));
               }
               return const Center(child: CircularProgressIndicator());
             },
@@ -620,7 +618,7 @@ class _FilePreviewState extends State<FilePreview> {
             children: [
               const Icon(Icons.insert_drive_file, size: 100, color: Colors.grey),
               const SizedBox(height: 20),
-              Text('No preview available for $label files', style: const TextStyle(color: Colors.grey)),
+              Text('No preview available', style: const TextStyle(color: Colors.grey)),
             ],
           ),
         );

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
+import '../l10n/app_localizations.dart';
 import '../services/file_label_service.dart';
 import '../widgets/file_preview.dart';
 
@@ -135,28 +136,29 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
 
   Future<void> _createNewFolder() async {
     if (_currentDirectory == null) return;
+    final l10n = AppLocalizations.of(context)!;
 
     final TextEditingController folderNameController = TextEditingController();
     final String? folderName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create New Folder'),
+        title: Text(l10n.createNewFolder),
         content: TextField(
           controller: folderNameController,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Folder Name',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l10n.folderName,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, folderNameController.text),
-            child: const Text('Create'),
+            child: Text(l10n.create),
           ),
         ],
       ),
@@ -178,27 +180,28 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
   }
 
   Future<void> _renameEntity(FileSystemEntity entity) async {
+    final l10n = AppLocalizations.of(context)!;
     final TextEditingController nameController = TextEditingController(text: p.basename(entity.path));
     final String? newName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rename'),
+        title: Text(l10n.rename),
         content: TextField(
           controller: nameController,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'New Name',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l10n.newName,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, nameController.text),
-            child: const Text('Rename'),
+            child: Text(l10n.rename),
           ),
         ],
       ),
@@ -232,6 +235,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
   }
 
   void _showContextMenu(BuildContext context, Offset globalPosition, FileSystemEntity entity) {
+    final l10n = AppLocalizations.of(context)!;
     final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
 
     showMenu(
@@ -245,9 +249,9 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
           onTap: () {
             Future.delayed(Duration.zero, () => _renameEntity(entity));
           },
-          child: const ListTile(
-            leading: Icon(Icons.edit),
-            title: Text('Rename'),
+          child: ListTile(
+            leading: const Icon(Icons.edit),
+            title: Text(l10n.rename),
             contentPadding: EdgeInsets.zero,
           ),
         ),
@@ -257,6 +261,8 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Row(
       children: [
         // Left Side: File Browser
@@ -264,7 +270,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
           flex: 1,
           child: Container(
             decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: Colors.grey.shade300)),
+              border: Border(right: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
             ),
             child: Column(
               children: [
@@ -276,26 +282,26 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                       IconButton(
                         icon: const Icon(Icons.arrow_upward),
                         onPressed: _currentDirectory != null ? _goToParent : null,
-                        tooltip: 'Go to Parent Folder',
+                        tooltip: l10n.parentFolder,
                       ),
                       IconButton(
                         icon: const Icon(Icons.folder_open),
                         onPressed: _pickDirectory,
-                        tooltip: 'Open Directory',
+                        tooltip: l10n.openDirectory,
                       ),
                       IconButton(
                         icon: const Icon(Icons.create_new_folder),
                         onPressed: _currentDirectory != null ? _createNewFolder : null,
-                        tooltip: 'Create New Folder',
+                        tooltip: l10n.createNewFolder,
                       ),
                       IconButton(
                         icon: const Icon(Icons.refresh),
                         onPressed: _currentDirectory != null ? _loadFiles : null,
-                        tooltip: 'Refresh',
+                        tooltip: l10n.refresh,
                       ),
                       PopupMenuButton<dynamic>(
                         icon: const Icon(Icons.sort),
-                        tooltip: 'Sort Options',
+                        tooltip: l10n.sortBy,
                         onSelected: (value) {
                           setState(() {
                             if (value is SortOption) {
@@ -313,7 +319,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                               children: [
                                 Icon(_currentSort == SortOption.name ? Icons.check : null, size: 18),
                                 const SizedBox(width: 8),
-                                const Text('Name'),
+                                Text(l10n.sortByName),
                               ],
                             ),
                           ),
@@ -323,7 +329,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                               children: [
                                 Icon(_currentSort == SortOption.type ? Icons.check : null, size: 18),
                                 const SizedBox(width: 8),
-                                const Text('Type'),
+                                Text(l10n.sortByType),
                               ],
                             ),
                           ),
@@ -333,7 +339,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                               children: [
                                 Icon(_currentSort == SortOption.date ? Icons.check : null, size: 18),
                                 const SizedBox(width: 8),
-                                const Text('Date Modified'),
+                                Text(l10n.sortByDate),
                               ],
                             ),
                           ),
@@ -343,7 +349,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                               children: [
                                 Icon(_currentSort == SortOption.size ? Icons.check : null, size: 18),
                                 const SizedBox(width: 8),
-                                const Text('Size'),
+                                Text(l10n.sortBySize),
                               ],
                             ),
                           ),
@@ -354,7 +360,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                               children: [
                                 Icon(_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
                                 const SizedBox(width: 8),
-                                const Text('Ascending'),
+                                Text(l10n.ascending),
                               ],
                             ),
                           ),
@@ -364,7 +370,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                               children: [
                                 Icon(!_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
                                 const SizedBox(width: 8),
-                                const Text('Descending'),
+                                Text(l10n.descending),
                               ],
                             ),
                           ),
@@ -375,7 +381,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
+                            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
