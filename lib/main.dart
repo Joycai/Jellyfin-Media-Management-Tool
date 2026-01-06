@@ -1,11 +1,6 @@
-import 'dart:io';
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as p;
 import 'package:media_kit/media_kit.dart';
-import 'services/file_label_service.dart';
-import 'widgets/file_preview.dart';
+import 'screens/media_manager_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,16 +15,37 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Jellyfin Media Management Tool',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF005AC1), // A more professional Jellyfin-like blue
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        navigationRailTheme: NavigationRailThemeData(
+          backgroundColor: Colors.grey.shade50,
+          selectedIconTheme: const IconThemeData(color: Color(0xFF005AC1), size: 28),
+          unselectedIconTheme: IconThemeData(color: Colors.grey.shade600, size: 24),
+          selectedLabelTextStyle: const TextStyle(
+            color: Color(0xFF005AC1),
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+          unselectedLabelTextStyle: TextStyle(
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+          indicatorColor: const Color(0xFFD1E4FF),
+          indicatorShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
       ),
       home: const MainWorkspace(),
     );
   }
 }
-
-enum SortOption { name, type, date, size }
 
 class MainWorkspace extends StatefulWidget {
   const MainWorkspace({super.key});
@@ -39,446 +55,104 @@ class MainWorkspace extends StatefulWidget {
 }
 
 class _MainWorkspaceState extends State<MainWorkspace> {
-  String? _currentDirectory;
-  List<FileSystemEntity> _files = [];
-  FileSystemEntity? _selectedFile;
-  StreamSubscription<FileSystemEvent>? _directorySubscription;
-  SortOption _currentSort = SortOption.name;
-  bool _isAscending = true;
+  int _selectedIndex = 0;
 
-  @override
-  void dispose() {
-    _directorySubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _pickDirectory() async {
-    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-
-    if (selectedDirectory != null) {
-      setState(() {
-        _currentDirectory = selectedDirectory;
-        _selectedFile = null;
-        _loadFiles();
-        _watchDirectory();
-      });
-    }
-  }
-
-  void _watchDirectory() {
-    _directorySubscription?.cancel();
-    if (_currentDirectory != null) {
-      final directory = Directory(_currentDirectory!);
-      _directorySubscription = directory.watch().listen((event) {
-        if (event.type == FileSystemEvent.delete && event.path == _currentDirectory) {
-          _goToParent();
-        } else {
-          _loadFiles();
-        }
-      });
-    }
-  }
-
-  void _loadFiles() {
-    if (_currentDirectory != null) {
-      final directory = Directory(_currentDirectory!);
-      if (!directory.existsSync()) {
-        _goToParent();
-        return;
-      }
-
-      try {
-        final entities = directory.listSync().toList();
-        _sortEntities(entities);
-        setState(() {
-          _files = entities;
-        });
-      } catch (e) {
-        debugPrint('Error listing files: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error accessing directory: $e')),
-        );
-      }
-    }
-  }
-
-  void _sortEntities(List<FileSystemEntity> entities) {
-    entities.sort((a, b) {
-      // Always put directories first
-      if (a is Directory && b is! Directory) return -1;
-      if (a is! Directory && b is Directory) return 1;
-
-      int comparison;
-      switch (_currentSort) {
-        case SortOption.name:
-          comparison = p.basename(a.path).toLowerCase().compareTo(p.basename(b.path).toLowerCase());
-          break;
-        case SortOption.type:
-          final labelA = a is Directory ? 'Folder' : FileLabelService.getLabel(p.extension(a.path));
-          final labelB = b is Directory ? 'Folder' : FileLabelService.getLabel(p.extension(b.path));
-          comparison = labelA.compareTo(labelB);
-          if (comparison == 0) {
-            comparison = p.basename(a.path).toLowerCase().compareTo(p.basename(b.path).toLowerCase());
-          }
-          break;
-        case SortOption.date:
-          final statA = a.statSync();
-          final statB = b.statSync();
-          comparison = statA.modified.compareTo(statB.modified);
-          break;
-        case SortOption.size:
-          final sizeA = a is File ? a.lengthSync() : 0;
-          final sizeB = b is File ? b.lengthSync() : 0;
-          comparison = sizeA.compareTo(sizeB);
-          break;
-      }
-
-      return _isAscending ? comparison : -comparison;
-    });
-  }
-
-  void _goToParent() {
-    if (_currentDirectory != null) {
-      final parent = Directory(_currentDirectory!).parent;
-      if (parent.path != _currentDirectory) {
-        setState(() {
-          _currentDirectory = parent.path;
-          _selectedFile = null;
-          _loadFiles();
-          _watchDirectory();
-        });
-      } else {
-        setState(() {
-          _currentDirectory = null;
-          _files = [];
-          _selectedFile = null;
-        });
-      }
-    }
-  }
-
-  Future<void> _createNewFolder() async {
-    if (_currentDirectory == null) return;
-
-    final TextEditingController folderNameController = TextEditingController();
-    final String? folderName = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New Folder'),
-        content: TextField(
-          controller: folderNameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Folder Name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, folderNameController.text),
-            child: const Text('Create'),
-          ),
+  final List<Widget> _screens = [
+    const MediaManagerScreen(),
+    const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.settings_suggest_outlined, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text('Settings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Text('Configuration options coming soon...', style: TextStyle(color: Colors.grey)),
         ],
       ),
-    );
-
-    if (folderName != null && folderName.isNotEmpty) {
-      final newPath = p.join(_currentDirectory!, folderName);
-      try {
-        await Directory(newPath).create();
-        _loadFiles();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error creating folder: $e')),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _renameEntity(FileSystemEntity entity) async {
-    final TextEditingController nameController = TextEditingController(text: p.basename(entity.path));
-    final String? newName = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'New Name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, nameController.text),
-            child: const Text('Rename'),
-          ),
-        ],
-      ),
-    );
-
-    if (newName != null && newName.isNotEmpty && newName != p.basename(entity.path)) {
-      final newPath = p.join(entity.parent.path, newName);
-      try {
-        if (entity is File) {
-          final newFile = await entity.rename(newPath);
-          _onFileRenamed(newFile);
-        } else if (entity is Directory) {
-          await entity.rename(newPath);
-          _loadFiles();
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error renaming: $e')),
-          );
-        }
-      }
-    }
-  }
-
-  void _onFileRenamed(FileSystemEntity newEntity) {
-    setState(() {
-      _selectedFile = newEntity;
-      _loadFiles();
-    });
-  }
-
-  void _showContextMenu(BuildContext context, Offset globalPosition, FileSystemEntity entity) {
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-
-    showMenu(
-      context: context,
-      position: RelativeRect.fromRect(
-        globalPosition & const Size(40, 40),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(
-          onTap: () {
-            Future.delayed(Duration.zero, () => _renameEntity(entity));
-          },
-          child: const ListTile(
-            leading: Icon(Icons.edit),
-            title: Text('Rename'),
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-      ],
-    );
-  }
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Jellyfin Media Management Tool'),
-      ),
       body: Row(
         children: [
-          // Left Side: File Browser
-          Expanded(
-            flex: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey.shade300)),
+          NavigationRail(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (int index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+            extended: false,
+            minWidth: 80,
+            leading: Column(
+              children: [
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.auto_fix_high,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+            labelType: NavigationRailLabelType.all,
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.folder_copy_outlined),
+                selectedIcon: Icon(Icons.folder_copy),
+                label: Text('Manager'),
               ),
-              child: Column(
-                children: [
-                  // Browser Toolbar
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_upward),
-                          onPressed: _currentDirectory != null ? _goToParent : null,
-                          tooltip: 'Go to Parent Folder',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.folder_open),
-                          onPressed: _pickDirectory,
-                          tooltip: 'Open Directory',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.create_new_folder),
-                          onPressed: _currentDirectory != null ? _createNewFolder : null,
-                          tooltip: 'Create New Folder',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.refresh),
-                          onPressed: _currentDirectory != null ? _loadFiles : null,
-                          tooltip: 'Refresh',
-                        ),
-                        PopupMenuButton<dynamic>(
-                          icon: const Icon(Icons.sort),
-                          tooltip: 'Sort Options',
-                          onSelected: (value) {
-                            setState(() {
-                              if (value is SortOption) {
-                                _currentSort = value;
-                              } else if (value is bool) {
-                                _isAscending = value;
-                              }
-                              _loadFiles();
-                            });
-                          },
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: SortOption.name,
-                              child: Row(
-                                children: [
-                                  Icon(_currentSort == SortOption.name ? Icons.check : null, size: 18),
-                                  const SizedBox(width: 8),
-                                  const Text('Name'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: SortOption.type,
-                              child: Row(
-                                children: [
-                                  Icon(_currentSort == SortOption.type ? Icons.check : null, size: 18),
-                                  const SizedBox(width: 8),
-                                  const Text('Type'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: SortOption.date,
-                              child: Row(
-                                children: [
-                                  Icon(_currentSort == SortOption.date ? Icons.check : null, size: 18),
-                                  const SizedBox(width: 8),
-                                  const Text('Date Modified'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: SortOption.size,
-                              child: Row(
-                                children: [
-                                  Icon(_currentSort == SortOption.size ? Icons.check : null, size: 18),
-                                  const SizedBox(width: 8),
-                                  const Text('Size'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuDivider(),
-                            PopupMenuItem(
-                              value: true,
-                              child: Row(
-                                children: [
-                                  Icon(_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
-                                  const SizedBox(width: 8),
-                                  const Text('Ascending'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: false,
-                              child: Row(
-                                children: [
-                                  Icon(!_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
-                                  const SizedBox(width: 8),
-                                  const Text('Descending'),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _currentDirectory ?? 'No directory selected',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                      ],
+              NavigationRailDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: Text('Settings'),
+              ),
+            ],
+          ),
+          const VerticalDivider(thickness: 1, width: 1),
+          Expanded(
+            child: Column(
+              children: [
+                // Custom App Bar for a more integrated look
+                Container(
+                  height: 64,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
                     ),
                   ),
-                  const Divider(height: 1),
-                  // File List
-                  Expanded(
-                    child: _currentDirectory == null
-                        ? const Center(child: Text('Please select a directory'))
-                        : ListView.builder(
-                            itemCount: _files.length,
-                            itemBuilder: (context, index) {
-                              final entity = _files[index];
-                              final name = p.basename(entity.path);
-                              final isDirectory = entity is Directory;
-                              final extension = p.extension(entity.path);
-                              final label = isDirectory ? 'Folder' : FileLabelService.getLabel(extension);
-                              final isSelected = _selectedFile?.path == entity.path;
-
-                              return GestureDetector(
-                                onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition, entity),
-                                onLongPressStart: (details) => _showContextMenu(context, details.globalPosition, entity),
-                                child: InkWell(
-                                  onDoubleTap: isDirectory
-                                      ? () {
-                                          setState(() {
-                                            _currentDirectory = entity.path;
-                                            _selectedFile = null;
-                                            _loadFiles();
-                                            _watchDirectory();
-                                          });
-                                        }
-                                      : null,
-                                  child: ListTile(
-                                    leading: Icon(
-                                      FileLabelService.getIcon(label, isDirectory),
-                                      color: FileLabelService.getIconColor(label, isDirectory),
-                                    ),
-                                    title: Text(
-                                      name,
-                                      style: TextStyle(
-                                        fontWeight: isDirectory ? FontWeight.bold : FontWeight.normal,
-                                      ),
-                                    ),
-                                    subtitle: Text(label),
-                                    selected: isSelected,
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedFile = entity;
-                                      });
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                  child: Row(
+                    children: [
+                      Text(
+                        _selectedIndex == 0 ? 'Media Manager' : 'Settings',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.help_outline),
+                        onPressed: () {},
+                        tooltip: 'Help',
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
-          // Right Side: Operations / Preview
-          Expanded(
-            flex: 2,
-            child: FilePreview(
-              file: _selectedFile,
-              onRenamed: _onFileRenamed,
+                ),
+                Expanded(
+                  child: _screens[_selectedIndex],
+                ),
+              ],
             ),
           ),
         ],
