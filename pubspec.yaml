@@ -1,8 +1,8 @@
 name: jellyfin_media_management_tool
-description: "A new Flutter project."
+description: "A powerful cross-platform desktop tool for organizing and managing media files according to Jellyfin naming standards."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 0.9.0+1
 
 environment:
   sdk: ^3.10.4
