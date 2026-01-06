@@ -7,6 +7,7 @@ enum RenameRule {
   interview,
   part,
   tvShow,
+  subtitle,
 }
 
 class RenameService {
@@ -27,6 +28,9 @@ class RenameService {
       case RenameRule.tvShow:
         // extra format expected: "S01E01"
         return '$folderName.${extra ?? "S01E01"}$extension';
+      case RenameRule.subtitle:
+        // extra format expected: "VideoFileName.chi.[default]"
+        return '$extra$extension';
     }
   }
 
