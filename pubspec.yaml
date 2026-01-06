@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  file_picker: ^8.1.7
+  file_picker: ^10.3.8
   path: ^1.9.1
   url_launcher: ^6.3.1
   media_kit: ^1.1.10
