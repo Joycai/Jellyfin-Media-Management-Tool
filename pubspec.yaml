@@ -1,5 +1,5 @@
 name: jellyfin_media_management_tool
-description: "A new Flutter project."
+description: "A tool to manage jellyfin media."
 publish_to: 'none'
 
 version: 1.0.0+1
