@@ -77,7 +77,7 @@ class _MainWorkspaceState extends State<MainWorkspace> {
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsService>();
 
-    final List<Widget> _screens = [
+    final List<Widget> screens = [
       const MediaManagerScreen(),
       _buildSettingsScreen(context, l10n, settings),
     ];
@@ -133,7 +133,7 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     border: Border(
-                      bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                      bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
                     ),
                   ),
                   child: Row(
@@ -148,7 +148,7 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                   ),
                 ),
                 Expanded(
-                  child: _screens[_selectedIndex],
+                  child: screens[_selectedIndex],
                 ),
               ],
             ),
@@ -159,6 +159,10 @@ class _MainWorkspaceState extends State<MainWorkspace> {
   }
 
   Widget _buildSettingsScreen(BuildContext context, AppLocalizations l10n, SettingsService settings) {
+    // Determine current language code, defaulting to 'en' if null
+    final String currentLang = settings.locale?.languageCode ?? 
+                               Localizations.localeOf(context).languageCode;
+
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -183,14 +187,14 @@ class _MainWorkspaceState extends State<MainWorkspace> {
           children: [
             ChoiceChip(
               label: const Text('English'),
-              selected: settings.locale?.languageCode == 'en' || settings.locale == null,
+              selected: currentLang == 'en',
               onSelected: (selected) {
                 if (selected) settings.setLocale(const Locale('en'));
               },
             ),
             ChoiceChip(
               label: const Text('中文'),
-              selected: settings.locale?.languageCode == 'zh',
+              selected: currentLang == 'zh',
               onSelected: (selected) {
                 if (selected) settings.setLocale(const Locale('zh'));
               },

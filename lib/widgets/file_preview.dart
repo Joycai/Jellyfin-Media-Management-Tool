@@ -203,7 +203,7 @@ class _FilePreviewState extends State<FilePreview> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<File>(
-                  value: selectedVideo,
+                  initialValue: selectedVideo,
                   decoration: const InputDecoration(labelText: 'Video'),
                   items: videoFiles.map((v) {
                     return DropdownMenuItem(value: v, child: Text(p.basename(v.path), overflow: TextOverflow.ellipsis));
@@ -214,7 +214,7 @@ class _FilePreviewState extends State<FilePreview> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedLang,
+                  initialValue: selectedLang,
                   decoration: const InputDecoration(labelText: 'Language'),
                   items: langCodes.map((code) {
                     return DropdownMenuItem(value: code, child: Text(code));
@@ -520,8 +520,8 @@ class _FilePreviewState extends State<FilePreview> {
                     child: ElevatedButton.icon(
                       onPressed: null,
                       style: buttonStyle.copyWith(
-                        backgroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.primary),
-                        foregroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.onPrimary),
+                        backgroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+                        foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.onPrimary),
                       ),
                       icon: const Icon(Icons.drive_file_rename_outline),
                       label: Text(l10n.renameFile),
@@ -531,8 +531,8 @@ class _FilePreviewState extends State<FilePreview> {
                   ElevatedButton.icon(
                     onPressed: _openFile,
                     style: buttonStyle.copyWith(
-                      backgroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.secondaryContainer),
-                      foregroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.onSecondaryContainer),
+                      backgroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.secondaryContainer),
+                      foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.onSecondaryContainer),
                     ),
                     icon: const Icon(Icons.open_in_new),
                     label: Text(
@@ -574,7 +574,7 @@ class _FilePreviewState extends State<FilePreview> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, spreadRadius: 2),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, spreadRadius: 2),
             ],
           ),
           clipBehavior: Clip.antiAlias,
@@ -589,9 +589,9 @@ class _FilePreviewState extends State<FilePreview> {
         return Container(
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
           ),
           child: FutureBuilder<String>(
             future: f.readAsString(),
