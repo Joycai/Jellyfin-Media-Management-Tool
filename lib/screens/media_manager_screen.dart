@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/file_label_service.dart';
+import '../services/settings_service.dart';
 import '../widgets/file_preview.dart';
 
 enum SortOption { name, type, date, size }
@@ -259,6 +262,84 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
     );
   }
 
+  Future<void> _showSearchDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.read<SettingsService>();
+    
+    if (settings.searchSites.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No search sites configured in Settings')),
+      );
+      return;
+    }
+
+    final keywordController = TextEditingController(
+      text: _selectedFile != null ? p.basenameWithoutExtension(_selectedFile!.path) : '',
+    );
+    
+    // Use the last selected site index from settings
+    int selectedIndex = settings.lastSearchSiteIndex;
+    if (selectedIndex >= settings.searchSites.length) {
+      selectedIndex = 0;
+    }
+    SearchSite selectedSite = settings.searchSites[selectedIndex];
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l10n.searchFromWeb),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: keywordController,
+                decoration: InputDecoration(labelText: l10n.searchKeyword),
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<SearchSite>(
+                value: selectedSite,
+                decoration: InputDecoration(labelText: l10n.searchSite),
+                items: settings.searchSites.asMap().entries.map((entry) {
+                  return DropdownMenuItem(value: entry.value, child: Text(entry.value.name));
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setDialogState(() => selectedSite = val);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l10n.cancel)),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(l10n.search)),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && keywordController.text.isNotEmpty) {
+      // Save the selected site index to settings
+      final newIndex = settings.searchSites.indexOf(selectedSite);
+      if (newIndex != -1) {
+        settings.setLastSearchSiteIndex(newIndex);
+      }
+
+      String url = selectedSite.url;
+      final lang = settings.locale?.languageCode ?? Localizations.localeOf(context).languageCode;
+      
+      url = url.replaceAll('{keyword}', Uri.encodeComponent(keywordController.text));
+      url = url.replaceAll('{lang}', lang);
+
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -298,6 +379,11 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                         icon: const Icon(Icons.refresh),
                         onPressed: _currentDirectory != null ? _loadFiles : null,
                         tooltip: l10n.refresh,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.public),
+                        onPressed: _showSearchDialog,
+                        tooltip: l10n.searchFromWeb,
                       ),
                       PopupMenuButton<dynamic>(
                         icon: const Icon(Icons.sort),

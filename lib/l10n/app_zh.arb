@@ -37,5 +37,16 @@
   "light": "浅色",
   "dark": "深色",
   "system": "跟随系统",
-  "language": "语言"
+  "language": "语言",
+  "searchFromWeb": "从网页搜索",
+  "searchKeyword": "搜索关键词",
+  "searchSite": "搜索站点",
+  "search": "搜索",
+  "editSearchSites": "编辑搜索站点",
+  "siteName": "站点名称",
+  "searchUrl": "搜索 URL",
+  "addSite": "添加站点",
+  "delete": "删除",
+  "save": "保存",
+  "openConfigFolder": "打开配置文件夹"
 }

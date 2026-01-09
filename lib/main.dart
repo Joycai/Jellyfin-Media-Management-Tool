@@ -159,7 +159,6 @@ class _MainWorkspaceState extends State<MainWorkspace> {
   }
 
   Widget _buildSettingsScreen(BuildContext context, AppLocalizations l10n, SettingsService settings) {
-    // Determine current language code, defaulting to 'en' if null
     final String currentLang = settings.locale?.languageCode ?? 
                                Localizations.localeOf(context).languageCode;
 
@@ -201,7 +200,103 @@ class _MainWorkspaceState extends State<MainWorkspace> {
             ),
           ],
         ),
+        const SizedBox(height: 32),
+        Row(
+          children: [
+            Text(l10n.editSearchSites, style: Theme.of(context).textTheme.titleMedium),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => _showEditSiteDialog(context, null, settings, l10n),
+              tooltip: l10n.addSite,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...settings.searchSites.asMap().entries.map((entry) {
+          final index = entry.key;
+          final site = entry.value;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              title: Text(site.name),
+              subtitle: Text(site.url, maxLines: 1, overflow: TextOverflow.ellipsis),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _showEditSiteDialog(context, index, settings, l10n),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      final newSites = List<SearchSite>.from(settings.searchSites);
+                      newSites.removeAt(index);
+                      settings.updateSearchSites(newSites);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+        const SizedBox(height: 32),
+        const Divider(),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton.icon(
+            onPressed: settings.openConfigFolder,
+            icon: const Icon(Icons.folder_open),
+            label: Text(l10n.openConfigFolder),
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _showEditSiteDialog(BuildContext context, int? index, SettingsService settings, AppLocalizations l10n) async {
+    final site = index != null ? settings.searchSites[index] : null;
+    final nameController = TextEditingController(text: site?.name);
+    final urlController = TextEditingController(text: site?.url);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(index == null ? l10n.addSite : l10n.editSearchSites),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(labelText: l10n.siteName),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: urlController,
+              decoration: InputDecoration(
+                labelText: l10n.searchUrl,
+                hintText: 'https://...{keyword}...{lang}',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l10n.cancel)),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(l10n.save)),
+        ],
+      ),
+    );
+
+    if (result == true && nameController.text.isNotEmpty && urlController.text.isNotEmpty) {
+      final newSites = List<SearchSite>.from(settings.searchSites);
+      final newSite = SearchSite(name: nameController.text, url: urlController.text);
+      if (index == null) {
+        newSites.add(newSite);
+      } else {
+        newSites[index] = newSite;
+      }
+      settings.updateSearchSites(newSites);
+    }
   }
 }

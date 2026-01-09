@@ -37,5 +37,16 @@
   "light": "Light",
   "dark": "Dark",
   "system": "System",
-  "language": "Language"
+  "language": "Language",
+  "searchFromWeb": "Search from Web",
+  "searchKeyword": "Search Keyword",
+  "searchSite": "Search Site",
+  "search": "Search",
+  "editSearchSites": "Edit Search Sites",
+  "siteName": "Site Name",
+  "searchUrl": "Search URL",
+  "addSite": "Add Site",
+  "delete": "Delete",
+  "save": "Save",
+  "openConfigFolder": "Open Configuration Folder"
 }
