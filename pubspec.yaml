@@ -14,14 +14,14 @@ dependencies:
     sdk: flutter
   intl: 0.20.2
   cupertino_icons: ^1.0.8
-  file_picker: ^10.3.8
+  file_picker: ^10.3.10
   path: ^1.9.1
   path_provider: ^2.1.5
   url_launcher: ^6.3.2
-  media_kit: ^1.1.10
-  media_kit_libs_video: ^1.0.4
-  shared_preferences: ^2.2.2
-  provider: ^6.1.1
+  media_kit: ^1.2.6
+  media_kit_libs_video: ^1.0.7
+  shared_preferences: ^2.5.4
+  provider: ^6.1.5
 
 dev_dependencies:
   flutter_test:

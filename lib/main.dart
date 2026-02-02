@@ -240,7 +240,7 @@ class _MainWorkspaceState extends State<MainWorkspace> {
               ),
             ),
           );
-        }).toList(),
+        }),
         const SizedBox(height: 32),
         const Divider(),
         const SizedBox(height: 16),

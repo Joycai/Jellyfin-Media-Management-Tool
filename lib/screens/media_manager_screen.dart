@@ -284,6 +284,8 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
     }
     SearchSite selectedSite = settings.searchSites[selectedIndex];
 
+    final String defaultLang = Localizations.localeOf(context).languageCode;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -299,7 +301,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<SearchSite>(
-                value: selectedSite,
+                initialValue: selectedSite,
                 decoration: InputDecoration(labelText: l10n.searchSite),
                 items: settings.searchSites.asMap().entries.map((entry) {
                   return DropdownMenuItem(value: entry.value, child: Text(entry.value.name));
@@ -328,7 +330,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
       }
 
       String url = selectedSite.url;
-      final lang = settings.locale?.languageCode ?? Localizations.localeOf(context).languageCode;
+      final lang = settings.locale?.languageCode ?? defaultLang;
       
       url = url.replaceAll('{keyword}', Uri.encodeComponent(keywordController.text));
       url = url.replaceAll('{lang}', lang);
@@ -358,113 +360,114 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                 // Browser Toolbar
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_upward),
-                        onPressed: _currentDirectory != null ? _goToParent : null,
-                        tooltip: l10n.parentFolder,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.folder_open),
-                        onPressed: _pickDirectory,
-                        tooltip: l10n.openDirectory,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.create_new_folder),
-                        onPressed: _currentDirectory != null ? _createNewFolder : null,
-                        tooltip: l10n.createNewFolder,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        onPressed: _currentDirectory != null ? _loadFiles : null,
-                        tooltip: l10n.refresh,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.public),
-                        onPressed: _showSearchDialog,
-                        tooltip: l10n.searchFromWeb,
-                      ),
-                      PopupMenuButton<dynamic>(
-                        icon: const Icon(Icons.sort),
-                        tooltip: l10n.sortBy,
-                        onSelected: (value) {
-                          setState(() {
-                            if (value is SortOption) {
-                              _currentSort = value;
-                            } else if (value is bool) {
-                              _isAscending = value;
-                            }
-                            _loadFiles();
-                          });
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: SortOption.name,
-                            child: Row(
-                              children: [
-                                Icon(_currentSort == SortOption.name ? Icons.check : null, size: 18),
-                                const SizedBox(width: 8),
-                                Text(l10n.sortByName),
-                              ],
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_upward),
+                          onPressed: _currentDirectory != null ? _goToParent : null,
+                          tooltip: l10n.parentFolder,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.folder_open),
+                          onPressed: _pickDirectory,
+                          tooltip: l10n.openDirectory,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.create_new_folder),
+                          onPressed: _currentDirectory != null ? _createNewFolder : null,
+                          tooltip: l10n.createNewFolder,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.refresh),
+                          onPressed: _currentDirectory != null ? _loadFiles : null,
+                          tooltip: l10n.refresh,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.public),
+                          onPressed: _showSearchDialog,
+                          tooltip: l10n.searchFromWeb,
+                        ),
+                        PopupMenuButton<dynamic>(
+                          icon: const Icon(Icons.sort),
+                          tooltip: l10n.sortBy,
+                          onSelected: (value) {
+                            setState(() {
+                              if (value is SortOption) {
+                                _currentSort = value;
+                              } else if (value is bool) {
+                                _isAscending = value;
+                              }
+                              _loadFiles();
+                            });
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: SortOption.name,
+                              child: Row(
+                                children: [
+                                  Icon(_currentSort == SortOption.name ? Icons.check : null, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.sortByName),
+                                ],
+                              ),
                             ),
-                          ),
-                          PopupMenuItem(
-                            value: SortOption.type,
-                            child: Row(
-                              children: [
-                                Icon(_currentSort == SortOption.type ? Icons.check : null, size: 18),
-                                const SizedBox(width: 8),
-                                Text(l10n.sortByType),
-                              ],
+                            PopupMenuItem(
+                              value: SortOption.type,
+                              child: Row(
+                                children: [
+                                  Icon(_currentSort == SortOption.type ? Icons.check : null, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.sortByType),
+                                ],
+                              ),
                             ),
-                          ),
-                          PopupMenuItem(
-                            value: SortOption.date,
-                            child: Row(
-                              children: [
-                                Icon(_currentSort == SortOption.date ? Icons.check : null, size: 18),
-                                const SizedBox(width: 8),
-                                Text(l10n.sortByDate),
-                              ],
+                            PopupMenuItem(
+                              value: SortOption.date,
+                              child: Row(
+                                children: [
+                                  Icon(_currentSort == SortOption.date ? Icons.check : null, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.sortByDate),
+                                ],
+                              ),
                             ),
-                          ),
-                          PopupMenuItem(
-                            value: SortOption.size,
-                            child: Row(
-                              children: [
-                                Icon(_currentSort == SortOption.size ? Icons.check : null, size: 18),
-                                const SizedBox(width: 8),
-                                Text(l10n.sortBySize),
-                              ],
+                            PopupMenuItem(
+                              value: SortOption.size,
+                              child: Row(
+                                children: [
+                                  Icon(_currentSort == SortOption.size ? Icons.check : null, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.sortBySize),
+                                ],
+                              ),
                             ),
-                          ),
-                          const PopupMenuDivider(),
-                          PopupMenuItem(
-                            value: true,
-                            child: Row(
-                              children: [
-                                Icon(_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
-                                const SizedBox(width: 8),
-                                Text(l10n.ascending),
-                              ],
+                            const PopupMenuDivider(),
+                            PopupMenuItem(
+                              value: true,
+                              child: Row(
+                                children: [
+                                  Icon(_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.ascending),
+                                ],
+                              ),
                             ),
-                          ),
-                          PopupMenuItem(
-                            value: false,
-                            child: Row(
-                              children: [
-                                Icon(!_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
-                                const SizedBox(width: 8),
-                                Text(l10n.descending),
-                              ],
+                            PopupMenuItem(
+                              value: false,
+                              child: Row(
+                                children: [
+                                  Icon(!_isAscending ? Icons.radio_button_checked : Icons.radio_button_off, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.descending),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Container(
+                          ],
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
@@ -476,8 +479,8 @@ class _MediaManagerScreenState extends State<MediaManagerScreen> {
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const Divider(height: 1),
