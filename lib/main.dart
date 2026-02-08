@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'l10n/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
+
+import 'l10n/app_localizations.dart';
 import 'screens/media_manager_screen.dart';
 import 'services/settings_service.dart';
 

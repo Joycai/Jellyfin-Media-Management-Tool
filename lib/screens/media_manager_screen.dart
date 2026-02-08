@@ -1,10 +1,12 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../l10n/app_localizations.dart';
 import '../services/file_label_service.dart';
 import '../services/settings_service.dart';
