@@ -397,6 +397,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open Configuration Folder'**
   String get openConfigFolder;
+
+  /// No description provided for @areYouSure.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure?'**
+  String get areYouSure;
+
+  /// No description provided for @sizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Size: {size}'**
+  String sizeLabel(Object size);
+
+  /// No description provided for @durationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration: {duration}'**
+  String durationLabel(Object duration);
+
+  /// No description provided for @resolutionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution: {resolution}'**
+  String resolutionLabel(Object resolution);
+
+  /// No description provided for @noDirectorySelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No directory selected'**
+  String get noDirectorySelected;
+
+  /// No description provided for @pleaseSelectDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a directory'**
+  String get pleaseSelectDirectory;
+
+  /// No description provided for @noPreviewAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No preview available'**
+  String get noPreviewAvailable;
+
+  /// No description provided for @directoriesCannotBePreviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Directories cannot be previewed'**
+  String get directoriesCannotBePreviewed;
+
+  /// No description provided for @selectFileToPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a file to preview'**
+  String get selectFileToPreview;
+
+  /// No description provided for @errorAccessingDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Error accessing directory: {error}'**
+  String errorAccessingDirectory(Object error);
+
+  /// No description provided for @errorCreatingFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Error creating folder: {error}'**
+  String errorCreatingFolder(Object error);
+
+  /// No description provided for @errorRenaming.
+  ///
+  /// In en, this message translates to:
+  /// **'Error renaming: {error}'**
+  String errorRenaming(Object error);
+
+  /// No description provided for @noSearchSitesConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'No search sites configured in Settings'**
+  String get noSearchSitesConfigured;
+
+  /// No description provided for @season.
+  ///
+  /// In en, this message translates to:
+  /// **'Season'**
+  String get season;
+
+  /// No description provided for @episode.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode'**
+  String get episode;
+
+  /// No description provided for @selectPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Part'**
+  String get selectPart;
+
+  /// No description provided for @customPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Part'**
+  String get customPart;
+
+  /// No description provided for @apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apply;
+
+  /// No description provided for @isDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get isDefault;
+
+  /// No description provided for @languageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get languageLabel;
+
+  /// No description provided for @video.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get video;
 }
 
 class _AppLocalizationsDelegate

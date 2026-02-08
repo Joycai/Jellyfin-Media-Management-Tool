@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -158,4 +157,79 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get openConfigFolder => '打开配置文件夹';
+
+  @override
+  String get areYouSure => '您确定吗？';
+
+  @override
+  String sizeLabel(Object size) {
+    return '大小: $size';
+  }
+
+  @override
+  String durationLabel(Object duration) {
+    return '时长: $duration';
+  }
+
+  @override
+  String resolutionLabel(Object resolution) {
+    return '分辨率: $resolution';
+  }
+
+  @override
+  String get noDirectorySelected => '未选择目录';
+
+  @override
+  String get pleaseSelectDirectory => '请选择一个目录';
+
+  @override
+  String get noPreviewAvailable => '无可用预览';
+
+  @override
+  String get directoriesCannotBePreviewed => '无法预览目录';
+
+  @override
+  String get selectFileToPreview => '选择一个文件进行预览';
+
+  @override
+  String errorAccessingDirectory(Object error) {
+    return '访问目录出错: $error';
+  }
+
+  @override
+  String errorCreatingFolder(Object error) {
+    return '创建文件夹出错: $error';
+  }
+
+  @override
+  String errorRenaming(Object error) {
+    return '重命名出错: $error';
+  }
+
+  @override
+  String get noSearchSitesConfigured => '设置中未配置搜索站点';
+
+  @override
+  String get season => '季';
+
+  @override
+  String get episode => '集';
+
+  @override
+  String get selectPart => '选择分段';
+
+  @override
+  String get customPart => '自定义分段';
+
+  @override
+  String get apply => '应用';
+
+  @override
+  String get isDefault => '默认';
+
+  @override
+  String get languageLabel => '语言';
+
+  @override
+  String get video => '视频';
 }

@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -158,4 +157,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openConfigFolder => 'Open Configuration Folder';
+
+  @override
+  String get areYouSure => 'Are you sure?';
+
+  @override
+  String sizeLabel(Object size) {
+    return 'Size: $size';
+  }
+
+  @override
+  String durationLabel(Object duration) {
+    return 'Duration: $duration';
+  }
+
+  @override
+  String resolutionLabel(Object resolution) {
+    return 'Resolution: $resolution';
+  }
+
+  @override
+  String get noDirectorySelected => 'No directory selected';
+
+  @override
+  String get pleaseSelectDirectory => 'Please select a directory';
+
+  @override
+  String get noPreviewAvailable => 'No preview available';
+
+  @override
+  String get directoriesCannotBePreviewed => 'Directories cannot be previewed';
+
+  @override
+  String get selectFileToPreview => 'Select a file to preview';
+
+  @override
+  String errorAccessingDirectory(Object error) {
+    return 'Error accessing directory: $error';
+  }
+
+  @override
+  String errorCreatingFolder(Object error) {
+    return 'Error creating folder: $error';
+  }
+
+  @override
+  String errorRenaming(Object error) {
+    return 'Error renaming: $error';
+  }
+
+  @override
+  String get noSearchSitesConfigured =>
+      'No search sites configured in Settings';
+
+  @override
+  String get season => 'Season';
+
+  @override
+  String get episode => 'Episode';
+
+  @override
+  String get selectPart => 'Select Part';
+
+  @override
+  String get customPart => 'Custom Part';
+
+  @override
+  String get apply => 'Apply';
+
+  @override
+  String get isDefault => 'Default';
+
+  @override
+  String get languageLabel => 'Language';
+
+  @override
+  String get video => 'Video';
 }

@@ -3,14 +3,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:jellyfin_media_management_tool/main.dart';
 import 'package:jellyfin_media_management_tool/services/settings_service.dart';
+import 'package:jellyfin_media_management_tool/services/file_browser_service.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
     final settingsService = SettingsService();
     
     await tester.pumpWidget(
-      ChangeNotifierProvider<SettingsService>.value(
-        value: settingsService,
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<SettingsService>.value(value: settingsService),
+          ChangeNotifierProvider(create: (_) => FileBrowserService()),
+        ],
         child: const MyApp(),
       ),
     );

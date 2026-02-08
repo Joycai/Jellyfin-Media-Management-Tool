@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/media_manager_screen.dart';
 import 'services/settings_service.dart';
+import 'services/file_browser_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +16,11 @@ void main() async {
   await settingsService.init();
 
   runApp(
-    ChangeNotifierProvider.value(
-      value: settingsService,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: settingsService),
+        ChangeNotifierProvider(create: (_) => FileBrowserService()),
+      ],
       child: const MyApp(),
     ),
   );
