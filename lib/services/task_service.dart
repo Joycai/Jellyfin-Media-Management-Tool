@@ -1,0 +1,198 @@
+import 'dart:async';
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+
+import '../models/organize_plan.dart';
+import 'ai_service.dart';
+import 'apply_controller.dart';
+
+/// What kind of work a [OrganizerTask] is doing.
+enum TaskKind {
+  /// AI is analyzing a folder to produce an `OrganizePlan`.
+  analyze,
+
+  /// The user-confirmed plan is being moved/renamed on disk.
+  apply,
+}
+
+enum TaskStatus { running, done, failed, stopped }
+
+/// One unit of background work shown in the Tasks tab. Analyze tasks just hold
+/// metadata; apply tasks carry the live [ApplyController] so the UI can render
+/// real-time progress without polling the service.
+class OrganizerTask {
+  final String id;
+  final TaskKind kind;
+
+  /// Display label — folder basename or similar. Stays stable across the
+  /// task's lifetime.
+  final String label;
+
+  /// Started time for relative-time rendering.
+  final DateTime startedAt;
+
+  /// Apply-only: the controller actually running the move loop. Watch it for
+  /// live progress; pause/stop go through it directly.
+  final ApplyController? controller;
+
+  TaskStatus status;
+  DateTime? finishedAt;
+
+  /// Short summary line shown after completion ("整理 22 项 · 1.2 GB").
+  String? summary;
+
+  /// Error message when [status] == failed.
+  String? error;
+
+  OrganizerTask({
+    required this.id,
+    required this.kind,
+    required this.label,
+    required this.startedAt,
+    this.controller,
+    this.status = TaskStatus.running,
+    this.finishedAt,
+    this.summary,
+    this.error,
+  });
+
+  bool get isFinished => status != TaskStatus.running;
+}
+
+/// Tracks AI analyze + apply tasks the user has kicked off so the Tasks tab
+/// can render them. The service does not own analyze logic — callers pass
+/// the work and the service wraps it with progress + status bookkeeping.
+class TaskService extends ChangeNotifier {
+  final List<OrganizerTask> _tasks = [];
+  final Random _rng = Random();
+
+  List<OrganizerTask> get tasks => List.unmodifiable(_tasks);
+
+  /// Count of tasks still running — drives the tab badge.
+  int get runningCount => _tasks.where((t) => t.status == TaskStatus.running).length;
+
+  String _newId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${_rng.nextInt(1 << 32)}';
+
+  /// Runs [ai.analyzeFolder] under a new task entry. Returns the [OrganizerTask]
+  /// so the caller can also stash references if needed; the task is already
+  /// in [tasks] when this returns.
+  OrganizerTask startAnalyze({
+    required AiService ai,
+    required String baseDir,
+    String? titleHint,
+    String? mediaTypeHint,
+  }) {
+    final task = OrganizerTask(
+      id: _newId(),
+      kind: TaskKind.analyze,
+      label: p.basename(baseDir),
+      startedAt: DateTime.now(),
+    );
+    _tasks.insert(0, task);
+    notifyListeners();
+
+    // Fire-and-forget: completion updates the task.
+    unawaited(() async {
+      try {
+        final plan = await ai.analyzeFolder(
+          baseDir,
+          titleHint: titleHint,
+          mediaTypeHint: mediaTypeHint,
+        );
+        task
+          ..status = TaskStatus.done
+          ..finishedAt = DateTime.now()
+          ..summary = _analyzeSummary(plan);
+      } catch (e) {
+        task
+          ..status = TaskStatus.failed
+          ..finishedAt = DateTime.now()
+          ..error = e.toString();
+      }
+      notifyListeners();
+    }());
+
+    return task;
+  }
+
+  /// Registers an apply task wrapping [controller] and kicks off
+  /// `controller.start()`. The controller's own listeners drive the live
+  /// progress UI; this method just bookkeeps status transitions.
+  OrganizerTask startApply({
+    required ApplyController controller,
+    required String label,
+    VoidCallback? onDone,
+  }) {
+    final task = OrganizerTask(
+      id: _newId(),
+      kind: TaskKind.apply,
+      label: label,
+      startedAt: DateTime.now(),
+      controller: controller,
+    );
+    _tasks.insert(0, task);
+    notifyListeners();
+
+    void listener() {
+      if (!controller.status.isTerminal) return;
+      task
+        ..status = _statusFromApply(controller.status)
+        ..finishedAt ??= DateTime.now()
+        ..summary = _applySummary(controller);
+      controller.removeListener(listener);
+      notifyListeners();
+      if (onDone != null) onDone();
+    }
+
+    controller.addListener(listener);
+    unawaited(controller.start());
+
+    return task;
+  }
+
+  /// Removes a finished task. No-op on running tasks (use the controller's
+  /// stop method first for apply tasks).
+  void dismiss(String id) {
+    final i = _tasks.indexWhere((t) => t.id == id);
+    if (i < 0) return;
+    final t = _tasks[i];
+    if (!t.isFinished) return;
+    _tasks.removeAt(i);
+    notifyListeners();
+  }
+
+  /// Clears every finished task at once.
+  void clearFinished() {
+    _tasks.removeWhere((t) => t.isFinished);
+    notifyListeners();
+  }
+
+  String _analyzeSummary(OrganizePlan plan) {
+    final n = plan.actions.length;
+    final tokens = plan.promptTokens + plan.completionTokens;
+    return '$n · $tokens tok';
+  }
+
+  String _applySummary(ApplyController c) {
+    if (c.status == ApplyStatus.stopped) {
+      return '${c.done}/${c.total} · stopped';
+    }
+    if (c.failed > 0) {
+      return '${c.done} ok · ${c.failed} failed';
+    }
+    return '${c.done}/${c.total}';
+  }
+
+  TaskStatus _statusFromApply(ApplyStatus s) => switch (s) {
+        ApplyStatus.done => TaskStatus.done,
+        ApplyStatus.stopped => TaskStatus.stopped,
+        _ => TaskStatus.running,
+      };
+}
+
+extension on ApplyStatus {
+  bool get isTerminal => this == ApplyStatus.done || this == ApplyStatus.stopped;
+}

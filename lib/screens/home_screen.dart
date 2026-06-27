@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../services/ai_service.dart';
 import '../services/file_browser_service.dart';
 import '../services/settings_service.dart';
+import '../services/task_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ai/ai_assistant_panel.dart';
 import '../widgets/dialogs/title_hint_dialog.dart';
@@ -16,6 +17,7 @@ import '../widgets/ai/organize_history_screen.dart';
 import '../widgets/glass/glass_panel.dart';
 import '../widgets/settings/settings_screen.dart';
 import '../widgets/sidebar/app_sidebar.dart';
+import '../widgets/tasks/tasks_screen.dart';
 
 /// App shell under the native title bar: a full-width header (brand · section
 /// tabs · search · actions) over the three glass panes.
@@ -54,19 +56,36 @@ class _HomeScreenState extends State<HomeScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final browser = context.read<FileBrowserService>();
     final ai = context.read<AiService>();
+    final tasks = context.read<TaskService>();
     final dir = browser.currentDirectory;
     if (dir == null) return;
     if (!ai.isConfigured) {
       messenger.showSnackBar(SnackBar(content: Text(l10n.aiNotConfigured)));
       return;
     }
-    final hint = await showTitleHintDialog(context, folderName: p.basename(dir));
-    if (hint == null) return; // user cancelled
-    try {
-      await ai.analyzeFolder(dir, titleHint: hint.isEmpty ? null : hint);
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.analyzeFailed(e.toString()))));
-    }
+    final result = await showTitleHintDialog(context, folderName: p.basename(dir));
+    if (result == null) return; // user cancelled
+    final typeHint = switch (result.kind) {
+      MediaKindHint.movie => 'movie',
+      MediaKindHint.series => 'series',
+      MediaKindHint.auto => null,
+    };
+
+    // Hand the work to TaskService — the Tasks tab shows live progress.
+    tasks.startAnalyze(
+      ai: ai,
+      baseDir: dir,
+      titleHint: result.title.isEmpty ? null : result.title,
+      mediaTypeHint: typeHint,
+    );
+
+    messenger.showSnackBar(SnackBar(
+      content: Text(l10n.tasksAnalyzeStarted),
+      action: SnackBarAction(
+        label: l10n.tabTasks,
+        onPressed: () => setState(() => _section = _Section.tasks),
+      ),
+    ));
   }
 
   @override
@@ -120,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case _Section.library:
         return _ComingSoon(icon: Icons.video_library_rounded, label: AppLocalizations.of(context)!.tabLibrary);
       case _Section.tasks:
-        return _ComingSoon(icon: Icons.bolt_rounded, label: AppLocalizations.of(context)!.tabTasks);
+        return const TasksScreen();
     }
   }
 }
@@ -180,7 +199,13 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 8),
           _NavTab(icon: Icons.folder_rounded, label: l10n.tabFiles, selected: section == _Section.files, onTap: () => onSection(_Section.files)),
           _NavTab(icon: Icons.video_library_rounded, label: l10n.tabLibrary, selected: section == _Section.library, onTap: () => onSection(_Section.library)),
-          _NavTab(icon: Icons.bolt_rounded, label: l10n.tabTasks, selected: section == _Section.tasks, onTap: () => onSection(_Section.tasks)),
+          _NavTab(
+            icon: Icons.bolt_rounded,
+            label: l10n.tabTasks,
+            selected: section == _Section.tasks,
+            onTap: () => onSection(_Section.tasks),
+            badge: context.watch<TaskService>().runningCount,
+          ),
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -250,11 +275,15 @@ class _NavTab extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// Small running-task count rendered as a pill next to the label. 0 hides it.
+  final int badge;
+
   const _NavTab({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.badge = 0,
   });
 
   @override
@@ -282,6 +311,25 @@ class _NavTab extends StatelessWidget {
                     color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
                   ),
                 ),
+                if (badge > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$badge',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

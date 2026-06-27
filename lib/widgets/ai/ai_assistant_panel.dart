@@ -12,9 +12,9 @@ import '../../services/rename_service.dart';
 import '../../theme/app_theme.dart';
 import '../../services/apply_controller.dart';
 import '../../services/history_service.dart';
+import '../../services/task_service.dart';
 import '../glass/glass_panel.dart';
 import 'organize_preview_dialog.dart';
-import 'organize_progress_screen.dart';
 import '../dialogs/part_dialog.dart';
 import '../dialogs/subtitle_dialog.dart';
 import '../dialogs/tv_show_dialog.dart';
@@ -108,6 +108,8 @@ class AiAssistantPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
     final browser = context.read<FileBrowserService>();
+    final tasks = context.read<TaskService>();
+    final history = context.read<HistoryService>();
     final plan = ai.currentPlan!;
     final baseDir = ai.planBaseDir!;
     final totalBytes = _sumSourceSizes(plan, baseDir);
@@ -119,23 +121,34 @@ class AiAssistantPanel extends StatelessWidget {
       totalBytes: totalBytes,
     );
     if (res == null || !res.apply) return;
-    if (!context.mounted) return;
 
     final controller = ApplyController(
       plan: plan,
       baseDir: baseDir,
       backup: res.backup,
       totalBytes: totalBytes,
-      history: context.read<HistoryService>(),
+      history: history,
     );
-    final result = await OrganizeProgressScreen.show(context, controller);
-    controller.dispose();
-    browser.refresh();
+    tasks.startApply(
+      controller: controller,
+      label: p.basename(baseDir),
+      onDone: () {
+        final result = controller.result;
+        browser.refresh();
+        messenger.showSnackBar(SnackBar(
+          content: Text(result.hasFailures
+              ? l10n.applyPartial(result.failed, result.succeeded)
+              : l10n.applyDone(result.succeeded)),
+        ));
+        // controller stays alive until the task is dismissed so the user can
+        // re-open the detail screen post-completion; TaskService.dismiss is
+        // the cue to free it. For now keep it — typical tasks are small.
+      },
+    );
     ai.clearPlan();
+
     messenger.showSnackBar(SnackBar(
-      content: Text(result.hasFailures
-          ? l10n.applyPartial(result.failed, result.succeeded)
-          : l10n.applyDone(result.succeeded)),
+      content: Text(l10n.tasksApplyStarted),
     ));
   }
 

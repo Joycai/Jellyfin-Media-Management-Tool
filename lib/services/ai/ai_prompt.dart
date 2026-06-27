@@ -63,17 +63,24 @@ Respond with this exact shape:
 }
 ''';
 
-  /// Serializes the folder context into the user message. If [titleHint] is
-  /// non-empty, the user is telling the model the intended movie/series title —
-  /// the model should trust it over guesswork from filenames.
+  /// Serializes the folder context into the user message.
+  ///
+  /// [mediaTypeHint] is `"movie"`, `"series"`, or null. When set, the user is
+  /// telling the model the folder's media type — the model should trust it
+  /// instead of inferring from filenames, and set `mediaType` in the response
+  /// accordingly. [titleHint], when non-empty, is the canonical movie/series
+  /// title the model should use.
   static String buildUserPrompt({
     required String folderName,
     required List<MediaEntryInput> entries,
     String? titleHint,
+    String? mediaTypeHint,
   }) {
     final hint = titleHint?.trim();
+    final type = mediaTypeHint?.trim();
     final payload = <String, Object>{
       'folder': folderName,
+      if (type != null && type.isNotEmpty) 'userMediaType': type,
       if (hint != null && hint.isNotEmpty) 'userTitleHint': hint,
       'files': [
         for (final e in entries)
@@ -84,12 +91,32 @@ Respond with this exact shape:
           }
       ],
     };
-    final preamble = hint != null && hint.isNotEmpty
-        ? 'Organize this folder into a Jellyfin-conform structure. The user '
-            'says these files are for "$hint" — trust that title over '
-            'filename guesswork, but still infer the year and season/episode '
-            'numbers from the files.\n'
-        : 'Organize this folder into a Jellyfin-conform structure.\n';
-    return '$preamble${const JsonEncoder.withIndent('  ').convert(payload)}';
+
+    final parts = <String>[
+      'Organize this folder into a Jellyfin-conform structure.',
+    ];
+    if (type == 'movie') {
+      parts.add(
+        'The user has confirmed this folder is a MOVIE — set "mediaType" to '
+        '"movie" and use the Movies/ target root. Do not classify any item as '
+        'an episode.',
+      );
+    } else if (type == 'series') {
+      parts.add(
+        'The user has confirmed this folder is a TV SERIES — set "mediaType" '
+        'to "series" and use the Shows/ target root. Detect season and '
+        'episode numbers per video file.',
+      );
+    }
+    if (hint != null && hint.isNotEmpty) {
+      parts.add(
+        'The user says the title is "$hint" — trust that over filename '
+        'guesswork, but still infer the year and season/episode numbers '
+        'from the files.',
+      );
+    }
+
+    return '${parts.join(' ')}\n'
+        '${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 }

@@ -949,4 +949,71 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiHintSkip => '跳过';
+
+  @override
+  String get aiHintKindLabel => '媒体类型';
+
+  @override
+  String get aiHintKindAuto => '自动判断';
+
+  @override
+  String get aiHintKindMovie => '电影';
+
+  @override
+  String get aiHintKindSeries => '剧集';
+
+  @override
+  String get aiHintLabelMovie => '电影名';
+
+  @override
+  String get aiHintLabelSeries => '剧名';
+
+  @override
+  String get tasksTitle => '任务';
+
+  @override
+  String get tasksEmpty => '暂无任务';
+
+  @override
+  String get tasksEmptyHint => 'AI 分析与整理任务会出现在这里';
+
+  @override
+  String get tasksClearFinished => '清理已完成';
+
+  @override
+  String tasksAnalyzeLabel(Object folder) {
+    return 'AI 分析 · $folder';
+  }
+
+  @override
+  String tasksApplyLabel(Object folder) {
+    return '整理 · $folder';
+  }
+
+  @override
+  String get tasksAnalyzeRunning => 'AI 正在分析…';
+
+  @override
+  String get tasksAnalyzeDone => '分析完成';
+
+  @override
+  String get tasksAnalyzeStarted => 'AI 分析已开始 · 进度在「任务」中查看';
+
+  @override
+  String get tasksApplyStarted => '整理任务已开始 · 在「任务」中查看进度';
+
+  @override
+  String get tasksRunning => '进行中';
+
+  @override
+  String get tasksDone => '完成';
+
+  @override
+  String get tasksFailed => '失败';
+
+  @override
+  String get tasksViewDetail => '查看详情';
+
+  @override
+  String get tasksDismiss => '移除';
 }
