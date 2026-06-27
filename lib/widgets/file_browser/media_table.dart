@@ -345,10 +345,14 @@ class _FileRow extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            Tooltip(
+                              message: name,
+                              waitDuration: const Duration(milliseconds: 350),
+                              child: Text(name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            ),
                             if (action?.status == ActionStatus.needsReview)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
@@ -415,11 +419,15 @@ class _SuggestionCell extends StatelessWidget {
             size: 15, color: applied ? const Color(0xFF34C759) : scheme.primary),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(
-            action!.target,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12.5, color: scheme.primary, height: 1.25),
+          child: Tooltip(
+            message: action!.target,
+            waitDuration: const Duration(milliseconds: 350),
+            child: Text(
+              action!.target,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12.5, color: scheme.primary, height: 1.25),
+            ),
           ),
         ),
       ],

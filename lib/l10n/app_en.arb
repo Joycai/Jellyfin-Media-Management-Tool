@@ -276,5 +276,11 @@
   "onboardingAiBody": "Both major protocols are supported. You can also add one later in Settings.",
   "onboardingProviderOpenAi": "OpenAI-compatible endpoint",
   "onboardingConfigureLater": "Configure later",
-  "onboardingEnterWorkspace": "Enter workspace →"
+  "onboardingEnterWorkspace": "Enter workspace →",
+  "aiHintTitle": "Add a title hint (optional)",
+  "aiHintSubtitle": "Tell the AI which movie or series this is — useful when filenames are mangled. Leave blank to let the AI infer it.",
+  "aiHintLabel": "Title",
+  "aiHintPlaceholder": "e.g. Dune, Stranger Things (folder: {folder})",
+  "aiHintAnalyze": "Analyze",
+  "aiHintSkip": "Skip"
 }

@@ -104,7 +104,7 @@ class AiService extends ChangeNotifier {
 
   /// Analyzes [baseDir] and stores the resulting [OrganizePlan]. Throws
   /// [AiException]/[FormatException] on failure (caller surfaces it).
-  Future<OrganizePlan> analyzeFolder(String baseDir) async {
+  Future<OrganizePlan> analyzeFolder(String baseDir, {String? titleHint}) async {
     if (!_config.isComplete) {
       throw const AiException('AI is not configured.');
     }
@@ -124,6 +124,7 @@ class AiService extends ChangeNotifier {
         userPrompt: AiPrompt.buildUserPrompt(
           folderName: p.basename(baseDir),
           entries: entries,
+          titleHint: titleHint,
         ),
       );
       sw.stop();

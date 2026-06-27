@@ -361,23 +361,29 @@ class _ServiceDetailState extends State<_ServiceDetail> {
 
   Future<void> _delete() async {
     final l10n = AppLocalizations.of(context)!;
+    final settings = context.read<SettingsService>();
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(l10n.deleteServiceTitle),
         content: Text(l10n.deleteServiceConfirm(widget.profile.name)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l10n.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel),
+          ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
-            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(l10n.delete),
           ),
         ],
       ),
     );
-    if (confirm == true && mounted) {
-      context.read<SettingsService>().deleteAiService(widget.profile.id);
+    if (confirm == true) {
+      settings.deleteAiService(widget.profile.id);
     }
   }
 
