@@ -523,6 +523,1242 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Video'**
   String get video;
+
+  /// No description provided for @appBrand.
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin Organizer'**
+  String get appBrand;
+
+  /// No description provided for @tabFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get tabFiles;
+
+  /// No description provided for @tabLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get tabLibrary;
+
+  /// No description provided for @tabTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get tabTasks;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get comingSoon;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search files, movies, shows...'**
+  String get searchHint;
+
+  /// No description provided for @favorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get favorites;
+
+  /// No description provided for @noFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites yet'**
+  String get noFavorites;
+
+  /// No description provided for @recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get recent;
+
+  /// No description provided for @noRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recent'**
+  String get noRecent;
+
+  /// No description provided for @locations.
+  ///
+  /// In en, this message translates to:
+  /// **'Locations'**
+  String get locations;
+
+  /// No description provided for @aiConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'AI service connected'**
+  String get aiConnected;
+
+  /// No description provided for @aiConnectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'AI connection error'**
+  String get aiConnectionError;
+
+  /// No description provided for @aiTesting.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing connection...'**
+  String get aiTesting;
+
+  /// No description provided for @aiReady.
+  ///
+  /// In en, this message translates to:
+  /// **'AI ready'**
+  String get aiReady;
+
+  /// No description provided for @aiNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'AI not configured'**
+  String get aiNotConfigured;
+
+  /// No description provided for @itemsProcessed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items processed'**
+  String itemsProcessed(Object count);
+
+  /// No description provided for @organizeWithAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize all with AI'**
+  String get organizeWithAi;
+
+  /// No description provided for @openFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Folder'**
+  String get openFolder;
+
+  /// No description provided for @noFolderOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a folder to begin'**
+  String get noFolderOpen;
+
+  /// No description provided for @folderEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is empty'**
+  String get folderEmpty;
+
+  /// No description provided for @colName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get colName;
+
+  /// No description provided for @colType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get colType;
+
+  /// No description provided for @colSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get colSize;
+
+  /// No description provided for @colAiSuggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Suggestion'**
+  String get colAiSuggestion;
+
+  /// No description provided for @colConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence'**
+  String get colConfidence;
+
+  /// No description provided for @typeFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get typeFolder;
+
+  /// No description provided for @typeVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get typeVideo;
+
+  /// No description provided for @typeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle'**
+  String get typeSubtitle;
+
+  /// No description provided for @typeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get typeImage;
+
+  /// No description provided for @typeMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata'**
+  String get typeMetadata;
+
+  /// No description provided for @typeAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get typeAudio;
+
+  /// No description provided for @typeText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get typeText;
+
+  /// No description provided for @typeOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get typeOther;
+
+  /// No description provided for @needsReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs review'**
+  String get needsReview;
+
+  /// No description provided for @analyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing...'**
+  String get analyzing;
+
+  /// No description provided for @analysisComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis complete'**
+  String get analysisComplete;
+
+  /// No description provided for @notAnalyzed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not analyzed'**
+  String get notAnalyzed;
+
+  /// No description provided for @selectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String selectedCount(Object count);
+
+  /// No description provided for @itemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String itemsCount(Object count);
+
+  /// No description provided for @aiAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant'**
+  String get aiAssistant;
+
+  /// No description provided for @analyzingSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing selected files'**
+  String get analyzingSelected;
+
+  /// No description provided for @aiPanelIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure AI, then organize a folder'**
+  String get aiPanelIdle;
+
+  /// No description provided for @reasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get reasoning;
+
+  /// No description provided for @targetStructure.
+  ///
+  /// In en, this message translates to:
+  /// **'Target Structure'**
+  String get targetStructure;
+
+  /// No description provided for @applyOrganize.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get applyOrganize;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get usage;
+
+  /// No description provided for @tokensLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{tokens} tokens'**
+  String tokensLabel(Object tokens);
+
+  /// No description provided for @confirmApplyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply organization?'**
+  String get confirmApplyTitle;
+
+  /// No description provided for @confirmApplyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files will be moved and renamed into the Jellyfin structure.'**
+  String confirmApplyBody(Object count);
+
+  /// No description provided for @applyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Organized {count} files'**
+  String applyDone(Object count);
+
+  /// No description provided for @applyPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Organized {succeeded}, {failed} failed'**
+  String applyPartial(Object failed, Object succeeded);
+
+  /// No description provided for @analyzeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String analyzeFailed(Object error);
+
+  /// No description provided for @aiSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Service'**
+  String get aiSettings;
+
+  /// No description provided for @provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get provider;
+
+  /// No description provided for @providerOpenAi.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI-compatible'**
+  String get providerOpenAi;
+
+  /// No description provided for @providerGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Google GenAI'**
+  String get providerGoogle;
+
+  /// No description provided for @endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint'**
+  String get endpoint;
+
+  /// No description provided for @apiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key'**
+  String get apiKey;
+
+  /// No description provided for @model.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get model;
+
+  /// No description provided for @testConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Connection'**
+  String get testConnection;
+
+  /// No description provided for @connectionOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection successful'**
+  String get connectionOk;
+
+  /// No description provided for @connectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed: {error}'**
+  String connectionFailed(Object error);
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @aiServicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Services'**
+  String get aiServicesTitle;
+
+  /// No description provided for @aiServicesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure the language models used to organize media'**
+  String get aiServicesSubtitle;
+
+  /// No description provided for @aiServiceDetailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary AI endpoint for organization and metadata matching'**
+  String get aiServiceDetailHint;
+
+  /// No description provided for @addService.
+  ///
+  /// In en, this message translates to:
+  /// **'Add service'**
+  String get addService;
+
+  /// No description provided for @addAnotherEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add another endpoint'**
+  String get addAnotherEndpoint;
+
+  /// No description provided for @newServiceName.
+  ///
+  /// In en, this message translates to:
+  /// **'New Service'**
+  String get newServiceName;
+
+  /// No description provided for @statusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get statusActive;
+
+  /// No description provided for @statusStandby.
+  ///
+  /// In en, this message translates to:
+  /// **'Standby'**
+  String get statusStandby;
+
+  /// No description provided for @statusOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get statusOffline;
+
+  /// No description provided for @endpointProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint protocol'**
+  String get endpointProtocol;
+
+  /// No description provided for @protocolOpenAi.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI compatible'**
+  String get protocolOpenAi;
+
+  /// No description provided for @protocolGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Google GenAI'**
+  String get protocolGoogle;
+
+  /// No description provided for @displayName.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get displayName;
+
+  /// No description provided for @baseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get baseUrl;
+
+  /// No description provided for @showKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get showKey;
+
+  /// No description provided for @hideKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get hideKey;
+
+  /// No description provided for @defaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default model'**
+  String get defaultModel;
+
+  /// No description provided for @temperature.
+  ///
+  /// In en, this message translates to:
+  /// **'Temperature'**
+  String get temperature;
+
+  /// No description provided for @rateLimitPerMin.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests per minute'**
+  String get rateLimitPerMin;
+
+  /// No description provided for @usageThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get usageThisMonth;
+
+  /// No description provided for @requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get requests;
+
+  /// No description provided for @avgLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg latency'**
+  String get avgLatency;
+
+  /// No description provided for @selectServiceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a service to configure'**
+  String get selectServiceHint;
+
+  /// No description provided for @deleteServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete service'**
+  String get deleteServiceTitle;
+
+  /// No description provided for @deleteServiceConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? This cannot be undone.'**
+  String deleteServiceConfirm(Object name);
+
+  /// No description provided for @previewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize {count} items into Jellyfin structure'**
+  String previewTitle(Object count);
+
+  /// No description provided for @previewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {folders} folders, {size} · avg AI confidence {pct}%'**
+  String previewSubtitle(Object folders, Object pct, Object size);
+
+  /// No description provided for @previewDryRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Dry run · no files moved yet'**
+  String get previewDryRun;
+
+  /// No description provided for @viewTree.
+  ///
+  /// In en, this message translates to:
+  /// **'Tree compare'**
+  String get viewTree;
+
+  /// No description provided for @viewList.
+  ///
+  /// In en, this message translates to:
+  /// **'View list'**
+  String get viewList;
+
+  /// No description provided for @viewPoster.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster view'**
+  String get viewPoster;
+
+  /// No description provided for @showOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get showOnly;
+
+  /// No description provided for @filterChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes'**
+  String get filterChanges;
+
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @filterConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts ({count})'**
+  String filterConflicts(Object count);
+
+  /// No description provided for @countMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} moved'**
+  String countMoves(Object count);
+
+  /// No description provided for @countRenames.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} renamed'**
+  String countRenames(Object count);
+
+  /// No description provided for @countConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conflicts'**
+  String countConflicts(Object count);
+
+  /// No description provided for @beforeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Before'**
+  String get beforeLabel;
+
+  /// No description provided for @afterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get afterLabel;
+
+  /// No description provided for @aiOrganizeVertical.
+  ///
+  /// In en, this message translates to:
+  /// **'AI · JELLYFIN'**
+  String get aiOrganizeVertical;
+
+  /// No description provided for @needsReviewSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs review'**
+  String get needsReviewSuffix;
+
+  /// No description provided for @backupSnapshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up a snapshot (undo within 7 days)'**
+  String get backupSnapshot;
+
+  /// No description provided for @adjustRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust rules'**
+  String get adjustRules;
+
+  /// No description provided for @applyOrganizeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply ({count})'**
+  String applyOrganizeCount(Object count);
+
+  /// No description provided for @organizing.
+  ///
+  /// In en, this message translates to:
+  /// **'Organizing · {count} items'**
+  String organizing(Object count);
+
+  /// No description provided for @statusPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get statusPaused;
+
+  /// No description provided for @statusDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Organization complete'**
+  String get statusDone;
+
+  /// No description provided for @statusStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get statusStopped;
+
+  /// No description provided for @etaRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m {seconds}s remaining'**
+  String etaRemaining(Object minutes, Object seconds);
+
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
+  /// No description provided for @resume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get resume;
+
+  /// No description provided for @stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get stop;
+
+  /// No description provided for @doneClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get doneClose;
+
+  /// No description provided for @legendDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get legendDone;
+
+  /// No description provided for @legendInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get legendInProgress;
+
+  /// No description provided for @legendQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get legendQueued;
+
+  /// No description provided for @legendSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get legendSkipped;
+
+  /// No description provided for @logStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Started · {count} items'**
+  String logStarted(Object count);
+
+  /// No description provided for @logMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved {name} → {dir}/'**
+  String logMoved(Object dir, Object name);
+
+  /// No description provided for @logSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · needs review'**
+  String logSkipped(Object name);
+
+  /// No description provided for @logFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed {name} · {error}'**
+  String logFailed(Object error, Object name);
+
+  /// No description provided for @logFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Done · {done} organized, {skipped} skipped'**
+  String logFinished(Object done, Object skipped);
+
+  /// No description provided for @logStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped · {done} organized, {skipped} skipped'**
+  String logStopped(Object done, Object skipped);
+
+  /// No description provided for @historyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation history'**
+  String get historyTitle;
+
+  /// No description provided for @historyRetention.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept {days} days'**
+  String historyRetention(Object days);
+
+  /// No description provided for @historyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No history yet'**
+  String get historyEmpty;
+
+  /// No description provided for @historyUndoFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo reverts every file\'s location and name. Metadata caches are preserved.'**
+  String get historyUndoFootnote;
+
+  /// No description provided for @historyTitleAi.
+  ///
+  /// In en, this message translates to:
+  /// **'AI organize · {count} items'**
+  String historyTitleAi(Object count);
+
+  /// No description provided for @historyTitleManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual rename · {count} items'**
+  String historyTitleManual(Object count);
+
+  /// No description provided for @historyTitleMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata refresh'**
+  String get historyTitleMetadata;
+
+  /// No description provided for @historyTitleImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch import · {count} items'**
+  String historyTitleImport(Object count);
+
+  /// No description provided for @subMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} moved'**
+  String subMoves(Object count);
+
+  /// No description provided for @subRenames.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} renamed'**
+  String subRenames(Object count);
+
+  /// No description provided for @undoAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undoAction;
+
+  /// No description provided for @movesListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move list · {count}'**
+  String movesListTitle(Object count);
+
+  /// No description provided for @undoDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone {count} files'**
+  String undoDone(Object count);
+
+  /// No description provided for @undoPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Undid {succeeded}, {failed} failed'**
+  String undoPartial(Object failed, Object succeeded);
+
+  /// No description provided for @timeJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get timeJustNow;
+
+  /// No description provided for @timeMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min ago'**
+  String timeMinutesAgo(Object count);
+
+  /// No description provided for @timeToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today {time}'**
+  String timeToday(Object time);
+
+  /// No description provided for @timeYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get timeYesterday;
+
+  /// No description provided for @timeDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}d ago'**
+  String timeDaysAgo(Object count);
+
+  /// No description provided for @secAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get secAppearance;
+
+  /// No description provided for @secLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get secLanguage;
+
+  /// No description provided for @secPaths.
+  ///
+  /// In en, this message translates to:
+  /// **'Paths'**
+  String get secPaths;
+
+  /// No description provided for @breadcrumbPaths.
+  ///
+  /// In en, this message translates to:
+  /// **'Paths'**
+  String get breadcrumbPaths;
+
+  /// No description provided for @secAiServices.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Services'**
+  String get secAiServices;
+
+  /// No description provided for @secPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Cache'**
+  String get secPrivacy;
+
+  /// No description provided for @secShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcuts'**
+  String get secShortcuts;
+
+  /// No description provided for @secAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get secAbout;
+
+  /// No description provided for @versionUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get versionUpToDate;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @glassIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Glass intensity'**
+  String get glassIntensity;
+
+  /// No description provided for @glassNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get glassNone;
+
+  /// No description provided for @glassSoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft'**
+  String get glassSoft;
+
+  /// No description provided for @glassStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get glassStrong;
+
+  /// No description provided for @accentColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get accentColor;
+
+  /// No description provided for @behavior.
+  ///
+  /// In en, this message translates to:
+  /// **'Behavior'**
+  String get behavior;
+
+  /// No description provided for @behaviorAutoConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-connect to AI service on launch'**
+  String get behaviorAutoConnect;
+
+  /// No description provided for @behaviorAlwaysPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Always show preview before applying'**
+  String get behaviorAlwaysPreview;
+
+  /// No description provided for @behaviorLowConfSuggest.
+  ///
+  /// In en, this message translates to:
+  /// **'Only suggest (don\'t auto-apply) when confidence < 60%'**
+  String get behaviorLowConfSuggest;
+
+  /// No description provided for @privacyStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Local storage'**
+  String get privacyStorage;
+
+  /// No description provided for @privacyConfigBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings, AI keys and undo manifests are stored on this device only.'**
+  String get privacyConfigBody;
+
+  /// No description provided for @privacyClearHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo all {count} entries'**
+  String privacyClearHistory(Object count);
+
+  /// No description provided for @shortcutSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus search'**
+  String get shortcutSearch;
+
+  /// No description provided for @shortcutCloseDialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Close dialog'**
+  String get shortcutCloseDialog;
+
+  /// No description provided for @aboutTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-driven media organizer for Jellyfin.'**
+  String get aboutTagline;
+
+  /// No description provided for @aboutJellyfinNaming.
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin naming guide'**
+  String get aboutJellyfinNaming;
+
+  /// No description provided for @langHeaderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching also affects the AI\'s output language'**
+  String get langHeaderSubtitle;
+
+  /// No description provided for @langCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get langCurrent;
+
+  /// No description provided for @langSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Soon'**
+  String get langSoon;
+
+  /// No description provided for @langImportArb.
+  ///
+  /// In en, this message translates to:
+  /// **'Import translation file (.arb)'**
+  String get langImportArb;
+
+  /// No description provided for @langImportSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom translation import is coming soon.'**
+  String get langImportSoon;
+
+  /// No description provided for @langPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live preview · main UI snippet'**
+  String get langPreviewTitle;
+
+  /// No description provided for @langPreviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching the language also translates AI prompts; NFO metadata in organized results follows the same locale.'**
+  String get langPreviewHint;
+
+  /// No description provided for @langLearnMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more'**
+  String get langLearnMore;
+
+  /// No description provided for @previewOrganizeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use AI to detect and move into Jellyfin structure'**
+  String get previewOrganizeSubtitle;
+
+  /// No description provided for @previewConfidenceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence'**
+  String get previewConfidenceLabel;
+
+  /// No description provided for @previewConfidenceHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'high'**
+  String get previewConfidenceHigh;
+
+  /// No description provided for @previewTargetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Target'**
+  String get previewTargetLabel;
+
+  /// No description provided for @previewTargetValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies/Dune: Part Two (2024)/'**
+  String get previewTargetValue;
+
+  /// No description provided for @onboardingStepCounter.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {current} / {total}'**
+  String onboardingStepCounter(Object current, Object total);
+
+  /// No description provided for @onboardingWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Jellyfin Organizer'**
+  String get onboardingWelcomeTitle;
+
+  /// No description provided for @onboardingWelcomeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Let AI sweep through messy download folders, rename and sort files, and produce a Jellyfin-conform library structure.'**
+  String get onboardingWelcomeBody;
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip tour'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started →'**
+  String get onboardingStart;
+
+  /// No description provided for @onboardingStep1Eyebrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 1'**
+  String get onboardingStep1Eyebrow;
+
+  /// No description provided for @onboardingStep2Eyebrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 2'**
+  String get onboardingStep2Eyebrow;
+
+  /// No description provided for @onboardingRootTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your library root'**
+  String get onboardingRootTitle;
+
+  /// No description provided for @onboardingRootBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Point to the path Jellyfin already scans — organized files will land here.'**
+  String get onboardingRootBody;
+
+  /// No description provided for @onboardingDropFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop a folder here'**
+  String get onboardingDropFolder;
+
+  /// No description provided for @onboardingOr.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get onboardingOr;
+
+  /// No description provided for @onboardingPickFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a folder…'**
+  String get onboardingPickFolder;
+
+  /// No description provided for @onboardingRootHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested: /Volumes/Media · ~/Movies'**
+  String get onboardingRootHint;
+
+  /// No description provided for @onboardingSkipForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for now'**
+  String get onboardingSkipForNow;
+
+  /// No description provided for @onboardingAiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your AI service'**
+  String get onboardingAiTitle;
+
+  /// No description provided for @onboardingAiBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Both major protocols are supported. You can also add one later in Settings.'**
+  String get onboardingAiBody;
+
+  /// No description provided for @onboardingProviderOpenAi.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI-compatible endpoint'**
+  String get onboardingProviderOpenAi;
+
+  /// No description provided for @onboardingConfigureLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure later'**
+  String get onboardingConfigureLater;
+
+  /// No description provided for @onboardingEnterWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter workspace →'**
+  String get onboardingEnterWorkspace;
 }
 
 class _AppLocalizationsDelegate

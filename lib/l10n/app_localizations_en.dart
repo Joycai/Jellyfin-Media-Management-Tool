@@ -233,4 +233,711 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get video => 'Video';
+
+  @override
+  String get appBrand => 'Jellyfin Organizer';
+
+  @override
+  String get tabFiles => 'Files';
+
+  @override
+  String get tabLibrary => 'Library';
+
+  @override
+  String get tabTasks => 'Tasks';
+
+  @override
+  String get comingSoon => 'Coming soon';
+
+  @override
+  String get searchHint => 'Search files, movies, shows...';
+
+  @override
+  String get favorites => 'Favorites';
+
+  @override
+  String get noFavorites => 'No favorites yet';
+
+  @override
+  String get recent => 'Recent';
+
+  @override
+  String get noRecent => 'Nothing recent';
+
+  @override
+  String get locations => 'Locations';
+
+  @override
+  String get aiConnected => 'AI service connected';
+
+  @override
+  String get aiConnectionError => 'AI connection error';
+
+  @override
+  String get aiTesting => 'Testing connection...';
+
+  @override
+  String get aiReady => 'AI ready';
+
+  @override
+  String get aiNotConfigured => 'AI not configured';
+
+  @override
+  String itemsProcessed(Object count) {
+    return '$count items processed';
+  }
+
+  @override
+  String get organizeWithAi => 'Organize all with AI';
+
+  @override
+  String get openFolder => 'Open Folder';
+
+  @override
+  String get noFolderOpen => 'Open a folder to begin';
+
+  @override
+  String get folderEmpty => 'This folder is empty';
+
+  @override
+  String get colName => 'Name';
+
+  @override
+  String get colType => 'Type';
+
+  @override
+  String get colSize => 'Size';
+
+  @override
+  String get colAiSuggestion => 'AI Suggestion';
+
+  @override
+  String get colConfidence => 'Confidence';
+
+  @override
+  String get typeFolder => 'Folder';
+
+  @override
+  String get typeVideo => 'Video';
+
+  @override
+  String get typeSubtitle => 'Subtitle';
+
+  @override
+  String get typeImage => 'Image';
+
+  @override
+  String get typeMetadata => 'Metadata';
+
+  @override
+  String get typeAudio => 'Audio';
+
+  @override
+  String get typeText => 'Text';
+
+  @override
+  String get typeOther => 'Other';
+
+  @override
+  String get needsReview => 'Needs review';
+
+  @override
+  String get analyzing => 'Analyzing...';
+
+  @override
+  String get analysisComplete => 'Analysis complete';
+
+  @override
+  String get notAnalyzed => 'Not analyzed';
+
+  @override
+  String selectedCount(Object count) {
+    return '$count selected';
+  }
+
+  @override
+  String itemsCount(Object count) {
+    return '$count items';
+  }
+
+  @override
+  String get aiAssistant => 'AI Assistant';
+
+  @override
+  String get analyzingSelected => 'Analyzing selected files';
+
+  @override
+  String get aiPanelIdle => 'Configure AI, then organize a folder';
+
+  @override
+  String get reasoning => 'Reasoning';
+
+  @override
+  String get targetStructure => 'Target Structure';
+
+  @override
+  String get applyOrganize => 'Apply';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get usage => 'Usage';
+
+  @override
+  String tokensLabel(Object tokens) {
+    return '$tokens tokens';
+  }
+
+  @override
+  String get confirmApplyTitle => 'Apply organization?';
+
+  @override
+  String confirmApplyBody(Object count) {
+    return '$count files will be moved and renamed into the Jellyfin structure.';
+  }
+
+  @override
+  String applyDone(Object count) {
+    return 'Organized $count files';
+  }
+
+  @override
+  String applyPartial(Object failed, Object succeeded) {
+    return 'Organized $succeeded, $failed failed';
+  }
+
+  @override
+  String analyzeFailed(Object error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String get aiSettings => 'AI Service';
+
+  @override
+  String get provider => 'Provider';
+
+  @override
+  String get providerOpenAi => 'OpenAI-compatible';
+
+  @override
+  String get providerGoogle => 'Google GenAI';
+
+  @override
+  String get endpoint => 'Endpoint';
+
+  @override
+  String get apiKey => 'API Key';
+
+  @override
+  String get model => 'Model';
+
+  @override
+  String get testConnection => 'Test Connection';
+
+  @override
+  String get connectionOk => 'Connection successful';
+
+  @override
+  String connectionFailed(Object error) {
+    return 'Connection failed: $error';
+  }
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get aiServicesTitle => 'AI Services';
+
+  @override
+  String get aiServicesSubtitle =>
+      'Configure the language models used to organize media';
+
+  @override
+  String get aiServiceDetailHint =>
+      'Primary AI endpoint for organization and metadata matching';
+
+  @override
+  String get addService => 'Add service';
+
+  @override
+  String get addAnotherEndpoint => 'Add another endpoint';
+
+  @override
+  String get newServiceName => 'New Service';
+
+  @override
+  String get statusActive => 'Active';
+
+  @override
+  String get statusStandby => 'Standby';
+
+  @override
+  String get statusOffline => 'Offline';
+
+  @override
+  String get endpointProtocol => 'Endpoint protocol';
+
+  @override
+  String get protocolOpenAi => 'OpenAI compatible';
+
+  @override
+  String get protocolGoogle => 'Google GenAI';
+
+  @override
+  String get displayName => 'Display name';
+
+  @override
+  String get baseUrl => 'Base URL';
+
+  @override
+  String get showKey => 'Show';
+
+  @override
+  String get hideKey => 'Hide';
+
+  @override
+  String get defaultModel => 'Default model';
+
+  @override
+  String get temperature => 'Temperature';
+
+  @override
+  String get rateLimitPerMin => 'Requests per minute';
+
+  @override
+  String get usageThisMonth => 'This month';
+
+  @override
+  String get requests => 'Requests';
+
+  @override
+  String get avgLatency => 'Avg latency';
+
+  @override
+  String get selectServiceHint => 'Select a service to configure';
+
+  @override
+  String get deleteServiceTitle => 'Delete service';
+
+  @override
+  String deleteServiceConfirm(Object name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
+
+  @override
+  String previewTitle(Object count) {
+    return 'Organize $count items into Jellyfin structure';
+  }
+
+  @override
+  String previewSubtitle(Object folders, Object pct, Object size) {
+    return 'Move $folders folders, $size · avg AI confidence $pct%';
+  }
+
+  @override
+  String get previewDryRun => 'Dry run · no files moved yet';
+
+  @override
+  String get viewTree => 'Tree compare';
+
+  @override
+  String get viewList => 'View list';
+
+  @override
+  String get viewPoster => 'Poster view';
+
+  @override
+  String get showOnly => 'Show';
+
+  @override
+  String get filterChanges => 'Changes';
+
+  @override
+  String get filterAll => 'All';
+
+  @override
+  String filterConflicts(Object count) {
+    return 'Conflicts ($count)';
+  }
+
+  @override
+  String countMoves(Object count) {
+    return '$count moved';
+  }
+
+  @override
+  String countRenames(Object count) {
+    return '$count renamed';
+  }
+
+  @override
+  String countConflicts(Object count) {
+    return '$count conflicts';
+  }
+
+  @override
+  String get beforeLabel => 'Before';
+
+  @override
+  String get afterLabel => 'After';
+
+  @override
+  String get aiOrganizeVertical => 'AI · JELLYFIN';
+
+  @override
+  String get needsReviewSuffix => 'Needs review';
+
+  @override
+  String get backupSnapshot => 'Back up a snapshot (undo within 7 days)';
+
+  @override
+  String get adjustRules => 'Adjust rules';
+
+  @override
+  String applyOrganizeCount(Object count) {
+    return 'Apply ($count)';
+  }
+
+  @override
+  String organizing(Object count) {
+    return 'Organizing · $count items';
+  }
+
+  @override
+  String get statusPaused => 'Paused';
+
+  @override
+  String get statusDone => 'Organization complete';
+
+  @override
+  String get statusStopped => 'Stopped';
+
+  @override
+  String etaRemaining(Object minutes, Object seconds) {
+    return '${minutes}m ${seconds}s remaining';
+  }
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get resume => 'Resume';
+
+  @override
+  String get stop => 'Stop';
+
+  @override
+  String get doneClose => 'Done';
+
+  @override
+  String get legendDone => 'Done';
+
+  @override
+  String get legendInProgress => 'In progress';
+
+  @override
+  String get legendQueued => 'Queued';
+
+  @override
+  String get legendSkipped => 'Skipped';
+
+  @override
+  String logStarted(Object count) {
+    return 'Started · $count items';
+  }
+
+  @override
+  String logMoved(Object dir, Object name) {
+    return 'Moved $name → $dir/';
+  }
+
+  @override
+  String logSkipped(Object name) {
+    return '$name · needs review';
+  }
+
+  @override
+  String logFailed(Object error, Object name) {
+    return 'Failed $name · $error';
+  }
+
+  @override
+  String logFinished(Object done, Object skipped) {
+    return 'Done · $done organized, $skipped skipped';
+  }
+
+  @override
+  String logStopped(Object done, Object skipped) {
+    return 'Stopped · $done organized, $skipped skipped';
+  }
+
+  @override
+  String get historyTitle => 'Operation history';
+
+  @override
+  String historyRetention(Object days) {
+    return 'Kept $days days';
+  }
+
+  @override
+  String get historyEmpty => 'No history yet';
+
+  @override
+  String get historyUndoFootnote =>
+      'Undo reverts every file\'s location and name. Metadata caches are preserved.';
+
+  @override
+  String historyTitleAi(Object count) {
+    return 'AI organize · $count items';
+  }
+
+  @override
+  String historyTitleManual(Object count) {
+    return 'Manual rename · $count items';
+  }
+
+  @override
+  String get historyTitleMetadata => 'Metadata refresh';
+
+  @override
+  String historyTitleImport(Object count) {
+    return 'Batch import · $count items';
+  }
+
+  @override
+  String subMoves(Object count) {
+    return '$count moved';
+  }
+
+  @override
+  String subRenames(Object count) {
+    return '$count renamed';
+  }
+
+  @override
+  String get undoAction => 'Undo';
+
+  @override
+  String movesListTitle(Object count) {
+    return 'Move list · $count';
+  }
+
+  @override
+  String undoDone(Object count) {
+    return 'Undone $count files';
+  }
+
+  @override
+  String undoPartial(Object failed, Object succeeded) {
+    return 'Undid $succeeded, $failed failed';
+  }
+
+  @override
+  String get timeJustNow => 'Just now';
+
+  @override
+  String timeMinutesAgo(Object count) {
+    return '$count min ago';
+  }
+
+  @override
+  String timeToday(Object time) {
+    return 'Today $time';
+  }
+
+  @override
+  String get timeYesterday => 'Yesterday';
+
+  @override
+  String timeDaysAgo(Object count) {
+    return '${count}d ago';
+  }
+
+  @override
+  String get secAppearance => 'Appearance';
+
+  @override
+  String get secLanguage => 'Language';
+
+  @override
+  String get secPaths => 'Paths';
+
+  @override
+  String get breadcrumbPaths => 'Paths';
+
+  @override
+  String get secAiServices => 'AI Services';
+
+  @override
+  String get secPrivacy => 'Privacy & Cache';
+
+  @override
+  String get secShortcuts => 'Shortcuts';
+
+  @override
+  String get secAbout => 'About';
+
+  @override
+  String get versionUpToDate => 'Up to date';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get glassIntensity => 'Glass intensity';
+
+  @override
+  String get glassNone => 'None';
+
+  @override
+  String get glassSoft => 'Soft';
+
+  @override
+  String get glassStrong => 'Strong';
+
+  @override
+  String get accentColor => 'Accent color';
+
+  @override
+  String get behavior => 'Behavior';
+
+  @override
+  String get behaviorAutoConnect => 'Auto-connect to AI service on launch';
+
+  @override
+  String get behaviorAlwaysPreview => 'Always show preview before applying';
+
+  @override
+  String get behaviorLowConfSuggest =>
+      'Only suggest (don\'t auto-apply) when confidence < 60%';
+
+  @override
+  String get privacyStorage => 'Local storage';
+
+  @override
+  String get privacyConfigBody =>
+      'Settings, AI keys and undo manifests are stored on this device only.';
+
+  @override
+  String privacyClearHistory(Object count) {
+    return 'Undo all $count entries';
+  }
+
+  @override
+  String get shortcutSearch => 'Focus search';
+
+  @override
+  String get shortcutCloseDialog => 'Close dialog';
+
+  @override
+  String get aboutTagline => 'AI-driven media organizer for Jellyfin.';
+
+  @override
+  String get aboutJellyfinNaming => 'Jellyfin naming guide';
+
+  @override
+  String get langHeaderSubtitle =>
+      'Switching also affects the AI\'s output language';
+
+  @override
+  String get langCurrent => 'Current';
+
+  @override
+  String get langSoon => 'Soon';
+
+  @override
+  String get langImportArb => 'Import translation file (.arb)';
+
+  @override
+  String get langImportSoon => 'Custom translation import is coming soon.';
+
+  @override
+  String get langPreviewTitle => 'Live preview · main UI snippet';
+
+  @override
+  String get langPreviewHint =>
+      'Switching the language also translates AI prompts; NFO metadata in organized results follows the same locale.';
+
+  @override
+  String get langLearnMore => 'Learn more';
+
+  @override
+  String get previewOrganizeSubtitle =>
+      'Use AI to detect and move into Jellyfin structure';
+
+  @override
+  String get previewConfidenceLabel => 'Confidence';
+
+  @override
+  String get previewConfidenceHigh => 'high';
+
+  @override
+  String get previewTargetLabel => 'Target';
+
+  @override
+  String get previewTargetValue => 'Movies/Dune: Part Two (2024)/';
+
+  @override
+  String onboardingStepCounter(Object current, Object total) {
+    return 'Step $current / $total';
+  }
+
+  @override
+  String get onboardingWelcomeTitle => 'Welcome to Jellyfin Organizer';
+
+  @override
+  String get onboardingWelcomeBody =>
+      'Let AI sweep through messy download folders, rename and sort files, and produce a Jellyfin-conform library structure.';
+
+  @override
+  String get onboardingSkip => 'Skip tour';
+
+  @override
+  String get onboardingStart => 'Get started →';
+
+  @override
+  String get onboardingStep1Eyebrow => 'Step 1';
+
+  @override
+  String get onboardingStep2Eyebrow => 'Step 2';
+
+  @override
+  String get onboardingRootTitle => 'Choose your library root';
+
+  @override
+  String get onboardingRootBody =>
+      'Point to the path Jellyfin already scans — organized files will land here.';
+
+  @override
+  String get onboardingDropFolder => 'Drop a folder here';
+
+  @override
+  String get onboardingOr => 'or';
+
+  @override
+  String get onboardingPickFolder => 'Pick a folder…';
+
+  @override
+  String get onboardingRootHint => 'Suggested: /Volumes/Media · ~/Movies';
+
+  @override
+  String get onboardingSkipForNow => 'Skip for now';
+
+  @override
+  String get onboardingAiTitle => 'Connect your AI service';
+
+  @override
+  String get onboardingAiBody =>
+      'Both major protocols are supported. You can also add one later in Settings.';
+
+  @override
+  String get onboardingProviderOpenAi => 'OpenAI-compatible endpoint';
+
+  @override
+  String get onboardingConfigureLater => 'Configure later';
+
+  @override
+  String get onboardingEnterWorkspace => 'Enter workspace →';
 }
