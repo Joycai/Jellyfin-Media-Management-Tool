@@ -1795,6 +1795,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skip'**
   String get aiHintSkip;
+
+  /// No description provided for @aiHintKindLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Media type'**
+  String get aiHintKindLabel;
+
+  /// No description provided for @aiHintKindAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detect'**
+  String get aiHintKindAuto;
+
+  /// No description provided for @aiHintKindMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie'**
+  String get aiHintKindMovie;
+
+  /// No description provided for @aiHintKindSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get aiHintKindSeries;
+
+  /// No description provided for @aiHintLabelMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie title'**
+  String get aiHintLabelMovie;
+
+  /// No description provided for @aiHintLabelSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series title'**
+  String get aiHintLabelSeries;
+
+  /// No description provided for @tasksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get tasksTitle;
+
+  /// No description provided for @tasksEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks yet'**
+  String get tasksEmpty;
+
+  /// No description provided for @tasksEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AI analyze and organize tasks will show up here'**
+  String get tasksEmptyHint;
+
+  /// No description provided for @tasksClearFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear finished'**
+  String get tasksClearFinished;
+
+  /// No description provided for @tasksAnalyzeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'AI analyze · {folder}'**
+  String tasksAnalyzeLabel(Object folder);
+
+  /// No description provided for @tasksApplyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize · {folder}'**
+  String tasksApplyLabel(Object folder);
+
+  /// No description provided for @tasksAnalyzeRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is analyzing…'**
+  String get tasksAnalyzeRunning;
+
+  /// No description provided for @tasksAnalyzeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis complete'**
+  String get tasksAnalyzeDone;
+
+  /// No description provided for @tasksAnalyzeStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'AI analysis started — see Tasks for progress'**
+  String get tasksAnalyzeStarted;
+
+  /// No description provided for @tasksApplyStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize task started — see Tasks for progress'**
+  String get tasksApplyStarted;
+
+  /// No description provided for @tasksRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get tasksRunning;
+
+  /// No description provided for @tasksDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get tasksDone;
+
+  /// No description provided for @tasksFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get tasksFailed;
+
+  /// No description provided for @tasksViewDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get tasksViewDetail;
+
+  /// No description provided for @tasksDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get tasksDismiss;
 }
 
 class _AppLocalizationsDelegate

@@ -67,6 +67,7 @@ class ApplyController extends ChangeNotifier {
   final Stopwatch _sw = Stopwatch();
   Completer<void>? _pauseGate;
   bool _stopRequested = false;
+  bool _started = false;
 
   ApplyStatus get status => _status;
   int get total => plan.actions.length;
@@ -102,8 +103,12 @@ class ApplyController extends ChangeNotifier {
 
   void _log0(LogEntry e) => _log.add(e);
 
-  /// Runs the apply loop. Safe to call once.
+  /// Runs the apply loop. Idempotent: subsequent calls are no-ops (the detail
+  /// screen and the task service both want to ensure it starts, but only one
+  /// should actually drive the loop).
   Future<void> start() async {
+    if (_started) return;
+    _started = true;
     _sw.start();
     _log0(LogEntry(LogKind.started, level: LogLevel.info, count: total));
     notifyListeners();

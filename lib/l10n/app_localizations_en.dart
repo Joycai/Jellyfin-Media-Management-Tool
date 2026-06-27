@@ -961,4 +961,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiHintSkip => 'Skip';
+
+  @override
+  String get aiHintKindLabel => 'Media type';
+
+  @override
+  String get aiHintKindAuto => 'Auto-detect';
+
+  @override
+  String get aiHintKindMovie => 'Movie';
+
+  @override
+  String get aiHintKindSeries => 'Series';
+
+  @override
+  String get aiHintLabelMovie => 'Movie title';
+
+  @override
+  String get aiHintLabelSeries => 'Series title';
+
+  @override
+  String get tasksTitle => 'Tasks';
+
+  @override
+  String get tasksEmpty => 'No tasks yet';
+
+  @override
+  String get tasksEmptyHint =>
+      'AI analyze and organize tasks will show up here';
+
+  @override
+  String get tasksClearFinished => 'Clear finished';
+
+  @override
+  String tasksAnalyzeLabel(Object folder) {
+    return 'AI analyze · $folder';
+  }
+
+  @override
+  String tasksApplyLabel(Object folder) {
+    return 'Organize · $folder';
+  }
+
+  @override
+  String get tasksAnalyzeRunning => 'AI is analyzing…';
+
+  @override
+  String get tasksAnalyzeDone => 'Analysis complete';
+
+  @override
+  String get tasksAnalyzeStarted =>
+      'AI analysis started — see Tasks for progress';
+
+  @override
+  String get tasksApplyStarted =>
+      'Organize task started — see Tasks for progress';
+
+  @override
+  String get tasksRunning => 'Running';
+
+  @override
+  String get tasksDone => 'Done';
+
+  @override
+  String get tasksFailed => 'Failed';
+
+  @override
+  String get tasksViewDetail => 'View details';
+
+  @override
+  String get tasksDismiss => 'Dismiss';
 }
