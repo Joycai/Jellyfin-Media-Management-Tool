@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -9,6 +10,7 @@ import '../services/file_browser_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ai/ai_assistant_panel.dart';
+import '../widgets/dialogs/title_hint_dialog.dart';
 import '../widgets/file_browser/media_table.dart';
 import '../widgets/ai/organize_history_screen.dart';
 import '../widgets/glass/glass_panel.dart';
@@ -58,8 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
       messenger.showSnackBar(SnackBar(content: Text(l10n.aiNotConfigured)));
       return;
     }
+    final hint = await showTitleHintDialog(context, folderName: p.basename(dir));
+    if (hint == null) return; // user cancelled
     try {
-      await ai.analyzeFolder(dir);
+      await ai.analyzeFolder(dir, titleHint: hint.isEmpty ? null : hint);
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(l10n.analyzeFailed(e.toString()))));
     }

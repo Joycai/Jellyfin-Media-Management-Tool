@@ -276,5 +276,11 @@
   "onboardingAiBody": "两种主流协议都支持。你也可以稍后在设置中添加。",
   "onboardingProviderOpenAi": "OpenAI 兼容端点",
   "onboardingConfigureLater": "稍后配置",
-  "onboardingEnterWorkspace": "进入工作台 →"
+  "onboardingEnterWorkspace": "进入工作台 →",
+  "aiHintTitle": "提供标题（可选）",
+  "aiHintSubtitle": "告诉 AI 这是哪部电影或剧集，文件名残缺时也能准确归类。留空让 AI 自行推断。",
+  "aiHintLabel": "标题",
+  "aiHintPlaceholder": "例如：沙丘 · 流浪地球 · 鱿鱼游戏（默认：{folder}）",
+  "aiHintAnalyze": "开始分析",
+  "aiHintSkip": "跳过"
 }

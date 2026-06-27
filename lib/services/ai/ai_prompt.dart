@@ -63,13 +63,18 @@ Respond with this exact shape:
 }
 ''';
 
-  /// Serializes the folder context into the user message.
+  /// Serializes the folder context into the user message. If [titleHint] is
+  /// non-empty, the user is telling the model the intended movie/series title —
+  /// the model should trust it over guesswork from filenames.
   static String buildUserPrompt({
     required String folderName,
     required List<MediaEntryInput> entries,
+    String? titleHint,
   }) {
-    final payload = {
+    final hint = titleHint?.trim();
+    final payload = <String, Object>{
       'folder': folderName,
+      if (hint != null && hint.isNotEmpty) 'userTitleHint': hint,
       'files': [
         for (final e in entries)
           {
@@ -79,7 +84,12 @@ Respond with this exact shape:
           }
       ],
     };
-    return 'Organize this folder into a Jellyfin-conform structure.\n'
-        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+    final preamble = hint != null && hint.isNotEmpty
+        ? 'Organize this folder into a Jellyfin-conform structure. The user '
+            'says these files are for "$hint" — trust that title over '
+            'filename guesswork, but still infer the year and season/episode '
+            'numbers from the files.\n'
+        : 'Organize this folder into a Jellyfin-conform structure.\n';
+    return '$preamble${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 }

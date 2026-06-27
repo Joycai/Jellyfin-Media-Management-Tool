@@ -1759,6 +1759,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter workspace →'**
   String get onboardingEnterWorkspace;
+
+  /// No description provided for @aiHintTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a title hint (optional)'**
+  String get aiHintTitle;
+
+  /// No description provided for @aiHintSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell the AI which movie or series this is — useful when filenames are mangled. Leave blank to let the AI infer it.'**
+  String get aiHintSubtitle;
+
+  /// No description provided for @aiHintLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get aiHintLabel;
+
+  /// No description provided for @aiHintPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Dune, Stranger Things (folder: {folder})'**
+  String aiHintPlaceholder(Object folder);
+
+  /// No description provided for @aiHintAnalyze.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze'**
+  String get aiHintAnalyze;
+
+  /// No description provided for @aiHintSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get aiHintSkip;
 }
 
 class _AppLocalizationsDelegate

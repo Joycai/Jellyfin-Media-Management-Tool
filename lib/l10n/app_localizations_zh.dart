@@ -929,4 +929,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboardingEnterWorkspace => '进入工作台 →';
+
+  @override
+  String get aiHintTitle => '提供标题（可选）';
+
+  @override
+  String get aiHintSubtitle => '告诉 AI 这是哪部电影或剧集，文件名残缺时也能准确归类。留空让 AI 自行推断。';
+
+  @override
+  String get aiHintLabel => '标题';
+
+  @override
+  String aiHintPlaceholder(Object folder) {
+    return '例如：沙丘 · 流浪地球 · 鱿鱼游戏（默认：$folder）';
+  }
+
+  @override
+  String get aiHintAnalyze => '开始分析';
+
+  @override
+  String get aiHintSkip => '跳过';
 }

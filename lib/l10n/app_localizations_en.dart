@@ -940,4 +940,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingEnterWorkspace => 'Enter workspace →';
+
+  @override
+  String get aiHintTitle => 'Add a title hint (optional)';
+
+  @override
+  String get aiHintSubtitle =>
+      'Tell the AI which movie or series this is — useful when filenames are mangled. Leave blank to let the AI infer it.';
+
+  @override
+  String get aiHintLabel => 'Title';
+
+  @override
+  String aiHintPlaceholder(Object folder) {
+    return 'e.g. Dune, Stranger Things (folder: $folder)';
+  }
+
+  @override
+  String get aiHintAnalyze => 'Analyze';
+
+  @override
+  String get aiHintSkip => 'Skip';
 }
