@@ -359,10 +359,14 @@ class _TreePane extends StatelessWidget {
               Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: accent)),
               const SizedBox(width: 10),
               Flexible(
-                child: Text(path,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontFamily: 'monospace', fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                child: Tooltip(
+                  message: path,
+                  waitDuration: const Duration(milliseconds: 350),
+                  child: Text(path,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: 'monospace', fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                ),
               ),
             ],
           ),
@@ -390,15 +394,19 @@ class _TreePane extends StatelessWidget {
             Icon(Icons.folder_rounded, size: 15, color: accent),
           if (line.isDir) const SizedBox(width: 6),
           Flexible(
-            child: Text(line.isDir ? '${line.name}/' : line.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  fontWeight: line.depth <= 1 && line.isDir ? FontWeight.w700 : FontWeight.w400,
-                  color: line.isDir && line.depth <= 1 && isAfter ? accent : null,
-                )),
+            child: Tooltip(
+              message: line.isDir ? '${line.name}/' : line.name,
+              waitDuration: const Duration(milliseconds: 350),
+              child: Text(line.isDir ? '${line.name}/' : line.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    fontWeight: line.depth <= 1 && line.isDir ? FontWeight.w700 : FontWeight.w400,
+                    color: line.isDir && line.depth <= 1 && isAfter ? accent : null,
+                  )),
+            ),
           ),
         ],
       ),
@@ -416,11 +424,15 @@ class _TreePane extends StatelessWidget {
           Text(isAfter ? '└ ?' : '└', style: const TextStyle(fontFamily: 'monospace', color: orange)),
           const SizedBox(width: 8),
           Flexible(
-            child: Text(
-              isAfter ? '$name · ${l10n.needsReviewSuffix}' : '$name ⚠',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: orange),
+            child: Tooltip(
+              message: isAfter ? c.target : c.source,
+              waitDuration: const Duration(milliseconds: 350),
+              child: Text(
+                isAfter ? '$name · ${l10n.needsReviewSuffix}' : '$name ⚠',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: orange),
+              ),
             ),
           ),
         ],
@@ -476,9 +488,13 @@ class _ListDiff extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(a.source,
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: scheme.onSurfaceVariant)),
+                child: Tooltip(
+                  message: a.source,
+                  waitDuration: const Duration(milliseconds: 350),
+                  child: Text(a.source,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: scheme.onSurfaceVariant)),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -486,12 +502,16 @@ class _ListDiff extends StatelessWidget {
                     size: 16, color: review ? const Color(0xFFE0852C) : scheme.primary),
               ),
               Expanded(
-                child: Text(a.target,
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'monospace', fontSize: 13,
-                      color: review ? const Color(0xFFE0852C) : scheme.onSurface,
-                    )),
+                child: Tooltip(
+                  message: a.target,
+                  waitDuration: const Duration(milliseconds: 350),
+                  child: Text(a.target,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'monospace', fontSize: 13,
+                        color: review ? const Color(0xFFE0852C) : scheme.onSurface,
+                      )),
+                ),
               ),
             ],
           ),
