@@ -1,19 +1,26 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
+
+import '../models/file_entry.dart';
 import 'file_label_service.dart';
 
 enum SortOption { name, type, date, size }
 
 class FileBrowserService extends ChangeNotifier {
   String? _currentDirectory;
-  List<FileSystemEntity> _files = [];
-  FileSystemEntity? _selectedFile;
+  List<FileEntry> _files = [];
+  FileEntry? _selectedFile;
   StreamSubscription<FileSystemEvent>? _directorySubscription;
   Timer? _reloadDebounce;
   SortOption _currentSort = SortOption.name;
   bool _isAscending = true;
+
+  /// Bumped on every load attempt so a slow async load can detect that a
+  /// newer one (or a setCurrentDirectory) has started and bail out instead
+  /// of stomping on fresher state.
+  int _loadGeneration = 0;
 
   /// Burst-event debounce window before a watcher-triggered reload runs.
   /// Long enough to coalesce extracts/batch renames, short enough to feel
@@ -21,8 +28,8 @@ class FileBrowserService extends ChangeNotifier {
   static const _reloadDelay = Duration(milliseconds: 200);
 
   String? get currentDirectory => _currentDirectory;
-  List<FileSystemEntity> get files => _files;
-  FileSystemEntity? get selectedFile => _selectedFile;
+  List<FileEntry> get files => _files;
+  FileEntry? get selectedFile => _selectedFile;
   SortOption get currentSort => _currentSort;
   bool get isAscending => _isAscending;
 
@@ -38,25 +45,27 @@ class FileBrowserService extends ChangeNotifier {
     _reloadDebounce?.cancel();
     _currentDirectory = path;
     _selectedFile = null;
-    loadFiles();
+    unawaited(loadFiles());
     _watchDirectory();
     notifyListeners();
   }
 
-  void setSelectedFile(FileSystemEntity? entity) {
-    _selectedFile = entity;
+  void setSelectedFile(FileEntry? entry) {
+    _selectedFile = entry;
     notifyListeners();
   }
 
   void setSortOption(SortOption option) {
+    if (_currentSort == option) return;
     _currentSort = option;
-    loadFiles();
+    _sortEntries(_files);
     notifyListeners();
   }
 
   void setAscending(bool value) {
+    if (_isAscending == value) return;
     _isAscending = value;
-    loadFiles();
+    _sortEntries(_files);
     notifyListeners();
   }
 
@@ -80,58 +89,87 @@ class FileBrowserService extends ChangeNotifier {
       return;
     }
     _reloadDebounce?.cancel();
-    _reloadDebounce = Timer(_reloadDelay, loadFiles);
+    _reloadDebounce = Timer(_reloadDelay, () => unawaited(loadFiles()));
   }
 
-  void loadFiles() {
-    if (_currentDirectory != null) {
-      final directory = Directory(_currentDirectory!);
-      if (!directory.existsSync()) {
-        goToParent();
-        return;
-      }
-
-      try {
-        final entities = directory.listSync().toList();
-        _sortEntities(entities);
-        _files = entities;
-        notifyListeners();
-      } catch (e) {
-        debugPrint('Error listing files: $e');
-      }
-    } else {
+  Future<void> loadFiles() async {
+    if (_currentDirectory == null) {
       _files = [];
+      _selectedFile = null;
       notifyListeners();
+      return;
+    }
+
+    final gen = ++_loadGeneration;
+    final directory = Directory(_currentDirectory!);
+
+    if (!await directory.exists()) {
+      if (gen != _loadGeneration) return;
+      goToParent();
+      return;
+    }
+
+    try {
+      final raw = await directory.list(followLinks: false).toList();
+      if (gen != _loadGeneration) return;
+
+      final entries = await Future.wait(raw.map(_toEntry));
+      if (gen != _loadGeneration) return;
+
+      // Drop entries we couldn't stat (e.g. permission-denied symlinks).
+      final usable = entries.whereType<FileEntry>().toList();
+      _sortEntries(usable);
+      _files = usable;
+      // Clear stale selection if the file is gone.
+      if (_selectedFile != null &&
+          !usable.any((e) => e.path == _selectedFile!.path)) {
+        _selectedFile = null;
+      }
+      notifyListeners();
+    } catch (e) {
+      if (gen != _loadGeneration) return;
+      debugPrint('Error listing files: $e');
     }
   }
 
-  void _sortEntities(List<FileSystemEntity> entities) {
-    entities.sort((a, b) {
-      if (a is Directory && b is! Directory) return -1;
-      if (a is! Directory && b is Directory) return 1;
+  Future<FileEntry?> _toEntry(FileSystemEntity entity) async {
+    try {
+      final stat = await entity.stat();
+      final isDir = stat.type == FileSystemEntityType.directory;
+      return FileEntry(
+        path: entity.path,
+        isDirectory: isDir,
+        size: isDir ? 0 : stat.size,
+        modified: stat.modified,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _sortEntries(List<FileEntry> entries) {
+    entries.sort((a, b) {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
 
       int comparison;
       switch (_currentSort) {
         case SortOption.name:
-          comparison = p.basename(a.path).toLowerCase().compareTo(p.basename(b.path).toLowerCase());
+          comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
           break;
         case SortOption.type:
-          final labelA = a is Directory ? 'Folder' : FileLabelService.getLabel(p.extension(a.path));
-          final labelB = b is Directory ? 'Folder' : FileLabelService.getLabel(p.extension(b.path));
+          final labelA = a.isDirectory ? 'Folder' : FileLabelService.getLabel(a.extension);
+          final labelB = b.isDirectory ? 'Folder' : FileLabelService.getLabel(b.extension);
           comparison = labelA.compareTo(labelB);
           if (comparison == 0) {
-            comparison = p.basename(a.path).toLowerCase().compareTo(p.basename(b.path).toLowerCase());
+            comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
           }
           break;
         case SortOption.date:
-          final statA = a.statSync();
-          final statB = b.statSync();
-          comparison = statA.modified.compareTo(statB.modified);
+          comparison = a.modified.compareTo(b.modified);
           break;
         case SortOption.size:
-          final sizeA = a is File ? a.lengthSync() : 0;
-          final sizeB = b is File ? b.lengthSync() : 0;
-          comparison = sizeA.compareTo(sizeB);
+          comparison = a.size.compareTo(b.size);
           break;
       }
 
@@ -151,6 +189,6 @@ class FileBrowserService extends ChangeNotifier {
   }
 
   void refresh() {
-    loadFiles();
+    unawaited(loadFiles());
   }
 }

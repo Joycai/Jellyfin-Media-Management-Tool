@@ -176,11 +176,11 @@ class AiAssistantPanel extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final browser = context.read<FileBrowserService>();
     final selected = browser.selectedFile;
-    if (selected is! File) {
+    if (selected == null || selected.isDirectory) {
       messenger.showSnackBar(SnackBar(content: Text(l10n.selectFileToPreview)));
       return;
     }
-    final file = selected;
+    final file = File(selected.path);
 
     final rule = await showModalBottomSheet<RenameRule>(
       context: context,
@@ -300,6 +300,7 @@ class _ReasoningCard extends StatelessWidget {
       radius: 16,
       padding: const EdgeInsets.all(16),
       fill: scheme.primary.withValues(alpha: 0.09),
+      blur: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -343,6 +344,7 @@ class _TargetStructureCard extends StatelessWidget {
     return GlassPanel(
       radius: 16,
       padding: const EdgeInsets.all(16),
+      blur: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

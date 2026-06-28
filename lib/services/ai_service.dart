@@ -113,7 +113,7 @@ class AiService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final entries = _collectEntries(baseDir);
+      final entries = await _collectEntries(baseDir);
       if (entries.isEmpty) {
         throw const AiException('No files to organize in this folder.');
       }
@@ -157,20 +157,22 @@ class AiService extends ChangeNotifier {
   }
 
   /// Walks [baseDir] recursively (capped) collecting media-relevant files with
-  /// their folder-relative path, size, and coarse kind.
-  List<MediaEntryInput> _collectEntries(String baseDir) {
+  /// their folder-relative path, size, and coarse kind. Streams entries via
+  /// async `list()` so big trees don't freeze the UI between user click and
+  /// model request.
+  Future<List<MediaEntryInput>> _collectEntries(String baseDir) async {
     const cap = 400;
     final dir = Directory(baseDir);
     final entries = <MediaEntryInput>[];
-    if (!dir.existsSync()) return entries;
+    if (!await dir.exists()) return entries;
 
-    for (final entity in dir.listSync(recursive: true, followLinks: false)) {
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
       if (entity is! File) continue;
       final name = p.basename(entity.path);
       if (name.startsWith('.')) continue; // skip hidden/system files
       int size;
       try {
-        size = entity.lengthSync();
+        size = await entity.length();
       } catch (_) {
         continue;
       }

@@ -223,6 +223,7 @@ class _AiStatusCard extends StatelessWidget {
     return GlassPanel(
       radius: 16,
       padding: const EdgeInsets.all(14),
+      blur: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
