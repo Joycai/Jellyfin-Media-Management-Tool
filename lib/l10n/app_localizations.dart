@@ -500,6 +500,24 @@ abstract class AppLocalizations {
   /// **'Custom Part'**
   String get customPart;
 
+  /// No description provided for @customPartHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 5'**
+  String get customPartHint;
+
+  /// No description provided for @partLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Part {count}'**
+  String partLabel(Object count);
+
+  /// No description provided for @tvShowDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'TV show episode (SxxExx)'**
+  String get tvShowDialogTitle;
+
   /// No description provided for @apply.
   ///
   /// In en, this message translates to:

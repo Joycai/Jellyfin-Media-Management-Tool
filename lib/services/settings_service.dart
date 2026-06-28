@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/ai_service_profile.dart';
+import '../utils/ids.dart';
 import 'ai/ai_provider.dart';
 
 class SearchSite {
@@ -110,7 +111,7 @@ class SettingsService extends ChangeNotifier {
             // Migrate the previous single-endpoint config into one profile.
             final cfg = AiConfig.fromJson(data['ai']);
             final migrated = AiServiceProfile(
-              id: AiServiceProfile.newId(),
+              id: newId(),
               name: cfg.provider == AiProviderType.googleGenAi ? 'Google GenAI' : 'OpenAI',
               provider: cfg.provider,
               endpoint: cfg.endpoint,

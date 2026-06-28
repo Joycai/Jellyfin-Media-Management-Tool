@@ -223,6 +223,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customPart => 'Custom Part';
 
   @override
+  String get customPartHint => 'e.g. 5';
+
+  @override
+  String partLabel(Object count) {
+    return 'Part $count';
+  }
+
+  @override
+  String get tvShowDialogTitle => 'TV show episode (SxxExx)';
+
+  @override
   String get apply => 'Apply';
 
   @override

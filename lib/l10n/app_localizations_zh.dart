@@ -222,6 +222,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get customPart => '自定义分段';
 
   @override
+  String get customPartHint => '例如：5';
+
+  @override
+  String partLabel(Object count) {
+    return '分段 $count';
+  }
+
+  @override
+  String get tvShowDialogTitle => '剧集 (SxxExx)';
+
+  @override
   String get apply => '应用';
 
   @override

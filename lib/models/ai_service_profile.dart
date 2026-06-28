@@ -1,6 +1,5 @@
-import 'dart:math';
-
 import '../services/ai/ai_provider.dart';
+import '../utils/ids.dart';
 
 /// A single configured AI endpoint the user can manage. One profile is the
 /// "active" one that drives organization; the rest are kept on standby.
@@ -89,7 +88,4 @@ class AiServiceProfile {
         apiKey: '',
         model: provider == AiProviderType.openAi ? 'gpt-4o-mini' : 'gemini-2.0-flash',
       );
-
-  static String newId() =>
-      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
 }

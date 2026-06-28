@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../services/apply_controller.dart';
 import '../../services/history_service.dart';
 import '../../services/task_service.dart';
+import '../../utils/path_tree.dart';
 import '../glass/glass_panel.dart';
 import 'organize_preview_dialog.dart';
 import '../dialogs/part_dialog.dart';
@@ -334,7 +335,7 @@ class _TargetStructureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final lines = _buildTreeLines(plan.actions.map((a) => a.target).toList());
+    final lines = buildPathTree(plan.actions.map((a) => a.target).toList());
 
     return GlassPanel(
       radius: 16,
@@ -370,29 +371,6 @@ class _TargetStructureCard extends StatelessWidget {
     );
   }
 
-  /// Collapses target paths into a sorted, de-duplicated indented tree.
-  static List<_TreeLine> _buildTreeLines(List<String> targets) {
-    final seen = <String>{};
-    final lines = <_TreeLine>[];
-    final sorted = [...targets]..sort();
-    for (final target in sorted) {
-      final parts = p.split(target).where((s) => s.isNotEmpty).toList();
-      for (var i = 0; i < parts.length; i++) {
-        final key = parts.sublist(0, i + 1).join('/');
-        if (seen.add(key)) {
-          lines.add(_TreeLine(name: parts[i], depth: i, isDir: i < parts.length - 1));
-        }
-      }
-    }
-    return lines;
-  }
-}
-
-class _TreeLine {
-  final String name;
-  final int depth;
-  final bool isDir;
-  const _TreeLine({required this.name, required this.depth, required this.isDir});
 }
 
 class _Idle extends StatelessWidget {
