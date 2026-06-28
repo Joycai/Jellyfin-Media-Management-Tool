@@ -124,22 +124,6 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFF34C759).withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFF34C759), shape: BoxShape.circle)),
-                const SizedBox(width: 7),
-                Text(l10n.previewDryRun,
-                    style: const TextStyle(color: Color(0xFF2A9D54), fontSize: 12.5, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -222,20 +206,13 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
           Checkbox(value: _backup, onChanged: (v) => setState(() => _backup = v ?? true)),
           const SizedBox(width: 2),
           Flexible(
-            child: Text(l10n.backupSnapshot,
+            child: Text(l10n.recordUndoHistory,
                 style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant)),
           ),
           const Spacer(),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(l10n.cancel),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.tune, size: 16),
-            label: Text(l10n.adjustRules),
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
           ),
           const SizedBox(width: 10),
           FilledButton.icon(

@@ -232,6 +232,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageLabel => 'Language';
 
   @override
+  String get subtitleLangZhHans => 'Simplified Chinese';
+
+  @override
+  String get subtitleLangZhHant => 'Traditional Chinese';
+
+  @override
+  String get subtitleLangJa => 'Japanese';
+
+  @override
+  String get subtitleLangEn => 'English';
+
+  @override
   String get video => 'Video';
 
   @override
@@ -504,9 +516,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get temperature => 'Temperature';
 
   @override
-  String get rateLimitPerMin => 'Requests per minute';
-
-  @override
   String get usageThisMonth => 'This month';
 
   @override
@@ -535,9 +544,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String previewSubtitle(Object folders, Object pct, Object size) {
     return 'Move $folders folders, $size · avg AI confidence $pct%';
   }
-
-  @override
-  String get previewDryRun => 'Dry run · no files moved yet';
 
   @override
   String get viewTree => 'Tree compare';
@@ -590,10 +596,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get needsReviewSuffix => 'Needs review';
 
   @override
-  String get backupSnapshot => 'Back up a snapshot (undo within 7 days)';
-
-  @override
-  String get adjustRules => 'Adjust rules';
+  String get recordUndoHistory => 'Record undo history (7 days)';
 
   @override
   String applyOrganizeCount(Object count) {

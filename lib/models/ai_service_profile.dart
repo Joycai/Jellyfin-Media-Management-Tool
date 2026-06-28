@@ -12,7 +12,6 @@ class AiServiceProfile {
   final String apiKey;
   final String model;
   final double temperature;
-  final int rateLimit;
 
   const AiServiceProfile({
     required this.id,
@@ -22,7 +21,6 @@ class AiServiceProfile {
     required this.apiKey,
     required this.model,
     this.temperature = 0.2,
-    this.rateLimit = 60,
   });
 
   bool get isComplete =>
@@ -46,7 +44,6 @@ class AiServiceProfile {
     String? apiKey,
     String? model,
     double? temperature,
-    int? rateLimit,
   }) =>
       AiServiceProfile(
         id: id,
@@ -56,7 +53,6 @@ class AiServiceProfile {
         apiKey: apiKey ?? this.apiKey,
         model: model ?? this.model,
         temperature: temperature ?? this.temperature,
-        rateLimit: rateLimit ?? this.rateLimit,
       );
 
   Map<String, dynamic> toJson() => {
@@ -67,9 +63,10 @@ class AiServiceProfile {
         'api_key': apiKey,
         'model': model,
         'temperature': temperature,
-        'rate_limit': rateLimit,
       };
 
+  /// Reads a profile from JSON. Older configs may carry a `rate_limit` field
+  /// from a previous schema — it's silently ignored here.
   factory AiServiceProfile.fromJson(Map<String, dynamic> json) => AiServiceProfile(
         id: (json['id'] as String?) ?? newId(),
         name: (json['name'] as String?) ?? 'AI Service',
@@ -78,7 +75,6 @@ class AiServiceProfile {
         apiKey: (json['api_key'] as String?) ?? '',
         model: (json['model'] as String?) ?? '',
         temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
-        rateLimit: (json['rate_limit'] as num?)?.toInt() ?? 60,
       );
 
   /// A fresh, empty profile with sensible defaults for [provider].

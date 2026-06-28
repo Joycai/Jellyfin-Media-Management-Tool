@@ -222,7 +222,7 @@ class AiAssistantPanel extends StatelessWidget {
       if (!context.mounted) return;
       final r = await showDialog<Map<String, dynamic>>(
           context: context,
-          builder: (_) => SubtitleDialog(videoFiles: videos, initialLang: 'chi', initialDefault: false));
+          builder: (_) => SubtitleDialog(videoFiles: videos, initialLang: 'zh-Hans', initialDefault: false));
       if (r == null) return;
       extra = r['result'] as String;
     }
