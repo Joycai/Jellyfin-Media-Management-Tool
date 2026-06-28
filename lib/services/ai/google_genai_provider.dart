@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'ai_http.dart';
 import 'ai_provider.dart';
 
 /// Talks to the Google Generative Language REST API (`:generateContent`).
@@ -57,13 +58,13 @@ class GoogleGenAiProvider implements AiProvider {
 
     http.Response res;
     try {
-      res = await http
+      res = await AiHttp.withRetry(() => AiHttp.client
           .post(
             _generateUri(),
             headers: {'Content-Type': 'application/json'},
             body: body,
           )
-          .timeout(const Duration(seconds: 120));
+          .timeout(const Duration(seconds: 120)));
     } catch (e) {
       throw AiException('Network error: $e');
     }
@@ -96,9 +97,9 @@ class GoogleGenAiProvider implements AiProvider {
   Future<bool> testConnection() async {
     http.Response res;
     try {
-      res = await http
+      res = await AiHttp.withRetry(() => AiHttp.client
           .get(_modelsUri())
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 15)));
     } catch (e) {
       throw AiException('Network error: $e');
     }

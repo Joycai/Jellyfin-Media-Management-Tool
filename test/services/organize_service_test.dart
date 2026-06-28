@@ -21,12 +21,12 @@ void main() {
     fs = newMemoryFs();
   });
 
-  group('OrganizeService.applyAction — happy path', () {
+  group('applyOrganizeAction — happy path', () {
     test('renames a file in place', () async {
       seedFile(fs, '/work/Dune.2021.mkv', contents: 'video');
       final action = _act('Dune.2021.mkv', 'Movies/Dune (2021)/Dune (2021).mkv');
 
-      final outcome = await OrganizeService.applyAction(action, baseDir: base, fs: fs);
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
 
       expect(outcome.ok, isTrue);
       expect(outcome.bytes, equals(5));
@@ -39,19 +39,19 @@ void main() {
       seedFile(fs, '/work/a.mkv');
       final action = _act('a.mkv', 'a.mkv');
 
-      final outcome = await OrganizeService.applyAction(action, baseDir: base, fs: fs);
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
 
       expect(outcome.ok, isTrue);
       expect(action.status, ActionStatus.applied);
     });
   });
 
-  group('OrganizeService.applyAction — failures', () {
+  group('applyOrganizeAction — failures', () {
     test('rejects target that escapes baseDir via ..', () async {
       seedFile(fs, '/work/a.mkv');
       final action = _act('a.mkv', '../escape.mkv');
 
-      final outcome = await OrganizeService.applyAction(action, baseDir: base, fs: fs);
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
 
       expect(outcome.ok, isFalse);
       expect(action.status, ActionStatus.failed);
@@ -64,7 +64,7 @@ void main() {
       seedFile(fs, '/work/a.mkv');
       final action = _act('a.mkv', '/etc/passwd');
 
-      final outcome = await OrganizeService.applyAction(action, baseDir: base, fs: fs);
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
 
       expect(outcome.ok, isFalse);
       expect(action.status, ActionStatus.failed);
@@ -74,7 +74,7 @@ void main() {
     test('rejects source that escapes baseDir', () async {
       final action = _act('../outside.mkv', 'Movies/x.mkv');
 
-      final outcome = await OrganizeService.applyAction(action, baseDir: base, fs: fs);
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
 
       expect(outcome.ok, isFalse);
       expect(outcome.error, contains('escapes'));
@@ -83,7 +83,7 @@ void main() {
     test('fails when source is missing', () async {
       final action = _act('missing.mkv', 'Movies/x.mkv');
 
-      final outcome = await OrganizeService.applyAction(action, baseDir: base, fs: fs);
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
 
       expect(outcome.ok, isFalse);
       expect(action.status, ActionStatus.failed);
@@ -95,7 +95,7 @@ void main() {
       seedFile(fs, '/work/Movies/a.mkv', contents: 'existing');
       final action = _act('a.mkv', 'Movies/a.mkv');
 
-      final outcome = await OrganizeService.applyAction(action, baseDir: base, fs: fs);
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
 
       expect(outcome.ok, isFalse);
       expect(action.status, ActionStatus.failed);

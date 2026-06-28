@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'ai_http.dart';
 import 'ai_provider.dart';
 
 /// Talks to any OpenAI-compatible `/chat/completions` endpoint.
@@ -49,9 +50,9 @@ class OpenAiProvider implements AiProvider {
 
     http.Response res;
     try {
-      res = await http
+      res = await AiHttp.withRetry(() => AiHttp.client
           .post(_chatUri, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 120));
+          .timeout(const Duration(seconds: 120)));
     } catch (e) {
       throw AiException('Network error: $e');
     }
@@ -81,9 +82,9 @@ class OpenAiProvider implements AiProvider {
   Future<bool> testConnection() async {
     http.Response res;
     try {
-      res = await http
+      res = await AiHttp.withRetry(() => AiHttp.client
           .get(_modelsUri, headers: _headers)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 15)));
     } catch (e) {
       throw AiException('Network error: $e');
     }

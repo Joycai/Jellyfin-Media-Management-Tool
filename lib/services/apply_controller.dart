@@ -165,7 +165,7 @@ class ApplyController extends ChangeNotifier {
       _scheduleNotify();
       if (pace > 0) await Future.delayed(Duration(milliseconds: pace));
 
-      final outcome = await OrganizeService.applyAction(a, baseDir: baseDir);
+      final outcome = await applyOrganizeAction(a, baseDir: baseDir);
       _inProgress--;
       if (outcome.ok) {
         _done++;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -163,6 +164,24 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Debounce window for [_scheduleSave]. Long enough to coalesce a slider
+  /// drag (60+ ticks/sec) into a single disk write; short enough that the
+  /// user can quit the app and trust their change persisted.
+  static const _saveDebounce = Duration(milliseconds: 250);
+
+  Timer? _saveTimer;
+
+  /// Coalesces back-to-back setter calls into a single [_saveConfig] write.
+  /// Used by every setter that mutates the JSON-backed slice; the
+  /// search-sites file has its own [_saveSites].
+  void _scheduleSave() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(_saveDebounce, () {
+      _saveTimer = null;
+      unawaited(_saveConfig());
+    });
+  }
+
   Future<void> _saveConfig() async {
     try {
       final file = await _configFile;
@@ -187,6 +206,16 @@ class SettingsService extends ChangeNotifier {
     }
   }
 
+  @override
+  void dispose() {
+    if (_saveTimer != null) {
+      _saveTimer!.cancel();
+      _saveTimer = null;
+      unawaited(_saveConfig());
+    }
+    super.dispose();
+  }
+
   Future<void> _saveSites() async {
     try {
       final file = await _sitesFile;
@@ -198,55 +227,55 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setLocale(Locale? locale) async {
     _locale = locale;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setLastSearchSiteIndex(int index) async {
     _lastSearchSiteIndex = index;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setGlassIntensity(double v) async {
     _glassIntensity = v.clamp(0, 100);
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setAccentColor(int? argb) async {
     _accentColor = argb;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setAutoConnectAi(bool v) async {
     _autoConnectAi = v;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setAlwaysShowPreview(bool v) async {
     _alwaysShowPreview = v;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setLowConfidenceSuggestOnly(bool v) async {
     _lowConfidenceSuggestOnly = v;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setOnboardingSeen(bool v) async {
     _onboardingSeen = v;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
@@ -264,7 +293,7 @@ class SettingsService extends ChangeNotifier {
     final idx = _aiServices.indexWhere((s) => s.id == profile.id);
     if (idx < 0) return;
     _aiServices = [..._aiServices]..[idx] = profile;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
@@ -273,14 +302,14 @@ class SettingsService extends ChangeNotifier {
     if (_activeAiServiceId == id) {
       _activeAiServiceId = _aiServices.isNotEmpty ? _aiServices.first.id : null;
     }
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setActiveAiService(String id) async {
     if (_aiServices.every((s) => s.id != id)) return;
     _activeAiServiceId = id;
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
@@ -292,7 +321,7 @@ class SettingsService extends ChangeNotifier {
     } else {
       _favorites.add(path);
     }
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 
@@ -304,7 +333,7 @@ class SettingsService extends ChangeNotifier {
     if (_recent.length > _maxRecent) {
       _recent = _recent.sublist(0, _maxRecent);
     }
-    await _saveConfig();
+    _scheduleSave();
     notifyListeners();
   }
 

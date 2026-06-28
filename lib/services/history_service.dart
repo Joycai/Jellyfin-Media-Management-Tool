@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/history_entry.dart';
+import 'path_safety.dart';
 
 /// Stores and exposes the operation history (one manifest file per operation in
 /// `<app-support>/undo/`). Entries older than [retentionDays] are pruned on
@@ -111,7 +112,7 @@ class HistoryService extends ChangeNotifier {
   /// reversing — so the user can retry undo and make further progress
   /// instead of replaying the moves we already reversed.
   Future<UndoResult> undo(HistoryEntry entry) async {
-    final result = await undoFromManifest(entry, fs: _fs);
+    final result = await _reverseMoves(entry);
 
     if (result.remaining.isEmpty) {
       try {
@@ -148,5 +149,69 @@ class HistoryService extends ChangeNotifier {
         .toList();
     notifyListeners();
     return result;
+  }
+
+  /// Reverses each move in [entry] by renaming target → source. A pre-existing
+  /// `from` (file already restored manually) counts as success; a move whose
+  /// paths escape `entry.baseDir` is refused — defense in depth against
+  /// tampered manifests.
+  Future<UndoResult> _reverseMoves(HistoryEntry entry) async {
+    var succeeded = 0;
+    final failures = <String>[];
+    final remaining = <Map<String, String>>[];
+
+    // Iterate in reverse so newly-created subfolders are emptied before parents.
+    // `remaining` is returned in original order to keep the manifest stable.
+    final keptIndices = <int>{};
+    final reversedIndexed = entry.moves
+        .asMap()
+        .entries
+        .toList()
+        .reversed
+        .toList(growable: false);
+
+    for (final indexed in reversedIndexed) {
+      final i = indexed.key;
+      final move = indexed.value;
+      final from = move['from']!;
+      final to = move['to']!;
+
+      if (!PathSafety.isWithin(entry.baseDir, from) ||
+          !PathSafety.isWithin(entry.baseDir, to)) {
+        failures.add('escapes base: $from');
+        keptIndices.add(i);
+        continue;
+      }
+
+      try {
+        // If the user manually moved the file back already, count as undone.
+        if (await _fs.file(from).exists() || await _fs.directory(from).exists()) {
+          succeeded++;
+          continue;
+        }
+        final file = _fs.file(to);
+        if (!await file.exists()) {
+          failures.add('missing $to');
+          keptIndices.add(i);
+          continue;
+        }
+        await _fs.directory(p.dirname(from)).create(recursive: true);
+        await file.rename(from);
+        succeeded++;
+      } catch (e) {
+        failures.add('$to → $from: $e');
+        keptIndices.add(i);
+      }
+    }
+
+    for (var i = 0; i < entry.moves.length; i++) {
+      if (keptIndices.contains(i)) remaining.add(entry.moves[i]);
+    }
+
+    return UndoResult(
+      succeeded: succeeded,
+      failures: failures,
+      remaining: remaining,
+    );
   }
 }
