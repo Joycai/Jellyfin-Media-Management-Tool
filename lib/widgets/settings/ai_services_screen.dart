@@ -6,8 +6,8 @@ import '../../models/ai_service_profile.dart';
 import '../../services/ai/ai_provider.dart';
 import '../../services/ai/google_genai_provider.dart';
 import '../../services/ai/openai_provider.dart';
+import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
-import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
 
 /// Header-less two-pane AI services manager (list + detail). Designed for
@@ -25,8 +25,8 @@ class _AiServicesViewState extends State<AiServicesView> {
   @override
   void initState() {
     super.initState();
-    final s = context.read<SettingsService>();
-    _selectedId = s.activeAiServiceId ?? (s.aiServices.isNotEmpty ? s.aiServices.first.id : null);
+    final profiles = context.read<AiProfilesService>();
+    _selectedId = profiles.activeId ?? (profiles.services.isNotEmpty ? profiles.services.first.id : null);
   }
 
   AiServiceProfile? _resolve(List<AiServiceProfile> services) {
@@ -39,14 +39,14 @@ class _AiServicesViewState extends State<AiServicesView> {
   void _addService() {
     final l10n = AppLocalizations.of(context)!;
     final profile = AiServiceProfile.create(name: l10n.newServiceName);
-    context.read<SettingsService>().addAiService(profile);
+    context.read<AiProfilesService>().add(profile);
     setState(() => _selectedId = profile.id);
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsService>();
-    final services = settings.aiServices;
+    final profiles = context.watch<AiProfilesService>();
+    final services = profiles.services;
     final selected = _resolve(services);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -56,7 +56,7 @@ class _AiServicesViewState extends State<AiServicesView> {
           child: _ServiceList(
             services: services,
             selectedId: selected?.id,
-            activeId: settings.activeAiServiceId,
+            activeId: profiles.activeId,
             onSelect: (id) => setState(() => _selectedId = id),
             onAdd: _addService,
           ),
@@ -67,7 +67,7 @@ class _AiServicesViewState extends State<AiServicesView> {
               : _ServiceDetail(
                   key: ValueKey(selected.id),
                   profile: selected,
-                  isActive: selected.id == settings.activeAiServiceId,
+                  isActive: selected.id == profiles.activeId,
                 ),
         ),
       ],
@@ -314,8 +314,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       model: _model.text.trim(),
       temperature: _temperature,
     );
-    final settings = context.read<SettingsService>();
-    settings.updateAiService(updated);
+    context.read<AiProfilesService>().update(updated);
     if (widget.isActive) {
       context.read<AiService>().updateConfig(updated.toAiConfig());
     }
@@ -358,7 +357,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
 
   Future<void> _delete() async {
     final l10n = AppLocalizations.of(context)!;
-    final settings = context.read<SettingsService>();
+    final profiles = context.read<AiProfilesService>();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -380,7 +379,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       ),
     );
     if (confirm == true) {
-      settings.deleteAiService(widget.profile.id);
+      profiles.delete(widget.profile.id);
     }
   }
 

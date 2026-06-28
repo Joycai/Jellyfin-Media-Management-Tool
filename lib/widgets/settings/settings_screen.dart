@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/app_localizations_en.dart';
 import '../../l10n/app_localizations_zh.dart';
+import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/history_service.dart';
 import '../../services/settings_service.dart';
@@ -960,8 +961,8 @@ class _AiServicesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     // Re-sync AiService with the active profile whenever this section rebuilds
     // (cheap and idempotent; `updateConfig` no-ops when nothing changes).
-    final settings = context.watch<SettingsService>();
-    context.read<AiService>().updateConfig(settings.aiConfig);
+    final profiles = context.watch<AiProfilesService>();
+    context.read<AiService>().updateConfig(profiles.aiConfig);
     return const AiServicesView();
   }
 }

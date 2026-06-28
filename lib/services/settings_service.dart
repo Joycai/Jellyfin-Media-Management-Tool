@@ -7,10 +7,6 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/ai_service_profile.dart';
-import '../utils/ids.dart';
-import 'ai/ai_provider.dart';
-
 class SearchSite {
   String name;
   String url;
@@ -24,12 +20,16 @@ class SearchSite {
       );
 }
 
+/// User preferences that aren't AI profiles or library nav state: theme,
+/// locale, glass intensity, accent color, behavior toggles, onboarding,
+/// search sites. AI profiles live in [AiProfilesService] and favorites /
+/// recent live in [LibraryNavService] (when introduced) — split so each
+/// concern writes to its own file and a slider drag doesn't rewrite the
+/// AI keys (or vice versa).
 class SettingsService extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   Locale? _locale;
   int _lastSearchSiteIndex = 0;
-  List<AiServiceProfile> _aiServices = [];
-  String? _activeAiServiceId;
   List<String> _favorites = [];
   List<String> _recent = [];
 
@@ -52,20 +52,6 @@ class SettingsService extends ChangeNotifier {
   Locale? get locale => _locale;
   List<SearchSite> get searchSites => _searchSites;
   int get lastSearchSiteIndex => _lastSearchSiteIndex;
-  List<AiServiceProfile> get aiServices => List.unmodifiable(_aiServices);
-  String? get activeAiServiceId => _activeAiServiceId;
-
-  /// The active profile, falling back to the first configured one.
-  AiServiceProfile? get activeAiService {
-    if (_aiServices.isEmpty) return null;
-    return _aiServices.firstWhere(
-      (s) => s.id == _activeAiServiceId,
-      orElse: () => _aiServices.first,
-    );
-  }
-
-  /// Runtime config for the active profile (consumed by [AiService]).
-  AiConfig get aiConfig => activeAiService?.toAiConfig() ?? AiConfig.empty;
   List<String> get favorites => List.unmodifiable(_favorites);
   List<String> get recent => List.unmodifiable(_recent);
   double get glassIntensity => _glassIntensity;
@@ -101,27 +87,6 @@ class SettingsService extends ChangeNotifier {
           }
           if (data['last_search_site_index'] is int) {
             _lastSearchSiteIndex = data['last_search_site_index'];
-          }
-          if (data['ai_services'] is List) {
-            _aiServices = (data['ai_services'] as List)
-                .whereType<Map<String, dynamic>>()
-                .map(AiServiceProfile.fromJson)
-                .toList();
-            _activeAiServiceId = data['active_ai_service'] as String?;
-          } else if (data['ai'] is Map<String, dynamic>) {
-            // Migrate the previous single-endpoint config into one profile.
-            final cfg = AiConfig.fromJson(data['ai']);
-            final migrated = AiServiceProfile(
-              id: newId(),
-              name: cfg.provider == AiProviderType.googleGenAi ? 'Google GenAI' : 'OpenAI',
-              provider: cfg.provider,
-              endpoint: cfg.endpoint,
-              apiKey: cfg.apiKey,
-              model: cfg.model,
-              temperature: cfg.temperature,
-            );
-            _aiServices = [migrated];
-            _activeAiServiceId = migrated.id;
           }
           if (data['glass_intensity'] is num) {
             _glassIntensity = (data['glass_intensity'] as num).toDouble().clamp(0, 100);
@@ -189,8 +154,6 @@ class SettingsService extends ChangeNotifier {
         'theme_mode': _themeMode.index,
         'locale': _locale?.languageCode,
         'last_search_site_index': _lastSearchSiteIndex,
-        'ai_services': _aiServices.map((s) => s.toJson()).toList(),
-        'active_ai_service': _activeAiServiceId,
         'glass_intensity': _glassIntensity,
         'accent_color': _accentColor,
         'auto_connect_ai': _autoConnectAi,
@@ -275,40 +238,6 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setOnboardingSeen(bool v) async {
     _onboardingSeen = v;
-    _scheduleSave();
-    notifyListeners();
-  }
-
-  /// Adds a profile and makes it active. Returns the added profile.
-  Future<AiServiceProfile> addAiService(AiServiceProfile profile) async {
-    _aiServices = [..._aiServices, profile];
-    _activeAiServiceId = profile.id;
-    await _saveConfig();
-    notifyListeners();
-    return profile;
-  }
-
-  /// Replaces a profile in place (matched by id).
-  Future<void> updateAiService(AiServiceProfile profile) async {
-    final idx = _aiServices.indexWhere((s) => s.id == profile.id);
-    if (idx < 0) return;
-    _aiServices = [..._aiServices]..[idx] = profile;
-    _scheduleSave();
-    notifyListeners();
-  }
-
-  Future<void> deleteAiService(String id) async {
-    _aiServices = _aiServices.where((s) => s.id != id).toList();
-    if (_activeAiServiceId == id) {
-      _activeAiServiceId = _aiServices.isNotEmpty ? _aiServices.first.id : null;
-    }
-    _scheduleSave();
-    notifyListeners();
-  }
-
-  Future<void> setActiveAiService(String id) async {
-    if (_aiServices.every((s) => s.id != id)) return;
-    _activeAiServiceId = id;
     _scheduleSave();
     notifyListeners();
   }

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/ai_service_profile.dart';
 import '../../services/ai/ai_provider.dart';
+import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
@@ -42,6 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // Grab everything synchronously before awaiting; the host swaps screens
     // when onboardingSeen flips, so `mounted` may be false after the awaits.
     final settings = context.read<SettingsService>();
+    final profiles = context.read<AiProfilesService>();
     final ai = context.read<AiService>();
     final browser = context.read<FileBrowserService>();
     final openAiName = AppLocalizations.of(context)!.onboardingProviderOpenAi;
@@ -57,8 +59,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ? 'Google GenAI'
             : openAiName,
       );
-      await settings.addAiService(profile);
-      ai.updateConfig(settings.aiConfig);
+      await profiles.add(profile);
+      ai.updateConfig(profiles.aiConfig);
     }
     await settings.setOnboardingSeen(true);
   }
