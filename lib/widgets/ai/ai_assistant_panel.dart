@@ -113,7 +113,8 @@ class AiAssistantPanel extends StatelessWidget {
     final history = context.read<HistoryService>();
     final plan = ai.currentPlan!;
     final baseDir = ai.planBaseDir!;
-    final totalBytes = _sumSourceSizes(plan, baseDir);
+    final totalBytes = await _sumSourceSizes(plan, baseDir);
+    if (!context.mounted) return;
 
     final res = await OrganizePreviewDialog.show(
       context,
@@ -154,16 +155,18 @@ class AiAssistantPanel extends StatelessWidget {
   }
 
   /// Best-effort total byte size of the plan's source files (for the preview's
-  /// "N GB" stat). Missing files are skipped.
-  int _sumSourceSizes(OrganizePlan plan, String baseDir) {
-    var total = 0;
-    for (final a in plan.actions) {
+  /// "N GB" stat). Missing files are skipped. Runs lookups in parallel via
+  /// async `length()` so a 400-file plan doesn't freeze the UI on the way to
+  /// the preview dialog.
+  Future<int> _sumSourceSizes(OrganizePlan plan, String baseDir) async {
+    final sizes = await Future.wait(plan.actions.map((a) async {
       try {
         final f = File(p.normalize(p.join(baseDir, a.source)));
-        if (f.existsSync()) total += f.lengthSync();
+        if (await f.exists()) return await f.length();
       } catch (_) {}
-    }
-    return total;
+      return 0;
+    }));
+    return sizes.fold<int>(0, (sum, n) => sum + n);
   }
 
   /// Manual fallback: applies a Jellyfin rename rule to the selected file using
