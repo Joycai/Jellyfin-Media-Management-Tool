@@ -27,7 +27,13 @@ class MoveOutcome {
   final String? error;
   final String? fromPath;
   final String? toPath;
-  const MoveOutcome({required this.ok, this.bytes = 0, this.error, this.fromPath, this.toPath});
+  const MoveOutcome({
+    required this.ok,
+    this.bytes = 0,
+    this.error,
+    this.fromPath,
+    this.toPath,
+  });
 }
 
 const FileSystem _defaultFs = LocalFileSystem();
@@ -66,7 +72,12 @@ Future<MoveOutcome> applyOrganizeAction(
     await _moveFile(sourceFile, targetPath, fs);
     action.status = ActionStatus.applied;
     action.error = null;
-    return MoveOutcome(ok: true, bytes: bytes, fromPath: sourcePath, toPath: targetPath);
+    return MoveOutcome(
+      ok: true,
+      bytes: bytes,
+      fromPath: sourcePath,
+      toPath: targetPath,
+    );
   } catch (e) {
     action.status = ActionStatus.failed;
     action.error = e.toString();
@@ -90,7 +101,9 @@ Future<void> _moveFile(File source, String targetPath, FileSystem fs) async {
     try {
       await source.delete();
     } catch (_) {
-      try { await fs.file(targetPath).delete(); } catch (_) {}
+      try {
+        await fs.file(targetPath).delete();
+      } catch (_) {}
       rethrow;
     }
   }

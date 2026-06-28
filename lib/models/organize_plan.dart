@@ -38,12 +38,12 @@ class OrganizeAction {
       confidence < 0.6 ? ActionStatus.needsReview : ActionStatus.pending;
 
   factory OrganizeAction.fromJson(Map<String, dynamic> json) => OrganizeAction(
-        source: (json['source'] as String?)?.trim() ?? '',
-        target: (json['target'] as String?)?.trim() ?? '',
-        kind: (json['kind'] as String?)?.trim() ?? 'other',
-        confidence: _asDouble(json['confidence']),
-        note: (json['note'] as String?)?.trim() ?? '',
-      );
+    source: (json['source'] as String?)?.trim() ?? '',
+    target: (json['target'] as String?)?.trim() ?? '',
+    kind: (json['kind'] as String?)?.trim() ?? 'other',
+    confidence: _asDouble(json['confidence']),
+    note: (json['note'] as String?)?.trim() ?? '',
+  );
 
   static double _asDouble(dynamic v) {
     if (v is num) {

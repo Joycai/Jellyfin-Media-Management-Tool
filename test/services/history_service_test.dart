@@ -31,9 +31,7 @@ void main() {
       moveCount: moves.length,
       renameCount: 0,
       totalBytes: moves.length,
-      moves: moves
-          .map((m) => {'from': m[0], 'to': m[1]})
-          .toList(),
+      moves: moves.map((m) => {'from': m[0], 'to': m[1]}).toList(),
     );
   }
 
@@ -59,39 +57,44 @@ void main() {
   });
 
   group('HistoryService.undo — partial', () {
-    test('rewrites manifest with only unrecovered moves; retry finishes', () async {
-      final entry = await seedManifest([
-        ['/work/a.mkv', '/work/Movies/A/a.mkv'],
-        ['/work/b.mkv', '/work/Movies/B/b.mkv'],
-        ['/work/c.mkv', '/work/Movies/C/c.mkv'],
-      ]);
-      // Sabotage: delete c's "to" file so undo reports "missing" on c only.
-      fs.file('/work/Movies/C/c.mkv').deleteSync();
+    test(
+      'rewrites manifest with only unrecovered moves; retry finishes',
+      () async {
+        final entry = await seedManifest([
+          ['/work/a.mkv', '/work/Movies/A/a.mkv'],
+          ['/work/b.mkv', '/work/Movies/B/b.mkv'],
+          ['/work/c.mkv', '/work/Movies/C/c.mkv'],
+        ]);
+        // Sabotage: delete c's "to" file so undo reports "missing" on c only.
+        fs.file('/work/Movies/C/c.mkv').deleteSync();
 
-      final first = await svc.undo(entry);
+        final first = await svc.undo(entry);
 
-      expect(first.succeeded, 2);
-      expect(first.failures, hasLength(1));
-      expect(first.failures.single, contains('missing'));
-      expect(first.remaining, hasLength(1));
-      expect(first.remaining.single['from'], '/work/c.mkv');
+        expect(first.succeeded, 2);
+        expect(first.failures, hasLength(1));
+        expect(first.failures.single, contains('missing'));
+        expect(first.remaining, hasLength(1));
+        expect(first.remaining.single['from'], '/work/c.mkv');
 
-      // Manifest still on disk, rewritten with only c.
-      final reread = jsonDecode(fs.file(entry.manifestPath).readAsStringSync()) as Map<String, dynamic>;
-      expect((reread['moves'] as List).length, 1);
+        // Manifest still on disk, rewritten with only c.
+        final reread =
+            jsonDecode(fs.file(entry.manifestPath).readAsStringSync())
+                as Map<String, dynamic>;
+        expect((reread['moves'] as List).length, 1);
 
-      // In-memory entry reflects the rewrite.
-      expect(svc.entries, hasLength(1));
-      expect(svc.entries.single.moves, hasLength(1));
-      expect(svc.entries.single.moves.single['from'], '/work/c.mkv');
+        // In-memory entry reflects the rewrite.
+        expect(svc.entries, hasLength(1));
+        expect(svc.entries.single.moves, hasLength(1));
+        expect(svc.entries.single.moves.single['from'], '/work/c.mkv');
 
-      // Repair c and retry: the second undo should clear everything.
-      seedFile(fs, '/work/Movies/C/c.mkv');
-      final second = await svc.undo(svc.entries.single);
-      expect(second.succeeded, 1);
-      expect(second.remaining, isEmpty);
-      expect(svc.entries, isEmpty);
-    });
+        // Repair c and retry: the second undo should clear everything.
+        seedFile(fs, '/work/Movies/C/c.mkv');
+        final second = await svc.undo(svc.entries.single);
+        expect(second.succeeded, 1);
+        expect(second.remaining, isEmpty);
+        expect(svc.entries, isEmpty);
+      },
+    );
   });
 
   group('HistoryService.undo — already-undone moves', () {

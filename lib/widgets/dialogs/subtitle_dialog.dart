@@ -37,12 +37,12 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
   }
 
   String _langLabel(AppLocalizations l10n, String code) => switch (code) {
-        'zh-Hans' => l10n.subtitleLangZhHans,
-        'zh-Hant' => l10n.subtitleLangZhHant,
-        'ja' => l10n.subtitleLangJa,
-        'en' => l10n.subtitleLangEn,
-        _ => code,
-      };
+    'zh-Hans' => l10n.subtitleLangZhHans,
+    'zh-Hant' => l10n.subtitleLangZhHant,
+    'ja' => l10n.subtitleLangJa,
+    'en' => l10n.subtitleLangEn,
+    _ => code,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +59,10 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
             items: widget.videoFiles.map((v) {
               return DropdownMenuItem(
                 value: v,
-                child: Text(p.basename(v.path), overflow: TextOverflow.ellipsis),
+                child: Text(
+                  p.basename(v.path),
+                  overflow: TextOverflow.ellipsis,
+                ),
               );
             }).toList(),
             onChanged: (val) {

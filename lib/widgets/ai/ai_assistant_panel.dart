@@ -38,7 +38,9 @@ class AiAssistantPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: glass.sidebarFill,
         border: Border(
-          left: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.08)),
+          left: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
+          ),
         ),
       ),
       child: Column(
@@ -69,17 +71,27 @@ class AiAssistantPanel extends StatelessWidget {
                       onPressed: () => _confirmApply(context, ai),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
-                      child: Text(l10n.applyOrganize, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      child: Text(
+                        l10n.applyOrganize,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   OutlinedButton(
                     onPressed: () => _edit(context),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: Text(l10n.edit),
                   ),
@@ -91,11 +103,20 @@ class AiAssistantPanel extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
             child: Row(
               children: [
-                Text(l10n.usage, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                Text(
+                  l10n.usage,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
                 const Spacer(),
                 Text(
                   l10n.tokensLabel(ai.lastTokens),
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -137,11 +158,15 @@ class AiAssistantPanel extends StatelessWidget {
       onDone: () {
         final result = controller.result;
         browser.refresh();
-        messenger.showSnackBar(SnackBar(
-          content: Text(result.hasFailures
-              ? l10n.applyPartial(result.failed, result.succeeded)
-              : l10n.applyDone(result.succeeded)),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              result.hasFailures
+                  ? l10n.applyPartial(result.failed, result.succeeded)
+                  : l10n.applyDone(result.succeeded),
+            ),
+          ),
+        );
         // controller stays alive until the task is dismissed so the user can
         // re-open the detail screen post-completion; TaskService.dismiss is
         // the cue to free it. For now keep it — typical tasks are small.
@@ -149,9 +174,7 @@ class AiAssistantPanel extends StatelessWidget {
     );
     ai.clearPlan();
 
-    messenger.showSnackBar(SnackBar(
-      content: Text(l10n.tasksApplyStarted),
-    ));
+    messenger.showSnackBar(SnackBar(content: Text(l10n.tasksApplyStarted)));
   }
 
   /// Best-effort total byte size of the plan's source files (for the preview's
@@ -159,13 +182,15 @@ class AiAssistantPanel extends StatelessWidget {
   /// async `length()` so a 400-file plan doesn't freeze the UI on the way to
   /// the preview dialog.
   Future<int> _sumSourceSizes(OrganizePlan plan, String baseDir) async {
-    final sizes = await Future.wait(plan.actions.map((a) async {
-      try {
-        final f = File(p.normalize(p.join(baseDir, a.source)));
-        if (await f.exists()) return await f.length();
-      } catch (_) {}
-      return 0;
-    }));
+    final sizes = await Future.wait(
+      plan.actions.map((a) async {
+        try {
+          final f = File(p.normalize(p.join(baseDir, a.source)));
+          if (await f.exists()) return await f.length();
+        } catch (_) {}
+        return 0;
+      }),
+    );
     return sizes.fold<int>(0, (sum, n) => sum + n);
   }
 
@@ -192,13 +217,37 @@ class AiAssistantPanel extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(leading: const Icon(Icons.folder_copy), title: Text(l.matchFolderName), onTap: () => Navigator.pop(ctx, RenameRule.matchFolder)),
-              ListTile(leading: const Icon(Icons.star), title: Text(l.renameToFeaturette), onTap: () => Navigator.pop(ctx, RenameRule.featurette)),
-              ListTile(leading: const Icon(Icons.mic), title: Text(l.renameToInterview), onTap: () => Navigator.pop(ctx, RenameRule.interview)),
-              ListTile(leading: const Icon(Icons.segment), title: Text(l.renameToPart), onTap: () => Navigator.pop(ctx, RenameRule.part)),
-              ListTile(leading: const Icon(Icons.tv), title: Text(l.renameToTVShow), onTap: () => Navigator.pop(ctx, RenameRule.tvShow)),
+              ListTile(
+                leading: const Icon(Icons.folder_copy),
+                title: Text(l.matchFolderName),
+                onTap: () => Navigator.pop(ctx, RenameRule.matchFolder),
+              ),
+              ListTile(
+                leading: const Icon(Icons.star),
+                title: Text(l.renameToFeaturette),
+                onTap: () => Navigator.pop(ctx, RenameRule.featurette),
+              ),
+              ListTile(
+                leading: const Icon(Icons.mic),
+                title: Text(l.renameToInterview),
+                onTap: () => Navigator.pop(ctx, RenameRule.interview),
+              ),
+              ListTile(
+                leading: const Icon(Icons.segment),
+                title: Text(l.renameToPart),
+                onTap: () => Navigator.pop(ctx, RenameRule.part),
+              ),
+              ListTile(
+                leading: const Icon(Icons.tv),
+                title: Text(l.renameToTVShow),
+                onTap: () => Navigator.pop(ctx, RenameRule.tvShow),
+              ),
               if (isSubtitle)
-                ListTile(leading: const Icon(Icons.subtitles), title: Text(l.jellyfinSubtitle), onTap: () => Navigator.pop(ctx, RenameRule.subtitle)),
+                ListTile(
+                  leading: const Icon(Icons.subtitles),
+                  title: Text(l.jellyfinSubtitle),
+                  onTap: () => Navigator.pop(ctx, RenameRule.subtitle),
+                ),
             ],
           ),
         );
@@ -209,24 +258,36 @@ class AiAssistantPanel extends StatelessWidget {
 
     String? extra;
     if (rule == RenameRule.part) {
-      extra = await showDialog<String>(context: context, builder: (_) => const PartDialog());
+      extra = await showDialog<String>(
+        context: context,
+        builder: (_) => const PartDialog(),
+      );
       if (extra == null) return;
     } else if (rule == RenameRule.tvShow) {
       final r = await showDialog<Map<String, dynamic>>(
-          context: context, builder: (_) => const TVShowDialog(initialSeason: 1, initialEpisode: 1));
+        context: context,
+        builder: (_) => const TVShowDialog(initialSeason: 1, initialEpisode: 1),
+      );
       if (r == null) return;
       extra = r['result'] as String;
     } else if (rule == RenameRule.subtitle) {
       final videos = file.parent
           .listSync()
           .whereType<File>()
-          .where((f) => FileLabelService.getLabel(p.extension(f.path)) == 'Video')
+          .where(
+            (f) => FileLabelService.getLabel(p.extension(f.path)) == 'Video',
+          )
           .toList();
       if (videos.isEmpty) return;
       if (!context.mounted) return;
       final r = await showDialog<Map<String, dynamic>>(
-          context: context,
-          builder: (_) => SubtitleDialog(videoFiles: videos, initialLang: 'zh-Hans', initialDefault: false));
+        context: context,
+        builder: (_) => SubtitleDialog(
+          videoFiles: videos,
+          initialLang: 'zh-Hans',
+          initialDefault: false,
+        ),
+      );
       if (r == null) return;
       extra = r['result'] as String;
     }
@@ -235,9 +296,13 @@ class AiAssistantPanel extends StatelessWidget {
       final newName = RenameService.getNewName(file, rule, extra: extra);
       await RenameService.rename(file, newName);
       browser.refresh();
-      messenger.showSnackBar(SnackBar(content: Text('${p.basename(file.path)} → $newName')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('${p.basename(file.path)} → $newName')),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.errorRenaming(e.toString()))));
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.errorRenaming(e.toString()))),
+      );
     }
   }
 }
@@ -259,22 +324,39 @@ class _Header extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
+              gradient: LinearGradient(
+                colors: [scheme.primary, scheme.tertiary],
+              ),
               borderRadius: BorderRadius.circular(11),
             ),
-            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l10n.aiAssistant, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 Text(
-                  analyzing ? l10n.analyzingSelected : (hasPlan ? l10n.analysisComplete : l10n.aiPanelIdle),
+                  l10n.aiAssistant,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  analyzing
+                      ? l10n.analyzingSelected
+                      : (hasPlan ? l10n.analysisComplete : l10n.aiPanelIdle),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -304,27 +386,54 @@ class _ReasoningCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.reasoning.toUpperCase(),
-              style: TextStyle(fontSize: 11, letterSpacing: 0.8, fontWeight: FontWeight.w700, color: scheme.primary)),
+          Text(
+            l10n.reasoning.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w700,
+              color: scheme.primary,
+            ),
+          ),
           const SizedBox(height: 12),
           if (analyzing && steps.isEmpty)
-            Row(children: [
-              const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-              const SizedBox(width: 10),
-              Text(l10n.analyzing, style: TextStyle(color: scheme.onSurfaceVariant)),
-            ])
+            Row(
+              children: [
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  l10n.analyzing,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            )
           else
-            ...steps.map((s) => Padding(
-                  padding: const EdgeInsets.only(bottom: 9),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.check_rounded, size: 16, color: const Color(0xFF34C759)),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(s, style: const TextStyle(fontSize: 13, height: 1.3))),
-                    ],
-                  ),
-                )),
+            ...steps.map(
+              (s) => Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: const Color(0xFF34C759),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        s,
+                        style: const TextStyle(fontSize: 13, height: 1.3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -348,34 +457,53 @@ class _TargetStructureCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.targetStructure.toUpperCase(),
-              style: TextStyle(fontSize: 11, letterSpacing: 0.8, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
+          Text(
+            l10n.targetStructure.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 12),
-          ...lines.map((line) => Padding(
-                padding: EdgeInsets.only(left: line.depth * 16.0, bottom: 5),
-                child: Row(
-                  children: [
-                    Icon(line.isDir ? Icons.folder_rounded : Icons.insert_drive_file_outlined,
-                        size: 15, color: line.isDir ? scheme.primary : scheme.onSurfaceVariant),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(line.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontFamily: line.isDir ? null : 'monospace',
-                            fontWeight: line.isDir ? FontWeight.w600 : FontWeight.w400,
-                          )),
+          ...lines.map(
+            (line) => Padding(
+              padding: EdgeInsets.only(left: line.depth * 16.0, bottom: 5),
+              child: Row(
+                children: [
+                  Icon(
+                    line.isDir
+                        ? Icons.folder_rounded
+                        : Icons.insert_drive_file_outlined,
+                    size: 15,
+                    color: line.isDir
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      line.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontFamily: line.isDir ? null : 'monospace',
+                        fontWeight: line.isDir
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
-
 }
 
 class _Idle extends StatelessWidget {
@@ -392,11 +520,17 @@ class _Idle extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome_outlined, size: 48, color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 48,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 14),
-            Text(configured ? l10n.aiPanelIdle : l10n.aiNotConfigured,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: scheme.onSurfaceVariant)),
+            Text(
+              configured ? l10n.aiPanelIdle : l10n.aiNotConfigured,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
           ],
         ),
       ),
@@ -408,6 +542,10 @@ class _Divider extends StatelessWidget {
   const _Divider();
   @override
   Widget build(BuildContext context) {
-    return Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor.withValues(alpha: 0.08));
+    return Divider(
+      height: 1,
+      thickness: 1,
+      color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
+    );
   }
 }

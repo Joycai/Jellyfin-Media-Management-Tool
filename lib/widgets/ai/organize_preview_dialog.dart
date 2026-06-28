@@ -34,11 +34,14 @@ class OrganizePreviewDialog extends StatefulWidget {
     required OrganizePlan plan,
     required String baseDir,
     required int totalBytes,
-  }) =>
-      showDialog<PreviewResult>(
-        context: context,
-        builder: (_) => OrganizePreviewDialog(plan: plan, baseDir: baseDir, totalBytes: totalBytes),
-      );
+  }) => showDialog<PreviewResult>(
+    context: context,
+    builder: (_) => OrganizePreviewDialog(
+      plan: plan,
+      baseDir: baseDir,
+      totalBytes: totalBytes,
+    ),
+  );
 
   @override
   State<OrganizePreviewDialog> createState() => _OrganizePreviewDialogState();
@@ -55,16 +58,22 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
   List<OrganizeAction> get _conflicts =>
       _actions.where((a) => a.status == ActionStatus.needsReview).toList();
 
-  int get _renames =>
-      _actions.where((a) => p.basename(a.source) != p.basename(a.target)).length;
+  int get _renames => _actions
+      .where((a) => p.basename(a.source) != p.basename(a.target))
+      .length;
   int get _moves => _actions.length - _renames;
 
-  int get _folderCount =>
-      _pending.map((a) => p.dirname(a.target)).where((d) => d.isNotEmpty && d != '.').toSet().length;
+  int get _folderCount => _pending
+      .map((a) => p.dirname(a.target))
+      .where((d) => d.isNotEmpty && d != '.')
+      .toSet()
+      .length;
 
   int get _avgConfidencePct {
     if (_actions.isEmpty) return 0;
-    final mean = _actions.map((a) => a.confidence).reduce((x, y) => x + y) / _actions.length;
+    final mean =
+        _actions.map((a) => a.confidence).reduce((x, y) => x + y) /
+        _actions.length;
     return (mean * 100).round();
   }
 
@@ -82,10 +91,16 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
         child: Column(
           children: [
             _header(context, l10n),
-            Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+            Divider(
+              height: 1,
+              color: scheme.outlineVariant.withValues(alpha: 0.4),
+            ),
             _toolbar(context, l10n),
             Expanded(child: _body(context, l10n)),
-            Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+            Divider(
+              height: 1,
+              color: scheme.outlineVariant.withValues(alpha: 0.4),
+            ),
             _footer(context, l10n),
           ],
         ),
@@ -105,23 +120,41 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
+              gradient: LinearGradient(
+                colors: [scheme.primary, scheme.tertiary],
+              ),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l10n.previewTitle(_actions.length),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                Text(
+                  l10n.previewTitle(_actions.length),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Text(
                   // gen-l10n orders placeholders alphabetically: (folders, pct, size).
-                  l10n.previewSubtitle(_folderCount, _avgConfidencePct, formatBytes(widget.totalBytes, zero: '—')),
-                  style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+                  l10n.previewSubtitle(
+                    _folderCount,
+                    _avgConfidencePct,
+                    formatBytes(widget.totalBytes, zero: '—'),
+                  ),
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -148,31 +181,70 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
             ],
           ),
           const SizedBox(width: 20),
-          Text('${l10n.showOnly}:', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+          Text(
+            '${l10n.showOnly}:',
+            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
           const SizedBox(width: 8),
-          _FilterChip(label: l10n.filterChanges, selected: _filter == _Filter.changes, onTap: () => setState(() => _filter = _Filter.changes)),
+          _FilterChip(
+            label: l10n.filterChanges,
+            selected: _filter == _Filter.changes,
+            onTap: () => setState(() => _filter = _Filter.changes),
+          ),
           const SizedBox(width: 6),
-          _FilterChip(label: l10n.filterAll, selected: _filter == _Filter.all, onTap: () => setState(() => _filter = _Filter.all)),
+          _FilterChip(
+            label: l10n.filterAll,
+            selected: _filter == _Filter.all,
+            onTap: () => setState(() => _filter = _Filter.all),
+          ),
           const SizedBox(width: 6),
-          _FilterChip(label: l10n.filterConflicts(_conflicts.length), selected: _filter == _Filter.conflicts, onTap: () => setState(() => _filter = _Filter.conflicts)),
+          _FilterChip(
+            label: l10n.filterConflicts(_conflicts.length),
+            selected: _filter == _Filter.conflicts,
+            onTap: () => setState(() => _filter = _Filter.conflicts),
+          ),
           const Spacer(),
           _count(context, Icons.add, scheme.primary, l10n.countMoves(_moves)),
           const SizedBox(width: 14),
-          _count(context, Icons.drive_file_rename_outline, scheme.tertiary, l10n.countRenames(_renames)),
+          _count(
+            context,
+            Icons.drive_file_rename_outline,
+            scheme.tertiary,
+            l10n.countRenames(_renames),
+          ),
           const SizedBox(width: 14),
-          _count(context, Icons.warning_amber_rounded, const Color(0xFFE0A030), l10n.countConflicts(_conflicts.length)),
+          _count(
+            context,
+            Icons.warning_amber_rounded,
+            const Color(0xFFE0A030),
+            l10n.countConflicts(_conflicts.length),
+          ),
         ],
       ),
     );
   }
 
-  Widget _count(BuildContext context, IconData icon, Color color, String label) {
+  Widget _count(
+    BuildContext context,
+    IconData icon,
+    Color color,
+    String label,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 15, color: color),
         const SizedBox(width: 5),
-        Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+        ),
       ],
     );
   }
@@ -188,15 +260,20 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
         return _TreeCompare(
           baseDir: widget.baseDir,
           pending: _filter == _Filter.conflicts ? const [] : _pending,
-          conflicts: _filter == _Filter.changes || _filter == _Filter.all || _filter == _Filter.conflicts ? _conflicts : const [],
+          conflicts:
+              _filter == _Filter.changes ||
+                  _filter == _Filter.all ||
+                  _filter == _Filter.conflicts
+              ? _conflicts
+              : const [],
         );
     }
   }
 
   List<OrganizeAction> get _filteredActions => switch (_filter) {
-        _Filter.conflicts => _conflicts,
-        _ => _actions,
-      };
+    _Filter.conflicts => _conflicts,
+    _ => _actions,
+  };
 
   // ── Footer ─────────────────────────────────────────────────────────────────
   Widget _footer(BuildContext context, AppLocalizations l10n) {
@@ -205,11 +282,16 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
       child: Row(
         children: [
-          Checkbox(value: _backup, onChanged: (v) => setState(() => _backup = v ?? true)),
+          Checkbox(
+            value: _backup,
+            onChanged: (v) => setState(() => _backup = v ?? true),
+          ),
           const SizedBox(width: 2),
           Flexible(
-            child: Text(l10n.recordUndoHistory,
-                style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant)),
+            child: Text(
+              l10n.recordUndoHistory,
+              style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+            ),
           ),
           const Spacer(),
           TextButton(
@@ -218,16 +300,18 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
           ),
           const SizedBox(width: 10),
           FilledButton.icon(
-            onPressed: () => Navigator.pop(context, (apply: true, backup: _backup)),
+            onPressed: () =>
+                Navigator.pop(context, (apply: true, backup: _backup)),
             icon: const Icon(Icons.auto_awesome, size: 17),
             label: Text(l10n.applyOrganizeCount(_pending.length)),
-            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16)),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            ),
           ),
         ],
       ),
     );
   }
-
 }
 
 // ── Tree compare ──────────────────────────────────────────────────────────────
@@ -237,7 +321,11 @@ class _TreeCompare extends StatelessWidget {
   final List<OrganizeAction> pending;
   final List<OrganizeAction> conflicts;
 
-  const _TreeCompare({required this.baseDir, required this.pending, required this.conflicts});
+  const _TreeCompare({
+    required this.baseDir,
+    required this.pending,
+    required this.conflicts,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -266,16 +354,28 @@ class _TreeCompare extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
+                  gradient: LinearGradient(
+                    colors: [scheme.primary, scheme.tertiary],
+                  ),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.arrow_forward,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(height: 14),
               RotatedBox(
                 quarterTurns: 1,
-                child: Text(l10n.aiOrganizeVertical,
-                    style: TextStyle(fontSize: 11, letterSpacing: 1.5, color: scheme.onSurfaceVariant)),
+                child: Text(
+                  l10n.aiOrganizeVertical,
+                  style: TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 1.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
@@ -324,16 +424,25 @@ class _TreePane extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: accent)),
+              Text(
+                label,
+                style: TextStyle(fontWeight: FontWeight.w700, color: accent),
+              ),
               const SizedBox(width: 10),
               Flexible(
                 child: Tooltip(
                   message: path,
                   waitDuration: const Duration(milliseconds: 350),
-                  child: Text(path,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontFamily: 'monospace', fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                  child: Text(
+                    path,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -353,27 +462,41 @@ class _TreePane extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(left: line.depth * 18.0, bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(7)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(7),
+      ),
       child: Row(
         children: [
-          Text(line.isDir ? '├' : '│', style: TextStyle(fontFamily: 'monospace', color: scheme.onSurfaceVariant.withValues(alpha: 0.5))),
+          Text(
+            line.isDir ? '├' : '│',
+            style: TextStyle(
+              fontFamily: 'monospace',
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+          ),
           const SizedBox(width: 8),
-          if (line.isDir)
-            Icon(Icons.folder_rounded, size: 15, color: accent),
+          if (line.isDir) Icon(Icons.folder_rounded, size: 15, color: accent),
           if (line.isDir) const SizedBox(width: 6),
           Flexible(
             child: Tooltip(
               message: line.isDir ? '${line.name}/' : line.name,
               waitDuration: const Duration(milliseconds: 350),
-              child: Text(line.isDir ? '${line.name}/' : line.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    fontWeight: line.depth <= 1 && line.isDir ? FontWeight.w700 : FontWeight.w400,
-                    color: line.isDir && line.depth <= 1 && isAfter ? accent : null,
-                  )),
+              child: Text(
+                line.isDir ? '${line.name}/' : line.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  fontWeight: line.depth <= 1 && line.isDir
+                      ? FontWeight.w700
+                      : FontWeight.w400,
+                  color: line.isDir && line.depth <= 1 && isAfter
+                      ? accent
+                      : null,
+                ),
+              ),
             ),
           ),
         ],
@@ -381,7 +504,11 @@ class _TreePane extends StatelessWidget {
     );
   }
 
-  Widget _conflictRow(BuildContext context, OrganizeAction c, AppLocalizations l10n) {
+  Widget _conflictRow(
+    BuildContext context,
+    OrganizeAction c,
+    AppLocalizations l10n,
+  ) {
     const orange = Color(0xFFE0852C);
     final name = p.basename(isAfter ? c.target : c.source);
     return Container(
@@ -389,7 +516,10 @@ class _TreePane extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: Row(
         children: [
-          Text(isAfter ? '└ ?' : '└', style: const TextStyle(fontFamily: 'monospace', color: orange)),
+          Text(
+            isAfter ? '└ ?' : '└',
+            style: const TextStyle(fontFamily: 'monospace', color: orange),
+          ),
           const SizedBox(width: 8),
           Flexible(
             child: Tooltip(
@@ -399,7 +529,11 @@ class _TreePane extends StatelessWidget {
                 isAfter ? '$name · ${l10n.needsReviewSuffix}' : '$name ⚠',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: orange),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  color: orange,
+                ),
               ),
             ),
           ),
@@ -421,7 +555,10 @@ class _ListDiff extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       itemCount: actions.length,
-      separatorBuilder: (_, _) => Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
+      separatorBuilder: (_, _) => Divider(
+        height: 1,
+        color: scheme.outlineVariant.withValues(alpha: 0.3),
+      ),
       itemBuilder: (_, i) {
         final a = actions[i];
         final review = a.status == ActionStatus.needsReview;
@@ -433,26 +570,42 @@ class _ListDiff extends StatelessWidget {
                 child: Tooltip(
                   message: a.source,
                   waitDuration: const Duration(milliseconds: 350),
-                  child: Text(a.source,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: scheme.onSurfaceVariant)),
+                  child: Text(
+                    a.source,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(review ? Icons.help_outline : Icons.arrow_forward,
-                    size: 16, color: review ? const Color(0xFFE0852C) : scheme.primary),
+                child: Icon(
+                  review ? Icons.help_outline : Icons.arrow_forward,
+                  size: 16,
+                  color: review ? const Color(0xFFE0852C) : scheme.primary,
+                ),
               ),
               Expanded(
                 child: Tooltip(
                   message: a.target,
                   waitDuration: const Duration(milliseconds: 350),
-                  child: Text(a.target,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'monospace', fontSize: 13,
-                        color: review ? const Color(0xFFE0852C) : scheme.onSurface,
-                      )),
+                  child: Text(
+                    a.target,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      color: review
+                          ? const Color(0xFFE0852C)
+                          : scheme.onSurface,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -469,7 +622,11 @@ class _Segmented<T> extends StatelessWidget {
   final T value;
   final ValueChanged<T> onChanged;
   final List<(T, String)> items;
-  const _Segmented({required this.value, required this.onChanged, required this.items});
+  const _Segmented({
+    required this.value,
+    required this.onChanged,
+    required this.items,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -493,13 +650,22 @@ class _Segmented<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 onTap: () => onChanged(v),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Text(label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: v == value ? FontWeight.w600 : FontWeight.w500,
-                        color: v == value ? scheme.onSurface : scheme.onSurfaceVariant,
-                      )),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: v == value
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: v == value
+                          ? scheme.onSurface
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -513,25 +679,33 @@ class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? scheme.primary.withValues(alpha: 0.16) : Colors.transparent,
+      color: selected
+          ? scheme.primary.withValues(alpha: 0.16)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Text(label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: selected ? scheme.primary : scheme.onSurfaceVariant,
-              )),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              color: selected ? scheme.primary : scheme.onSurfaceVariant,
+            ),
+          ),
         ),
       ),
     );
@@ -550,9 +724,16 @@ class _ComingSoon extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.image_outlined, size: 48, color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+          Icon(
+            Icons.image_outlined,
+            size: 48,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 12),
-          Text('$label · ${l10n.comingSoon}', style: TextStyle(color: scheme.onSurfaceVariant)),
+          Text(
+            '$label · ${l10n.comingSoon}',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
         ],
       ),
     );

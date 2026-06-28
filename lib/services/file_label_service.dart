@@ -34,7 +34,7 @@ class FileLabelService {
 
   static IconData getIcon(String label, bool isDirectory) {
     if (isDirectory) return Icons.folder;
-    
+
     switch (label) {
       case 'Video':
         return Icons.movie_outlined;

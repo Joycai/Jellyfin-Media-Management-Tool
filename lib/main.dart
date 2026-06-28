@@ -69,19 +69,22 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('zh'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('zh')],
       theme: AppTheme.light(
-        accent: settings.accentColor == null ? null : Color(settings.accentColor!),
+        accent: settings.accentColor == null
+            ? null
+            : Color(settings.accentColor!),
         glassIntensity: settings.glassIntensity,
       ),
       darkTheme: AppTheme.dark(
-        accent: settings.accentColor == null ? null : Color(settings.accentColor!),
+        accent: settings.accentColor == null
+            ? null
+            : Color(settings.accentColor!),
         glassIntensity: settings.glassIntensity,
       ),
-      home: settings.onboardingSeen ? const HomeScreen() : const OnboardingScreen(),
+      home: settings.onboardingSeen
+          ? const HomeScreen()
+          : const OnboardingScreen(),
     );
   }
 }

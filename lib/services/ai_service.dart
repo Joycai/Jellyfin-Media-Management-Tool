@@ -54,14 +54,15 @@ class AiService extends ChangeNotifier {
   List<int> get recentLatencies => List.unmodifiable(_latencies);
 
   AiProvider _buildProvider() => switch (_config.provider) {
-        AiProviderType.googleGenAi => GoogleGenAiProvider(_config),
-        AiProviderType.openAi => OpenAiProvider(_config),
-      };
+    AiProviderType.googleGenAi => GoogleGenAiProvider(_config),
+    AiProviderType.openAi => OpenAiProvider(_config),
+  };
 
   /// Syncs config from settings. Resets the connection status when the target
   /// endpoint/model changes so the UI doesn't show a stale "connected".
   void updateConfig(AiConfig config) {
-    final changed = config.provider != _config.provider ||
+    final changed =
+        config.provider != _config.provider ||
         config.endpoint != _config.endpoint ||
         config.apiKey != _config.apiKey ||
         config.model != _config.model;
@@ -176,11 +177,13 @@ class AiService extends ChangeNotifier {
       } catch (_) {
         continue;
       }
-      entries.add(MediaEntryInput(
-        relativePath: p.relative(entity.path, from: baseDir),
-        sizeBytes: size,
-        kind: FileLabelService.getLabel(p.extension(entity.path)),
-      ));
+      entries.add(
+        MediaEntryInput(
+          relativePath: p.relative(entity.path, from: baseDir),
+          sizeBytes: size,
+          kind: FileLabelService.getLabel(p.extension(entity.path)),
+        ),
+      );
       if (entries.length >= cap) break;
     }
     return entries;

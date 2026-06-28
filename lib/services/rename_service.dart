@@ -2,14 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-enum RenameRule {
-  matchFolder,
-  featurette,
-  interview,
-  part,
-  tvShow,
-  subtitle,
-}
+enum RenameRule { matchFolder, featurette, interview, part, tvShow, subtitle }
 
 class RenameService {
   static String getNewName(File file, RenameRule rule, {String? extra}) {

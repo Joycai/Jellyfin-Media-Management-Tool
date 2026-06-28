@@ -29,9 +29,9 @@ class OpenAiProvider implements AiProvider {
   Uri get _modelsUri => Uri.parse('$_base/models');
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${config.apiKey}',
-      };
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${config.apiKey}',
+  };
 
   @override
   Future<AiResponse> complete({
@@ -50,9 +50,11 @@ class OpenAiProvider implements AiProvider {
 
     http.Response res;
     try {
-      res = await AiHttp.withRetry(() => AiHttp.client
-          .post(_chatUri, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 120)));
+      res = await AiHttp.withRetry(
+        () => AiHttp.client
+            .post(_chatUri, headers: _headers, body: body)
+            .timeout(const Duration(seconds: 120)),
+      );
     } catch (e) {
       throw AiException('Network error: $e');
     }
@@ -82,9 +84,11 @@ class OpenAiProvider implements AiProvider {
   Future<bool> testConnection() async {
     http.Response res;
     try {
-      res = await AiHttp.withRetry(() => AiHttp.client
-          .get(_modelsUri, headers: _headers)
-          .timeout(const Duration(seconds: 15)));
+      res = await AiHttp.withRetry(
+        () => AiHttp.client
+            .get(_modelsUri, headers: _headers)
+            .timeout(const Duration(seconds: 15)),
+      );
     } catch (e) {
       throw AiException('Network error: $e');
     }
@@ -98,7 +102,8 @@ class OpenAiProvider implements AiProvider {
     try {
       final Map<String, dynamic> body = jsonDecode(utf8.decode(res.bodyBytes));
       final msg = body['error']?['message'];
-      if (msg is String && msg.isNotEmpty) return 'HTTP ${res.statusCode}: $msg';
+      if (msg is String && msg.isNotEmpty)
+        return 'HTTP ${res.statusCode}: $msg';
     } catch (_) {}
     return 'HTTP ${res.statusCode}';
   }

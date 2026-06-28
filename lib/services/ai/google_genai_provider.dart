@@ -26,8 +26,8 @@ class GoogleGenAiProvider implements AiProvider {
   }
 
   Uri _generateUri() => Uri.parse(
-        '$_base/models/${config.model}:generateContent?key=${config.apiKey}',
-      );
+    '$_base/models/${config.model}:generateContent?key=${config.apiKey}',
+  );
 
   Uri _modelsUri() => Uri.parse('$_base/models?key=${config.apiKey}');
 
@@ -39,16 +39,16 @@ class GoogleGenAiProvider implements AiProvider {
     final body = jsonEncode({
       'systemInstruction': {
         'parts': [
-          {'text': systemPrompt}
+          {'text': systemPrompt},
         ],
       },
       'contents': [
         {
           'role': 'user',
           'parts': [
-            {'text': userPrompt}
+            {'text': userPrompt},
           ],
-        }
+        },
       ],
       'generationConfig': {
         'temperature': config.temperature,
@@ -58,13 +58,15 @@ class GoogleGenAiProvider implements AiProvider {
 
     http.Response res;
     try {
-      res = await AiHttp.withRetry(() => AiHttp.client
-          .post(
-            _generateUri(),
-            headers: {'Content-Type': 'application/json'},
-            body: body,
-          )
-          .timeout(const Duration(seconds: 120)));
+      res = await AiHttp.withRetry(
+        () => AiHttp.client
+            .post(
+              _generateUri(),
+              headers: {'Content-Type': 'application/json'},
+              body: body,
+            )
+            .timeout(const Duration(seconds: 120)),
+      );
     } catch (e) {
       throw AiException('Network error: $e');
     }
@@ -97,9 +99,11 @@ class GoogleGenAiProvider implements AiProvider {
   Future<bool> testConnection() async {
     http.Response res;
     try {
-      res = await AiHttp.withRetry(() => AiHttp.client
-          .get(_modelsUri())
-          .timeout(const Duration(seconds: 15)));
+      res = await AiHttp.withRetry(
+        () => AiHttp.client
+            .get(_modelsUri())
+            .timeout(const Duration(seconds: 15)),
+      );
     } catch (e) {
       throw AiException('Network error: $e');
     }
@@ -114,7 +118,8 @@ class GoogleGenAiProvider implements AiProvider {
     try {
       final Map<String, dynamic> body = jsonDecode(utf8.decode(res.bodyBytes));
       final msg = body['error']?['message'];
-      if (msg is String && msg.isNotEmpty) return 'HTTP ${res.statusCode}: $msg';
+      if (msg is String && msg.isNotEmpty)
+        return 'HTTP ${res.statusCode}: $msg';
     } catch (_) {}
     return 'HTTP ${res.statusCode}';
   }

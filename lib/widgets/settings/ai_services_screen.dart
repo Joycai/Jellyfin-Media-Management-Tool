@@ -26,7 +26,9 @@ class _AiServicesViewState extends State<AiServicesView> {
   void initState() {
     super.initState();
     final profiles = context.read<AiProfilesService>();
-    _selectedId = profiles.activeId ?? (profiles.services.isNotEmpty ? profiles.services.first.id : null);
+    _selectedId =
+        profiles.activeId ??
+        (profiles.services.isNotEmpty ? profiles.services.first.id : null);
   }
 
   AiServiceProfile? _resolve(List<AiServiceProfile> services) {
@@ -73,18 +75,23 @@ class _AiServicesViewState extends State<AiServicesView> {
       ],
     );
   }
-
 }
 
 /// Visual identity (color + glyph) for a provider's badge.
-({Color color, String glyph}) _badge(AiProviderType provider) => switch (provider) {
-      AiProviderType.googleGenAi => (color: const Color(0xFF4285F4), glyph: 'G'),
+({Color color, String glyph}) _badge(AiProviderType provider) =>
+    switch (provider) {
+      AiProviderType.googleGenAi => (
+        color: const Color(0xFF4285F4),
+        glyph: 'G',
+      ),
       AiProviderType.openAi => (color: const Color(0xFF10A37F), glyph: '◆'),
     };
 
 String _protocolLabel(BuildContext context, AiProviderType p) {
   final l10n = AppLocalizations.of(context)!;
-  return p == AiProviderType.googleGenAi ? l10n.protocolGoogle : l10n.protocolOpenAi;
+  return p == AiProviderType.googleGenAi
+      ? l10n.protocolGoogle
+      : l10n.protocolOpenAi;
 }
 
 // ── Left: service list ──────────────────────────────────────────────────────
@@ -142,8 +149,13 @@ class _ServiceList extends StatelessWidget {
                     children: [
                       Icon(Icons.add, size: 18, color: scheme.onSurfaceVariant),
                       const SizedBox(width: 8),
-                      Text(l10n.addAnotherEndpoint,
-                          style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+                      Text(
+                        l10n.addAnotherEndpoint,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -176,7 +188,9 @@ class _ServiceCard extends StatelessWidget {
     final badge = _badge(profile.provider);
 
     return Material(
-      color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.panelFill,
+      color: selected
+          ? scheme.primary.withValues(alpha: 0.16)
+          : glass.panelFill,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -185,7 +199,9 @@ class _ServiceCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? scheme.primary.withValues(alpha: 0.6) : glass.panelStroke,
+              color: selected
+                  ? scheme.primary.withValues(alpha: 0.6)
+                  : glass.panelStroke,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -201,15 +217,26 @@ class _ServiceCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(profile.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        Text(
+                          profile.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text(_host(profile.endpoint),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: scheme.onSurfaceVariant)),
+                        Text(
+                          _host(profile.endpoint),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -219,7 +246,10 @@ class _ServiceCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _MiniChip(profile.model.isEmpty ? '—' : profile.model, mono: true),
+                  _MiniChip(
+                    profile.model.isEmpty ? '—' : profile.model,
+                    mono: true,
+                  ),
                   const SizedBox(width: 8),
                   _MiniChip(_protocolLabel(context, profile.provider)),
                 ],
@@ -248,15 +278,18 @@ class _StatusBadge extends StatelessWidget {
     final (Color c, String label) = !profile.isComplete
         ? (const Color(0xFFE0A030), l10n.statusOffline)
         : active
-            ? (const Color(0xFF34C759), l10n.statusActive)
-            : (Theme.of(context).colorScheme.onSurfaceVariant, l10n.statusStandby);
+        ? (const Color(0xFF34C759), l10n.statusActive)
+        : (Theme.of(context).colorScheme.onSurfaceVariant, l10n.statusStandby);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(label, style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600)),
+      child: Text(
+        label,
+        style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }
@@ -266,7 +299,11 @@ class _StatusBadge extends StatelessWidget {
 class _ServiceDetail extends StatefulWidget {
   final AiServiceProfile profile;
   final bool isActive;
-  const _ServiceDetail({super.key, required this.profile, required this.isActive});
+  const _ServiceDetail({
+    super.key,
+    required this.profile,
+    required this.isActive,
+  });
 
   @override
   State<_ServiceDetail> createState() => _ServiceDetailState();
@@ -350,9 +387,13 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       _testing = false;
       _testOk = ok;
     });
-    messenger.showSnackBar(SnackBar(
-      content: Text(ok ? l10n.connectionOk : l10n.connectionFailed(err ?? '')),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? l10n.connectionOk : l10n.connectionFailed(err ?? ''),
+        ),
+      ),
+    );
   }
 
   Future<void> _delete() async {
@@ -401,13 +442,23 @@ class _ServiceDetailState extends State<_ServiceDetail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_name.text.isEmpty ? l10n.newServiceName : _name.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                  Text(
+                    _name.text.isEmpty ? l10n.newServiceName : _name.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(l10n.aiServiceDetailHint,
-                      style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                  Text(
+                    l10n.aiServiceDetailHint,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -418,11 +469,18 @@ class _ServiceDetailState extends State<_ServiceDetail> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: scheme.error,
                 side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
             const SizedBox(width: 10),
-            _TestButton(testing: _testing, ok: _testOk, onPressed: _testing ? null : _test),
+            _TestButton(
+              testing: _testing,
+              ok: _testOk,
+              onPressed: _testing ? null : _test,
+            ),
           ],
         ),
         const SizedBox(height: 28),
@@ -443,9 +501,25 @@ class _ServiceDetailState extends State<_ServiceDetail> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _Field(label: l10n.displayName, controller: _name, onChanged: (_) { setState(() {}); _persist(); })),
+            Expanded(
+              child: _Field(
+                label: l10n.displayName,
+                controller: _name,
+                onChanged: (_) {
+                  setState(() {});
+                  _persist();
+                },
+              ),
+            ),
             const SizedBox(width: 16),
-            Expanded(child: _Field(label: l10n.baseUrl, controller: _endpoint, mono: true, onChanged: (_) => _persist())),
+            Expanded(
+              child: _Field(
+                label: l10n.baseUrl,
+                controller: _endpoint,
+                mono: true,
+                onChanged: (_) => _persist(),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -463,13 +537,26 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                 onChanged: (_) => _persist(),
                 trailing: GestureDetector(
                   onTap: () => setState(() => _obscureKey = !_obscureKey),
-                  child: Text(_obscureKey ? l10n.showKey : l10n.hideKey,
-                      style: TextStyle(color: scheme.primary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    _obscureKey ? l10n.showKey : l10n.hideKey,
+                    style: TextStyle(
+                      color: scheme.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 16),
-            Expanded(child: _Field(label: l10n.defaultModel, controller: _model, mono: true, onChanged: (_) => _persist())),
+            Expanded(
+              child: _Field(
+                label: l10n.defaultModel,
+                controller: _model,
+                mono: true,
+                onChanged: (_) => _persist(),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -507,11 +594,22 @@ class _EmptyDetail extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.dns_outlined, size: 56, color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+          Icon(
+            Icons.dns_outlined,
+            size: 56,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 16),
-          Text(l10n.selectServiceHint, style: TextStyle(color: scheme.onSurfaceVariant)),
+          Text(
+            l10n.selectServiceHint,
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
           const SizedBox(height: 16),
-          FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: Text(l10n.addService)),
+          FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: Text(l10n.addService),
+          ),
         ],
       ),
     );
@@ -540,7 +638,14 @@ class _BadgeIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.28),
       ),
       alignment: Alignment.center,
-      child: Text(glyph, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.42)),
+      child: Text(
+        glyph,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: size * 0.42,
+        ),
+      ),
     );
   }
 }
@@ -559,12 +664,14 @@ class _MiniChip extends StatelessWidget {
         color: scheme.onSurface.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(7),
       ),
-      child: Text(text,
-          style: TextStyle(
-            fontSize: 12,
-            fontFamily: mono ? 'monospace' : null,
-            color: scheme.onSurfaceVariant,
-          )),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontFamily: mono ? 'monospace' : null,
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
@@ -575,13 +682,15 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text,
-        style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.3,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ));
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.3,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
   }
 }
 
@@ -625,7 +734,10 @@ class _Field extends StatelessWidget {
                   controller: controller,
                   obscureText: obscure,
                   onChanged: onChanged,
-                  style: TextStyle(fontSize: 15, fontFamily: mono ? 'monospace' : null),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontFamily: mono ? 'monospace' : null,
+                  ),
                   decoration: const InputDecoration(
                     isCollapsed: true,
                     border: InputBorder.none,
@@ -645,7 +757,11 @@ class _SliderField extends StatelessWidget {
   final String label;
   final String value;
   final Widget slider;
-  const _SliderField({required this.label, required this.value, required this.slider});
+  const _SliderField({
+    required this.label,
+    required this.value,
+    required this.slider,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -665,7 +781,13 @@ class _SliderField extends StatelessWidget {
             children: [
               _FieldLabel(label),
               const SizedBox(width: 8),
-              Text('· $value', style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+              Text(
+                '· $value',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
           SliderTheme(
@@ -703,7 +825,11 @@ class _ProtocolSegmented extends StatelessWidget {
         children: [
           _seg(context, AiProviderType.openAi, '◆  ${l10n.protocolOpenAi}'),
           const SizedBox(width: 6),
-          _seg(context, AiProviderType.googleGenAi, 'G  ${l10n.protocolGoogle}'),
+          _seg(
+            context,
+            AiProviderType.googleGenAi,
+            'G  ${l10n.protocolGoogle}',
+          ),
         ],
       ),
     );
@@ -722,11 +848,13 @@ class _ProtocolSegmented extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 14),
             child: Center(
-              child: Text(label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: on ? scheme.onPrimary : scheme.onSurfaceVariant,
-                  )),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: on ? scheme.onPrimary : scheme.onSurfaceVariant,
+                ),
+              ),
             ),
           ),
         ),
@@ -739,7 +867,11 @@ class _TestButton extends StatelessWidget {
   final bool testing;
   final bool? ok;
   final VoidCallback? onPressed;
-  const _TestButton({required this.testing, required this.ok, required this.onPressed});
+  const _TestButton({
+    required this.testing,
+    required this.ok,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -747,7 +879,9 @@ class _TestButton extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        gradient: const LinearGradient(colors: [Color(0xFF22C9A9), Color(0xFF2FA98A)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF22C9A9), Color(0xFF2FA98A)],
+        ),
       ),
       child: FilledButton.icon(
         onPressed: onPressed,
@@ -758,8 +892,20 @@ class _TestButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         ),
         icon: testing
-            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Icon(ok == null ? Icons.bolt : (ok! ? Icons.check_circle : Icons.error), size: 18),
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Icon(
+                ok == null
+                    ? Icons.bolt
+                    : (ok! ? Icons.check_circle : Icons.error),
+                size: 18,
+              ),
         label: Text(l10n.testConnection),
       ),
     );
@@ -778,7 +924,9 @@ class _UsageCard extends StatelessWidget {
 
     final tokens = active ? '${ai.totalTokens}' : '—';
     final reqs = active ? '${ai.requestCount}' : '—';
-    final latency = active && ai.avgLatencyMs > 0 ? '${ai.avgLatencyMs} ms' : '—';
+    final latency = active && ai.avgLatencyMs > 0
+        ? '${ai.avgLatencyMs} ms'
+        : '—';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -796,7 +944,11 @@ class _UsageCard extends StatelessWidget {
           const SizedBox(width: 32),
           _stat(context, l10n.avgLatency, latency),
           const Spacer(),
-          SizedBox(width: 120, height: 48, child: _Sparkline(values: active ? ai.recentLatencies : const [])),
+          SizedBox(
+            width: 120,
+            height: 48,
+            child: _Sparkline(values: active ? ai.recentLatencies : const []),
+          ),
         ],
       ),
     );
@@ -807,9 +959,15 @@ class _UsageCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+        ),
       ],
     );
   }
@@ -831,7 +989,9 @@ class _Sparkline extends StatelessWidget {
         for (var i = 0; i < data.length; i++) ...[
           Expanded(
             child: FractionallySizedBox(
-              heightFactor: values.isEmpty ? 0.18 : (data[i] / maxV).clamp(0.12, 1.0),
+              heightFactor: values.isEmpty
+                  ? 0.18
+                  : (data[i] / maxV).clamp(0.12, 1.0),
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -860,7 +1020,9 @@ class DottedBorderBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomPaint(
       painter: _DashedRectPainter(
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+        color: Theme.of(
+          context,
+        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
         radius: 14,
       ),
       child: child,
@@ -879,7 +1041,10 @@ class _DashedRectPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4;
-    final rrect = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius));
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
     final path = Path()..addRRect(rrect);
     const dash = 6.0, gap = 5.0;
     for (final metric in path.computeMetrics()) {
@@ -893,5 +1058,6 @@ class _DashedRectPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DashedRectPainter old) => old.color != color || old.radius != radius;
+  bool shouldRepaint(covariant _DashedRectPainter old) =>
+      old.color != color || old.radius != radius;
 }

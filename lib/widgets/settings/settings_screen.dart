@@ -12,7 +12,15 @@ import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
 import 'ai_services_screen.dart';
 
-enum _Section { appearance, language, paths, aiServices, privacy, shortcuts, about }
+enum _Section {
+  appearance,
+  language,
+  paths,
+  aiServices,
+  privacy,
+  shortcuts,
+  about,
+}
 
 /// Full settings shell: sectioned sidebar on the left, scrollable detail pane
 /// on the right. Matches the design mockup's structure 1:1.
@@ -20,8 +28,11 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   static Future<void> show(BuildContext context) => Navigator.of(context).push(
-        MaterialPageRoute(fullscreenDialog: true, builder: (_) => const SettingsScreen()),
-      );
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => const SettingsScreen(),
+    ),
+  );
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -46,7 +57,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(width: 244, child: _Sidebar(section: _section, onChange: (s) => setState(() => _section = s))),
+                    SizedBox(
+                      width: 244,
+                      child: _Sidebar(
+                        section: _section,
+                        onChange: (s) => setState(() => _section = s),
+                      ),
+                    ),
                     Expanded(child: _detail()),
                   ],
                 ),
@@ -71,12 +88,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: const Icon(Icons.arrow_back_rounded),
           ),
           const SizedBox(width: 4),
-          Text(l10n.settings, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+          Text(
+            l10n.settings,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(width: 12),
-          Text(_breadcrumb(l10n), style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant)),
+          Text(
+            _breadcrumb(l10n),
+            style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+          ),
           const Spacer(),
-          Text('v $_appVersion · ${l10n.versionUpToDate}',
-              style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+          Text(
+            'v $_appVersion · ${l10n.versionUpToDate}',
+            style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+          ),
         ],
       ),
     );
@@ -86,14 +111,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       '${l10n.secAppearance} / ${l10n.secLanguage} / ${l10n.breadcrumbPaths}';
 
   Widget _detail() => switch (_section) {
-        _Section.appearance => const _AppearanceSection(),
-        _Section.language => const _LanguageSection(),
-        _Section.paths => const _PathsSection(),
-        _Section.aiServices => const _AiServicesSection(),
-        _Section.privacy => const _PrivacySection(),
-        _Section.shortcuts => const _ShortcutsSection(),
-        _Section.about => _AboutSection(version: _appVersion),
-      };
+    _Section.appearance => const _AppearanceSection(),
+    _Section.language => const _LanguageSection(),
+    _Section.paths => const _PathsSection(),
+    _Section.aiServices => const _AiServicesSection(),
+    _Section.privacy => const _PrivacySection(),
+    _Section.shortcuts => const _ShortcutsSection(),
+    _Section.about => _AboutSection(version: _appVersion),
+  };
 }
 
 // ── Sidebar ─────────────────────────────────────────────────────────────────
@@ -115,7 +140,9 @@ class _Sidebar extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         child: Material(
-          color: on ? scheme.primary.withValues(alpha: 0.14) : Colors.transparent,
+          color: on
+              ? scheme.primary.withValues(alpha: 0.14)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
@@ -124,14 +151,20 @@ class _Sidebar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  Icon(icon, size: 17, color: on ? scheme.primary : scheme.onSurfaceVariant),
+                  Icon(
+                    icon,
+                    size: 17,
+                    color: on ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 10),
-                  Text(label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: on ? FontWeight.w600 : FontWeight.w500,
-                        color: on ? scheme.onSurface : scheme.onSurfaceVariant,
-                      )),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                      color: on ? scheme.onSurface : scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -150,7 +183,11 @@ class _Sidebar extends StatelessWidget {
           tile(_Section.appearance, Icons.palette_outlined, l10n.secAppearance),
           tile(_Section.language, Icons.public, l10n.secLanguage),
           tile(_Section.paths, Icons.folder_special_outlined, l10n.secPaths),
-          tile(_Section.aiServices, Icons.bubble_chart_outlined, l10n.secAiServices),
+          tile(
+            _Section.aiServices,
+            Icons.bubble_chart_outlined,
+            l10n.secAiServices,
+          ),
           tile(_Section.privacy, Icons.lock_outline_rounded, l10n.secPrivacy),
           tile(_Section.shortcuts, Icons.keyboard_outlined, l10n.secShortcuts),
           tile(_Section.about, Icons.info_outline, l10n.secAbout),
@@ -170,12 +207,14 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Text(text,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          )),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
@@ -218,10 +257,16 @@ class _AppearanceSection extends StatelessWidget {
         Row(
           children: [
             // Order matches the design mockup (not ThemeMode.values' enum order).
-            for (final mode in const [ThemeMode.light, ThemeMode.dark, ThemeMode.system])
+            for (final mode in const [
+              ThemeMode.light,
+              ThemeMode.dark,
+              ThemeMode.system,
+            ])
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(right: mode == ThemeMode.system ? 0 : 14),
+                  padding: EdgeInsets.only(
+                    right: mode == ThemeMode.system ? 0 : 14,
+                  ),
                   child: _ThemeCard(
                     mode: mode,
                     selected: settings.themeMode == mode,
@@ -242,11 +287,21 @@ class _AppearanceSection extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(l10n.glassIntensity,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text(
+                          l10n.glassIntensity,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const Spacer(),
-                        Text('${settings.glassIntensity.round()}',
-                            style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)),
+                        Text(
+                          '${settings.glassIntensity.round()}',
+                          style: TextStyle(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                     SliderTheme(
@@ -264,9 +319,27 @@ class _AppearanceSection extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(l10n.glassNone, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                        Text(l10n.glassSoft, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                        Text(l10n.glassStrong, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                        Text(
+                          l10n.glassNone,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          l10n.glassSoft,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          l10n.glassStrong,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -279,15 +352,23 @@ class _AppearanceSection extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l10n.accentColor,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    Text(
+                      l10n.accentColor,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         for (final c in AppTheme.accentPresets) ...[
                           _AccentSwatch(
                             color: c,
-                            selected: (settings.accentColor ?? AppTheme.accentPresets.first.toARGB32()) == c.toARGB32(),
+                            selected:
+                                (settings.accentColor ??
+                                    AppTheme.accentPresets.first.toARGB32()) ==
+                                c.toARGB32(),
                             onTap: () => settings.setAccentColor(c.toARGB32()),
                           ),
                           const SizedBox(width: 10),
@@ -301,10 +382,17 @@ class _AppearanceSection extends StatelessWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                                  style: BorderStyle.solid),
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.4,
+                                ),
+                                style: BorderStyle.solid,
+                              ),
                             ),
-                            child: Icon(Icons.add, size: 16, color: scheme.onSurfaceVariant),
+                            child: Icon(
+                              Icons.add,
+                              size: 16,
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ],
@@ -350,7 +438,11 @@ class _ThemeCard extends StatelessWidget {
   final ThemeMode mode;
   final bool selected;
   final VoidCallback onTap;
-  const _ThemeCard({required this.mode, required this.selected, required this.onTap});
+  const _ThemeCard({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -394,15 +486,25 @@ class _ThemeCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: selected ? scheme.primary : scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        color: selected
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant.withValues(alpha: 0.4),
                         width: 2,
                       ),
                       color: selected ? scheme.primary : Colors.transparent,
                     ),
-                    child: selected ? const Icon(Icons.check, size: 12, color: Colors.white) : null,
+                    child: selected
+                        ? const Icon(Icons.check, size: 12, color: Colors.white)
+                        : null,
                   ),
                   const SizedBox(width: 10),
-                  Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -419,10 +521,14 @@ class _ThemePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = mode == ThemeMode.dark ||
-        (mode == ThemeMode.system && MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    final isDark =
+        mode == ThemeMode.dark ||
+        (mode == ThemeMode.system &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
     final bg = isDark ? const Color(0xFF1A1A38) : Colors.white;
-    final card = isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFF0F2F6);
+    final card = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : const Color(0xFFF0F2F6);
     final bar1 = isDark ? const Color(0xFF6B7AFF) : const Color(0xFFC9CFEE);
     final bar2 = isDark ? const Color(0xFF7B5BFF) : const Color(0xFFE6D5F5);
 
@@ -435,13 +541,35 @@ class _ThemePreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(height: 8, decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(4))),
+          Container(
+            height: 8,
+            decoration: BoxDecoration(
+              color: card,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: Container(height: 36, decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(6)))),
+              Expanded(
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: card,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: Container(height: 36, decoration: BoxDecoration(color: card, borderRadius: BorderRadius.circular(6)))),
+              Expanded(
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: card,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
             ],
           ),
           const Spacer(),
@@ -472,7 +600,10 @@ class _ThemePreview extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Container(
                 height: 6,
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(3)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
             ),
           ],
@@ -502,7 +633,11 @@ class _AccentSwatch extends StatelessWidget {
   final Color color;
   final bool selected;
   final VoidCallback onTap;
-  const _AccentSwatch({required this.color, required this.selected, required this.onTap});
+  const _AccentSwatch({
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -516,7 +651,9 @@ class _AccentSwatch extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
+            color: selected
+                ? Theme.of(context).colorScheme.onSurface
+                : Colors.transparent,
             width: 2,
           ),
         ),
@@ -529,7 +666,11 @@ class _ToggleRow extends StatelessWidget {
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
-  const _ToggleRow({required this.label, required this.value, required this.onChanged});
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -591,17 +732,34 @@ class _LanguageSection extends StatelessWidget {
             text: TextSpan(
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               children: [
-                TextSpan(text: '语言', style: TextStyle(color: scheme.onSurface)),
-                TextSpan(text: ' · ', style: TextStyle(color: scheme.onSurfaceVariant)),
-                TextSpan(text: 'Language', style: TextStyle(color: scheme.onSurface)),
-                TextSpan(text: ' · ', style: TextStyle(color: scheme.onSurfaceVariant)),
-                TextSpan(text: '言語', style: TextStyle(color: scheme.onSurface)),
+                TextSpan(
+                  text: '语言',
+                  style: TextStyle(color: scheme.onSurface),
+                ),
+                TextSpan(
+                  text: ' · ',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+                TextSpan(
+                  text: 'Language',
+                  style: TextStyle(color: scheme.onSurface),
+                ),
+                TextSpan(
+                  text: ' · ',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+                TextSpan(
+                  text: '言語',
+                  style: TextStyle(color: scheme.onSurface),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 4),
-          Text(l10n.langHeaderSubtitle,
-              style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant)),
+          Text(
+            l10n.langHeaderSubtitle,
+            style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+          ),
           const SizedBox(height: 18),
           Expanded(
             child: Row(
@@ -625,7 +783,9 @@ class _LanguageList extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsService>();
     final scheme = Theme.of(context).colorScheme;
-    final current = settings.locale?.languageCode ?? Localizations.localeOf(context).languageCode;
+    final current =
+        settings.locale?.languageCode ??
+        Localizations.localeOf(context).languageCode;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -650,9 +810,9 @@ class _LanguageList extends StatelessWidget {
         // Dashed "import .arb" placeholder.
         InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.langImportSoon)),
-          ),
+          onTap: () => ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.langImportSoon))),
           child: DottedBorderBox(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 22),
@@ -662,8 +822,13 @@ class _LanguageList extends StatelessWidget {
                   children: [
                     Icon(Icons.add, size: 16, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 8),
-                    Text(l10n.langImportArb,
-                        style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+                    Text(
+                      l10n.langImportArb,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -679,7 +844,11 @@ class _LanguageCard extends StatelessWidget {
   final _Lang lang;
   final bool selected;
   final VoidCallback onTap;
-  const _LanguageCard({required this.lang, required this.selected, required this.onTap});
+  const _LanguageCard({
+    required this.lang,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -688,7 +857,9 @@ class _LanguageCard extends StatelessWidget {
     final glass = Theme.of(context).extension<GlassTheme>()!;
 
     return Material(
-      color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.panelFill,
+      color: selected
+          ? scheme.primary.withValues(alpha: 0.16)
+          : glass.panelFill,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -698,7 +869,9 @@ class _LanguageCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected ? scheme.primary.withValues(alpha: 0.6) : glass.panelStroke,
+              color: selected
+                  ? scheme.primary.withValues(alpha: 0.6)
+                  : glass.panelStroke,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -710,20 +883,32 @@ class _LanguageCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(lang.name,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text(
+                      lang.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       selected ? '${lang.tag} · ${l10n.langCurrent}' : lang.tag,
-                      style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
               ),
               if (selected)
                 Container(
-                  width: 22, height: 22,
-                  decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    shape: BoxShape.circle,
+                  ),
                   child: const Icon(Icons.check, size: 14, color: Colors.white),
                 ),
             ],
@@ -749,16 +934,30 @@ class _LanguagePreview extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Text(l10n.langPreviewTitle,
-              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+          child: Text(
+            l10n.langPreviewTitle,
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: _PreviewPanel(flag: '🇨🇳', name: zh.appBrand.contains('Jellyfin') ? '简体中文' : '简体中文', loc: zh)),
+              Expanded(
+                child: _PreviewPanel(
+                  flag: '🇨🇳',
+                  name: zh.appBrand.contains('Jellyfin') ? '简体中文' : '简体中文',
+                  loc: zh,
+                ),
+              ),
               const SizedBox(width: 16),
-              Expanded(child: _PreviewPanel(flag: '🇺🇸', name: 'English', loc: en)),
+              Expanded(
+                child: _PreviewPanel(flag: '🇺🇸', name: 'English', loc: en),
+              ),
             ],
           ),
         ),
@@ -773,7 +972,11 @@ class _PreviewPanel extends StatelessWidget {
   final String flag;
   final String name;
   final AppLocalizations loc;
-  const _PreviewPanel({required this.flag, required this.name, required this.loc});
+  const _PreviewPanel({
+    required this.flag,
+    required this.name,
+    required this.loc,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -792,7 +995,13 @@ class _PreviewPanel extends StatelessWidget {
             children: [
               Text(flag, style: const TextStyle(fontSize: 18)),
               const SizedBox(width: 8),
-              Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -842,22 +1051,30 @@ class _PreviewPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: emphasised ? 15 : 12.5,
-                fontWeight: emphasised ? FontWeight.w800 : FontWeight.w600,
-                color: emphasised ? scheme.onSurface : scheme.onSurfaceVariant,
-              )),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: emphasised ? 15 : 12.5,
+              fontWeight: emphasised ? FontWeight.w800 : FontWeight.w600,
+              color: emphasised ? scheme.onSurface : scheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(body,
-              maxLines: 2, overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                color: bodyColor ?? scheme.onSurface,
-                fontFamily: bodyMono ? 'monospace' : null,
-                fontWeight: emphasised ? FontWeight.w400 : (bodyColor != null ? FontWeight.w700 : FontWeight.w500),
-              )),
+          Text(
+            body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              color: bodyColor ?? scheme.onSurface,
+              fontFamily: bodyMono ? 'monospace' : null,
+              fontWeight: emphasised
+                  ? FontWeight.w400
+                  : (bodyColor != null ? FontWeight.w700 : FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );
@@ -882,12 +1099,22 @@ class _PreviewHintBanner extends StatelessWidget {
           Icon(Icons.auto_awesome, size: 18, color: scheme.primary),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(l10n.langPreviewHint,
-                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant, height: 1.4)),
+            child: Text(
+              l10n.langPreviewHint,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: scheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           OutlinedButton(
-            onPressed: () => launchUrl(Uri.parse('https://jellyfin.org/docs/general/server/media/naming/')),
+            onPressed: () => launchUrl(
+              Uri.parse(
+                'https://jellyfin.org/docs/general/server/media/naming/',
+              ),
+            ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               side: BorderSide(color: glass.panelStroke),
@@ -915,16 +1142,27 @@ class _PathsSection extends StatelessWidget {
         _SectionTitle(l10n.recent),
         _Card(
           child: settings.recent.isEmpty
-              ? Text(l10n.noRecent, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))
+              ? Text(
+                  l10n.noRecent,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (final r in settings.recent)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(r,
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+                        child: Text(
+                          r,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -933,16 +1171,27 @@ class _PathsSection extends StatelessWidget {
         _SectionTitle(l10n.favorites),
         _Card(
           child: settings.favorites.isEmpty
-              ? Text(l10n.noFavorites, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))
+              ? Text(
+                  l10n.noFavorites,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (final f in settings.favorites)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(f,
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+                        child: Text(
+                          f,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -985,8 +1234,12 @@ class _PrivacySection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l10n.privacyConfigBody,
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                l10n.privacyConfigBody,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -1005,7 +1258,9 @@ class _PrivacySection extends StatelessWidget {
                             }
                           },
                     icon: const Icon(Icons.delete_sweep_outlined, size: 16),
-                    label: Text(l10n.privacyClearHistory(history.entries.length)),
+                    label: Text(
+                      l10n.privacyClearHistory(history.entries.length),
+                    ),
                   ),
                 ],
               ),
@@ -1042,16 +1297,32 @@ class _ShortcutsSection extends StatelessWidget {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(entries[i].$1,
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          entries[i].$1,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 14),
-                      Expanded(child: Text(entries[i].$2, style: const TextStyle(fontSize: 14))),
+                      Expanded(
+                        child: Text(
+                          entries[i].$2,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1085,31 +1356,57 @@ class _AboutSection extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    width: 48, height: 48,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
+                      gradient: LinearGradient(
+                        colors: [scheme.primary, scheme.tertiary],
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
-                    child: const Text('J', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 26)),
+                    child: const Text(
+                      'J',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 26,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(l10n.appBrand, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                      Text('v $version', style: TextStyle(color: scheme.onSurfaceVariant)),
+                      Text(
+                        l10n.appBrand,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'v $version',
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                      ),
                     ],
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              Text(l10n.aboutTagline, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
+              Text(
+                l10n.aboutTagline,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
                   TextButton.icon(
-                    onPressed: () => launchUrl(Uri.parse('https://jellyfin.org/docs/general/server/media/naming/')),
+                    onPressed: () => launchUrl(
+                      Uri.parse(
+                        'https://jellyfin.org/docs/general/server/media/naming/',
+                      ),
+                    ),
                     icon: const Icon(Icons.menu_book_outlined, size: 16),
                     label: Text(l10n.aboutJellyfinNaming),
                   ),

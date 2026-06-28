@@ -84,11 +84,7 @@ Respond with this exact shape:
       if (hint != null && hint.isNotEmpty) 'userTitleHint': hint,
       'files': [
         for (final e in entries)
-          {
-            'source': e.relativePath,
-            'kind': e.kind,
-            'size': e.sizeBytes,
-          }
+          {'source': e.relativePath, 'kind': e.kind, 'size': e.sizeBytes},
       ],
     };
 
