@@ -1,0 +1,23 @@
+{
+  "skill_name": "sync-version",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Bump this app to version 1.0.0 — we're cutting the first stable release. Make sure every place that shows a version is updated.",
+      "expected_output": "pubspec.yaml becomes 1.0.0+2, settings_screen.dart _appVersion becomes '1.0.0', inno_setup.iss MyAppVersion becomes 1.0.0, CLAUDE.md doc line becomes 1.0.0+2. macOS/Windows/Linux build files are NOT edited. No stale 0.9.0 remains in source.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "The About screen in the app still shows an old version number even though I bumped pubspec a while ago. Can you get everything back in sync?",
+      "expected_output": "Identifies that lib/widgets/settings/settings_screen.dart hardcodes _appVersion and resyncs all hardcoded copies to match pubspec's version. Explains the drift and that platform files derive from pubspec automatically.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Cut a new minor release and bump the build number too.",
+      "expected_output": "Computes 0.10.0+2 from current 0.9.0+1 (minor bump resets patch, increments build), applies to all four hardcoded locations, leaves auto-derived platform files untouched.",
+      "files": []
+    }
+  ]
+}
