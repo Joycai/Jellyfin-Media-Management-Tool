@@ -34,6 +34,11 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   final _scroll = ScrollController();
   final Set<LogLevel> _levels = {LogLevel.info, LogLevel.warn, LogLevel.debug};
 
+  /// Guards against stacking auto-scroll animations: the controller can tick
+  /// many times per frame, and a fresh `animateTo` per tick chains animations
+  /// that fight each other.
+  bool _autoScrollPending = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,12 +54,19 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     super.dispose();
   }
 
+  /// "Follow-tail" auto-scroll: only chases the log bottom when the user is
+  /// already near it. If they've scrolled up to inspect a past line we leave
+  /// them alone.
   void _autoScroll() {
+    if (_autoScrollPending) return;
+    _autoScrollPending = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        _scroll.animateTo(_scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
-      }
+      _autoScrollPending = false;
+      if (!_scroll.hasClients) return;
+      final pos = _scroll.position;
+      if (pos.maxScrollExtent - pos.pixels > 120) return;
+      _scroll.animateTo(pos.maxScrollExtent,
+          duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
     });
   }
 
