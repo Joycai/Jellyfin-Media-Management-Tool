@@ -33,7 +33,7 @@ class _TVShowDialogState extends State<TVShowDialog> {
     final l10n = AppLocalizations.of(context)!;
 
     return AlertDialog(
-      title: const Text('TV Show (SxxExx)'),
+      title: Text(l10n.tvShowDialogTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

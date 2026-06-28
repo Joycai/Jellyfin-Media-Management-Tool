@@ -101,8 +101,6 @@ class ApplyController extends ChangeNotifier {
         failures: plan.actions.where((a) => a.status == ActionStatus.failed).toList(),
       );
 
-  void _log0(LogEntry e) => _log.add(e);
-
   /// Runs the apply loop. Idempotent: subsequent calls are no-ops (the detail
   /// screen and the task service both want to ensure it starts, but only one
   /// should actually drive the loop).
@@ -110,7 +108,7 @@ class ApplyController extends ChangeNotifier {
     if (_started) return;
     _started = true;
     _sw.start();
-    _log0(LogEntry(LogKind.started, level: LogLevel.info, count: total));
+    _log.add(LogEntry(LogKind.started, level: LogLevel.info, count: total));
     notifyListeners();
 
     // Pace very fast (same-volume rename) jobs so progress is perceptible,
@@ -126,7 +124,7 @@ class ApplyController extends ChangeNotifier {
 
       if (a.status == ActionStatus.needsReview) {
         _skipped++;
-        _log0(LogEntry(LogKind.skipped, level: LogLevel.warn, name: p.basename(a.source)));
+        _log.add(LogEntry(LogKind.skipped, level: LogLevel.warn, name: p.basename(a.source)));
         notifyListeners();
         continue;
       }
@@ -144,11 +142,11 @@ class ApplyController extends ChangeNotifier {
         if (outcome.fromPath != null && outcome.toPath != null) {
           _moves.add({'from': outcome.fromPath!, 'to': outcome.toPath!});
         }
-        _log0(LogEntry(LogKind.moved, level: LogLevel.info,
+        _log.add(LogEntry(LogKind.moved, level: LogLevel.info,
             name: p.basename(a.source), dir: p.dirname(a.target)));
       } else {
         _failed++;
-        _log0(LogEntry(LogKind.failed, level: LogLevel.warn,
+        _log.add(LogEntry(LogKind.failed, level: LogLevel.warn,
             name: p.basename(a.source), error: outcome.error ?? ''));
       }
       notifyListeners();
@@ -171,7 +169,7 @@ class ApplyController extends ChangeNotifier {
 
     _sw.stop();
     _status = _stopRequested ? ApplyStatus.stopped : ApplyStatus.done;
-    _log0(LogEntry(_stopRequested ? LogKind.stopped : LogKind.finished,
+    _log.add(LogEntry(_stopRequested ? LogKind.stopped : LogKind.finished,
         level: LogLevel.info, done: _done, skipped: _skipped));
     notifyListeners();
   }

@@ -92,8 +92,6 @@ class FileBrowserService extends ChangeNotifier {
       }
 
       try {
-        // Using sync for now as per current implementation, 
-        // but this service makes it easier to change to async later.
         final entities = directory.listSync().toList();
         _sortEntities(entities);
         _files = entities;
@@ -126,7 +124,6 @@ class FileBrowserService extends ChangeNotifier {
           }
           break;
         case SortOption.date:
-          // Using statSync here for consistency with current implementation.
           final statA = a.statSync();
           final statB = b.statSync();
           comparison = statA.modified.compareTo(statB.modified);

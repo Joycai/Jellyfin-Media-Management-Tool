@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../utils/path_tree.dart';
 
 /// What the user chose in the preview dialog.
 typedef PreviewResult = ({bool apply, bool backup});
@@ -251,7 +252,7 @@ class _TreeCompare extends StatelessWidget {
             label: l10n.beforeLabel,
             path: baseDir,
             accent: const Color(0xFFE08A3C),
-            lines: _TreeBuilder.build(pending.map((a) => a.source).toList()),
+            lines: buildPathTree(pending.map((a) => a.source).toList()),
             conflicts: conflicts,
             isAfter: false,
           ),
@@ -284,7 +285,7 @@ class _TreeCompare extends StatelessWidget {
             label: l10n.afterLabel,
             path: baseDir,
             accent: const Color(0xFF34A06B),
-            lines: _TreeBuilder.build(pending.map((a) => a.target).toList()),
+            lines: buildPathTree(pending.map((a) => a.target).toList()),
             conflicts: conflicts,
             isAfter: true,
           ),
@@ -298,7 +299,7 @@ class _TreePane extends StatelessWidget {
   final String label;
   final String path;
   final Color accent;
-  final List<_Line> lines;
+  final List<TreeLine> lines;
   final List<OrganizeAction> conflicts;
   final bool isAfter;
 
@@ -345,7 +346,7 @@ class _TreePane extends StatelessWidget {
     );
   }
 
-  Widget _row(BuildContext context, _Line line) {
+  Widget _row(BuildContext context, TreeLine line) {
     final scheme = Theme.of(context).colorScheme;
     final isLeaf = !line.isDir;
     final bg = isLeaf ? accent.withValues(alpha: 0.12) : Colors.transparent;
@@ -406,32 +407,6 @@ class _TreePane extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Collapses a list of relative paths into a sorted, de-duplicated indented tree.
-class _TreeBuilder {
-  static List<_Line> build(List<String> paths) {
-    final seen = <String>{};
-    final lines = <_Line>[];
-    final sorted = [...paths]..sort();
-    for (final path in sorted) {
-      final parts = p.split(path).where((s) => s.isNotEmpty).toList();
-      for (var i = 0; i < parts.length; i++) {
-        final key = parts.sublist(0, i + 1).join('/');
-        if (seen.add(key)) {
-          lines.add(_Line(name: parts[i], depth: i, isDir: i < parts.length - 1));
-        }
-      }
-    }
-    return lines;
-  }
-}
-
-class _Line {
-  final String name;
-  final int depth;
-  final bool isDir;
-  const _Line({required this.name, required this.depth, required this.isDir});
 }
 
 // ── List diff ─────────────────────────────────────────────────────────────────

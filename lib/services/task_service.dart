@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/organize_plan.dart';
+import '../utils/ids.dart';
 import 'ai_service.dart';
 import 'apply_controller.dart';
 
@@ -66,15 +66,11 @@ class OrganizerTask {
 /// the work and the service wraps it with progress + status bookkeeping.
 class TaskService extends ChangeNotifier {
   final List<OrganizerTask> _tasks = [];
-  final Random _rng = Random();
 
   List<OrganizerTask> get tasks => List.unmodifiable(_tasks);
 
   /// Count of tasks still running — drives the tab badge.
   int get runningCount => _tasks.where((t) => t.status == TaskStatus.running).length;
-
-  String _newId() =>
-      '${DateTime.now().microsecondsSinceEpoch}-${_rng.nextInt(1 << 32)}';
 
   /// Runs [ai.analyzeFolder] under a new task entry. Returns the [OrganizerTask]
   /// so the caller can also stash references if needed; the task is already
@@ -86,7 +82,7 @@ class TaskService extends ChangeNotifier {
     String? mediaTypeHint,
   }) {
     final task = OrganizerTask(
-      id: _newId(),
+      id: newId(),
       kind: TaskKind.analyze,
       label: p.basename(baseDir),
       startedAt: DateTime.now(),
@@ -127,7 +123,7 @@ class TaskService extends ChangeNotifier {
     VoidCallback? onDone,
   }) {
     final task = OrganizerTask(
-      id: _newId(),
+      id: newId(),
       kind: TaskKind.apply,
       label: label,
       startedAt: DateTime.now(),

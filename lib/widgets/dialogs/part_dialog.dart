@@ -32,7 +32,7 @@ class _PartDialogState extends State<PartDialog> {
             children: _commonParts.map((part) {
               return ElevatedButton(
                 onPressed: () => Navigator.pop(context, part),
-                child: Text('Part $part'),
+                child: Text(l10n.partLabel(part)),
               );
             }).toList(),
           ),
@@ -41,7 +41,7 @@ class _PartDialogState extends State<PartDialog> {
             controller: _customPartController,
             decoration: InputDecoration(
               labelText: l10n.customPart,
-              hintText: 'e.g. 5',
+              hintText: l10n.customPartHint,
               border: const OutlineInputBorder(),
             ),
             keyboardType: TextInputType.number,
