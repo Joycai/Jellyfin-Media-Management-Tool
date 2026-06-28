@@ -1604,12 +1604,6 @@ abstract class AppLocalizations {
   /// **'Current'**
   String get langCurrent;
 
-  /// No description provided for @langSoon.
-  ///
-  /// In en, this message translates to:
-  /// **'Soon'**
-  String get langSoon;
-
   /// No description provided for @langImportArb.
   ///
   /// In en, this message translates to:

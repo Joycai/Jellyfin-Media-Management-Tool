@@ -251,7 +251,6 @@
   "aboutJellyfinNaming": "Jellyfin 命名规范",
   "langHeaderSubtitle": "切换会同步影响 AI 输出语言",
   "langCurrent": "当前",
-  "langSoon": "即将推出",
   "langImportArb": "导入翻译文件 (.arb)",
   "langImportSoon": "自定义翻译导入即将推出。",
   "langPreviewTitle": "实时预览 · 主界面片段",

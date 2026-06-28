@@ -557,23 +557,19 @@ class _Divider extends StatelessWidget {
 
 // ── Language section ────────────────────────────────────────────────────────
 
-/// One row in the language list. [available] languages are selectable;
-/// disabled rows show a "soon" pill.
+/// One row in the language list. Only languages whose ARB exists are listed —
+/// no "coming soon" rows for translations we don't actually have.
 class _Lang {
   final String code;
   final String flag;
   final String name;
   final String tag;
-  final bool available;
-  const _Lang(this.code, this.flag, this.name, this.tag, {this.available = false});
+  const _Lang(this.code, this.flag, this.name, this.tag);
 }
 
 const _languages = <_Lang>[
-  _Lang('zh', '🇨🇳', '简体中文', 'zh-Hans', available: true),
-  _Lang('en', '🇺🇸', 'English', 'en-US', available: true),
-  _Lang('ja', '🇯🇵', '日本語', 'ja-JP'),
-  _Lang('de', '🇩🇪', 'Deutsch', 'de-DE'),
-  _Lang('fr', '🇫🇷', 'Français', 'fr-FR'),
+  _Lang('zh', '🇨🇳', '简体中文', 'zh-Hans'),
+  _Lang('en', '🇺🇸', 'English', 'en-US'),
 ];
 
 class _LanguageSection extends StatelessWidget {
@@ -644,11 +640,7 @@ class _LanguageList extends StatelessWidget {
               return _LanguageCard(
                 lang: lang,
                 selected: on,
-                onTap: lang.available
-                    ? () => settings.setLocale(Locale(lang.code))
-                    : () => ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('${lang.name} · ${l10n.langSoon}')),
-                        ),
+                onTap: () => settings.setLocale(Locale(lang.code)),
               );
             },
           ),
@@ -732,16 +724,6 @@ class _LanguageCard extends StatelessWidget {
                   width: 22, height: 22,
                   decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
                   child: const Icon(Icons.check, size: 14, color: Colors.white),
-                )
-              else if (!lang.available)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: scheme.onSurface.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(l10n.langSoon,
-                      style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
                 ),
             ],
           ),

@@ -852,9 +852,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get langCurrent => '当前';
 
   @override
-  String get langSoon => '即将推出';
-
-  @override
   String get langImportArb => '导入翻译文件 (.arb)';
 
   @override

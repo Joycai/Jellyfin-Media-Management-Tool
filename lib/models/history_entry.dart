@@ -1,8 +1,4 @@
-import 'package:file/file.dart';
-import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
-
-import '../services/path_safety.dart';
 
 /// Coarse kind for visual styling and grouping in the history list. The current
 /// app only emits [aiOrganize] entries; other kinds are placeholders that
@@ -139,73 +135,4 @@ class UndoResult {
     required this.remaining,
   });
   bool get hasFailures => failures.isNotEmpty;
-}
-
-/// Reverses a recorded operation by renaming each target back to its original
-/// source path. Treats a move whose source already exists at `from` as
-/// already-undone (counts as success). Rejects any move whose paths escape
-/// [HistoryEntry.baseDir] — defense in depth against tampered manifests.
-Future<UndoResult> undoFromManifest(
-  HistoryEntry entry, {
-  FileSystem fs = const LocalFileSystem(),
-}) async {
-  var succeeded = 0;
-  final failures = <String>[];
-  final remaining = <Map<String, String>>[];
-
-  // Track which moves to keep in the manifest. We iterate in reverse (so
-  // newly-created subfolders are emptied before parents) but `remaining` is
-  // returned in the original order to keep the manifest stable.
-  final keptIndices = <int>{};
-
-  final reversedIndexed = entry.moves
-      .asMap()
-      .entries
-      .toList()
-      .reversed
-      .toList(growable: false);
-
-  for (final indexed in reversedIndexed) {
-    final i = indexed.key;
-    final move = indexed.value;
-    final from = move['from']!;
-    final to = move['to']!;
-
-    if (!PathSafety.isWithin(entry.baseDir, from) ||
-        !PathSafety.isWithin(entry.baseDir, to)) {
-      failures.add('escapes base: $from');
-      keptIndices.add(i);
-      continue;
-    }
-
-    try {
-      // If the user manually moved the file back already, count as undone.
-      if (await fs.file(from).exists() || await fs.directory(from).exists()) {
-        succeeded++;
-        continue;
-      }
-      final file = fs.file(to);
-      if (!await file.exists()) {
-        failures.add('missing $to');
-        keptIndices.add(i);
-        continue;
-      }
-      await fs.directory(p.dirname(from)).create(recursive: true);
-      await file.rename(from);
-      succeeded++;
-    } catch (e) {
-      failures.add('$to → $from: $e');
-      keptIndices.add(i);
-    }
-  }
-
-  for (var i = 0; i < entry.moves.length; i++) {
-    if (keptIndices.contains(i)) remaining.add(entry.moves[i]);
-  }
-
-  return UndoResult(
-    succeeded: succeeded,
-    failures: failures,
-    remaining: remaining,
-  );
 }

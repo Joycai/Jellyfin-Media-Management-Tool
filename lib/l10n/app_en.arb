@@ -251,7 +251,6 @@
   "aboutJellyfinNaming": "Jellyfin naming guide",
   "langHeaderSubtitle": "Switching also affects the AI's output language",
   "langCurrent": "Current",
-  "langSoon": "Soon",
   "langImportArb": "Import translation file (.arb)",
   "langImportSoon": "Custom translation import is coming soon.",
   "langPreviewTitle": "Live preview · main UI snippet",

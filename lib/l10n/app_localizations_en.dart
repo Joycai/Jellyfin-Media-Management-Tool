@@ -859,9 +859,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get langCurrent => 'Current';
 
   @override
-  String get langSoon => 'Soon';
-
-  @override
   String get langImportArb => 'Import translation file (.arb)';
 
   @override
