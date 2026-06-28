@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 
 /// What the user chose in the preview dialog.
 typedef PreviewResult = ({bool apply, bool backup});
@@ -118,7 +119,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                 const SizedBox(height: 3),
                 Text(
                   // gen-l10n orders placeholders alphabetically: (folders, pct, size).
-                  l10n.previewSubtitle(_folderCount, _avgConfidencePct, _formatBytes(widget.totalBytes)),
+                  l10n.previewSubtitle(_folderCount, _avgConfidencePct, formatBytes(widget.totalBytes, zero: '—')),
                   style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
                 ),
               ],
@@ -226,17 +227,6 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
     );
   }
 
-  static String _formatBytes(int bytes) {
-    if (bytes <= 0) return '—';
-    const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    double size = bytes.toDouble();
-    int i = 0;
-    while (size >= 1024 && i < suffixes.length - 1) {
-      size /= 1024;
-      i++;
-    }
-    return '${size.toStringAsFixed(size >= 100 || i == 0 ? 0 : 1)} ${suffixes[i]}';
-  }
 }
 
 // ── Tree compare ──────────────────────────────────────────────────────────────

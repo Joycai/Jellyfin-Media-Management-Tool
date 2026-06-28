@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/history_entry.dart';
 import '../../services/history_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 
 /// Operation history: a vertical list of recorded operations with undo +
 /// "view list" affordances, plus a 7-day retention notice.
@@ -201,19 +202,8 @@ class _HistoryCard extends StatelessWidget {
     final parts = <String>[];
     if (entry.moveCount > 0) parts.add(l10n.subMoves(entry.moveCount));
     if (entry.renameCount > 0) parts.add(l10n.subRenames(entry.renameCount));
-    if (entry.totalBytes > 0) parts.add(_bytes(entry.totalBytes));
+    if (entry.totalBytes > 0) parts.add(formatBytes(entry.totalBytes));
     return parts.isEmpty ? entry.baseDir : parts.join(' · ');
-  }
-
-  static String _bytes(int b) {
-    const u = ['B', 'KB', 'MB', 'GB', 'TB'];
-    double s = b.toDouble();
-    int i = 0;
-    while (s >= 1024 && i < u.length - 1) {
-      s /= 1024;
-      i++;
-    }
-    return '${s.toStringAsFixed(s >= 100 || i <= 1 ? 0 : 1)} ${u[i]}';
   }
 
   static String _relativeTime(AppLocalizations l10n, DateTime t) {

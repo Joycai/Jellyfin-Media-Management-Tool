@@ -10,6 +10,7 @@ import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/file_label_service.dart';
 import '../../services/settings_service.dart';
+import '../../utils/format.dart';
 import '../glass/glass_panel.dart';
 
 /// Center pane: breadcrumb + actions, the file table with AI-suggestion and
@@ -294,7 +295,7 @@ class _FileRow extends StatelessWidget {
     final label = FileLabelService.getLabel(ext);
     final iconColor = FileLabelService.getIconColor(isDir ? 'Folder' : label, isDir);
     final name = p.basename(entity.path);
-    final size = entity is File ? _formatBytes((entity as File).lengthSync()) : '—';
+    final size = entity is File ? formatBytes((entity as File).lengthSync()) : '—';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
@@ -389,17 +390,6 @@ class _FileRow extends StatelessWidget {
     );
   }
 
-  static String _formatBytes(int bytes) {
-    if (bytes <= 0) return '0 B';
-    const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    double size = bytes.toDouble();
-    int i = 0;
-    while (size >= 1024 && i < suffixes.length - 1) {
-      size /= 1024;
-      i++;
-    }
-    return '${size.toStringAsFixed(size >= 100 || i == 0 ? 0 : 1)} ${suffixes[i]}';
-  }
 }
 
 class _SuggestionCell extends StatelessWidget {

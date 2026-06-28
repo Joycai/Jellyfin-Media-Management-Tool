@@ -157,7 +157,7 @@
   "hideKey": "隐藏",
   "defaultModel": "默认模型",
   "temperature": "温度",
-  "usageThisMonth": "本月用量",
+  "tokensThisSession": "本次会话 token",
   "requests": "请求数",
   "avgLatency": "平均延迟",
   "selectServiceHint": "选择左侧的服务进行配置",

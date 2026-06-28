@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/apply_controller.dart';
 import '../../services/organize_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../glass/glass_panel.dart';
 
 /// Live progress view shown while an organize plan is applied: an overall
@@ -164,7 +165,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
               ])),
               const Spacer(),
               Text(
-                '${_bytes(c.bytesDone)} / ${_bytes(c.bytesTotal)} · ${_speed(c.speedBytesPerSec)}',
+                '${formatBytes(c.bytesDone)} / ${formatBytes(c.bytesTotal)} · ${_speed(c.speedBytesPerSec)}',
                 style: TextStyle(fontSize: 15, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500),
               ),
             ],
@@ -334,20 +335,8 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   static String _clock(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:${t.second.toString().padLeft(2, '0')}';
 
-  static String _bytes(int b) {
-    if (b <= 0) return '0 GB';
-    const u = ['B', 'KB', 'MB', 'GB', 'TB'];
-    double s = b.toDouble();
-    int i = 0;
-    while (s >= 1024 && i < u.length - 1) {
-      s /= 1024;
-      i++;
-    }
-    return '${s.toStringAsFixed(s >= 100 || i <= 1 ? 0 : 1)} ${u[i]}';
-  }
-
   static String _speed(double bytesPerSec) {
     if (bytesPerSec <= 0) return '—';
-    return '${_bytes(bytesPerSec.round())}/s';
+    return '${formatBytes(bytesPerSec.round())}/s';
   }
 }

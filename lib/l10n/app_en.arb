@@ -157,7 +157,7 @@
   "hideKey": "Hide",
   "defaultModel": "Default model",
   "temperature": "Temperature",
-  "usageThisMonth": "This month",
+  "tokensThisSession": "Tokens this session",
   "requests": "Requests",
   "avgLatency": "Avg latency",
   "selectServiceHint": "Select a service to configure",
