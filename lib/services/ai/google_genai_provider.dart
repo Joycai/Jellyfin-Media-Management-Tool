@@ -118,8 +118,9 @@ class GoogleGenAiProvider implements AiProvider {
     try {
       final Map<String, dynamic> body = jsonDecode(utf8.decode(res.bodyBytes));
       final msg = body['error']?['message'];
-      if (msg is String && msg.isNotEmpty)
+      if (msg is String && msg.isNotEmpty) {
         return 'HTTP ${res.statusCode}: $msg';
+      }
     } catch (_) {}
     return 'HTTP ${res.statusCode}';
   }
