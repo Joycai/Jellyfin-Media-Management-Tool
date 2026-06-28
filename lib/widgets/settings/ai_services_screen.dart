@@ -777,7 +777,7 @@ class _UsageCard extends StatelessWidget {
     final glass = Theme.of(context).extension<GlassTheme>()!;
     final ai = context.watch<AiService>();
 
-    final cost = active ? '\$${ai.totalCostUsd.toStringAsFixed(2)}' : '—';
+    final tokens = active ? '${ai.totalTokens}' : '—';
     final reqs = active ? '${ai.requestCount}' : '—';
     final latency = active && ai.avgLatencyMs > 0 ? '${ai.avgLatencyMs} ms' : '—';
 
@@ -791,7 +791,7 @@ class _UsageCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _stat(context, l10n.usageThisMonth, cost),
+          _stat(context, l10n.tokensThisSession, tokens),
           const SizedBox(width: 32),
           _stat(context, l10n.requests, reqs),
           const SizedBox(width: 32),

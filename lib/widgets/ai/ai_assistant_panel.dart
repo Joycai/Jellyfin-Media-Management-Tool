@@ -93,7 +93,7 @@ class AiAssistantPanel extends StatelessWidget {
                 Text(l10n.usage, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
                 const Spacer(),
                 Text(
-                  '${l10n.tokensLabel(ai.lastTokens)} · \$${ai.lastCostUsd.toStringAsFixed(4)}',
+                  l10n.tokensLabel(ai.lastTokens),
                   style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ],

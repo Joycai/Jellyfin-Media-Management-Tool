@@ -108,11 +108,15 @@ class AiConfig {
         temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
       );
 
+  /// Truly empty sentinel — every string is blank so [isComplete] is false and
+  /// nothing accidentally hits a real endpoint before the user configures one.
+  /// Editor-side defaults (the `api.openai.com` URL and `gpt-4o-mini` model)
+  /// live in [AiServiceProfile.create], not here.
   static const empty = AiConfig(
     provider: AiProviderType.openAi,
-    endpoint: 'https://api.openai.com/v1',
+    endpoint: '',
     apiKey: '',
-    model: 'gpt-4o-mini',
+    model: '',
   );
 }
 

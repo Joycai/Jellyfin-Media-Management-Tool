@@ -513,7 +513,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get temperature => '温度';
 
   @override
-  String get usageThisMonth => '本月用量';
+  String get tokensThisSession => '本次会话 token';
 
   @override
   String get requests => '请求数';

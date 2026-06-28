@@ -1046,11 +1046,11 @@ abstract class AppLocalizations {
   /// **'Temperature'**
   String get temperature;
 
-  /// No description provided for @usageThisMonth.
+  /// No description provided for @tokensThisSession.
   ///
   /// In en, this message translates to:
-  /// **'This month'**
-  String get usageThisMonth;
+  /// **'Tokens this session'**
+  String get tokensThisSession;
 
   /// No description provided for @requests.
   ///

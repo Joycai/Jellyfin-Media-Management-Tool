@@ -516,7 +516,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get temperature => 'Temperature';
 
   @override
-  String get usageThisMonth => 'This month';
+  String get tokensThisSession => 'Tokens this session';
 
   @override
   String get requests => 'Requests';

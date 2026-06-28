@@ -11,9 +11,9 @@ class OpenAiProvider implements AiProvider {
 
   OpenAiProvider(this.config);
 
-  Uri get _chatUri {
-    // Tolerate endpoints supplied with or without a trailing slash, and with or
-    // without the `/v1` suffix already present.
+  /// Normalized base URL ending in `/v1` (or whatever versioned suffix the
+  /// user supplied). Used to derive both `/chat/completions` and `/models`.
+  String get _base {
     var base = config.endpoint.trim();
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
@@ -21,8 +21,11 @@ class OpenAiProvider implements AiProvider {
     if (!base.endsWith('/v1') && !base.contains('/v1/')) {
       base = '$base/v1';
     }
-    return Uri.parse('$base/chat/completions');
+    return base;
   }
+
+  Uri get _chatUri => Uri.parse('$_base/chat/completions');
+  Uri get _modelsUri => Uri.parse('$_base/models');
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -72,13 +75,22 @@ class OpenAiProvider implements AiProvider {
     );
   }
 
+  /// Probes `GET /v1/models` instead of running a chat completion — credentials
+  /// are validated server-side without spending generation tokens.
   @override
   Future<bool> testConnection() async {
-    final res = await complete(
-      systemPrompt: 'You are a health check. Reply with JSON.',
-      userPrompt: 'Return {"ok": true}.',
-    );
-    return res.text.contains('ok');
+    http.Response res;
+    try {
+      res = await http
+          .get(_modelsUri, headers: _headers)
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      throw AiException('Network error: $e');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw AiException(_errorMessage(res));
+    }
+    return true;
   }
 
   String _errorMessage(http.Response res) {

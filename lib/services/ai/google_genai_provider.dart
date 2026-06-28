@@ -11,7 +11,9 @@ class GoogleGenAiProvider implements AiProvider {
 
   GoogleGenAiProvider(this.config);
 
-  Uri _generateUri() {
+  /// Normalized base URL with a `/v1*` segment, e.g.
+  /// `https://generativelanguage.googleapis.com/v1beta`.
+  String get _base {
     var base = config.endpoint.trim();
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
@@ -19,10 +21,14 @@ class GoogleGenAiProvider implements AiProvider {
     if (!base.contains('/v1')) {
       base = '$base/v1beta';
     }
-    return Uri.parse(
-      '$base/models/${config.model}:generateContent?key=${config.apiKey}',
-    );
+    return base;
   }
+
+  Uri _generateUri() => Uri.parse(
+        '$_base/models/${config.model}:generateContent?key=${config.apiKey}',
+      );
+
+  Uri _modelsUri() => Uri.parse('$_base/models?key=${config.apiKey}');
 
   @override
   Future<AiResponse> complete({
@@ -84,13 +90,23 @@ class GoogleGenAiProvider implements AiProvider {
     );
   }
 
+  /// Probes `GET /v1beta/models` — validates the API key without spending
+  /// generation tokens. Confirms the response carries a `models` array.
   @override
   Future<bool> testConnection() async {
-    final res = await complete(
-      systemPrompt: 'You are a health check. Reply with JSON.',
-      userPrompt: 'Return {"ok": true}.',
-    );
-    return res.text.contains('ok');
+    http.Response res;
+    try {
+      res = await http
+          .get(_modelsUri())
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      throw AiException('Network error: $e');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw AiException(_errorMessage(res));
+    }
+    final Map<String, dynamic> body = jsonDecode(utf8.decode(res.bodyBytes));
+    return body['models'] is List;
   }
 
   String _errorMessage(http.Response res) {

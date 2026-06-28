@@ -33,9 +33,6 @@ class AiService extends ChangeNotifier {
   int _requestCount = 0;
   final List<int> _latencies = [];
 
-  /// Rough cost estimate per 1K tokens (USD); display-only.
-  static const double _usdPer1kTokens = 0.0008;
-
   AiConfig get config => _config;
   ConnectionStatus get status => _status;
   String? get statusMessage => _statusMessage;
@@ -47,8 +44,6 @@ class AiService extends ChangeNotifier {
   int get totalTokens => _totalTokens;
   int get itemsProcessed => _itemsProcessed;
   int get requestCount => _requestCount;
-  double get lastCostUsd => _lastTokens / 1000 * _usdPer1kTokens;
-  double get totalCostUsd => _totalTokens / 1000 * _usdPer1kTokens;
 
   /// Mean request latency in ms (0 when nothing has run yet).
   int get avgLatencyMs => _latencies.isEmpty
