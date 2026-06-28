@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'l10n/app_localizations.dart';
 import 'screens/home_screen.dart';
+import 'services/ai_profiles_service.dart';
 import 'services/ai_service.dart';
 import 'services/file_browser_service.dart';
 import 'services/history_service.dart';
@@ -19,11 +20,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
 
+  // Init the AI profiles service FIRST so its one-time legacy-config.json
+  // migration runs before SettingsService writes a config.json without the
+  // ai_services / active_ai_service keys.
+  final aiProfilesService = AiProfilesService();
+  await aiProfilesService.init();
+
   final settingsService = SettingsService();
   await settingsService.init();
 
   final aiService = AiService();
-  aiService.updateConfig(settingsService.aiConfig);
+  aiService.updateConfig(aiProfilesService.aiConfig);
 
   final historyService = HistoryService();
   // Best-effort initial load; UI is fine before this completes.
@@ -33,6 +40,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settingsService),
+        ChangeNotifierProvider.value(value: aiProfilesService),
         ChangeNotifierProvider.value(value: aiService),
         ChangeNotifierProvider.value(value: historyService),
         ChangeNotifierProvider(create: (_) => TaskService()),

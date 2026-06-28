@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:jellyfin_media_management_tool/main.dart';
+import 'package:jellyfin_media_management_tool/services/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai_service.dart';
 import 'package:jellyfin_media_management_tool/services/settings_service.dart';
 import 'package:jellyfin_media_management_tool/services/file_browser_service.dart';
@@ -16,6 +17,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<SettingsService>.value(value: SettingsService()),
+          ChangeNotifierProvider<AiProfilesService>.value(value: AiProfilesService()),
           ChangeNotifierProvider<AiService>.value(value: AiService()),
           ChangeNotifierProvider<HistoryService>.value(value: HistoryService()),
           ChangeNotifierProvider(create: (_) => FileBrowserService()),
