@@ -23,7 +23,10 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
   late File _selectedVideo;
   late String _selectedLang;
   late bool _isDefault;
-  final List<String> _langCodes = ['chi', 'cht', 'jpn', 'eng'];
+
+  /// BCP-47 codes, matching the AI prompt's `<VideoBaseName>.zh-Hans.ass`
+  /// convention so AI-generated and manual filenames stay consistent.
+  static const _langCodes = ['zh-Hans', 'zh-Hant', 'ja', 'en'];
 
   @override
   void initState() {
@@ -32,6 +35,14 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
     _selectedLang = widget.initialLang;
     _isDefault = widget.initialDefault;
   }
+
+  String _langLabel(AppLocalizations l10n, String code) => switch (code) {
+        'zh-Hans' => l10n.subtitleLangZhHans,
+        'zh-Hant' => l10n.subtitleLangZhHant,
+        'ja' => l10n.subtitleLangJa,
+        'en' => l10n.subtitleLangEn,
+        _ => code,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +71,10 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
             initialValue: _selectedLang,
             decoration: InputDecoration(labelText: l10n.languageLabel),
             items: _langCodes.map((code) {
-              return DropdownMenuItem(value: code, child: Text(code));
+              return DropdownMenuItem(
+                value: code,
+                child: Text('${_langLabel(l10n, code)} · $code'),
+              );
             }).toList(),
             onChanged: (val) {
               if (val != null) setState(() => _selectedLang = val);

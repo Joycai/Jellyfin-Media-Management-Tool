@@ -279,7 +279,6 @@ class _ServiceDetailState extends State<_ServiceDetail> {
   late TextEditingController _apiKey;
   late TextEditingController _model;
   late double _temperature;
-  late int _rateLimit;
   bool _obscureKey = true;
 
   bool _testing = false;
@@ -295,7 +294,6 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     _apiKey = TextEditingController(text: p.apiKey);
     _model = TextEditingController(text: p.model);
     _temperature = p.temperature;
-    _rateLimit = p.rateLimit;
   }
 
   @override
@@ -315,7 +313,6 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       apiKey: _apiKey.text.trim(),
       model: _model.text.trim(),
       temperature: _temperature,
-      rateLimit: _rateLimit,
     );
     final settings = context.read<SettingsService>();
     settings.updateAiService(updated);
@@ -478,37 +475,17 @@ class _ServiceDetailState extends State<_ServiceDetail> {
         ),
         const SizedBox(height: 24),
 
-        // Sliders.
-        Row(
-          children: [
-            Expanded(
-              child: _SliderField(
-                label: l10n.temperature,
-                value: _temperature.toStringAsFixed(1),
-                slider: Slider(
-                  value: _temperature,
-                  max: 2,
-                  divisions: 20,
-                  onChanged: (v) => setState(() => _temperature = v),
-                  onChangeEnd: (_) => _persist(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _SliderField(
-                label: l10n.rateLimitPerMin,
-                value: '$_rateLimit',
-                slider: Slider(
-                  value: _rateLimit.toDouble(),
-                  min: 1,
-                  max: 240,
-                  onChanged: (v) => setState(() => _rateLimit = v.round()),
-                  onChangeEnd: (_) => _persist(),
-                ),
-              ),
-            ),
-          ],
+        // Temperature slider.
+        _SliderField(
+          label: l10n.temperature,
+          value: _temperature.toStringAsFixed(1),
+          slider: Slider(
+            value: _temperature,
+            max: 2,
+            divisions: 20,
+            onChanged: (v) => setState(() => _temperature = v),
+            onChangeEnd: (_) => _persist(),
+          ),
         ),
         const SizedBox(height: 24),
 

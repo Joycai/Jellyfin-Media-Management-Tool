@@ -231,6 +231,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageLabel => '语言';
 
   @override
+  String get subtitleLangZhHans => '简体中文';
+
+  @override
+  String get subtitleLangZhHant => '繁體中文';
+
+  @override
+  String get subtitleLangJa => '日本語';
+
+  @override
+  String get subtitleLangEn => 'English';
+
+  @override
   String get video => '视频';
 
   @override
@@ -501,9 +513,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get temperature => '温度';
 
   @override
-  String get rateLimitPerMin => '每分钟请求上限';
-
-  @override
   String get usageThisMonth => '本月用量';
 
   @override
@@ -532,9 +541,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String previewSubtitle(Object folders, Object pct, Object size) {
     return '将移动 $folders 个文件夹、$size · AI 置信度 平均 $pct%';
   }
-
-  @override
-  String get previewDryRun => '预演 · 不会真实移动文件';
 
   @override
   String get viewTree => '树状对比';
@@ -587,10 +593,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get needsReviewSuffix => '待人工确认';
 
   @override
-  String get backupSnapshot => '同时备份原文件夹快照（可撤销 7 天）';
-
-  @override
-  String get adjustRules => '调整规则';
+  String get recordUndoHistory => '记录撤销历史（保留 7 天）';
 
   @override
   String applyOrganizeCount(Object count) {

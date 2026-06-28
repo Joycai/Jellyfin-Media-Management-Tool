@@ -518,6 +518,30 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get languageLabel;
 
+  /// No description provided for @subtitleLangZhHans.
+  ///
+  /// In en, this message translates to:
+  /// **'Simplified Chinese'**
+  String get subtitleLangZhHans;
+
+  /// No description provided for @subtitleLangZhHant.
+  ///
+  /// In en, this message translates to:
+  /// **'Traditional Chinese'**
+  String get subtitleLangZhHant;
+
+  /// No description provided for @subtitleLangJa.
+  ///
+  /// In en, this message translates to:
+  /// **'Japanese'**
+  String get subtitleLangJa;
+
+  /// No description provided for @subtitleLangEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get subtitleLangEn;
+
   /// No description provided for @video.
   ///
   /// In en, this message translates to:
@@ -1022,12 +1046,6 @@ abstract class AppLocalizations {
   /// **'Temperature'**
   String get temperature;
 
-  /// No description provided for @rateLimitPerMin.
-  ///
-  /// In en, this message translates to:
-  /// **'Requests per minute'**
-  String get rateLimitPerMin;
-
   /// No description provided for @usageThisMonth.
   ///
   /// In en, this message translates to:
@@ -1075,12 +1093,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move {folders} folders, {size} · avg AI confidence {pct}%'**
   String previewSubtitle(Object folders, Object pct, Object size);
-
-  /// No description provided for @previewDryRun.
-  ///
-  /// In en, this message translates to:
-  /// **'Dry run · no files moved yet'**
-  String get previewDryRun;
 
   /// No description provided for @viewTree.
   ///
@@ -1166,17 +1178,11 @@ abstract class AppLocalizations {
   /// **'Needs review'**
   String get needsReviewSuffix;
 
-  /// No description provided for @backupSnapshot.
+  /// No description provided for @recordUndoHistory.
   ///
   /// In en, this message translates to:
-  /// **'Back up a snapshot (undo within 7 days)'**
-  String get backupSnapshot;
-
-  /// No description provided for @adjustRules.
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust rules'**
-  String get adjustRules;
+  /// **'Record undo history (7 days)'**
+  String get recordUndoHistory;
 
   /// No description provided for @applyOrganizeCount.
   ///
