@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/file_entry.dart';
 import '../../models/organize_plan.dart';
 import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
@@ -112,12 +111,12 @@ class MediaTable extends StatelessWidget {
                           ? p.relative(file.path, from: base)
                           : null;
                       return _FileRow(
-                        entity: file,
+                        entry: file,
                         action: rel != null ? actionBySource[rel] : null,
                         selected: browser.selectedFile?.path == file.path,
                         onTap: () => browser.setSelectedFile(file),
                         onDoubleTap: () {
-                          if (file is Directory) {
+                          if (file.isDirectory) {
                             browser.setCurrentDirectory(file.path);
                             context.read<SettingsService>().pushRecent(file.path);
                           }
@@ -272,14 +271,14 @@ class _HeaderRow extends StatelessWidget {
 }
 
 class _FileRow extends StatelessWidget {
-  final FileSystemEntity entity;
+  final FileEntry entry;
   final OrganizeAction? action;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback onDoubleTap;
 
   const _FileRow({
-    required this.entity,
+    required this.entry,
     required this.action,
     required this.selected,
     required this.onTap,
@@ -290,12 +289,11 @@ class _FileRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final isDir = entity is Directory;
-    final ext = p.extension(entity.path);
-    final label = FileLabelService.getLabel(ext);
+    final isDir = entry.isDirectory;
+    final label = FileLabelService.getLabel(entry.extension);
     final iconColor = FileLabelService.getIconColor(isDir ? 'Folder' : label, isDir);
-    final name = p.basename(entity.path);
-    final size = entity is File ? formatBytes((entity as File).lengthSync()) : '—';
+    final name = entry.name;
+    final size = isDir ? '—' : formatBytes(entry.size);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),

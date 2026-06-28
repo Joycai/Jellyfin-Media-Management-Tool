@@ -24,6 +24,12 @@ class GlassPanel extends StatelessWidget {
   /// center table). Flush columns leave this off.
   final bool elevated;
 
+  /// Whether to apply a [BackdropFilter] behind the panel. Top-level cards
+  /// that float over the backdrop gradient want this (default); nested
+  /// cards inside an already-blurred or already-opaque parent can disable
+  /// it to skip the expensive blur pass.
+  final bool blur;
+
   const GlassPanel({
     super.key,
     required this.child,
@@ -33,6 +39,7 @@ class GlassPanel extends StatelessWidget {
     this.fill,
     this.gradient,
     this.elevated = false,
+    this.blur = true,
   });
 
   @override
@@ -41,21 +48,25 @@ class GlassPanel extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderRadius = BorderRadius.circular(radius);
 
+    final fillBox = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: gradient != null ? null : (fill ?? (sidebar ? glass.sidebarFill : glass.panelFill)),
+        gradient: gradient,
+        borderRadius: borderRadius,
+        border: Border.all(color: glass.panelStroke),
+      ),
+      child: child,
+    );
+
     final panel = ClipRRect(
       borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: glass.blurSigma, sigmaY: glass.blurSigma),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: gradient != null ? null : (fill ?? (sidebar ? glass.sidebarFill : glass.panelFill)),
-            gradient: gradient,
-            borderRadius: borderRadius,
-            border: Border.all(color: glass.panelStroke),
-          ),
-          child: child,
-        ),
-      ),
+      child: blur
+          ? BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: glass.blurSigma, sigmaY: glass.blurSigma),
+              child: fillBox,
+            )
+          : fillBox,
     );
 
     if (!elevated) return panel;
