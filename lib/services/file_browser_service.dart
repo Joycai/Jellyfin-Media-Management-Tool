@@ -158,8 +158,12 @@ class FileBrowserService extends ChangeNotifier {
           comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
           break;
         case SortOption.type:
-          final labelA = a.isDirectory ? 'Folder' : FileLabelService.getLabel(a.extension);
-          final labelB = b.isDirectory ? 'Folder' : FileLabelService.getLabel(b.extension);
+          final labelA = a.isDirectory
+              ? 'Folder'
+              : FileLabelService.getLabel(a.extension);
+          final labelB = b.isDirectory
+              ? 'Folder'
+              : FileLabelService.getLabel(b.extension);
           comparison = labelA.compareTo(labelB);
           if (comparison == 0) {
             comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());

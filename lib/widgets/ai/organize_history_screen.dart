@@ -14,8 +14,11 @@ class OrganizeHistoryScreen extends StatefulWidget {
   const OrganizeHistoryScreen({super.key});
 
   static Future<void> show(BuildContext context) => Navigator.of(context).push(
-        MaterialPageRoute(fullscreenDialog: true, builder: (_) => const OrganizeHistoryScreen()),
-      );
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => const OrganizeHistoryScreen(),
+    ),
+  );
 
   @override
   State<OrganizeHistoryScreen> createState() => _OrganizeHistoryScreenState();
@@ -49,28 +52,46 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
                 child: history.entries.isEmpty
                     ? _empty(context, l10n)
                     : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         itemCount: history.entries.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (_, i) => _HistoryCard(entry: history.entries[i]),
+                        itemBuilder: (_, i) =>
+                            _HistoryCard(entry: history.entries[i]),
                       ),
               ),
               if (history.entries.isNotEmpty)
                 Container(
                   margin: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE0A030).withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE0A030).withValues(alpha: 0.25)),
+                    border: Border.all(
+                      color: const Color(0xFFE0A030).withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFE0A030)),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 18,
+                        color: Color(0xFFE0A030),
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(l10n.historyUndoFootnote,
-                            style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                        child: Text(
+                          l10n.historyUndoFootnote,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -94,10 +115,15 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
             icon: const Icon(Icons.arrow_back_rounded),
           ),
           const SizedBox(width: 4),
-          Text(l10n.historyTitle, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+          Text(
+            l10n.historyTitle,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          ),
           const Spacer(),
-          Text(l10n.historyRetention(HistoryService.retentionDays),
-              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+          Text(
+            l10n.historyRetention(HistoryService.retentionDays),
+            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
         ],
       ),
     );
@@ -109,9 +135,16 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.history_rounded, size: 56, color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+          Icon(
+            Icons.history_rounded,
+            size: 56,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 16),
-          Text(l10n.historyEmpty, style: TextStyle(color: scheme.onSurfaceVariant)),
+          Text(
+            l10n.historyEmpty,
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
         ],
       ),
     );
@@ -134,7 +167,8 @@ class _HistoryCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             glass.panelFill,
-            Color.lerp(glass.panelFill, scheme.primary, 0.05) ?? glass.panelFill,
+            Color.lerp(glass.panelFill, scheme.primary, 0.05) ??
+                glass.panelFill,
           ],
         ),
         border: Border.all(color: glass.panelStroke),
@@ -152,19 +186,33 @@ class _HistoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_title(l10n),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    Text(
+                      _title(l10n),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(_subtitle(l10n),
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                    Text(
+                      _subtitle(l10n),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              Text(_relativeTime(l10n, entry.createdAt),
-                  style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+              Text(
+                _relativeTime(l10n, entry.createdAt),
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+              ),
             ],
           ),
           if (entry.canUndo) ...[
@@ -178,7 +226,10 @@ class _HistoryCard extends StatelessWidget {
                   icon: const Icon(Icons.list_alt_outlined, size: 16),
                   label: Text(l10n.viewList),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     side: BorderSide(color: glass.panelStroke),
                     foregroundColor: scheme.onSurface,
                   ),
@@ -192,11 +243,11 @@ class _HistoryCard extends StatelessWidget {
   }
 
   String _title(AppLocalizations l10n) => switch (entry.kind) {
-        HistoryKind.aiOrganize => l10n.historyTitleAi(entry.itemCount),
-        HistoryKind.manualRename => l10n.historyTitleManual(entry.itemCount),
-        HistoryKind.metadataRefresh => l10n.historyTitleMetadata,
-        HistoryKind.batchImport => l10n.historyTitleImport(entry.itemCount),
-      };
+    HistoryKind.aiOrganize => l10n.historyTitleAi(entry.itemCount),
+    HistoryKind.manualRename => l10n.historyTitleManual(entry.itemCount),
+    HistoryKind.metadataRefresh => l10n.historyTitleMetadata,
+    HistoryKind.batchImport => l10n.historyTitleImport(entry.itemCount),
+  };
 
   String _subtitle(AppLocalizations l10n) {
     final parts = <String>[];
@@ -211,13 +262,19 @@ class _HistoryCard extends StatelessWidget {
     if (diff.inMinutes < 1) return l10n.timeJustNow;
     if (diff.inHours < 1) return l10n.timeMinutesAgo(diff.inMinutes);
     if (diff.inDays < 1) {
-      return l10n.timeToday('${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
+      return l10n.timeToday(
+        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+      );
     }
     if (diff.inDays < 2) return l10n.timeYesterday;
     return l10n.timeDaysAgo(diff.inDays);
   }
 
-  Future<void> _showMoves(BuildContext context, HistoryEntry entry, AppLocalizations l10n) async {
+  Future<void> _showMoves(
+    BuildContext context,
+    HistoryEntry entry,
+    AppLocalizations l10n,
+  ) async {
     await showDialog<void>(
       context: context,
       builder: (_) => _MovesDialog(entry: entry),
@@ -244,11 +301,15 @@ class _UndoButtonState extends State<_UndoButton> {
     final result = await history.undo(widget.entry);
     if (!mounted) return;
     setState(() => _busy = false);
-    messenger.showSnackBar(SnackBar(
-      content: Text(result.hasFailures
-          ? l10n.undoPartial(result.failures.length, result.succeeded)
-          : l10n.undoDone(result.succeeded)),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          result.hasFailures
+              ? l10n.undoPartial(result.failures.length, result.succeeded)
+              : l10n.undoDone(result.succeeded),
+        ),
+      ),
+    );
   }
 
   @override
@@ -258,7 +319,11 @@ class _UndoButtonState extends State<_UndoButton> {
     return OutlinedButton.icon(
       onPressed: _busy ? null : _undo,
       icon: _busy
-          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: orange))
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: orange),
+            )
           : const Icon(Icons.undo_rounded, size: 16),
       label: Text(l10n.undoAction),
       style: OutlinedButton.styleFrom(
@@ -277,16 +342,36 @@ class _KindBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (Color a, Color b, IconData icon) = switch (kind) {
-      HistoryKind.aiOrganize => (const Color(0xFF6F69FF), const Color(0xFFA56BFF), Icons.auto_awesome),
-      HistoryKind.manualRename => (const Color(0xFF5A6173), const Color(0xFF7E8497), Icons.drive_file_rename_outline),
-      HistoryKind.metadataRefresh => (const Color(0xFF3B82F6), const Color(0xFF60A5FA), Icons.sync_rounded),
-      HistoryKind.batchImport => (const Color(0xFF6F69FF), const Color(0xFFA56BFF), Icons.cloud_download_outlined),
+      HistoryKind.aiOrganize => (
+        const Color(0xFF6F69FF),
+        const Color(0xFFA56BFF),
+        Icons.auto_awesome,
+      ),
+      HistoryKind.manualRename => (
+        const Color(0xFF5A6173),
+        const Color(0xFF7E8497),
+        Icons.drive_file_rename_outline,
+      ),
+      HistoryKind.metadataRefresh => (
+        const Color(0xFF3B82F6),
+        const Color(0xFF60A5FA),
+        Icons.sync_rounded,
+      ),
+      HistoryKind.batchImport => (
+        const Color(0xFF6F69FF),
+        const Color(0xFFA56BFF),
+        Icons.cloud_download_outlined,
+      ),
     };
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [a, b]),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [a, b],
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(icon, color: Colors.white, size: 18),
@@ -312,37 +397,71 @@ class _MovesDialog extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(l10n.movesListTitle(entry.moves.length),
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                  Text(
+                    l10n.movesListTitle(entry.moves.length),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const Spacer(),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
               Expanded(
                 child: ListView.separated(
                   itemCount: entry.moves.length,
-                  separatorBuilder: (_, _) => Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    color: scheme.outlineVariant.withValues(alpha: 0.3),
+                  ),
                   itemBuilder: (_, i) {
                     final m = entry.moves[i];
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 4,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(p.basename(m['from']!),
-                              maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: scheme.onSurfaceVariant)),
-                          const SizedBox(height: 2),
-                          Row(children: [
-                            Icon(Icons.subdirectory_arrow_right, size: 14, color: scheme.primary),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(p.relative(m['to']!, from: entry.baseDir),
-                                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: scheme.onSurface)),
+                          Text(
+                            p.basename(m['from']!),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                              color: scheme.onSurfaceVariant,
                             ),
-                          ]),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.subdirectory_arrow_right,
+                                size: 14,
+                                color: scheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  p.relative(m['to']!, from: entry.baseDir),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 13,
+                                    color: scheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     );

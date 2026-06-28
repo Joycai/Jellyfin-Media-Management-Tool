@@ -34,7 +34,8 @@ class AiHttp {
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         final res = await send();
-        if (_retryableStatuses.contains(res.statusCode) && attempt < maxAttempts) {
+        if (_retryableStatuses.contains(res.statusCode) &&
+            attempt < maxAttempts) {
           await Future.delayed(_retryAfter(res) ?? backoff);
           backoff *= 2;
           continue;

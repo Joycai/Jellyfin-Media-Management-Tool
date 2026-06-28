@@ -29,15 +29,14 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
     Color? rowSelected,
     Color? sidebarFill,
     double? blurSigma,
-  }) =>
-      GlassTheme(
-        backdrop: backdrop ?? this.backdrop,
-        panelFill: panelFill ?? this.panelFill,
-        panelStroke: panelStroke ?? this.panelStroke,
-        rowSelected: rowSelected ?? this.rowSelected,
-        sidebarFill: sidebarFill ?? this.sidebarFill,
-        blurSigma: blurSigma ?? this.blurSigma,
-      );
+  }) => GlassTheme(
+    backdrop: backdrop ?? this.backdrop,
+    panelFill: panelFill ?? this.panelFill,
+    panelStroke: panelStroke ?? this.panelStroke,
+    rowSelected: rowSelected ?? this.rowSelected,
+    sidebarFill: sidebarFill ?? this.sidebarFill,
+    blurSigma: blurSigma ?? this.blurSigma,
+  );
 
   @override
   GlassTheme lerp(ThemeExtension<GlassTheme>? other, double t) {
@@ -86,7 +85,10 @@ class AppTheme {
   }) {
     final isDark = brightness == Brightness.dark;
     final primary = accent ?? _blue;
-    final base = ColorScheme.fromSeed(seedColor: primary, brightness: brightness);
+    final base = ColorScheme.fromSeed(
+      seedColor: primary,
+      brightness: brightness,
+    );
 
     final scheme = base.copyWith(
       primary: primary,
@@ -95,14 +97,18 @@ class AppTheme {
       tertiary: _violet,
       surface: isDark ? const Color(0xFF191A33) : base.surface,
       onSurface: isDark ? const Color(0xFFE8EAF5) : base.onSurface,
-      onSurfaceVariant: isDark ? const Color(0xFFADB2D0) : base.onSurfaceVariant,
+      onSurfaceVariant: isDark
+          ? const Color(0xFFADB2D0)
+          : base.onSurfaceVariant,
     );
 
     final glass = isDark ? _darkGlass : _lightGlass;
     final scaledGlass = glassIntensity == null
         ? glass
         // 70 (default mockup value) maps to the original 24 sigma; cap at 48.
-        : glass.copyWith(blurSigma: (glassIntensity / 70 * 24).clamp(0.0, 48.0));
+        : glass.copyWith(
+            blurSigma: (glassIntensity / 70 * 24).clamp(0.0, 48.0),
+          );
 
     return ThemeData(
       useMaterial3: true,

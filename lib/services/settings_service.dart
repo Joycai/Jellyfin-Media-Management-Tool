@@ -14,10 +14,8 @@ class SearchSite {
   SearchSite({required this.name, required this.url});
 
   Map<String, dynamic> toJson() => {'name': name, 'url': url};
-  factory SearchSite.fromJson(Map<String, dynamic> json) => SearchSite(
-        name: json['name'],
-        url: json['url'],
-      );
+  factory SearchSite.fromJson(Map<String, dynamic> json) =>
+      SearchSite(name: json['name'], url: json['url']);
 }
 
 /// User preferences that aren't AI profiles or library nav state: theme,
@@ -41,9 +39,18 @@ class SettingsService extends ChangeNotifier {
   bool _lowConfidenceSuggestOnly = false;
   bool _onboardingSeen = false;
   List<SearchSite> _searchSites = [
-    SearchSite(name: 'TMDB', url: 'https://www.themoviedb.org/search?language={lang}&query={keyword}'),
-    SearchSite(name: 'AniDB', url: 'https://anidb.net/search/anime/?adb.search={keyword}&do.search=1'),
-    SearchSite(name: 'TVDB', url: 'https://www.thetvdb.com/search?query={keyword}'),
+    SearchSite(
+      name: 'TMDB',
+      url: 'https://www.themoviedb.org/search?language={lang}&query={keyword}',
+    ),
+    SearchSite(
+      name: 'AniDB',
+      url: 'https://anidb.net/search/anime/?adb.search={keyword}&do.search=1',
+    ),
+    SearchSite(
+      name: 'TVDB',
+      url: 'https://www.thetvdb.com/search?query={keyword}',
+    ),
   ];
 
   static const int _maxRecent = 8;
@@ -69,8 +76,10 @@ class SettingsService extends ChangeNotifier {
     return directory;
   }
 
-  Future<File> get _configFile async => File(p.join((await _configDir).path, 'config.json'));
-  Future<File> get _sitesFile async => File(p.join((await _configDir).path, 'sites.json'));
+  Future<File> get _configFile async =>
+      File(p.join((await _configDir).path, 'config.json'));
+  Future<File> get _sitesFile async =>
+      File(p.join((await _configDir).path, 'sites.json'));
 
   Future<void> init() async {
     try {
@@ -89,7 +98,10 @@ class SettingsService extends ChangeNotifier {
             _lastSearchSiteIndex = data['last_search_site_index'];
           }
           if (data['glass_intensity'] is num) {
-            _glassIntensity = (data['glass_intensity'] as num).toDouble().clamp(0, 100);
+            _glassIntensity = (data['glass_intensity'] as num).toDouble().clamp(
+              0,
+              100,
+            );
           }
           if (data['accent_color'] is int) {
             _accentColor = data['accent_color'] as int;
@@ -101,7 +113,8 @@ class SettingsService extends ChangeNotifier {
             _alwaysShowPreview = data['always_show_preview'] as bool;
           }
           if (data['low_confidence_suggest_only'] is bool) {
-            _lowConfidenceSuggestOnly = data['low_confidence_suggest_only'] as bool;
+            _lowConfidenceSuggestOnly =
+                data['low_confidence_suggest_only'] as bool;
           }
           if (data['onboarding_seen'] is bool) {
             _onboardingSeen = data['onboarding_seen'] as bool;
@@ -182,7 +195,9 @@ class SettingsService extends ChangeNotifier {
   Future<void> _saveSites() async {
     try {
       final file = await _sitesFile;
-      await file.writeAsString(jsonEncode(_searchSites.map((s) => s.toJson()).toList()));
+      await file.writeAsString(
+        jsonEncode(_searchSites.map((s) => s.toJson()).toList()),
+      );
     } catch (e) {
       debugPrint('Error saving sites: $e');
     }

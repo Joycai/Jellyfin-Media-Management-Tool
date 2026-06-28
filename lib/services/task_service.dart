@@ -70,7 +70,8 @@ class TaskService extends ChangeNotifier {
   List<OrganizerTask> get tasks => List.unmodifiable(_tasks);
 
   /// Count of tasks still running — drives the tab badge.
-  int get runningCount => _tasks.where((t) => t.status == TaskStatus.running).length;
+  int get runningCount =>
+      _tasks.where((t) => t.status == TaskStatus.running).length;
 
   /// Runs [ai.analyzeFolder] under a new task entry. Returns the [OrganizerTask]
   /// so the caller can also stash references if needed; the task is already
@@ -183,12 +184,13 @@ class TaskService extends ChangeNotifier {
   }
 
   TaskStatus _statusFromApply(ApplyStatus s) => switch (s) {
-        ApplyStatus.done => TaskStatus.done,
-        ApplyStatus.stopped => TaskStatus.stopped,
-        _ => TaskStatus.running,
-      };
+    ApplyStatus.done => TaskStatus.done,
+    ApplyStatus.stopped => TaskStatus.stopped,
+    _ => TaskStatus.running,
+  };
 }
 
 extension on ApplyStatus {
-  bool get isTerminal => this == ApplyStatus.done || this == ApplyStatus.stopped;
+  bool get isTerminal =>
+      this == ApplyStatus.done || this == ApplyStatus.stopped;
 }

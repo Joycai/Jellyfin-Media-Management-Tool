@@ -49,8 +49,10 @@ class AiProfilesService extends ChangeNotifier {
     return directory;
   }
 
-  Future<File> get _file async => File(p.join((await _dir).path, 'ai_profiles.json'));
-  Future<File> get _legacyConfig async => File(p.join((await _dir).path, 'config.json'));
+  Future<File> get _file async =>
+      File(p.join((await _dir).path, 'ai_profiles.json'));
+  Future<File> get _legacyConfig async =>
+      File(p.join((await _dir).path, 'config.json'));
 
   Future<void> init() async {
     try {
@@ -99,7 +101,9 @@ class AiProfilesService extends ChangeNotifier {
       final cfg = AiConfig.fromJson(data['ai']);
       final migrated = AiServiceProfile(
         id: newId(),
-        name: cfg.provider == AiProviderType.googleGenAi ? 'Google GenAI' : 'OpenAI',
+        name: cfg.provider == AiProviderType.googleGenAi
+            ? 'Google GenAI'
+            : 'OpenAI',
         provider: cfg.provider,
         endpoint: cfg.endpoint,
         apiKey: cfg.apiKey,
@@ -122,10 +126,12 @@ class AiProfilesService extends ChangeNotifier {
   Future<void> _save() async {
     try {
       final file = await _file;
-      await file.writeAsString(jsonEncode({
-        'ai_services': _services.map((s) => s.toJson()).toList(),
-        'active_ai_service': _activeId,
-      }));
+      await file.writeAsString(
+        jsonEncode({
+          'ai_services': _services.map((s) => s.toJson()).toList(),
+          'active_ai_service': _activeId,
+        }),
+      );
     } catch (e) {
       debugPrint('Error saving ai profiles: $e');
     }

@@ -11,6 +11,7 @@ import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
+
 /// 3-step first-run guide: welcome → pick library root → choose AI protocol.
 ///
 /// Each step gets its own radial-gradient backdrop (blue / teal / violet)
@@ -34,10 +35,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _violet = Color(0xFF8B5CF6);
 
   Color get _accent => switch (_step) {
-        0 => _blue,
-        1 => _teal,
-        _ => _violet,
-      };
+    0 => _blue,
+    1 => _teal,
+    _ => _violet,
+  };
 
   Future<void> _finish() async {
     // Grab everything synchronously before awaiting; the host swaps screens
@@ -153,7 +154,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             left: 0,
             right: 0,
             bottom: 36,
-            child: Center(child: _PageDots(active: _step, accent: _accent)),
+            child: Center(
+              child: _PageDots(active: _step, accent: _accent),
+            ),
           ),
         ],
       ),
@@ -163,10 +166,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildStep(int step) {
     switch (step) {
       case 0:
-        return _StepWelcome(
-          onSkip: _finish,
-          onStart: _next,
-        );
+        return _StepWelcome(onSkip: _finish, onStart: _next);
       case 1:
         return _StepRoot(
           pickedPath: _pickedRoot,
@@ -187,23 +187,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Gradient _backdropFor(int step) {
     return switch (step) {
       0 => const RadialGradient(
-          center: Alignment(-0.2, -0.4),
-          radius: 1.1,
-          colors: [Color(0xFF1F2161), Color(0xFF12122E), Color(0xFF07081A)],
-          stops: [0.0, 0.55, 1.0],
-        ),
+        center: Alignment(-0.2, -0.4),
+        radius: 1.1,
+        colors: [Color(0xFF1F2161), Color(0xFF12122E), Color(0xFF07081A)],
+        stops: [0.0, 0.55, 1.0],
+      ),
       1 => const RadialGradient(
-          center: Alignment(-0.4, -0.5),
-          radius: 1.2,
-          colors: [Color(0xFF124441), Color(0xFF0A2730), Color(0xFF05121E)],
-          stops: [0.0, 0.5, 1.0],
-        ),
+        center: Alignment(-0.4, -0.5),
+        radius: 1.2,
+        colors: [Color(0xFF124441), Color(0xFF0A2730), Color(0xFF05121E)],
+        stops: [0.0, 0.5, 1.0],
+      ),
       _ => const RadialGradient(
-          center: Alignment(0.2, -0.4),
-          radius: 1.2,
-          colors: [Color(0xFF35216A), Color(0xFF1B143E), Color(0xFF080820)],
-          stops: [0.0, 0.55, 1.0],
-        ),
+        center: Alignment(0.2, -0.4),
+        radius: 1.2,
+        colors: [Color(0xFF35216A), Color(0xFF1B143E), Color(0xFF080820)],
+        stops: [0.0, 0.55, 1.0],
+      ),
     };
   }
 }
@@ -323,7 +323,10 @@ class _GlowingOrb extends StatelessWidget {
                   spreadRadius: 8,
                 ),
               ],
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.18),
+                width: 1,
+              ),
             ),
           ),
           // Top-left specular highlight.
@@ -415,10 +418,7 @@ class _StepRoot extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 36),
-              _DashDropTarget(
-                pickedPath: pickedPath,
-                onPick: onPick,
-              ),
+              _DashDropTarget(pickedPath: pickedPath, onPick: onPick),
               const SizedBox(height: 28),
               TextButton(
                 onPressed: onSkip,
@@ -484,17 +484,19 @@ class _DashDropTarget extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _GhostButton(
-                    label: l10n.onboardingPickFolder,
-                    onTap: onPick,
-                  ),
+                  _GhostButton(label: l10n.onboardingPickFolder, onTap: onPick),
                   const SizedBox(height: 22),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.28),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
                     ),
                     child: Text(
                       l10n.onboardingRootHint,
@@ -543,11 +545,7 @@ class _FolderIcon extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
-        Icons.folder_rounded,
-        size: 48,
-        color: Colors.white,
-      ),
+      child: const Icon(Icons.folder_rounded, size: 48, color: Colors.white),
     );
   }
 }
@@ -563,7 +561,10 @@ class _DashedRRectPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
-    final rrect = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius));
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
     final path = Path()..addRRect(rrect);
     const dash = 8.0, gap = 6.0;
     for (final metric in path.computeMetrics()) {
@@ -661,7 +662,10 @@ class _StepAi extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _GhostButton(label: l10n.onboardingConfigureLater, onTap: onLater),
+                  _GhostButton(
+                    label: l10n.onboardingConfigureLater,
+                    onTap: onLater,
+                  ),
                   const SizedBox(width: 14),
                   _PrimaryButton(
                     label: l10n.onboardingEnterWorkspace,
@@ -729,7 +733,10 @@ class _ProviderCard extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [badgeColor, badgeColor.withValues(alpha: 0.75)],
+                        colors: [
+                          badgeColor,
+                          badgeColor.withValues(alpha: 0.75),
+                        ],
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -773,8 +780,12 @@ class _ProviderCard extends StatelessWidget {
                     ),
                   ),
                   Icon(
-                    selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded,
-                    color: Colors.white.withValues(alpha: selected ? 0.95 : 0.4),
+                    selected
+                        ? Icons.check_circle_rounded
+                        : Icons.chevron_right_rounded,
+                    color: Colors.white.withValues(
+                      alpha: selected ? 0.95 : 0.4,
+                    ),
                     size: 22,
                   ),
                 ],
@@ -855,7 +866,11 @@ class _PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final Color accent;
-  const _PrimaryButton({required this.label, required this.onTap, required this.accent});
+  const _PrimaryButton({
+    required this.label,
+    required this.onTap,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -895,4 +910,3 @@ class _PrimaryButton extends StatelessWidget {
     );
   }
 }
-

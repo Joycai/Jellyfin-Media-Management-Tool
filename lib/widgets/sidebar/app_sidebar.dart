@@ -34,7 +34,9 @@ class AppSidebar extends StatelessWidget {
       decoration: BoxDecoration(
         color: glass.sidebarFill,
         border: Border(
-          right: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.08)),
+          right: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
+          ),
         ),
       ),
       child: Column(
@@ -48,31 +50,37 @@ class AppSidebar extends StatelessWidget {
                 if (settings.favorites.isEmpty)
                   _EmptyHint(l10n.noFavorites)
                 else
-                  ...settings.favorites.map((path) => _NavTile(
-                        icon: Icons.star_rounded,
-                        label: p.basename(path).isEmpty ? path : p.basename(path),
-                        selected: path == current,
-                        onTap: () => _open(context, path),
-                      )),
+                  ...settings.favorites.map(
+                    (path) => _NavTile(
+                      icon: Icons.star_rounded,
+                      label: p.basename(path).isEmpty ? path : p.basename(path),
+                      selected: path == current,
+                      onTap: () => _open(context, path),
+                    ),
+                  ),
                 const SizedBox(height: 20),
                 _SectionHeader(l10n.recent),
                 if (settings.recent.isEmpty)
                   _EmptyHint(l10n.noRecent)
                 else
-                  ...settings.recent.map((path) => _NavTile(
-                        icon: Icons.history_rounded,
-                        label: p.basename(path).isEmpty ? path : p.basename(path),
-                        selected: path == current,
-                        onTap: () => _open(context, path),
-                      )),
+                  ...settings.recent.map(
+                    (path) => _NavTile(
+                      icon: Icons.history_rounded,
+                      label: p.basename(path).isEmpty ? path : p.basename(path),
+                      selected: path == current,
+                      onTap: () => _open(context, path),
+                    ),
+                  ),
                 const SizedBox(height: 20),
                 _SectionHeader(l10n.locations),
-                ..._locations().map((loc) => _NavTile(
-                      icon: loc.icon,
-                      label: loc.label,
-                      selected: loc.path == current,
-                      onTap: () => _open(context, loc.path),
-                    )),
+                ..._locations().map(
+                  (loc) => _NavTile(
+                    icon: loc.icon,
+                    label: loc.label,
+                    selected: loc.path == current,
+                    onTap: () => _open(context, loc.path),
+                  ),
+                ),
               ],
             ),
           ),
@@ -94,12 +102,18 @@ class AppSidebar extends StatelessWidget {
     }
     try {
       if (Platform.isMacOS && Directory('/Volumes').existsSync()) {
-        for (final v in Directory('/Volumes').listSync().whereType<Directory>()) {
-          locations.add(_Location(Icons.storage_rounded, p.basename(v.path), v.path));
+        for (final v in Directory(
+          '/Volumes',
+        ).listSync().whereType<Directory>()) {
+          locations.add(
+            _Location(Icons.storage_rounded, p.basename(v.path), v.path),
+          );
         }
       } else if (Platform.isLinux && Directory('/mnt').existsSync()) {
         for (final v in Directory('/mnt').listSync().whereType<Directory>()) {
-          locations.add(_Location(Icons.storage_rounded, p.basename(v.path), v.path));
+          locations.add(
+            _Location(Icons.storage_rounded, p.basename(v.path), v.path),
+          );
         }
       }
     } catch (_) {}
@@ -125,10 +139,10 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              letterSpacing: 1.1,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          letterSpacing: 1.1,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -145,8 +159,10 @@ class _EmptyHint extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+        ),
       ),
     );
   }
@@ -171,7 +187,9 @@ class _NavTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: selected ? scheme.primary.withValues(alpha: 0.16) : Colors.transparent,
+        color: selected
+            ? scheme.primary.withValues(alpha: 0.16)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -180,7 +198,11 @@ class _NavTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             child: Row(
               children: [
-                Icon(icon, size: 18, color: selected ? scheme.primary : scheme.onSurfaceVariant),
+                Icon(
+                  icon,
+                  size: 18,
+                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -215,9 +237,10 @@ class _AiStatusCard extends StatelessWidget {
       ConnectionStatus.connected => (const Color(0xFF34C759), l10n.aiConnected),
       ConnectionStatus.error => (scheme.error, l10n.aiConnectionError),
       ConnectionStatus.testing => (const Color(0xFFFFB020), l10n.aiTesting),
-      ConnectionStatus.unknown => ai.isConfigured
-          ? (scheme.onSurfaceVariant, l10n.aiReady)
-          : (scheme.onSurfaceVariant, l10n.aiNotConfigured),
+      ConnectionStatus.unknown =>
+        ai.isConfigured
+            ? (scheme.onSurfaceVariant, l10n.aiReady)
+            : (scheme.onSurfaceVariant, l10n.aiNotConfigured),
     };
 
     return GlassPanel(
@@ -229,25 +252,41 @@ class _AiStatusCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
           ),
           if (ai.isConfigured) ...[
             const SizedBox(height: 6),
-            Text(ai.config.model,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            Text(
+              ai.config.model,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 2),
-            Text(l10n.itemsProcessed(ai.itemsProcessed),
-                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant.withValues(alpha: 0.7))),
+            Text(
+              l10n.itemsProcessed(ai.itemsProcessed),
+              style: TextStyle(
+                fontSize: 11,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
           ],
         ],
       ),

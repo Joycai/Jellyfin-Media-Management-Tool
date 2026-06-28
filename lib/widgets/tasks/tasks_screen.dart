@@ -35,7 +35,10 @@ class TasksScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     l10n.tasksTitle,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   if (tasks.runningCount > 0)
@@ -50,7 +53,10 @@ class TasksScreen extends StatelessWidget {
                 ],
               ),
             ),
-            Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+            Divider(
+              height: 1,
+              color: scheme.outlineVariant.withValues(alpha: 0.4),
+            ),
             Expanded(
               child: tasks.tasks.isEmpty
                   ? _Empty(l10n: l10n, scheme: scheme)
@@ -79,14 +85,21 @@ class _Empty extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inbox_outlined,
-              size: 56, color: scheme.onSurfaceVariant.withValues(alpha: 0.45)),
+          Icon(
+            Icons.inbox_outlined,
+            size: 56,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
+          ),
           const SizedBox(height: 14),
-          Text(l10n.tasksEmpty,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          Text(
+            l10n.tasksEmpty,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 6),
-          Text(l10n.tasksEmptyHint,
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
+          Text(
+            l10n.tasksEmptyHint,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -162,9 +175,15 @@ class _TaskCard extends StatelessWidget {
         : (task.status == TaskStatus.done ? 1.0 : null);
 
     final (icon, accent) = switch ((task.kind, task.status)) {
-      (TaskKind.analyze, TaskStatus.running) => (Icons.auto_awesome, scheme.primary),
+      (TaskKind.analyze, TaskStatus.running) => (
+        Icons.auto_awesome,
+        scheme.primary,
+      ),
       (TaskKind.analyze, _) => (Icons.auto_awesome, const Color(0xFF8B5CF6)),
-      (TaskKind.apply, _) => (Icons.drive_file_move_outlined, const Color(0xFF22C9A9)),
+      (TaskKind.apply, _) => (
+        Icons.drive_file_move_outlined,
+        const Color(0xFF22C9A9),
+      ),
     };
 
     return Container(
@@ -195,15 +214,23 @@ class _TaskCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isAnalyze ? l10n.tasksAnalyzeLabel(task.label) : l10n.tasksApplyLabel(task.label),
+                      isAnalyze
+                          ? l10n.tasksAnalyzeLabel(task.label)
+                          : l10n.tasksApplyLabel(task.label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _statusLine(l10n, controller),
-                      style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -236,19 +263,22 @@ class _TaskCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                if (controller != null && controller.status == ApplyStatus.running)
+                if (controller != null &&
+                    controller.status == ApplyStatus.running)
                   _SmallButton(
                     icon: Icons.pause_rounded,
                     label: l10n.pause,
                     onTap: controller.pause,
                   ),
-                if (controller != null && controller.status == ApplyStatus.paused)
+                if (controller != null &&
+                    controller.status == ApplyStatus.paused)
                   _SmallButton(
                     icon: Icons.play_arrow_rounded,
                     label: l10n.resume,
                     onTap: controller.resume,
                   ),
-                if (controller != null && task.status == TaskStatus.running) ...[
+                if (controller != null &&
+                    task.status == TaskStatus.running) ...[
                   const SizedBox(width: 8),
                   _SmallButton(
                     icon: Icons.stop_rounded,
@@ -312,7 +342,11 @@ class _StatusBadge extends StatelessWidget {
   final TaskStatus status;
   final Color accent;
   final AppLocalizations l10n;
-  const _StatusBadge({required this.status, required this.accent, required this.l10n});
+  const _StatusBadge({
+    required this.status,
+    required this.accent,
+    required this.l10n,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -332,7 +366,11 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -342,7 +380,11 @@ class _SmallButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _SmallButton({required this.icon, required this.label, required this.onTap});
+  const _SmallButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -359,7 +401,13 @@ class _SmallButton extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: scheme.onSurface),
               const SizedBox(width: 4),
-              Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
         ),

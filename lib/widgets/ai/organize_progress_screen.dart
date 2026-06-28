@@ -15,14 +15,19 @@ class OrganizeProgressScreen extends StatefulWidget {
 
   /// Presents the screen, drives [controller] to completion, and returns the
   /// final result once the user closes it.
-  static Future<ApplyResult> show(BuildContext context, ApplyController controller) async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: controller,
-        child: const OrganizeProgressScreen(),
+  static Future<ApplyResult> show(
+    BuildContext context,
+    ApplyController controller,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ChangeNotifierProvider.value(
+          value: controller,
+          child: const OrganizeProgressScreen(),
+        ),
       ),
-    ));
+    );
     return controller.result;
   }
 
@@ -65,8 +70,11 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       if (!_scroll.hasClients) return;
       final pos = _scroll.position;
       if (pos.maxScrollExtent - pos.pixels > 120) return;
-      _scroll.animateTo(pos.maxScrollExtent,
-          duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
+      _scroll.animateTo(
+        pos.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
     });
   }
 
@@ -103,10 +111,14 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     final scheme = Theme.of(context).colorScheme;
     final running = c.status == ApplyStatus.running;
     final paused = c.status == ApplyStatus.paused;
-    final finished = c.status == ApplyStatus.done || c.status == ApplyStatus.stopped;
+    final finished =
+        c.status == ApplyStatus.done || c.status == ApplyStatus.stopped;
 
     final (Color dot, String title) = switch (c.status) {
-      ApplyStatus.running => (const Color(0xFF34C759), l10n.organizing(c.total)),
+      ApplyStatus.running => (
+        const Color(0xFF34C759),
+        l10n.organizing(c.total),
+      ),
       ApplyStatus.paused => (const Color(0xFFE0A030), l10n.statusPaused),
       ApplyStatus.done => (const Color(0xFF34C759), l10n.statusDone),
       ApplyStatus.stopped => (scheme.onSurfaceVariant, l10n.statusStopped),
@@ -116,27 +128,46 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          Container(width: 11, height: 11, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+          Container(
+            width: 11,
+            height: 11,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 12),
-          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(width: 14),
           if (running && c.eta != null)
-            Text(l10n.etaRemaining(c.eta!.inMinutes, c.eta!.inSeconds % 60),
-                style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
+            Text(
+              l10n.etaRemaining(c.eta!.inMinutes, c.eta!.inSeconds % 60),
+              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+            ),
           const Spacer(),
           if (finished)
             FilledButton.icon(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.check, size: 18),
               label: Text(l10n.doneClose),
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16)),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 16,
+                ),
+              ),
             )
           else ...[
             OutlinedButton.icon(
               onPressed: () => paused ? c.resume() : c.pause(),
               icon: Icon(paused ? Icons.play_arrow : Icons.pause, size: 18),
               label: Text(paused ? l10n.resume : l10n.pause),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15)),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 15,
+                ),
+              ),
             ),
             const SizedBox(width: 10),
             FilledButton.icon(
@@ -146,7 +177,10 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: scheme.error.withValues(alpha: 0.16),
                 foregroundColor: scheme.error,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 15,
+                ),
               ),
             ),
           ],
@@ -170,15 +204,36 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text.rich(TextSpan(children: [
-                TextSpan(text: '${c.done}', style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w800, height: 1)),
-                TextSpan(text: '/${c.total}',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
-              ])),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${c.done}',
+                      style: const TextStyle(
+                        fontSize: 44,
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '/${c.total}',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const Spacer(),
               Text(
                 '${formatBytes(c.bytesDone)} / ${formatBytes(c.bytesTotal)} · ${_speed(c.speedBytesPerSec)}',
-                style: TextStyle(fontSize: 15, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -207,13 +262,18 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       borderRadius: BorderRadius.circular(7),
       child: Stack(
         children: [
-          Container(height: 10, color: scheme.onSurface.withValues(alpha: 0.10)),
+          Container(
+            height: 10,
+            color: scheme.onSurface.withValues(alpha: 0.10),
+          ),
           FractionallySizedBox(
             widthFactor: fraction.clamp(0.0, 1.0),
             child: Container(
               height: 10,
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary, scheme.secondary]),
+                gradient: LinearGradient(
+                  colors: [scheme.primary, scheme.tertiary, scheme.secondary],
+                ),
               ),
             ),
           ),
@@ -227,10 +287,20 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 8),
-        Text('$label  ', style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant)),
-        Text('$count', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+        Text(
+          '$label  ',
+          style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+        ),
+        Text(
+          '$count',
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+        ),
       ],
     );
   }
@@ -253,7 +323,10 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
               controller: _scroll,
               padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
               itemCount: entries.length,
-              itemBuilder: (_, i) => _logLine(entries[i], i == entries.length - 1 && c.status == ApplyStatus.running),
+              itemBuilder: (_, i) => _logLine(
+                entries[i],
+                i == entries.length - 1 && c.status == ApplyStatus.running,
+              ),
             ),
           ),
         ],
@@ -270,13 +343,28 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       ),
       child: Row(
         children: [
-          for (final col in const [Color(0xFFFF5F57), Color(0xFFFEBC2E), Color(0xFF28C840)]) ...[
-            Container(width: 11, height: 11, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
+          for (final col in const [
+            Color(0xFFFF5F57),
+            Color(0xFFFEBC2E),
+            Color(0xFF28C840),
+          ]) ...[
+            Container(
+              width: 11,
+              height: 11,
+              decoration: BoxDecoration(color: col, shape: BoxShape.circle),
+            ),
             const SizedBox(width: 8),
           ],
           const SizedBox(width: 8),
-          const Text('activity.log',
-              style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: Color(0xFF9AA4B2), fontWeight: FontWeight.w600)),
+          const Text(
+            'activity.log',
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 13,
+              color: Color(0xFF9AA4B2),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const Spacer(),
           _levelPill('INFO', LogLevel.info, const Color(0xFF34C759)),
           const SizedBox(width: 6),
@@ -292,20 +380,25 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     final on = _levels.contains(level);
     return InkWell(
       borderRadius: BorderRadius.circular(7),
-      onTap: () => setState(() => on ? _levels.remove(level) : _levels.add(level)),
+      onTap: () =>
+          setState(() => on ? _levels.remove(level) : _levels.add(level)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: on ? color.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.04),
+          color: on
+              ? color.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(7),
         ),
-        child: Text(label,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: on ? color : const Color(0xFF6B7280),
-            )),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: on ? color : const Color(0xFF6B7280),
+          ),
+        ),
       ),
     );
   }
@@ -320,12 +413,29 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text.rich(
         TextSpan(
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 13.5, height: 1.3),
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 13.5,
+            height: 1.3,
+          ),
           children: [
-            TextSpan(text: '${_clock(e.time)} ', style: const TextStyle(color: Color(0xFF6B7280))),
-            TextSpan(text: '${e.level.name.toUpperCase()} ', style: TextStyle(color: levelColor, fontWeight: FontWeight.w700)),
-            TextSpan(text: _message(e), style: const TextStyle(color: Color(0xFFD3D8E0))),
-            if (isLast) const TextSpan(text: ' ▌', style: TextStyle(color: Color(0xFF6B83F5))),
+            TextSpan(
+              text: '${_clock(e.time)} ',
+              style: const TextStyle(color: Color(0xFF6B7280)),
+            ),
+            TextSpan(
+              text: '${e.level.name.toUpperCase()} ',
+              style: TextStyle(color: levelColor, fontWeight: FontWeight.w700),
+            ),
+            TextSpan(
+              text: _message(e),
+              style: const TextStyle(color: Color(0xFFD3D8E0)),
+            ),
+            if (isLast)
+              const TextSpan(
+                text: ' ▌',
+                style: TextStyle(color: Color(0xFF6B83F5)),
+              ),
           ],
         ),
       ),
@@ -338,7 +448,10 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       LogKind.started => l10n.logStarted(e.count),
       LogKind.moved => l10n.logMoved(e.dir, e.name), // alpha order: dir, name
       LogKind.skipped => l10n.logSkipped(e.name),
-      LogKind.failed => l10n.logFailed(e.error, e.name), // alpha order: error, name
+      LogKind.failed => l10n.logFailed(
+        e.error,
+        e.name,
+      ), // alpha order: error, name
       LogKind.finished => l10n.logFinished(e.done, e.skipped),
       LogKind.stopped => l10n.logStopped(e.done, e.skipped),
     };

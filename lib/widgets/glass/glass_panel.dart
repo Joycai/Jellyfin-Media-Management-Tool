@@ -51,7 +51,9 @@ class GlassPanel extends StatelessWidget {
     final fillBox = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: gradient != null ? null : (fill ?? (sidebar ? glass.sidebarFill : glass.panelFill)),
+        color: gradient != null
+            ? null
+            : (fill ?? (sidebar ? glass.sidebarFill : glass.panelFill)),
         gradient: gradient,
         borderRadius: borderRadius,
         border: Border.all(color: glass.panelStroke),
@@ -63,7 +65,10 @@ class GlassPanel extends StatelessWidget {
       borderRadius: borderRadius,
       child: blur
           ? BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: glass.blurSigma, sigmaY: glass.blurSigma),
+              filter: ImageFilter.blur(
+                sigmaX: glass.blurSigma,
+                sigmaY: glass.blurSigma,
+              ),
               child: fillBox,
             )
           : fillBox,

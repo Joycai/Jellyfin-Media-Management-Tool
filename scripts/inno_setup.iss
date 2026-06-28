@@ -3,7 +3,14 @@
 ; Non-commercial use only
 
 #define MyAppName "jellyfin media management tool"
-#define MyAppVersion "0.9.0"
+; MyAppVersion / SourceDir can be overridden from the command line, e.g.
+;   iscc /DMyAppVersion=1.2.3 scripts\inno_setup.iss
+#ifndef MyAppVersion
+  #define MyAppVersion "0.9.0"
+#endif
+#ifndef SourceDir
+  #define SourceDir "..\build\windows\x64\runner\Release"
+#endif
 #define MyAppPublisher "joycai"
 #define MyAppURL "https://github.com/Joycai/Jellyfin-Media-Management-Tool"
 #define MyAppExeName "jellyfin_media_management_tool.exe"
@@ -33,7 +40,8 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputBaseFilename=mysetup
+OutputDir=..\dist
+OutputBaseFilename=jellyfin-media-management-tool-{#MyAppVersion}-setup
 SolidCompression=yes
 WizardStyle=modern dynamic
 
@@ -44,8 +52,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "D:\github\Jellyfin-Media-Management-Tool\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\github\Jellyfin-Media-Management-Tool\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

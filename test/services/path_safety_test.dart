@@ -9,7 +9,10 @@ void main() {
     });
 
     test('accepts a deep descendant', () {
-      expect(PathSafety.isWithin('/work', '/work/Movies/Dune (2021)/Dune.mkv'), isTrue);
+      expect(
+        PathSafety.isWithin('/work', '/work/Movies/Dune (2021)/Dune.mkv'),
+        isTrue,
+      );
     });
 
     test('treats the base itself as within', () {
@@ -18,8 +21,20 @@ void main() {
     });
 
     test('rejects traversal via ..', () {
-      expect(PathSafety.isWithin('/work', p.normalize(p.join('/work', '../etc/passwd'))), isFalse);
-      expect(PathSafety.isWithin('/work', p.normalize(p.join('/work', '../../tmp/x.mkv'))), isFalse);
+      expect(
+        PathSafety.isWithin(
+          '/work',
+          p.normalize(p.join('/work', '../etc/passwd')),
+        ),
+        isFalse,
+      );
+      expect(
+        PathSafety.isWithin(
+          '/work',
+          p.normalize(p.join('/work', '../../tmp/x.mkv')),
+        ),
+        isFalse,
+      );
     });
 
     test('rejects unrelated absolute paths', () {

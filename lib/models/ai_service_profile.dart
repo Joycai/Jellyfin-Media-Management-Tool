@@ -29,12 +29,12 @@ class AiServiceProfile {
 
   /// Runtime config consumed by the providers / [AiService].
   AiConfig toAiConfig() => AiConfig(
-        provider: provider,
-        endpoint: endpoint,
-        apiKey: apiKey,
-        model: model,
-        temperature: temperature,
-      );
+    provider: provider,
+    endpoint: endpoint,
+    apiKey: apiKey,
+    model: model,
+    temperature: temperature,
+  );
 
   AiServiceProfile copyWith({
     String? name,
@@ -43,30 +43,30 @@ class AiServiceProfile {
     String? apiKey,
     String? model,
     double? temperature,
-  }) =>
-      AiServiceProfile(
-        id: id,
-        name: name ?? this.name,
-        provider: provider ?? this.provider,
-        endpoint: endpoint ?? this.endpoint,
-        apiKey: apiKey ?? this.apiKey,
-        model: model ?? this.model,
-        temperature: temperature ?? this.temperature,
-      );
+  }) => AiServiceProfile(
+    id: id,
+    name: name ?? this.name,
+    provider: provider ?? this.provider,
+    endpoint: endpoint ?? this.endpoint,
+    apiKey: apiKey ?? this.apiKey,
+    model: model ?? this.model,
+    temperature: temperature ?? this.temperature,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'provider': provider.id,
-        'endpoint': endpoint,
-        'api_key': apiKey,
-        'model': model,
-        'temperature': temperature,
-      };
+    'id': id,
+    'name': name,
+    'provider': provider.id,
+    'endpoint': endpoint,
+    'api_key': apiKey,
+    'model': model,
+    'temperature': temperature,
+  };
 
   /// Reads a profile from JSON. Older configs may carry a `rate_limit` field
   /// from a previous schema — it's silently ignored here.
-  factory AiServiceProfile.fromJson(Map<String, dynamic> json) => AiServiceProfile(
+  factory AiServiceProfile.fromJson(Map<String, dynamic> json) =>
+      AiServiceProfile(
         id: (json['id'] as String?) ?? newId(),
         name: (json['name'] as String?) ?? 'AI Service',
         provider: AiProviderTypeX.fromId(json['provider'] as String?),
@@ -77,15 +77,19 @@ class AiServiceProfile {
       );
 
   /// A fresh, empty profile with sensible defaults for [provider].
-  factory AiServiceProfile.create({AiProviderType provider = AiProviderType.openAi, required String name}) =>
-      AiServiceProfile(
-        id: newId(),
-        name: name,
-        provider: provider,
-        endpoint: provider == AiProviderType.openAi
-            ? 'https://api.openai.com/v1'
-            : 'https://generativelanguage.googleapis.com',
-        apiKey: '',
-        model: provider == AiProviderType.openAi ? 'gpt-4o-mini' : 'gemini-2.0-flash',
-      );
+  factory AiServiceProfile.create({
+    AiProviderType provider = AiProviderType.openAi,
+    required String name,
+  }) => AiServiceProfile(
+    id: newId(),
+    name: name,
+    provider: provider,
+    endpoint: provider == AiProviderType.openAi
+        ? 'https://api.openai.com/v1'
+        : 'https://generativelanguage.googleapis.com',
+    apiKey: '',
+    model: provider == AiProviderType.openAi
+        ? 'gpt-4o-mini'
+        : 'gemini-2.0-flash',
+  );
 }

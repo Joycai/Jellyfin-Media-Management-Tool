@@ -50,18 +50,15 @@ class _TitleHintDialogState extends State<_TitleHintDialog> {
   void _submit({bool skip = false}) {
     Navigator.pop(
       context,
-      TitleHintResult(
-        kind: _kind,
-        title: skip ? '' : _controller.text.trim(),
-      ),
+      TitleHintResult(kind: _kind, title: skip ? '' : _controller.text.trim()),
     );
   }
 
   String _labelFor(AppLocalizations l10n) => switch (_kind) {
-        MediaKindHint.movie => l10n.aiHintLabelMovie,
-        MediaKindHint.series => l10n.aiHintLabelSeries,
-        MediaKindHint.auto => l10n.aiHintLabel,
-      };
+    MediaKindHint.movie => l10n.aiHintLabelMovie,
+    MediaKindHint.series => l10n.aiHintLabelSeries,
+    MediaKindHint.auto => l10n.aiHintLabel,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -141,10 +138,7 @@ class _TitleHintDialogState extends State<_TitleHintDialog> {
           onPressed: () => _submit(skip: true),
           child: Text(l10n.aiHintSkip),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(l10n.aiHintAnalyze),
-        ),
+        FilledButton(onPressed: _submit, child: Text(l10n.aiHintAnalyze)),
       ],
     );
   }

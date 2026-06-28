@@ -6,7 +6,11 @@ class TreeLine {
   final String name;
   final int depth;
   final bool isDir;
-  const TreeLine({required this.name, required this.depth, required this.isDir});
+  const TreeLine({
+    required this.name,
+    required this.depth,
+    required this.isDir,
+  });
 }
 
 /// Collapses a list of relative paths into a sorted, de-duplicated tree of
@@ -20,7 +24,9 @@ List<TreeLine> buildPathTree(List<String> paths) {
     for (var i = 0; i < parts.length; i++) {
       final key = parts.sublist(0, i + 1).join('/');
       if (seen.add(key)) {
-        lines.add(TreeLine(name: parts[i], depth: i, isDir: i < parts.length - 1));
+        lines.add(
+          TreeLine(name: parts[i], depth: i, isDir: i < parts.length - 1),
+        );
       }
     }
   }

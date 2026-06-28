@@ -20,11 +20,9 @@ class HistoryService extends ChangeNotifier {
 
   /// [fs] and [undoDir] are injected in tests; production callers leave them
   /// at the defaults (real local FS + `<app-support>/undo/`).
-  HistoryService({
-    FileSystem fs = const LocalFileSystem(),
-    String? undoDir,
-  })  : _fs = fs,
-        _explicitUndoDir = undoDir;
+  HistoryService({FileSystem fs = const LocalFileSystem(), String? undoDir})
+    : _fs = fs,
+      _explicitUndoDir = undoDir;
 
   List<HistoryEntry> _entries = [];
   bool _loaded = false;
@@ -33,7 +31,8 @@ class HistoryService extends ChangeNotifier {
   bool get loaded => _loaded;
 
   Future<Directory> _dir() async {
-    final path = _explicitUndoDir ??
+    final path =
+        _explicitUndoDir ??
         p.join((await getApplicationSupportDirectory()).path, 'undo');
     final dir = _fs.directory(path);
     if (!await dir.exists()) await dir.create(recursive: true);
@@ -88,7 +87,9 @@ class HistoryService extends ChangeNotifier {
   }) async {
     final dir = await _dir();
     final createdAt = DateTime.now();
-    final file = _fs.file(p.join(dir.path, 'op-${createdAt.millisecondsSinceEpoch}.json'));
+    final file = _fs.file(
+      p.join(dir.path, 'op-${createdAt.millisecondsSinceEpoch}.json'),
+    );
     final manifest = HistoryEntry.buildManifest(
       kind: kind,
       createdAt: createdAt,
@@ -118,7 +119,9 @@ class HistoryService extends ChangeNotifier {
       try {
         await _fs.file(entry.manifestPath).delete();
       } catch (_) {}
-      _entries = _entries.where((e) => e.manifestPath != entry.manifestPath).toList();
+      _entries = _entries
+          .where((e) => e.manifestPath != entry.manifestPath)
+          .toList();
       notifyListeners();
       return result;
     }
@@ -143,9 +146,11 @@ class HistoryService extends ChangeNotifier {
       return result;
     }
     _entries = _entries
-        .map((e) => e.manifestPath == entry.manifestPath
-            ? e.copyWithMoves(result.remaining)
-            : e)
+        .map(
+          (e) => e.manifestPath == entry.manifestPath
+              ? e.copyWithMoves(result.remaining)
+              : e,
+        )
         .toList();
     notifyListeners();
     return result;
@@ -185,7 +190,8 @@ class HistoryService extends ChangeNotifier {
 
       try {
         // If the user manually moved the file back already, count as undone.
-        if (await _fs.file(from).exists() || await _fs.directory(from).exists()) {
+        if (await _fs.file(from).exists() ||
+            await _fs.directory(from).exists()) {
           succeeded++;
           continue;
         }

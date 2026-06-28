@@ -63,7 +63,10 @@ class _HomeScreenState extends State<HomeScreen> {
       messenger.showSnackBar(SnackBar(content: Text(l10n.aiNotConfigured)));
       return;
     }
-    final result = await showTitleHintDialog(context, folderName: p.basename(dir));
+    final result = await showTitleHintDialog(
+      context,
+      folderName: p.basename(dir),
+    );
     if (result == null) return; // user cancelled
     final typeHint = switch (result.kind) {
       MediaKindHint.movie => 'movie',
@@ -79,13 +82,15 @@ class _HomeScreenState extends State<HomeScreen> {
       mediaTypeHint: typeHint,
     );
 
-    messenger.showSnackBar(SnackBar(
-      content: Text(l10n.tasksAnalyzeStarted),
-      action: SnackBarAction(
-        label: l10n.tabTasks,
-        onPressed: () => setState(() => _section = _Section.tasks),
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.tasksAnalyzeStarted),
+        action: SnackBarAction(
+          label: l10n.tabTasks,
+          onPressed: () => setState(() => _section = _Section.tasks),
+        ),
       ),
-    ));
+    );
   }
 
   @override
@@ -95,8 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: CallbackShortcuts(
         bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () => _searchFocus.requestFocus(),
-          const SingleActivator(LogicalKeyboardKey.keyK, control: true): () => _searchFocus.requestFocus(),
+          const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
+              _searchFocus.requestFocus(),
+          const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
+              _searchFocus.requestFocus(),
         },
         child: Container(
           decoration: BoxDecoration(gradient: glass.backdrop),
@@ -137,7 +144,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         );
       case _Section.library:
-        return _ComingSoon(icon: Icons.video_library_rounded, label: AppLocalizations.of(context)!.tabLibrary);
+        return _ComingSoon(
+          icon: Icons.video_library_rounded,
+          label: AppLocalizations.of(context)!.tabLibrary,
+        );
       case _Section.tasks:
         return const TasksScreen();
     }
@@ -169,7 +179,9 @@ class _Header extends StatelessWidget {
       decoration: BoxDecoration(
         color: glass.sidebarFill,
         border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.08)),
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
+          ),
         ),
       ),
       child: Row(
@@ -178,11 +190,20 @@ class _Header extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
+              gradient: LinearGradient(
+                colors: [scheme.primary, scheme.tertiary],
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: const Text('J', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17)),
+            child: const Text(
+              'J',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           Flexible(
@@ -191,14 +212,31 @@ class _Header extends StatelessWidget {
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15.5,
+              ),
             ),
           ),
           const SizedBox(width: 8),
-          Container(width: 1, height: 22, color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+          Container(
+            width: 1,
+            height: 22,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+          ),
           const SizedBox(width: 8),
-          _NavTab(icon: Icons.folder_rounded, label: l10n.tabFiles, selected: section == _Section.files, onTap: () => onSection(_Section.files)),
-          _NavTab(icon: Icons.video_library_rounded, label: l10n.tabLibrary, selected: section == _Section.library, onTap: () => onSection(_Section.library)),
+          _NavTab(
+            icon: Icons.folder_rounded,
+            label: l10n.tabFiles,
+            selected: section == _Section.files,
+            onTap: () => onSection(_Section.files),
+          ),
+          _NavTab(
+            icon: Icons.video_library_rounded,
+            label: l10n.tabLibrary,
+            selected: section == _Section.library,
+            onTap: () => onSection(_Section.library),
+          ),
           _NavTab(
             icon: Icons.bolt_rounded,
             label: l10n.tabTasks,
@@ -228,7 +266,13 @@ class _Header extends StatelessWidget {
                       ),
                       suffixIcon: Padding(
                         padding: const EdgeInsets.only(right: 10),
-                        child: Text('⌘K', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                        child: Text(
+                          '⌘K',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
                       suffixIconConstraints: const BoxConstraints(minWidth: 0),
                     ),
@@ -292,7 +336,9 @@ class _NavTab extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
-        color: selected ? scheme.surface.withValues(alpha: 0.55) : Colors.transparent,
+        color: selected
+            ? scheme.surface.withValues(alpha: 0.55)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
@@ -301,20 +347,29 @@ class _NavTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: selected ? scheme.primary : scheme.onSurfaceVariant),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
+                    color: selected
+                        ? scheme.onSurface
+                        : scheme.onSurfaceVariant,
                   ),
                 ),
                 if (badge > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: scheme.primary,
                       borderRadius: BorderRadius.circular(999),
@@ -357,11 +412,24 @@ class _ComingSoon extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 56, color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+              Icon(
+                icon,
+                size: 56,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
               const SizedBox(height: 16),
-              Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text(l10n.comingSoon, style: TextStyle(color: scheme.onSurfaceVariant)),
+              Text(
+                l10n.comingSoon,
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
             ],
           ),
         ),

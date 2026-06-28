@@ -10,18 +10,18 @@ enum HistoryKind {
   batchImport;
 
   String get id => switch (this) {
-        HistoryKind.aiOrganize => 'ai_organize',
-        HistoryKind.manualRename => 'manual_rename',
-        HistoryKind.metadataRefresh => 'metadata_refresh',
-        HistoryKind.batchImport => 'batch_import',
-      };
+    HistoryKind.aiOrganize => 'ai_organize',
+    HistoryKind.manualRename => 'manual_rename',
+    HistoryKind.metadataRefresh => 'metadata_refresh',
+    HistoryKind.batchImport => 'batch_import',
+  };
 
   static HistoryKind fromId(String? id) => switch (id) {
-        'manual_rename' => HistoryKind.manualRename,
-        'metadata_refresh' => HistoryKind.metadataRefresh,
-        'batch_import' => HistoryKind.batchImport,
-        _ => HistoryKind.aiOrganize,
-      };
+    'manual_rename' => HistoryKind.manualRename,
+    'metadata_refresh' => HistoryKind.metadataRefresh,
+    'batch_import' => HistoryKind.batchImport,
+    _ => HistoryKind.aiOrganize,
+  };
 }
 
 /// One row in the operation history: enough metadata to render the card and,
@@ -57,7 +57,8 @@ class HistoryEntry {
 
   /// Returns a copy with [moves] replaced (counts left untouched — callers
   /// rendering the card should treat them as the original op size).
-  HistoryEntry copyWithMoves(List<Map<String, String>> newMoves) => HistoryEntry(
+  HistoryEntry copyWithMoves(List<Map<String, String>> newMoves) =>
+      HistoryEntry(
         manifestPath: manifestPath,
         kind: kind,
         createdAt: createdAt,
@@ -73,23 +74,28 @@ class HistoryEntry {
     final movesRaw = (json['moves'] as List?) ?? const [];
     final moves = movesRaw
         .whereType<Map>()
-        .map((m) => {
-              'from': (m['from'] as String?) ?? '',
-              'to': (m['to'] as String?) ?? '',
-            })
+        .map(
+          (m) => {
+            'from': (m['from'] as String?) ?? '',
+            'to': (m['to'] as String?) ?? '',
+          },
+        )
         .where((m) => m['from']!.isNotEmpty && m['to']!.isNotEmpty)
         .toList();
 
     // Back-compat: derive counts from the moves list if the manifest predates
     // the enriched format.
-    final renamesFromMoves =
-        moves.where((m) => p.basename(m['from']!) != p.basename(m['to']!)).length;
+    final renamesFromMoves = moves
+        .where((m) => p.basename(m['from']!) != p.basename(m['to']!))
+        .length;
     final movesFromMoves = moves.length - renamesFromMoves;
 
     return HistoryEntry(
       manifestPath: path,
       kind: HistoryKind.fromId(json['kind'] as String?),
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
       baseDir: (json['baseDir'] as String?) ?? '',
       itemCount: (json['itemCount'] as num?)?.toInt() ?? moves.length,
       moveCount: (json['moveCount'] as num?)?.toInt() ?? movesFromMoves,
@@ -108,17 +114,16 @@ class HistoryEntry {
     required int renameCount,
     required int totalBytes,
     required List<Map<String, String>> moves,
-  }) =>
-      {
-        'kind': kind.id,
-        'createdAt': createdAt.toIso8601String(),
-        'baseDir': baseDir,
-        'itemCount': itemCount,
-        'moveCount': moveCount,
-        'renameCount': renameCount,
-        'totalBytes': totalBytes,
-        'moves': moves,
-      };
+  }) => {
+    'kind': kind.id,
+    'createdAt': createdAt.toIso8601String(),
+    'baseDir': baseDir,
+    'itemCount': itemCount,
+    'moveCount': moveCount,
+    'renameCount': renameCount,
+    'totalBytes': totalBytes,
+    'moves': moves,
+  };
 }
 
 /// Outcome of reversing a recorded operation. [remaining] is the subset of

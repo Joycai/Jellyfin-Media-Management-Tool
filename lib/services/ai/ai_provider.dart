@@ -17,14 +17,14 @@ enum AiProviderType {
 
 extension AiProviderTypeX on AiProviderType {
   String get id => switch (this) {
-        AiProviderType.openAi => 'openai',
-        AiProviderType.googleGenAi => 'google',
-      };
+    AiProviderType.openAi => 'openai',
+    AiProviderType.googleGenAi => 'google',
+  };
 
   static AiProviderType fromId(String? id) => switch (id) {
-        'google' => AiProviderType.googleGenAi,
-        _ => AiProviderType.openAi,
-      };
+    'google' => AiProviderType.googleGenAi,
+    _ => AiProviderType.openAi,
+  };
 }
 
 /// Result of a single completion call.
@@ -83,30 +83,29 @@ class AiConfig {
     String? apiKey,
     String? model,
     double? temperature,
-  }) =>
-      AiConfig(
-        provider: provider ?? this.provider,
-        endpoint: endpoint ?? this.endpoint,
-        apiKey: apiKey ?? this.apiKey,
-        model: model ?? this.model,
-        temperature: temperature ?? this.temperature,
-      );
+  }) => AiConfig(
+    provider: provider ?? this.provider,
+    endpoint: endpoint ?? this.endpoint,
+    apiKey: apiKey ?? this.apiKey,
+    model: model ?? this.model,
+    temperature: temperature ?? this.temperature,
+  );
 
   Map<String, dynamic> toJson() => {
-        'provider': provider.id,
-        'endpoint': endpoint,
-        'api_key': apiKey,
-        'model': model,
-        'temperature': temperature,
-      };
+    'provider': provider.id,
+    'endpoint': endpoint,
+    'api_key': apiKey,
+    'model': model,
+    'temperature': temperature,
+  };
 
   factory AiConfig.fromJson(Map<String, dynamic> json) => AiConfig(
-        provider: AiProviderTypeX.fromId(json['provider'] as String?),
-        endpoint: (json['endpoint'] as String?) ?? '',
-        apiKey: (json['api_key'] as String?) ?? '',
-        model: (json['model'] as String?) ?? '',
-        temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
-      );
+    provider: AiProviderTypeX.fromId(json['provider'] as String?),
+    endpoint: (json['endpoint'] as String?) ?? '',
+    apiKey: (json['api_key'] as String?) ?? '',
+    model: (json['model'] as String?) ?? '',
+    temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
+  );
 
   /// Truly empty sentinel — every string is blank so [isComplete] is false and
   /// nothing accidentally hits a real endpoint before the user configures one.

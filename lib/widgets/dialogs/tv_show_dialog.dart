@@ -59,14 +59,19 @@ class _TVShowDialogState extends State<TVShowDialog> {
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.remove),
-                onPressed: _episode > 0 ? () => setState(() => _episode--) : null,
+                onPressed: _episode > 0
+                    ? () => setState(() => _episode--)
+                    : null,
               ),
               SizedBox(
                 width: 40,
                 child: Text(
                   _formatNum(_episode),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               IconButton(
