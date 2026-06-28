@@ -1,6 +1,8 @@
-import 'dart:io';
-
+import 'package:file/file.dart';
+import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
+
+import '../services/path_safety.dart';
 
 /// Coarse kind for visual styling and grouping in the history list. The current
 /// app only emits [aiOrganize] entries; other kinds are placeholders that
@@ -57,6 +59,20 @@ class HistoryEntry {
     required this.moves,
   });
 
+  /// Returns a copy with [moves] replaced (counts left untouched — callers
+  /// rendering the card should treat them as the original op size).
+  HistoryEntry copyWithMoves(List<Map<String, String>> newMoves) => HistoryEntry(
+        manifestPath: manifestPath,
+        kind: kind,
+        createdAt: createdAt,
+        baseDir: baseDir,
+        itemCount: itemCount,
+        moveCount: moveCount,
+        renameCount: renameCount,
+        totalBytes: totalBytes,
+        moves: newMoves,
+      );
+
   factory HistoryEntry.fromJson(String path, Map<String, dynamic> json) {
     final movesRaw = (json['moves'] as List?) ?? const [];
     final moves = movesRaw
@@ -109,38 +125,87 @@ class HistoryEntry {
       };
 }
 
-/// Reverses a recorded operation by renaming each target back to its original
-/// source path.
+/// Outcome of reversing a recorded operation. [remaining] is the subset of
+/// [HistoryEntry.moves] that weren't reversed (either because they failed or
+/// because they were skipped); the caller can rewrite the manifest with this
+/// list so the next undo retries only the still-broken moves.
 class UndoResult {
   final int succeeded;
   final List<String> failures;
-  const UndoResult({required this.succeeded, required this.failures});
+  final List<Map<String, String>> remaining;
+  const UndoResult({
+    required this.succeeded,
+    required this.failures,
+    required this.remaining,
+  });
   bool get hasFailures => failures.isNotEmpty;
 }
 
-Future<UndoResult> undoFromManifest(HistoryEntry entry) async {
+/// Reverses a recorded operation by renaming each target back to its original
+/// source path. Treats a move whose source already exists at `from` as
+/// already-undone (counts as success). Rejects any move whose paths escape
+/// [HistoryEntry.baseDir] — defense in depth against tampered manifests.
+Future<UndoResult> undoFromManifest(
+  HistoryEntry entry, {
+  FileSystem fs = const LocalFileSystem(),
+}) async {
   var succeeded = 0;
   final failures = <String>[];
-  // Reverse order so newly-created subfolders are emptied before parents.
-  for (final move in entry.moves.reversed) {
+  final remaining = <Map<String, String>>[];
+
+  // Track which moves to keep in the manifest. We iterate in reverse (so
+  // newly-created subfolders are emptied before parents) but `remaining` is
+  // returned in the original order to keep the manifest stable.
+  final keptIndices = <int>{};
+
+  final reversedIndexed = entry.moves
+      .asMap()
+      .entries
+      .toList()
+      .reversed
+      .toList(growable: false);
+
+  for (final indexed in reversedIndexed) {
+    final i = indexed.key;
+    final move = indexed.value;
     final from = move['from']!;
     final to = move['to']!;
+
+    if (!PathSafety.isWithin(entry.baseDir, from) ||
+        !PathSafety.isWithin(entry.baseDir, to)) {
+      failures.add('escapes base: $from');
+      keptIndices.add(i);
+      continue;
+    }
+
     try {
-      final file = File(to);
+      // If the user manually moved the file back already, count as undone.
+      if (await fs.file(from).exists() || await fs.directory(from).exists()) {
+        succeeded++;
+        continue;
+      }
+      final file = fs.file(to);
       if (!await file.exists()) {
         failures.add('missing $to');
+        keptIndices.add(i);
         continue;
       }
-      await Directory(p.dirname(from)).create(recursive: true);
-      if (await File(from).exists() || await Directory(from).exists()) {
-        failures.add('source exists $from');
-        continue;
-      }
+      await fs.directory(p.dirname(from)).create(recursive: true);
       await file.rename(from);
       succeeded++;
     } catch (e) {
       failures.add('$to → $from: $e');
+      keptIndices.add(i);
     }
   }
-  return UndoResult(succeeded: succeeded, failures: failures);
+
+  for (var i = 0; i < entry.moves.length; i++) {
+    if (keptIndices.contains(i)) remaining.add(entry.moves[i]);
+  }
+
+  return UndoResult(
+    succeeded: succeeded,
+    failures: failures,
+    remaining: remaining,
+  );
 }

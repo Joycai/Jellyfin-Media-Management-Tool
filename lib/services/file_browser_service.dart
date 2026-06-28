@@ -11,8 +11,14 @@ class FileBrowserService extends ChangeNotifier {
   List<FileSystemEntity> _files = [];
   FileSystemEntity? _selectedFile;
   StreamSubscription<FileSystemEvent>? _directorySubscription;
+  Timer? _reloadDebounce;
   SortOption _currentSort = SortOption.name;
   bool _isAscending = true;
+
+  /// Burst-event debounce window before a watcher-triggered reload runs.
+  /// Long enough to coalesce extracts/batch renames, short enough to feel
+  /// instant for one-off file drops.
+  static const _reloadDelay = Duration(milliseconds: 200);
 
   String? get currentDirectory => _currentDirectory;
   List<FileSystemEntity> get files => _files;
@@ -22,12 +28,14 @@ class FileBrowserService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     _directorySubscription?.cancel();
     super.dispose();
   }
 
   void setCurrentDirectory(String? path) {
     if (_currentDirectory == path) return;
+    _reloadDebounce?.cancel();
     _currentDirectory = path;
     _selectedFile = null;
     loadFiles();
@@ -54,16 +62,25 @@ class FileBrowserService extends ChangeNotifier {
 
   void _watchDirectory() {
     _directorySubscription?.cancel();
-    if (_currentDirectory != null) {
-      final directory = Directory(_currentDirectory!);
-      _directorySubscription = directory.watch().listen((event) {
-        if (event.type == FileSystemEvent.delete && event.path == _currentDirectory) {
-          goToParent();
-        } else {
-          loadFiles();
-        }
-      });
+    if (_currentDirectory == null) return;
+    final directory = Directory(_currentDirectory!);
+    _directorySubscription = directory.watch().listen((_) => _onWatchEvent());
+  }
+
+  /// Coalesces a burst of watcher events into a single reload. Also handles
+  /// the watched directory disappearing — on macOS the FSEvent fires on a
+  /// child path, not the directory itself, so we re-check existence instead
+  /// of comparing `event.path == _currentDirectory` (which never matched).
+  void _onWatchEvent() {
+    final dir = _currentDirectory;
+    if (dir == null) return;
+    if (!Directory(dir).existsSync()) {
+      _reloadDebounce?.cancel();
+      goToParent();
+      return;
     }
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(_reloadDelay, loadFiles);
   }
 
   void loadFiles() {

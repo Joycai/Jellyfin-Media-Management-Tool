@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:file/file.dart';
+import 'package:file/local.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -13,6 +14,17 @@ import '../models/history_entry.dart';
 class HistoryService extends ChangeNotifier {
   static const int retentionDays = 7;
 
+  final FileSystem _fs;
+  final String? _explicitUndoDir;
+
+  /// [fs] and [undoDir] are injected in tests; production callers leave them
+  /// at the defaults (real local FS + `<app-support>/undo/`).
+  HistoryService({
+    FileSystem fs = const LocalFileSystem(),
+    String? undoDir,
+  })  : _fs = fs,
+        _explicitUndoDir = undoDir;
+
   List<HistoryEntry> _entries = [];
   bool _loaded = false;
 
@@ -20,7 +32,9 @@ class HistoryService extends ChangeNotifier {
   bool get loaded => _loaded;
 
   Future<Directory> _dir() async {
-    final dir = Directory(p.join((await getApplicationSupportDirectory()).path, 'undo'));
+    final path = _explicitUndoDir ??
+        p.join((await getApplicationSupportDirectory()).path, 'undo');
+    final dir = _fs.directory(path);
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }
@@ -73,7 +87,7 @@ class HistoryService extends ChangeNotifier {
   }) async {
     final dir = await _dir();
     final createdAt = DateTime.now();
-    final file = File(p.join(dir.path, 'op-${createdAt.millisecondsSinceEpoch}.json'));
+    final file = _fs.file(p.join(dir.path, 'op-${createdAt.millisecondsSinceEpoch}.json'));
     final manifest = HistoryEntry.buildManifest(
       kind: kind,
       createdAt: createdAt,
@@ -92,19 +106,47 @@ class HistoryService extends ChangeNotifier {
     return entry;
   }
 
-  /// Reverses [entry] and removes its manifest on success.
+  /// Reverses [entry]. On full success the manifest is deleted; on partial
+  /// success it's **rewritten** with only the moves that still need
+  /// reversing — so the user can retry undo and make further progress
+  /// instead of replaying the moves we already reversed.
   Future<UndoResult> undo(HistoryEntry entry) async {
-    final result = await undoFromManifest(entry);
-    if (!result.hasFailures) {
+    final result = await undoFromManifest(entry, fs: _fs);
+
+    if (result.remaining.isEmpty) {
       try {
-        await File(entry.manifestPath).delete();
+        await _fs.file(entry.manifestPath).delete();
       } catch (_) {}
       _entries = _entries.where((e) => e.manifestPath != entry.manifestPath).toList();
       notifyListeners();
-    } else {
-      // Partial: keep the manifest in place so the user can retry.
-      await refresh();
+      return result;
     }
+
+    // Partial: rewrite the manifest with only the unrecovered moves and update
+    // the in-memory entry to match.
+    final rewritten = HistoryEntry.buildManifest(
+      kind: entry.kind,
+      createdAt: entry.createdAt,
+      baseDir: entry.baseDir,
+      itemCount: entry.itemCount,
+      moveCount: entry.moveCount,
+      renameCount: entry.renameCount,
+      totalBytes: entry.totalBytes,
+      moves: result.remaining,
+    );
+    try {
+      await _fs.file(entry.manifestPath).writeAsString(jsonEncode(rewritten));
+    } catch (_) {
+      // If we can't rewrite, fall back to a full refresh so the UI matches disk.
+      await refresh();
+      return result;
+    }
+    _entries = _entries
+        .map((e) => e.manifestPath == entry.manifestPath
+            ? e.copyWithMoves(result.remaining)
+            : e)
+        .toList();
+    notifyListeners();
     return result;
   }
 }

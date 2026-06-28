@@ -1,8 +1,9 @@
-import 'dart:io';
-
+import 'package:file/file.dart';
+import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/organize_plan.dart';
+import 'path_safety.dart';
 
 /// Outcome of applying a plan.
 class ApplyResult {
@@ -34,23 +35,36 @@ class MoveOutcome {
 /// `path` package. Each action is applied independently and reports its own
 /// success/failure so a single bad move never aborts the batch.
 class OrganizeService {
-  /// Applies one pending action: creates the target folder and moves the file.
-  /// Sets [action.status] and returns the bytes moved (for progress reporting).
-  static Future<MoveOutcome> applyAction(OrganizeAction action, {required String baseDir}) async {
+  static const FileSystem _defaultFs = LocalFileSystem();
+
+  /// Applies one pending action: validates the resolved paths stay under
+  /// [baseDir], creates the target folder, and moves the file. Sets
+  /// [action.status] and returns the bytes moved (for progress reporting).
+  ///
+  /// [fs] is injected in tests; production callers leave it at the default.
+  static Future<MoveOutcome> applyAction(
+    OrganizeAction action, {
+    required String baseDir,
+    FileSystem fs = _defaultFs,
+  }) async {
     final sourcePath = p.normalize(p.join(baseDir, action.source));
     final targetPath = p.normalize(p.join(baseDir, action.target));
     try {
+      if (!PathSafety.isWithin(baseDir, sourcePath) ||
+          !PathSafety.isWithin(baseDir, targetPath)) {
+        throw FileSystemException('Path escapes base directory', targetPath);
+      }
       if (sourcePath == targetPath) {
         action.status = ActionStatus.applied;
         return const MoveOutcome(ok: true);
       }
-      final sourceFile = File(sourcePath);
+      final sourceFile = fs.file(sourcePath);
       if (!await sourceFile.exists()) {
         throw FileSystemException('Source no longer exists', sourcePath);
       }
       final bytes = await sourceFile.length();
-      await Directory(p.dirname(targetPath)).create(recursive: true);
-      await _moveFile(sourceFile, targetPath);
+      await fs.directory(p.dirname(targetPath)).create(recursive: true);
+      await _moveFile(sourceFile, targetPath, fs);
       action.status = ActionStatus.applied;
       action.error = null;
       return MoveOutcome(ok: true, bytes: bytes, fromPath: sourcePath, toPath: targetPath);
@@ -62,18 +76,24 @@ class OrganizeService {
   }
 
   /// Renames in place when possible; falls back to copy+delete across volumes
-  /// (where `rename` throws). Refuses to clobber an existing target.
-  static Future<void> _moveFile(File source, String targetPath) async {
-    if (await File(targetPath).exists() ||
-        await Directory(targetPath).exists()) {
+  /// (where `rename` throws). Refuses to clobber an existing target. If the
+  /// post-copy delete of the source fails, the partial target is cleaned up
+  /// so we don't leave a silent duplicate.
+  static Future<void> _moveFile(File source, String targetPath, FileSystem fs) async {
+    if (await fs.file(targetPath).exists() ||
+        await fs.directory(targetPath).exists()) {
       throw FileSystemException('Target already exists', targetPath);
     }
     try {
       await source.rename(targetPath);
     } on FileSystemException {
-      // Different device / volume: copy then remove the original.
       await source.copy(targetPath);
-      await source.delete();
+      try {
+        await source.delete();
+      } catch (_) {
+        try { await fs.file(targetPath).delete(); } catch (_) {}
+        rethrow;
+      }
     }
   }
 }
