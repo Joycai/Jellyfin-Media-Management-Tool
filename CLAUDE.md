@@ -19,8 +19,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `flutter build macos` (or `windows` / `linux`) — release build
 - Windows installer: run Inno Setup on `scripts/inno_setup.iss` after `flutter build windows`
 
-**System requirement:** `libmpv` must be installed system-wide for `media_kit` to extract video metadata. Without it, the app builds but video previews/metadata fail at runtime.
-
 ## Architecture
 
 ### State management — two `ChangeNotifier` services wired in `lib/main.dart`
