@@ -40,14 +40,12 @@ Automate tedious renaming tasks with built-in rules:
 ## 🛠️ Tech Stack
 - **Framework**: Flutter (Material 3)
 - **State Management**: Provider
-- **Media Engine**: Media Kit (libmpv)
 - **Storage**: Local JSON configuration
 
 ## 📦 Getting Started
 
 ### Prerequisites
 - Flutter SDK (>= 3.10.4)
-- libmpv (required for video metadata extraction)
 
 ### Installation
 1. Clone the repository:

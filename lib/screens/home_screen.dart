@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _pickFolder() async {
     final browser = context.read<FileBrowserService>();
     final settings = context.read<SettingsService>();
-    final dir = await FilePicker.platform.getDirectoryPath();
+    final dir = await FilePicker.getDirectoryPath();
     if (dir != null) {
       browser.setCurrentDirectory(dir);
       settings.pushRecent(dir);
