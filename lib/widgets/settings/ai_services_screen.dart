@@ -246,9 +246,13 @@ class _ServiceCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _MiniChip(
-                    profile.model.isEmpty ? '—' : profile.model,
-                    mono: true,
+                  // Model ids can be long; let this chip shrink + ellipsize so
+                  // the row never overflows the fixed-width list column.
+                  Flexible(
+                    child: _MiniChip(
+                      profile.model.isEmpty ? '—' : profile.model,
+                      mono: true,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   _MiniChip(_protocolLabel(context, profile.provider)),
@@ -666,6 +670,9 @@ class _MiniChip extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
         style: TextStyle(
           fontSize: 12,
           fontFamily: mono ? 'monospace' : null,

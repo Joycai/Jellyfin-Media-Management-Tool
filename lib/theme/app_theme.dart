@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 
 /// Carries the "liquid glass" tokens (panel fill, hairline border, accents and
@@ -115,8 +117,31 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.transparent,
+      // Latin glyphs keep the crisp OS default; CJK glyphs (missing from that
+      // default on Windows) resolve to each platform's flagship UI font so
+      // Chinese renders in a mainstream, well-hinted typeface everywhere.
+      fontFamilyFallback: _cjkFontFallback,
       extensions: [scaledGlass],
     );
+  }
+
+  /// Per-platform stack of high-quality, pre-installed Chinese UI fonts, tried
+  /// in order for any glyph the primary font can't render:
+  /// 微软雅黑 on Windows, 苹方 (PingFang) on macOS, Noto/文泉驿 on Linux.
+  static List<String> get _cjkFontFallback {
+    if (Platform.isWindows) {
+      return const ['Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC'];
+    }
+    if (Platform.isMacOS) {
+      return const ['PingFang SC', 'Heiti SC', 'Noto Sans SC'];
+    }
+    // Linux and any other target.
+    return const [
+      'Noto Sans CJK SC',
+      'Noto Sans SC',
+      'Source Han Sans SC',
+      'WenQuanYi Micro Hei',
+    ];
   }
 
   static const GlassTheme _darkGlass = GlassTheme(
