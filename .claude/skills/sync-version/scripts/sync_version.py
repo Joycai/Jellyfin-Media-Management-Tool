@@ -30,6 +30,14 @@ TARGETS = [
     # The canonical source. Anchored to the start of a line so it can't match
     # the `version:` keys of dependencies further down the file.
     ("pubspec.yaml", re.compile(r"(?m)^(version:\s*)(\S+)$"), "full"),
+    # MSIX packaging config, later in pubspec.yaml. MSIX requires a 4-part
+    # a.b.c.d version; we keep the first three parts synced and pin the 4th to 0
+    # (required for Microsoft Store submissions).
+    (
+        "pubspec.yaml",
+        re.compile(r"(?m)^(\s*msix_version:\s*)(\S+)$"),
+        "msix",
+    ),
     # About screen, shown to users. Name only — no build number on the UI.
     (
         "lib/widgets/settings/settings_screen.dart",
@@ -132,7 +140,7 @@ def main():
 
     new_name, new_build = resolve_target(args.spec, cur_name, cur_build)
     new_full = f"{new_name}+{new_build}"
-    slot = {"name": new_name, "full": new_full}
+    slot = {"name": new_name, "full": new_full, "msix": f"{new_name}.0"}
 
     print(f"Current: {cur_full}")
     print(f"Target:  {new_full}\n")
