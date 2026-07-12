@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/organize_plan.dart';
@@ -60,18 +61,37 @@ class AiService extends ChangeNotifier {
 
   /// Syncs config from settings. Resets the connection status when the target
   /// endpoint/model changes so the UI doesn't show a stale "connected".
+  ///
+  /// This is called from `build()` (the settings section re-syncs on rebuild),
+  /// so it must not notify when nothing changed, and must never notify
+  /// synchronously during a build — both would trigger
+  /// "setState()/markNeedsBuild() called during build".
   void updateConfig(AiConfig config) {
-    final changed =
+    // A change to any connection-relevant field invalidates a prior "connected"
+    // status; temperature does not affect connectivity.
+    final connectionChanged =
         config.provider != _config.provider ||
         config.endpoint != _config.endpoint ||
         config.apiKey != _config.apiKey ||
         config.model != _config.model;
+    if (!connectionChanged && config.temperature == _config.temperature) return;
     _config = config;
-    if (changed) {
+    if (connectionChanged) {
       _status = ConnectionStatus.unknown;
       _statusMessage = null;
     }
-    notifyListeners();
+    _notifySafely();
+  }
+
+  /// Notifies listeners, deferring to after the current frame if we're mid-build
+  /// (a listener watching this service could otherwise be rebuilt during build).
+  void _notifySafely() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => notifyListeners());
+    } else {
+      notifyListeners();
+    }
   }
 
   Future<bool> testConnection() async {
