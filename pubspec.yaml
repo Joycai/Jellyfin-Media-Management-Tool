@@ -27,7 +27,29 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  msix: ^3.18.0
 
 flutter:
   uses-material-design: true
   generate: true
+
+# Windows MSIX packaging (dart run msix:create).
+# See https://pub.dev/packages/msix for all options.
+msix_config:
+  display_name: Jellyfin Media Management Tool
+  publisher_display_name: joycai
+  # Reverse-DNS identity based on the joycai.cn org. For Microsoft Store
+  # submissions, replace identity_name + publisher with the values assigned
+  # in Partner Center.
+  identity_name: cn.joycai.jellyfinMediaManagementTool
+  # MSIX requires a 4-part a.b.c.d version; keep the first three parts in sync
+  # with `version:` above. The 4th part must be 0 for Store submissions.
+  msix_version: 0.9.0.0
+  logo_path: windows/runner/resources/app_icon.png
+  # Broad file access is provided by runFullTrust (added automatically for
+  # sideloaded packages); internetClient covers the in-app search sites.
+  capabilities: internetClient
+  architecture: x64
+  # Sideload build by default. For the Store set `store: true` and supply the
+  # `publisher` (certificate subject) from Partner Center.
+  store: false
