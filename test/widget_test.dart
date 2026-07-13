@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:jellyfin_media_management_tool/main.dart';
 import 'package:jellyfin_media_management_tool/services/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai_service.dart';
+import 'package:jellyfin_media_management_tool/services/font_service.dart';
 import 'package:jellyfin_media_management_tool/services/settings_service.dart';
 import 'package:jellyfin_media_management_tool/services/file_browser_service.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
@@ -25,6 +26,7 @@ void main() {
             value: AiProfilesService(),
           ),
           ChangeNotifierProvider<AiService>.value(value: AiService()),
+          ChangeNotifierProvider<FontService>.value(value: FontService()),
           ChangeNotifierProvider<HistoryService>.value(value: HistoryService()),
           ChangeNotifierProvider(create: (_) => FileBrowserService()),
         ],

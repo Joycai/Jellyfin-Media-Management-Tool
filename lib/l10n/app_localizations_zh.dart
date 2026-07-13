@@ -313,6 +313,93 @@ class AppLocalizationsZh extends AppLocalizations {
   String get organizeWithAi => 'AI 整理全部';
 
   @override
+  String organizeSelectedWithAi(Object count) {
+    return 'AI 整理所选（$count）';
+  }
+
+  @override
+  String get clearSelection => '清除选择';
+
+  @override
+  String get menuPreview => '预览';
+
+  @override
+  String get menuProperties => '属性';
+
+  @override
+  String get menuRevealInFileManager => '在系统文件管理器中显示';
+
+  @override
+  String get newNameLabel => '新名称';
+
+  @override
+  String deleteSelectedCount(Object count) {
+    return '删除所选（$count）';
+  }
+
+  @override
+  String deleteConfirmOne(Object name) {
+    return '确定删除“$name”？此操作无法撤销。';
+  }
+
+  @override
+  String deleteConfirmMany(Object count) {
+    return '确定删除所选 $count 项？此操作无法撤销。';
+  }
+
+  @override
+  String deletedCount(Object count) {
+    return '已删除 $count 项';
+  }
+
+  @override
+  String deleteFailed(Object error) {
+    return '删除失败：$error';
+  }
+
+  @override
+  String get revealFailed => '无法打开系统文件管理器';
+
+  @override
+  String get propModified => '修改时间';
+
+  @override
+  String get propPath => '路径';
+
+  @override
+  String get fontSection => '字体';
+
+  @override
+  String get fontSystem => '系统默认';
+
+  @override
+  String get fontStatusDownloaded => '已下载';
+
+  @override
+  String get fontStatusNotDownloaded => '需要下载';
+
+  @override
+  String get fontDownloadTitle => '下载字体';
+
+  @override
+  String fontDownloadConfirm(Object name) {
+    return '首次使用 $name 需要下载一次官方字体包（保存到应用数据目录，仅需一次）。是否继续？';
+  }
+
+  @override
+  String fontDownloading(Object name) {
+    return '正在下载 $name…';
+  }
+
+  @override
+  String fontDownloadFailed(Object error) {
+    return '字体下载失败：$error';
+  }
+
+  @override
+  String get downloadAction => '下载';
+
+  @override
   String get openFolder => '打开文件夹';
 
   @override

@@ -38,6 +38,9 @@ class SettingsService extends ChangeNotifier {
   bool _alwaysShowPreview = true;
   bool _lowConfidenceSuggestOnly = false;
   bool _onboardingSeen = false;
+
+  /// UI font id: 'system' | 'harmony' | 'misans' (see FontService).
+  String _fontChoice = 'system';
   List<SearchSite> _searchSites = [
     SearchSite(
       name: 'TMDB',
@@ -67,6 +70,7 @@ class SettingsService extends ChangeNotifier {
   bool get alwaysShowPreview => _alwaysShowPreview;
   bool get lowConfidenceSuggestOnly => _lowConfidenceSuggestOnly;
   bool get onboardingSeen => _onboardingSeen;
+  String get fontChoice => _fontChoice;
 
   Future<Directory> get _configDir async {
     final directory = await getApplicationSupportDirectory();
@@ -118,6 +122,9 @@ class SettingsService extends ChangeNotifier {
           }
           if (data['onboarding_seen'] is bool) {
             _onboardingSeen = data['onboarding_seen'] as bool;
+          }
+          if (data['font_choice'] is String) {
+            _fontChoice = data['font_choice'] as String;
           }
           if (data['favorites'] is List) {
             _favorites = List<String>.from(data['favorites']);
@@ -173,6 +180,7 @@ class SettingsService extends ChangeNotifier {
         'always_show_preview': _alwaysShowPreview,
         'low_confidence_suggest_only': _lowConfidenceSuggestOnly,
         'onboarding_seen': _onboardingSeen,
+        'font_choice': _fontChoice,
         'favorites': _favorites,
         'recent': _recent,
       };
@@ -247,6 +255,12 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setLowConfidenceSuggestOnly(bool v) async {
     _lowConfidenceSuggestOnly = v;
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  Future<void> setFontChoice(String id) async {
+    _fontChoice = id;
     _scheduleSave();
     notifyListeners();
   }

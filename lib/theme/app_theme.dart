@@ -73,17 +73,36 @@ class AppTheme {
   ];
 
   /// Build a theme. [accent] overrides the primary swatch; [glassIntensity]
-  /// (0–100) scales the backdrop blur on `GlassTheme`. Both null = defaults.
-  static ThemeData light({Color? accent, double? glassIntensity}) =>
-      _build(Brightness.light, accent: accent, glassIntensity: glassIntensity);
+  /// (0–100) scales the backdrop blur on `GlassTheme`; [fontFamily] overrides
+  /// the default UI typeface (must already be registered via `FontLoader`).
+  /// All null = defaults.
+  static ThemeData light({
+    Color? accent,
+    double? glassIntensity,
+    String? fontFamily,
+  }) => _build(
+    Brightness.light,
+    accent: accent,
+    glassIntensity: glassIntensity,
+    fontFamily: fontFamily,
+  );
 
-  static ThemeData dark({Color? accent, double? glassIntensity}) =>
-      _build(Brightness.dark, accent: accent, glassIntensity: glassIntensity);
+  static ThemeData dark({
+    Color? accent,
+    double? glassIntensity,
+    String? fontFamily,
+  }) => _build(
+    Brightness.dark,
+    accent: accent,
+    glassIntensity: glassIntensity,
+    fontFamily: fontFamily,
+  );
 
   static ThemeData _build(
     Brightness brightness, {
     Color? accent,
     double? glassIntensity,
+    String? fontFamily,
   }) {
     final isDark = brightness == Brightness.dark;
     final primary = accent ?? _blue;
@@ -117,6 +136,8 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.transparent,
+      // User-selected UI font (HarmonyOS Sans / MiSans); null = OS default.
+      fontFamily: fontFamily,
       // Latin glyphs keep the crisp OS default; CJK glyphs (missing from that
       // default on Windows) resolve to each platform's flagship UI font so
       // Chinese renders in a mainstream, well-hinted typeface everywhere.

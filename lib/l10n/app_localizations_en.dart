@@ -314,6 +314,93 @@ class AppLocalizationsEn extends AppLocalizations {
   String get organizeWithAi => 'Organize all with AI';
 
   @override
+  String organizeSelectedWithAi(Object count) {
+    return 'Organize selected with AI ($count)';
+  }
+
+  @override
+  String get clearSelection => 'Clear selection';
+
+  @override
+  String get menuPreview => 'Preview';
+
+  @override
+  String get menuProperties => 'Properties';
+
+  @override
+  String get menuRevealInFileManager => 'Show in file manager';
+
+  @override
+  String get newNameLabel => 'New name';
+
+  @override
+  String deleteSelectedCount(Object count) {
+    return 'Delete selected ($count)';
+  }
+
+  @override
+  String deleteConfirmOne(Object name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
+
+  @override
+  String deleteConfirmMany(Object count) {
+    return 'Delete $count selected items? This cannot be undone.';
+  }
+
+  @override
+  String deletedCount(Object count) {
+    return 'Deleted $count items';
+  }
+
+  @override
+  String deleteFailed(Object error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get revealFailed => 'Could not open the system file manager';
+
+  @override
+  String get propModified => 'Modified';
+
+  @override
+  String get propPath => 'Path';
+
+  @override
+  String get fontSection => 'Font';
+
+  @override
+  String get fontSystem => 'System default';
+
+  @override
+  String get fontStatusDownloaded => 'Downloaded';
+
+  @override
+  String get fontStatusNotDownloaded => 'Needs download';
+
+  @override
+  String get fontDownloadTitle => 'Download font';
+
+  @override
+  String fontDownloadConfirm(Object name) {
+    return 'First-time use of $name requires a one-time download of the official font package (saved to the app data folder). Continue?';
+  }
+
+  @override
+  String fontDownloading(Object name) {
+    return 'Downloading $name…';
+  }
+
+  @override
+  String fontDownloadFailed(Object error) {
+    return 'Font download failed: $error';
+  }
+
+  @override
+  String get downloadAction => 'Download';
+
+  @override
   String get openFolder => 'Open Folder';
 
   @override

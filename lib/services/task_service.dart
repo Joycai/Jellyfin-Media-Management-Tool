@@ -81,6 +81,7 @@ class TaskService extends ChangeNotifier {
     required String baseDir,
     String? titleHint,
     String? mediaTypeHint,
+    Set<String>? onlyPaths,
   }) {
     final task = OrganizerTask(
       id: newId(),
@@ -98,6 +99,7 @@ class TaskService extends ChangeNotifier {
           baseDir,
           titleHint: titleHint,
           mediaTypeHint: mediaTypeHint,
+          onlyPaths: onlyPaths,
         );
         task
           ..status = TaskStatus.done

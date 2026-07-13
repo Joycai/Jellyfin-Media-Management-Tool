@@ -674,6 +674,144 @@ abstract class AppLocalizations {
   /// **'Organize all with AI'**
   String get organizeWithAi;
 
+  /// No description provided for @organizeSelectedWithAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize selected with AI ({count})'**
+  String organizeSelectedWithAi(Object count);
+
+  /// No description provided for @clearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get clearSelection;
+
+  /// No description provided for @menuPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get menuPreview;
+
+  /// No description provided for @menuProperties.
+  ///
+  /// In en, this message translates to:
+  /// **'Properties'**
+  String get menuProperties;
+
+  /// No description provided for @menuRevealInFileManager.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in file manager'**
+  String get menuRevealInFileManager;
+
+  /// No description provided for @newNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New name'**
+  String get newNameLabel;
+
+  /// No description provided for @deleteSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selected ({count})'**
+  String deleteSelectedCount(Object count);
+
+  /// No description provided for @deleteConfirmOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? This cannot be undone.'**
+  String deleteConfirmOne(Object name);
+
+  /// No description provided for @deleteConfirmMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} selected items? This cannot be undone.'**
+  String deleteConfirmMany(Object count);
+
+  /// No description provided for @deletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} items'**
+  String deletedCount(Object count);
+
+  /// No description provided for @deleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed: {error}'**
+  String deleteFailed(Object error);
+
+  /// No description provided for @revealFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the system file manager'**
+  String get revealFailed;
+
+  /// No description provided for @propModified.
+  ///
+  /// In en, this message translates to:
+  /// **'Modified'**
+  String get propModified;
+
+  /// No description provided for @propPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Path'**
+  String get propPath;
+
+  /// No description provided for @fontSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get fontSection;
+
+  /// No description provided for @fontSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get fontSystem;
+
+  /// No description provided for @fontStatusDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded'**
+  String get fontStatusDownloaded;
+
+  /// No description provided for @fontStatusNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs download'**
+  String get fontStatusNotDownloaded;
+
+  /// No description provided for @fontDownloadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download font'**
+  String get fontDownloadTitle;
+
+  /// No description provided for @fontDownloadConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'First-time use of {name} requires a one-time download of the official font package (saved to the app data folder). Continue?'**
+  String fontDownloadConfirm(Object name);
+
+  /// No description provided for @fontDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {name}…'**
+  String fontDownloading(Object name);
+
+  /// No description provided for @fontDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Font download failed: {error}'**
+  String fontDownloadFailed(Object error);
+
+  /// No description provided for @downloadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get downloadAction;
+
   /// No description provided for @openFolder.
   ///
   /// In en, this message translates to:

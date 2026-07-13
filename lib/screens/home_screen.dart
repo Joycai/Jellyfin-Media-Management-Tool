@@ -63,6 +63,10 @@ class _HomeScreenState extends State<HomeScreen> {
       messenger.showSnackBar(SnackBar(content: Text(l10n.aiNotConfigured)));
       return;
     }
+    // Explicitly multi-selected entries → organize only those; an empty
+    // selection means the whole folder (plain focus clicks don't count).
+    final selection = browser.selectedPaths;
+
     final result = await showTitleHintDialog(
       context,
       folderName: p.basename(dir),
@@ -80,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
       baseDir: dir,
       titleHint: result.title.isEmpty ? null : result.title,
       mediaTypeHint: typeHint,
+      onlyPaths: selection.isEmpty ? null : selection,
     );
 
     messenger.showSnackBar(
@@ -206,7 +211,12 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Flexible(
+          // NOT Flexible: a loose flex child here would claim half the Row's
+          // free space (splitting it with the search Expanded) and dump its
+          // unused allocation as trailing space AFTER the last icon button,
+          // pushing the right-side icons away from the window edge.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
             child: Text(
               l10n.appBrand,
               maxLines: 1,
