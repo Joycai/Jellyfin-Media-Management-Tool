@@ -1464,7 +1464,9 @@ class _FontOption extends StatelessWidget {
 
     final String? status = choice == AppFontChoice.system
         ? null
-        : (downloaded ? l10n.fontStatusDownloaded : l10n.fontStatusNotDownloaded);
+        : (downloaded
+              ? l10n.fontStatusDownloaded
+              : l10n.fontStatusNotDownloaded);
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),

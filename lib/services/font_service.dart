@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
@@ -59,7 +58,8 @@ class FontService extends ChangeNotifier {
         'https://ghfast.top/https://github.com/huawei-fonts/HarmonyOS-Sans/raw/main/HarmonyOS%20Sans.zip',
       ],
       // e.g. HarmonyOS Sans/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Regular.ttf
-      entryPattern: r'HarmonyOS[ _]?Sans[ _]?SC[ _-](Regular|Medium|Bold)\.ttf$',
+      entryPattern:
+          r'HarmonyOS[ _]?Sans[ _]?SC[ _-](Regular|Medium|Bold)\.ttf$',
     ),
     AppFontChoice.misans: _FontSpec(
       family: 'MiSans',
@@ -234,9 +234,7 @@ class FontService extends ChangeNotifier {
   Future<void> _register(String family, List<File> files) async {
     final loader = FontLoader(family);
     for (final f in files) {
-      loader.addFont(
-        f.readAsBytes().then((b) => ByteData.sublistView(b)),
-      );
+      loader.addFont(f.readAsBytes().then((b) => ByteData.sublistView(b)));
     }
     await loader.load();
   }

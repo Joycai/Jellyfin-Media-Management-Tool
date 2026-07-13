@@ -426,141 +426,146 @@ class _FileRowState extends State<_FileRow> {
           entry: entry,
         ),
         child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: highlighted
-              ? LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    scheme.primary.withValues(alpha: 0.32),
-                    scheme.primary.withValues(alpha: 0.20),
-                  ],
-                )
-              : null,
-          border: highlighted
-              ? Border.all(
-                  color: scheme.primary.withValues(alpha: 0.55),
-                  width: 1,
-                )
-              : null,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            // Single onTap only — see _handleTap for why onDoubleTap is not
-            // registered here.
-            onTap: _handleTap,
-            onHover: (h) => setState(() => _hovered = h),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 30,
-                    child: showCheckbox
-                        ? Checkbox(
-                            value: widget.checked,
-                            onChanged: (_) => widget.onCheck(),
-                            visualDensity: VisualDensity.compact,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                          )
-                        : null,
-                  ),
-                  Expanded(
-                    flex: 32,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: iconColor.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Icon(
-                            FileLabelService.getIcon(label, isDir),
-                            size: 18,
-                            color: iconColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Tooltip(
-                                message: name,
-                                waitDuration: const Duration(milliseconds: 350),
-                                child: Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
+            gradient: highlighted
+                ? LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      scheme.primary.withValues(alpha: 0.32),
+                      scheme.primary.withValues(alpha: 0.20),
+                    ],
+                  )
+                : null,
+            border: highlighted
+                ? Border.all(
+                    color: scheme.primary.withValues(alpha: 0.55),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              // Single onTap only — see _handleTap for why onDoubleTap is not
+              // registered here.
+              onTap: _handleTap,
+              onHover: (h) => setState(() => _hovered = h),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 16,
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 30,
+                      child: showCheckbox
+                          ? Checkbox(
+                              value: widget.checked,
+                              onChanged: (_) => widget.onCheck(),
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
                               ),
-                              if (action?.status == ActionStatus.needsReview)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.warning_amber_rounded,
-                                        size: 13,
-                                        color: Colors.orange.shade600,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        l10n.needsReview,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.orange.shade700,
-                                        ),
-                                      ),
-                                    ],
+                            )
+                          : null,
+                    ),
+                    Expanded(
+                      flex: 32,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: iconColor.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: Icon(
+                              FileLabelService.getIcon(label, isDir),
+                              size: 18,
+                              color: iconColor,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Tooltip(
+                                  message: name,
+                                  waitDuration: const Duration(
+                                    milliseconds: 350,
+                                  ),
+                                  child: Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
-                            ],
+                                if (action?.status == ActionStatus.needsReview)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 13,
+                                          color: Colors.orange.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          l10n.needsReview,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.orange.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 10,
+                      child: Text(
+                        MediaTable.localizedType(l10n, label, isDir),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: scheme.onSurfaceVariant,
                         ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    flex: 10,
-                    child: Text(
-                      MediaTable.localizedType(l10n, label, isDir),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: scheme.onSurfaceVariant,
                       ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 10,
-                    child: Text(
-                      size,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: scheme.onSurfaceVariant,
+                    Expanded(
+                      flex: 10,
+                      child: Text(
+                        size,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(flex: 26, child: _SuggestionCell(action: action)),
-                  Expanded(flex: 16, child: _ConfidenceCell(action: action)),
-                ],
+                    Expanded(flex: 26, child: _SuggestionCell(action: action)),
+                    Expanded(flex: 16, child: _ConfidenceCell(action: action)),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -697,10 +702,7 @@ class _FooterBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               onTap: browser.clearSelection,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
                   l10n.clearSelection,
                   style: TextStyle(fontSize: 12.5, color: scheme.primary),

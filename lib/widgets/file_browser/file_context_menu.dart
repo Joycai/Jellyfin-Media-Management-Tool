@@ -37,8 +37,7 @@ Future<void> showFileContextMenu(
       browser.isSelected(entry.path) && browser.selectionCount > 1;
   final deleteCount = multiDelete ? browser.selectionCount : 1;
 
-  final overlay =
-      Overlay.of(context).context.findRenderObject() as RenderBox;
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
   final action = await showMenu<_MenuAction>(
     context: context,
     position: RelativeRect.fromRect(
@@ -51,11 +50,7 @@ Future<void> showFileContextMenu(
     constraints: const BoxConstraints(minWidth: 220),
     items: [
       if (PreviewDialog.canPreview(entry))
-        _item(
-          _MenuAction.preview,
-          Icons.visibility_outlined,
-          l10n.menuPreview,
-        ),
+        _item(_MenuAction.preview, Icons.visibility_outlined, l10n.menuPreview),
       _item(_MenuAction.rename, Icons.drive_file_rename_outline, l10n.rename),
       _item(
         _MenuAction.reveal,
@@ -84,10 +79,7 @@ Future<void> showFileContextMenu(
     case _MenuAction.rename:
       await _rename(context, entry);
     case _MenuAction.delete:
-      await _delete(
-        context,
-        multiDelete ? browser.selectedEntries : [entry],
-      );
+      await _delete(context, multiDelete ? browser.selectedEntries : [entry]);
     case _MenuAction.properties:
       await _showProperties(context, entry);
     case _MenuAction.reveal:
@@ -108,10 +100,7 @@ PopupMenuItem<_MenuAction> _item(
       children: [
         Icon(icon, size: 18, color: color),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: TextStyle(fontSize: 13.5, color: color),
-        ),
+        Text(label, style: TextStyle(fontSize: 13.5, color: color)),
       ],
     ),
   );
@@ -229,18 +218,14 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
               width: 84,
               child: Text(
                 k,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: scheme.onSurfaceVariant,
-                ),
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
               ),
             ),
             Expanded(child: v),
           ],
         ),
       );
-      Text value(String s) =>
-          Text(s, style: const TextStyle(fontSize: 13.5));
+      Text value(String s) => Text(s, style: const TextStyle(fontSize: 13.5));
 
       return AlertDialog(
         title: Row(
@@ -314,10 +299,7 @@ String _localizedType(AppLocalizations l10n, String label) => switch (label) {
 };
 
 /// Reveals [entry] in the OS file manager (selected in its parent folder).
-Future<void> _revealInFileManager(
-  BuildContext context,
-  FileEntry entry,
-) async {
+Future<void> _revealInFileManager(BuildContext context, FileEntry entry) async {
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
   try {
