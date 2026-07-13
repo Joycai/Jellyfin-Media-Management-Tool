@@ -120,10 +120,15 @@ class AiService extends ChangeNotifier {
 
   /// Analyzes [baseDir] and stores the resulting [OrganizePlan]. Throws
   /// [AiException]/[FormatException] on failure (caller surfaces it).
+  ///
+  /// When [onlyPaths] is non-empty, only files whose absolute path is in the
+  /// set — or that live under a selected directory — are sent to the model,
+  /// so the user can organize a subset of the folder.
   Future<OrganizePlan> analyzeFolder(
     String baseDir, {
     String? titleHint,
     String? mediaTypeHint,
+    Set<String>? onlyPaths,
   }) async {
     if (!_config.isComplete) {
       throw const AiException('AI is not configured.');
@@ -134,7 +139,7 @@ class AiService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final entries = await _collectEntries(baseDir);
+      final entries = await _collectEntries(baseDir, onlyPaths: onlyPaths);
       if (entries.isEmpty) {
         throw const AiException('No files to organize in this folder.');
       }
@@ -181,14 +186,34 @@ class AiService extends ChangeNotifier {
   /// their folder-relative path, size, and coarse kind. Streams entries via
   /// async `list()` so big trees don't freeze the UI between user click and
   /// model request.
-  Future<List<MediaEntryInput>> _collectEntries(String baseDir) async {
+  ///
+  /// With a non-empty [onlyPaths], a file is kept only if its own path is
+  /// selected or one of its ancestor directories is (selecting a folder
+  /// includes everything inside it).
+  Future<List<MediaEntryInput>> _collectEntries(
+    String baseDir, {
+    Set<String>? onlyPaths,
+  }) async {
     const cap = 400;
     final dir = Directory(baseDir);
     final entries = <MediaEntryInput>[];
     if (!await dir.exists()) return entries;
 
+    bool included(String path) {
+      if (onlyPaths == null || onlyPaths.isEmpty) return true;
+      var current = p.normalize(path);
+      while (true) {
+        if (onlyPaths.contains(current)) return true;
+        final parent = p.dirname(current);
+        // Stop once we pass baseDir (or hit the filesystem root).
+        if (parent == current || p.equals(current, baseDir)) return false;
+        current = parent;
+      }
+    }
+
     await for (final entity in dir.list(recursive: true, followLinks: false)) {
       if (entity is! File) continue;
+      if (!included(entity.path)) continue;
       final name = p.basename(entity.path);
       if (name.startsWith('.')) continue; // skip hidden/system files
       int size;

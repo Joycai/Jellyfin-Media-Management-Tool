@@ -6,7 +6,7 @@
 ; MyAppVersion / SourceDir can be overridden from the command line, e.g.
 ;   iscc /DMyAppVersion=1.2.3 scripts\inno_setup.iss
 #ifndef MyAppVersion
-  #define MyAppVersion "0.9.0"
+  #define MyAppVersion "0.9.1"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\build\windows\x64\runner\Release"

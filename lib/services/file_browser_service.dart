@@ -12,6 +12,13 @@ class FileBrowserService extends ChangeNotifier {
   String? _currentDirectory;
   List<FileEntry> _files = [];
   FileEntry? _selectedFile;
+
+  /// Multi-selection: absolute paths of every checked/ctrl-clicked entry.
+  /// [_selectedFile] stays the focused row (single click / range anchor).
+  final Set<String> _selectedPaths = {};
+
+  /// Range-select anchor (shift-click extends from here).
+  String? _anchorPath;
   StreamSubscription<FileSystemEvent>? _directorySubscription;
   Timer? _reloadDebounce;
   SortOption _currentSort = SortOption.name;
@@ -33,6 +40,15 @@ class FileBrowserService extends ChangeNotifier {
   SortOption get currentSort => _currentSort;
   bool get isAscending => _isAscending;
 
+  /// Absolute paths of every multi-selected entry.
+  Set<String> get selectedPaths => Set.unmodifiable(_selectedPaths);
+  int get selectionCount => _selectedPaths.length;
+  bool isSelected(String path) => _selectedPaths.contains(path);
+
+  /// Entries (from the current listing) that are multi-selected.
+  List<FileEntry> get selectedEntries =>
+      _files.where((e) => _selectedPaths.contains(e.path)).toList();
+
   @override
   void dispose() {
     _reloadDebounce?.cancel();
@@ -45,6 +61,8 @@ class FileBrowserService extends ChangeNotifier {
     _reloadDebounce?.cancel();
     _currentDirectory = path;
     _selectedFile = null;
+    _selectedPaths.clear();
+    _anchorPath = null;
     unawaited(loadFiles());
     _watchDirectory();
     notifyListeners();
@@ -52,6 +70,58 @@ class FileBrowserService extends ChangeNotifier {
 
   void setSelectedFile(FileEntry? entry) {
     _selectedFile = entry;
+    notifyListeners();
+  }
+
+  /// Plain click: focus [entry] and clear any multi-selection. Only the
+  /// checkbox / ctrl-click / shift-click gestures populate [selectedPaths],
+  /// so "organize selected" never fires from a mere focus click.
+  void selectSingle(FileEntry entry) {
+    _selectedFile = entry;
+    _anchorPath = entry.path;
+    _selectedPaths.clear();
+    notifyListeners();
+  }
+
+  /// Checkbox / ctrl-click: add or remove [entry] from the selection.
+  void toggleSelection(FileEntry entry) {
+    if (_selectedPaths.contains(entry.path)) {
+      _selectedPaths.remove(entry.path);
+      if (_selectedFile?.path == entry.path) _selectedFile = null;
+    } else {
+      _selectedPaths.add(entry.path);
+      _selectedFile = entry;
+    }
+    _anchorPath = entry.path;
+    notifyListeners();
+  }
+
+  /// Shift-click: replace the selection with the range between the current
+  /// anchor and [target], in [visible] order (the UI's filtered/sorted list).
+  void selectRange(List<FileEntry> visible, FileEntry target) {
+    final anchorIdx = _anchorPath == null
+        ? -1
+        : visible.indexWhere((e) => e.path == _anchorPath);
+    final targetIdx = visible.indexWhere((e) => e.path == target.path);
+    if (targetIdx < 0) return;
+    if (anchorIdx < 0) {
+      selectSingle(target);
+      return;
+    }
+    final lo = anchorIdx < targetIdx ? anchorIdx : targetIdx;
+    final hi = anchorIdx < targetIdx ? targetIdx : anchorIdx;
+    _selectedPaths
+      ..clear()
+      ..addAll(visible.sublist(lo, hi + 1).map((e) => e.path));
+    _selectedFile = target;
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    if (_selectedPaths.isEmpty && _selectedFile == null) return;
+    _selectedPaths.clear();
+    _selectedFile = null;
+    _anchorPath = null;
     notifyListeners();
   }
 
@@ -124,6 +194,11 @@ class FileBrowserService extends ChangeNotifier {
       if (_selectedFile != null &&
           !usable.any((e) => e.path == _selectedFile!.path)) {
         _selectedFile = null;
+      }
+      final live = usable.map((e) => e.path).toSet();
+      _selectedPaths.removeWhere((path) => !live.contains(path));
+      if (_anchorPath != null && !live.contains(_anchorPath)) {
+        _anchorPath = null;
       }
       notifyListeners();
     } catch (e) {

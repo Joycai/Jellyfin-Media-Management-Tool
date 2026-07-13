@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -10,7 +11,9 @@ import '../../services/file_browser_service.dart';
 import '../../services/file_label_service.dart';
 import '../../services/settings_service.dart';
 import '../../utils/format.dart';
+import '../dialogs/preview_dialog.dart';
 import '../glass/glass_panel.dart';
+import 'file_context_menu.dart';
 
 /// Center pane: breadcrumb + actions, the file table with AI-suggestion and
 /// confidence columns, and a status footer.
@@ -119,13 +122,35 @@ class MediaTable extends StatelessWidget {
                         entry: file,
                         action: rel != null ? actionBySource[rel] : null,
                         selected: browser.selectedFile?.path == file.path,
-                        onTap: () => browser.setSelectedFile(file),
+                        checked: browser.isSelected(file.path),
+                        onCheck: () => browser.toggleSelection(file),
+                        onTap: () {
+                          final keys =
+                              HardwareKeyboard.instance.logicalKeysPressed;
+                          final shift =
+                              keys.contains(LogicalKeyboardKey.shiftLeft) ||
+                              keys.contains(LogicalKeyboardKey.shiftRight);
+                          final ctrlOrCmd =
+                              keys.contains(LogicalKeyboardKey.controlLeft) ||
+                              keys.contains(LogicalKeyboardKey.controlRight) ||
+                              keys.contains(LogicalKeyboardKey.metaLeft) ||
+                              keys.contains(LogicalKeyboardKey.metaRight);
+                          if (shift) {
+                            browser.selectRange(files, file);
+                          } else if (ctrlOrCmd) {
+                            browser.toggleSelection(file);
+                          } else {
+                            browser.selectSingle(file);
+                          }
+                        },
                         onDoubleTap: () {
                           if (file.isDirectory) {
                             browser.setCurrentDirectory(file.path);
                             context.read<SettingsService>().pushRecent(
                               file.path,
                             );
+                          } else if (PreviewDialog.canPreview(file)) {
+                            PreviewDialog.show(context, file);
                           }
                         },
                       );
@@ -149,6 +174,9 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final ai = context.watch<AiService>();
+    final selectionCount = context.select<FileBrowserService, int>(
+      (b) => b.selectionCount,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
       child: Row(
@@ -188,7 +216,11 @@ class _TopBar extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.auto_awesome, size: 18),
-            label: Text(l10n.organizeWithAi),
+            label: Text(
+              selectionCount > 0
+                  ? l10n.organizeSelectedWithAi(selectionCount)
+                  : l10n.organizeWithAi,
+            ),
           ),
         ],
       ),
@@ -280,6 +312,8 @@ class _HeaderRow extends StatelessWidget {
     );
     return Row(
       children: [
+        // Aligns with the row checkbox column.
+        const SizedBox(width: 30),
         Expanded(
           flex: 32,
           child: Text(l10n.colName.toUpperCase(), style: style),
@@ -309,10 +343,12 @@ class _HeaderRow extends StatelessWidget {
   }
 }
 
-class _FileRow extends StatelessWidget {
+class _FileRow extends StatefulWidget {
   final FileEntry entry;
   final OrganizeAction? action;
   final bool selected;
+  final bool checked;
+  final VoidCallback onCheck;
   final VoidCallback onTap;
   final VoidCallback onDoubleTap;
 
@@ -320,9 +356,44 @@ class _FileRow extends StatelessWidget {
     required this.entry,
     required this.action,
     required this.selected,
+    required this.checked,
+    required this.onCheck,
     required this.onTap,
     required this.onDoubleTap,
   });
+
+  @override
+  State<_FileRow> createState() => _FileRowState();
+}
+
+class _FileRowState extends State<_FileRow> {
+  bool _hovered = false;
+
+  /// Manual double-click detection. Registering both `onTap` and
+  /// `onDoubleTap` on the InkWell makes the gesture arena hold every single
+  /// tap for the ~300ms double-tap window before firing it, which made
+  /// selection feel laggy. With only `onTap` registered, taps fire
+  /// immediately; a second tap within [_doubleClickWindow] is treated as the
+  /// double-click (the first tap having already selected the row is the
+  /// standard file-manager behavior and harmless).
+  DateTime? _lastTapAt;
+  static const _doubleClickWindow = Duration(milliseconds: 300);
+
+  FileEntry get entry => widget.entry;
+  OrganizeAction? get action => widget.action;
+  bool get selected => widget.selected;
+
+  void _handleTap() {
+    final now = DateTime.now();
+    final isDoubleClick =
+        _lastTapAt != null && now.difference(_lastTapAt!) < _doubleClickWindow;
+    _lastTapAt = isDoubleClick ? null : now;
+    if (isDoubleClick) {
+      widget.onDoubleTap();
+    } else {
+      widget.onTap();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -336,13 +407,28 @@ class _FileRow extends StatelessWidget {
     );
     final name = entry.name;
     final size = isDir ? '—' : formatBytes(entry.size);
+    final highlighted = selected || widget.checked;
+    final showCheckbox = _hovered || widget.checked;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
-      child: DecoratedBox(
+      // Context menu: right-click (desktop) or long-press (touch). Lives
+      // outside the InkWell so it doesn't interfere with tap latency.
+      child: GestureDetector(
+        onSecondaryTapDown: (d) => showFileContextMenu(
+          context,
+          globalPosition: d.globalPosition,
+          entry: entry,
+        ),
+        onLongPressStart: (d) => showFileContextMenu(
+          context,
+          globalPosition: d.globalPosition,
+          entry: entry,
+        ),
+        child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          gradient: selected
+          gradient: highlighted
               ? LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
@@ -352,7 +438,7 @@ class _FileRow extends StatelessWidget {
                   ],
                 )
               : null,
-          border: selected
+          border: highlighted
               ? Border.all(
                   color: scheme.primary.withValues(alpha: 0.55),
                   width: 1,
@@ -364,12 +450,27 @@ class _FileRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            onDoubleTap: onDoubleTap,
+            // Single onTap only — see _handleTap for why onDoubleTap is not
+            // registered here.
+            onTap: _handleTap,
+            onHover: (h) => setState(() => _hovered = h),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
               child: Row(
                 children: [
+                  SizedBox(
+                    width: 30,
+                    child: showCheckbox
+                        ? Checkbox(
+                            value: widget.checked,
+                            onChanged: (_) => widget.onCheck(),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          )
+                        : null,
+                  ),
                   Expanded(
                     flex: 32,
                     child: Row(
@@ -459,6 +560,7 @@ class _FileRow extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -575,17 +677,37 @@ class _FooterBar extends StatelessWidget {
       statusColor = scheme.onSurfaceVariant;
     }
 
+    final selCount = browser.selectionCount > 0
+        ? browser.selectionCount
+        : (browser.selectedFile != null ? 1 : 0);
     final style = TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
       child: Row(
         children: [
           Text(
-            browser.selectedFile != null
-                ? '${l10n.selectedCount(1)} · ${l10n.itemsCount(fileCount)}'
+            selCount > 0
+                ? '${l10n.selectedCount(selCount)} · ${l10n.itemsCount(fileCount)}'
                 : l10n.itemsCount(fileCount),
             style: style,
           ),
+          if (browser.selectionCount > 0) ...[
+            const SizedBox(width: 10),
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: browser.clearSelection,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
+                child: Text(
+                  l10n.clearSelection,
+                  style: TextStyle(fontSize: 12.5, color: scheme.primary),
+                ),
+              ),
+            ),
+          ],
           const Spacer(),
           Container(
             width: 7,

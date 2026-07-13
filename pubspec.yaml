@@ -2,7 +2,7 @@ name: jellyfin_media_management_tool
 description: "A powerful cross-platform desktop tool for organizing and managing media files according to Jellyfin naming standards."
 publish_to: 'none'
 
-version: 0.9.0+1
+version: 0.9.1+2
 
 environment:
   sdk: ^3.10.4
@@ -22,6 +22,14 @@ dependencies:
   shared_preferences: ^2.5.4
   provider: ^6.1.5
   file: ^7.0.0
+  # In-app image/video preview (video playback via libmpv).
+  media_kit: ^1.2.3
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
+  # Native window control (minimum window size).
+  window_manager: ^0.5.2
+  # Unzipping downloaded font packages (HarmonyOS Sans / MiSans).
+  archive: ^4.0.9
 
 dev_dependencies:
   flutter_test:
@@ -44,7 +52,7 @@ msix_config:
   identity_name: cn.joycai.jellyfinMediaManagementTool
   # MSIX requires a 4-part a.b.c.d version; keep the first three parts in sync
   # with `version:` above. The 4th part must be 0 for Store submissions.
-  msix_version: 0.9.0.0
+  msix_version: 0.9.1.0
   logo_path: windows/runner/resources/app_icon.png
   # Broad file access is provided by runFullTrust (added automatically for
   # sideloaded packages); internetClient covers the in-app search sites.
