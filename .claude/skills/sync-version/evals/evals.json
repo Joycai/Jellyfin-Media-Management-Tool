@@ -18,6 +18,24 @@
       "prompt": "Cut a new minor release and bump the build number too.",
       "expected_output": "Computes 0.10.0+2 from current 0.9.0+1 (minor bump resets patch, increments build), applies to all four hardcoded locations, leaves auto-derived platform files untouched.",
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Start a branch for the new subtitle auto-matching feature and stub out the service class.",
+      "expected_output": "Creates a feat/ branch, and — prompted by the PreToolUse hook — asks in ONE short sentence whether the branch should carry a version bump, noting feat/ implies minor. Does NOT run sync_version.py unprompted. Proceeds with the actual stub work without waiting.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Make a branch called chore/tidy-up-imports and clean up the unused imports across lib/.",
+      "expected_output": "Creates the branch and does the cleanup with NO version question raised at all — chore/ ships no user-visible change, so the hook stays silent and the skill should not volunteer a bump.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "I need a hotfix branch for the crash on empty folders. Don't bother with version stuff, just get the branch made.",
+      "expected_output": "Creates the branch. The user pre-declined the bump, so the version question is dropped entirely and never re-raised — no dry-run, no sync_version.py, no follow-up nudge later in the session.",
+      "files": []
     }
   ]
 }
