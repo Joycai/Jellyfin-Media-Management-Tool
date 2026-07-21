@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'ai_cancel_token.dart';
+
 /// Shared HTTP machinery for the AI providers: a process-wide client (so
 /// connections get reused across calls) and a small retry helper for the
 /// classic LLM-endpoint transient errors.
@@ -25,13 +27,19 @@ class AiHttp {
   /// Backoff doubles each retry starting from [initialBackoff]. Honors the
   /// `Retry-After` header on the last response when present (as an integer
   /// seconds value).
+  ///
+  /// A cancelled [cancelToken] aborts the loop with [AiCancelled] — checked
+  /// before every attempt and after every backoff so a cancel that lands
+  /// mid-backoff doesn't wait for the next request to be sent.
   static Future<http.Response> withRetry(
     Future<http.Response> Function() send, {
     int maxAttempts = 3,
     Duration initialBackoff = const Duration(milliseconds: 500),
+    AiCancelToken? cancelToken,
   }) async {
     var backoff = initialBackoff;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      cancelToken?.throwIfCancelled();
       try {
         final res = await send();
         if (_retryableStatuses.contains(res.statusCode) &&
@@ -50,6 +58,7 @@ class AiHttp {
         await Future.delayed(backoff);
         backoff *= 2;
       }
+      cancelToken?.throwIfCancelled();
     }
     throw StateError('AiHttp.withRetry: unreachable');
   }

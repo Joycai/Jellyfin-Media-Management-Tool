@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'ai_cancel_token.dart';
 import 'ai_http.dart';
 import 'ai_provider.dart';
 
@@ -37,6 +38,7 @@ class OpenAiProvider implements AiProvider {
   Future<AiResponse> complete({
     required String systemPrompt,
     required String userPrompt,
+    AiCancelToken? cancelToken,
   }) async {
     final body = jsonEncode({
       'model': config.model,
@@ -48,14 +50,24 @@ class OpenAiProvider implements AiProvider {
       ],
     });
 
+    // A cancellable call goes through the token's own client so cancelling can
+    // close the socket; otherwise reuse the shared pooled client.
+    final client = cancelToken?.client ?? AiHttp.client;
+
     http.Response res;
     try {
       res = await AiHttp.withRetry(
-        () => AiHttp.client
+        () => client
             .post(_chatUri, headers: _headers, body: body)
             .timeout(const Duration(seconds: 120)),
+        cancelToken: cancelToken,
       );
+    } on AiCancelled {
+      rethrow;
     } catch (e) {
+      // Closing the client to cancel surfaces as a generic ClientException;
+      // report it as a cancellation, not a network failure.
+      if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
       throw AiException('Network error: $e');
     }
 

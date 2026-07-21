@@ -6,6 +6,9 @@ version: 0.9.1+2
 
 environment:
   sdk: ^3.10.4
+  # SnackBar.persist (used to keep the "analysis started" toast auto-dismissing
+  # even though it has an action) landed in Flutter 3.38.0.
+  flutter: '>=3.38.0'
 
 dependencies:
   flutter:

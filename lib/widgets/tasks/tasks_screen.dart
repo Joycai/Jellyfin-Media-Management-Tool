@@ -259,10 +259,18 @@ class _TaskCard extends StatelessWidget {
               style: TextStyle(color: scheme.error, fontSize: 12),
             ),
           ],
-          if (controller != null || task.isFinished) ...[
+          if (controller != null || task.isFinished || task.isCancellable) ...[
             const SizedBox(height: 10),
             Row(
               children: [
+                // Analyze tasks have no controller — their stop goes through
+                // the task's cancel token instead.
+                if (controller == null && task.isCancellable)
+                  _SmallButton(
+                    icon: Icons.stop_rounded,
+                    label: l10n.stop,
+                    onTap: () => context.read<TaskService>().cancel(task.id),
+                  ),
                 if (controller != null &&
                     controller.status == ApplyStatus.running)
                   _SmallButton(
