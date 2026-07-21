@@ -114,4 +114,52 @@ void main() {
       );
     });
   });
+
+  // The rest of the suite runs on a POSIX in-memory tree regardless of host, so
+  // it only proves the service is not hardcoded to Windows. These prove the
+  // reverse, and that both come from `fs.path` rather than the ambient style.
+  group('applyOrganizeAction — Windows path style', () {
+    late FileSystem winFs;
+    const winBase = r'C:\work';
+
+    setUp(() {
+      winFs = newWindowsMemoryFs();
+    });
+
+    test('renames a file in place', () async {
+      seedFile(winFs, r'C:\work\Dune.2021.mkv', contents: 'video');
+      final action = _act(
+        'Dune.2021.mkv',
+        r'Movies\Dune (2021)\Dune (2021).mkv',
+      );
+
+      final outcome = await applyOrganizeAction(
+        action,
+        baseDir: winBase,
+        fs: winFs,
+      );
+
+      expect(outcome.ok, isTrue);
+      expect(action.status, ActionStatus.applied);
+      expect(
+        winFs.file(r'C:\work\Movies\Dune (2021)\Dune (2021).mkv').existsSync(),
+        isTrue,
+      );
+      expect(winFs.file(r'C:\work\Dune.2021.mkv').existsSync(), isFalse);
+    });
+
+    test('rejects a target that escapes baseDir', () async {
+      seedFile(winFs, r'C:\work\a.mkv');
+      final action = _act('a.mkv', r'..\escape.mkv');
+
+      final outcome = await applyOrganizeAction(
+        action,
+        baseDir: winBase,
+        fs: winFs,
+      );
+
+      expect(outcome.ok, isFalse);
+      expect(outcome.error, contains('escapes'));
+    });
+  });
 }

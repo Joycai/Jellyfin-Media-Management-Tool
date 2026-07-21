@@ -8,9 +8,14 @@ class PathSafety {
   /// after `..` and symlink-free normalization. Both inputs are made absolute
   /// before comparison so a relative `candidate` is treated as joined with the
   /// current working directory — callers should pass already-joined paths.
-  static bool isWithin(String base, String candidate) {
-    final b = p.normalize(p.absolute(base));
-    final c = p.normalize(p.absolute(candidate));
-    return p.equals(b, c) || p.isWithin(b, c);
+  ///
+  /// [context] selects the path style. It must match the filesystem the paths
+  /// came from: the host default would read a POSIX path like `/work/a.mkv` as
+  /// a Windows root-relative one and mis-resolve it against the current drive.
+  static bool isWithin(String base, String candidate, {p.Context? context}) {
+    final ctx = context ?? p.context;
+    final b = ctx.normalize(ctx.absolute(base));
+    final c = ctx.normalize(ctx.absolute(candidate));
+    return ctx.equals(b, c) || ctx.isWithin(b, c);
   }
 }

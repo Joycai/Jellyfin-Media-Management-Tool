@@ -47,4 +47,38 @@ void main() {
       expect(PathSafety.isWithin('/work', '/workshop/x.mkv'), isFalse);
     });
   });
+
+  // Without an explicit context the host's style decides, which on Windows
+  // reads `/work` as root-relative and resolves it against the current drive.
+  group('PathSafety.isWithin — explicit context', () {
+    test('honours a posix context on any host', () {
+      expect(
+        PathSafety.isWithin('/work', '/work/Movies/Dune.mkv', context: p.posix),
+        isTrue,
+      );
+      expect(
+        PathSafety.isWithin('/work', '/etc/passwd', context: p.posix),
+        isFalse,
+      );
+    });
+
+    test('honours a windows context on any host', () {
+      expect(
+        PathSafety.isWithin(
+          r'C:\work',
+          r'C:\work\Movies\Dune.mkv',
+          context: p.windows,
+        ),
+        isTrue,
+      );
+      expect(
+        PathSafety.isWithin(
+          r'C:\work',
+          r'C:\workshop\Dune.mkv',
+          context: p.windows,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

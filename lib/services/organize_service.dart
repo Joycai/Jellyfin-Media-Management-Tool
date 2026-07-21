@@ -1,6 +1,5 @@
 import 'package:file/file.dart';
 import 'package:file/local.dart';
-import 'package:path/path.dart' as p;
 
 import '../models/organize_plan.dart';
 import 'path_safety.dart';
@@ -47,16 +46,20 @@ const FileSystem _defaultFs = LocalFileSystem();
 /// move never aborts the batch.
 ///
 /// [fs] is injected in tests; production callers leave it at the default.
+/// Paths are resolved through `fs.path` rather than the global `path` context
+/// so an injected filesystem's style wins — otherwise a POSIX in-memory tree
+/// would be parsed with Windows rules on a Windows host.
 Future<MoveOutcome> applyOrganizeAction(
   OrganizeAction action, {
   required String baseDir,
   FileSystem fs = _defaultFs,
 }) async {
-  final sourcePath = p.normalize(p.join(baseDir, action.source));
-  final targetPath = p.normalize(p.join(baseDir, action.target));
+  final path = fs.path;
+  final sourcePath = path.normalize(path.join(baseDir, action.source));
+  final targetPath = path.normalize(path.join(baseDir, action.target));
   try {
-    if (!PathSafety.isWithin(baseDir, sourcePath) ||
-        !PathSafety.isWithin(baseDir, targetPath)) {
+    if (!PathSafety.isWithin(baseDir, sourcePath, context: path) ||
+        !PathSafety.isWithin(baseDir, targetPath, context: path)) {
       throw FileSystemException('Path escapes base directory', targetPath);
     }
     if (sourcePath == targetPath) {
@@ -68,7 +71,7 @@ Future<MoveOutcome> applyOrganizeAction(
       throw FileSystemException('Source no longer exists', sourcePath);
     }
     final bytes = await sourceFile.length();
-    await fs.directory(p.dirname(targetPath)).create(recursive: true);
+    await fs.directory(path.dirname(targetPath)).create(recursive: true);
     await _moveFile(sourceFile, targetPath, fs);
     action.status = ActionStatus.applied;
     action.error = null;
