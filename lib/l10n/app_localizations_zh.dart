@@ -189,9 +189,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get directoriesCannotBePreviewed => '无法预览目录';
 
   @override
-  String get selectFileToPreview => '选择一个文件进行预览';
-
-  @override
   String errorAccessingDirectory(Object error) {
     return '访问目录出错: $error';
   }
@@ -485,7 +482,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get targetStructure => '建议目标';
 
   @override
-  String get applyOrganize => '应用整理';
+  String get previewOrganize => '预览整理';
 
   @override
   String get edit => '编辑';
@@ -697,6 +694,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String applyOrganizeCount(Object count) {
     return '应用整理（$count 项）';
   }
+
+  @override
+  String get editTargetTitle => '编辑目标路径';
+
+  @override
+  String get targetPathLabel => '目标路径（相对于整理的文件夹）';
+
+  @override
+  String get targetPathInvalid => '路径无效 — 必须位于整理的文件夹内';
+
+  @override
+  String get namingRules => '套用命名规则';
+
+  @override
+  String get editedBadge => '已修改';
+
+  @override
+  String get markResolved => '采纳此项';
 
   @override
   String organizing(Object count) {

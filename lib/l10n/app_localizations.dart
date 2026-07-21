@@ -446,12 +446,6 @@ abstract class AppLocalizations {
   /// **'Directories cannot be previewed'**
   String get directoriesCannotBePreviewed;
 
-  /// No description provided for @selectFileToPreview.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a file to preview'**
-  String get selectFileToPreview;
-
   /// No description provided for @errorAccessingDirectory.
   ///
   /// In en, this message translates to:
@@ -974,11 +968,11 @@ abstract class AppLocalizations {
   /// **'Target Structure'**
   String get targetStructure;
 
-  /// No description provided for @applyOrganize.
+  /// No description provided for @previewOrganize.
   ///
   /// In en, this message translates to:
-  /// **'Apply'**
-  String get applyOrganize;
+  /// **'Preview'**
+  String get previewOrganize;
 
   /// No description provided for @edit.
   ///
@@ -1345,6 +1339,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apply ({count})'**
   String applyOrganizeCount(Object count);
+
+  /// No description provided for @editTargetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit target path'**
+  String get editTargetTitle;
+
+  /// No description provided for @targetPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Target path (relative to the organized folder)'**
+  String get targetPathLabel;
+
+  /// No description provided for @targetPathInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid path — must stay inside the organized folder'**
+  String get targetPathInvalid;
+
+  /// No description provided for @namingRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply a naming rule'**
+  String get namingRules;
+
+  /// No description provided for @editedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get editedBadge;
+
+  /// No description provided for @markResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept this proposal'**
+  String get markResolved;
 
   /// No description provided for @organizing.
   ///

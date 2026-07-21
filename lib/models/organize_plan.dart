@@ -11,7 +11,11 @@ class OrganizeAction {
 
   /// Target path relative to the folder being organized. The first segment is
   /// the library root (e.g. `Movies/...`).
-  final String target;
+  ///
+  /// Mutable because the preview dialog lets the user correct the model's
+  /// proposal before anything is written — editing the plan in memory keeps
+  /// every filesystem write behind `ApplyController`.
+  String target;
 
   /// Coarse kind echoed by the model (video / subtitle / image / …).
   final String kind;
@@ -21,6 +25,10 @@ class OrganizeAction {
   final String note;
 
   ActionStatus status;
+
+  /// True once the user rewrote [target] in the preview, so the UI can mark the
+  /// row as no longer being what the model proposed.
+  bool userEdited = false;
 
   /// Populated after an apply attempt fails.
   String? error;
