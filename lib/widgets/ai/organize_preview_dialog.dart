@@ -3,9 +3,11 @@ import 'package:path/path.dart' as p;
 
 import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
+import '../../services/file_label_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/path_tree.dart';
+import 'edit_action_dialog.dart';
 
 /// What the user chose in the preview dialog.
 typedef PreviewResult = ({bool apply, bool backup});
@@ -17,6 +19,10 @@ enum _Filter { changes, all, conflicts }
 /// A before→after confirmation of an [OrganizePlan]: a two-pane tree diff of the
 /// source folder versus the proposed Jellyfin structure, with move/rename/
 /// conflict counts and an apply action.
+///
+/// This is also where the plan is edited. Rows in the list view can have their
+/// target rewritten or a low-confidence proposal accepted, mutating [plan] in
+/// place — the caller applies whatever the user confirms here.
 class OrganizePreviewDialog extends StatefulWidget {
   final OrganizePlan plan;
   final String baseDir;
@@ -48,9 +54,18 @@ class OrganizePreviewDialog extends StatefulWidget {
 }
 
 class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
-  _View _view = _View.tree;
+  late _View _view;
   _Filter _filter = _Filter.changes;
   bool _backup = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Conflicts can only be resolved from the list view, so open there when the
+    // plan has any — otherwise the user lands on a tree that shows the problem
+    // without offering the fix.
+    _view = _conflicts.isEmpty ? _View.tree : _View.list;
+  }
 
   List<OrganizeAction> get _actions => widget.plan.actions;
   List<OrganizeAction> get _pending =>
@@ -255,7 +270,11 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
       case _View.poster:
         return _ComingSoon(label: l10n.viewPoster);
       case _View.list:
-        return _ListDiff(actions: _filteredActions);
+        return _ListDiff(
+          actions: _filteredActions,
+          onEdit: _editAction,
+          onResolve: _resolveAction,
+        );
       case _View.tree:
         return _TreeCompare(
           baseDir: widget.baseDir,
@@ -274,6 +293,39 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
     _Filter.conflicts => _conflicts,
     _ => _actions,
   };
+
+  // ── Editing ───────────────────────────────────────────────────────────────
+
+  /// Video targets in the plan, so the subtitle rule can anchor to the episode
+  /// it belongs with rather than to whatever happens to sit on disk.
+  List<String> get _videoTargets => _actions
+      .where((a) => FileLabelService.getLabel(p.extension(a.target)) == 'Video')
+      .map((a) => a.target)
+      .toList();
+
+  Future<void> _editAction(OrganizeAction action) async {
+    final target = await EditActionDialog.show(
+      context,
+      action: action,
+      baseDir: widget.baseDir,
+      videoTargets: _videoTargets,
+    );
+    if (target == null || target == action.target || !mounted) return;
+    setState(() {
+      action.target = target;
+      action.userEdited = true;
+      // The user just decided what this file should be called, so the
+      // low-confidence flag is stale — leaving it would silently skip the very
+      // row they came here to fix.
+      if (action.status == ActionStatus.needsReview) {
+        action.status = ActionStatus.pending;
+      }
+    });
+  }
+
+  /// Accepts a low-confidence proposal as-is, moving it out of the skip list.
+  void _resolveAction(OrganizeAction action) =>
+      setState(() => action.status = ActionStatus.pending);
 
   // ── Footer ─────────────────────────────────────────────────────────────────
   Widget _footer(BuildContext context, AppLocalizations l10n) {
@@ -547,7 +599,14 @@ class _TreePane extends StatelessWidget {
 
 class _ListDiff extends StatelessWidget {
   final List<OrganizeAction> actions;
-  const _ListDiff({required this.actions});
+  final ValueChanged<OrganizeAction> onEdit;
+  final ValueChanged<OrganizeAction> onResolve;
+
+  const _ListDiff({
+    required this.actions,
+    required this.onEdit,
+    required this.onResolve,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -559,61 +618,131 @@ class _ListDiff extends StatelessWidget {
         height: 1,
         color: scheme.outlineVariant.withValues(alpha: 0.3),
       ),
-      itemBuilder: (_, i) {
-        final a = actions[i];
-        final review = a.status == ActionStatus.needsReview;
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+      itemBuilder: (_, i) => _DiffRow(
+        action: actions[i],
+        onEdit: () => onEdit(actions[i]),
+        onResolve: () => onResolve(actions[i]),
+      ),
+    );
+  }
+}
+
+/// One `source → target` line. The row's controls fade in on hover so the list
+/// stays readable, but stay reachable without hover on the conflicts that need
+/// attention.
+class _DiffRow extends StatefulWidget {
+  final OrganizeAction action;
+  final VoidCallback onEdit;
+  final VoidCallback onResolve;
+
+  const _DiffRow({
+    required this.action,
+    required this.onEdit,
+    required this.onResolve,
+  });
+
+  @override
+  State<_DiffRow> createState() => _DiffRowState();
+}
+
+class _DiffRowState extends State<_DiffRow> {
+  static const _amber = Color(0xFFE0852C);
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final a = widget.action;
+    final review = a.status == ActionStatus.needsReview;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: InkWell(
+        onTap: widget.onEdit,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           child: Row(
             children: [
-              Expanded(
-                child: Tooltip(
-                  message: a.source,
-                  waitDuration: const Duration(milliseconds: 350),
-                  child: Text(
-                    a.source,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
+              Expanded(child: _path(a.source, color: scheme.onSurfaceVariant)),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Icon(
                   review ? Icons.help_outline : Icons.arrow_forward,
                   size: 16,
-                  color: review ? const Color(0xFFE0852C) : scheme.primary,
+                  color: review ? _amber : scheme.primary,
                 ),
               ),
               Expanded(
-                child: Tooltip(
-                  message: a.target,
-                  waitDuration: const Duration(milliseconds: 350),
-                  child: Text(
-                    a.target,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      color: review
-                          ? const Color(0xFFE0852C)
-                          : scheme.onSurface,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: _path(
+                        a.target,
+                        color: review ? _amber : scheme.onSurface,
+                      ),
                     ),
-                  ),
+                    if (a.userEdited) ...[
+                      const SizedBox(width: 8),
+                      _Badge(label: l10n.editedBadge, color: scheme.primary),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (review)
+                IconButton(
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  color: _amber,
+                  tooltip: l10n.markResolved,
+                  onPressed: widget.onResolve,
+                ),
+              Opacity(
+                opacity: _hover ? 1 : 0.28,
+                child: IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  tooltip: l10n.edit,
+                  onPressed: widget.onEdit,
                 ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+
+  Widget _path(String value, {required Color color}) => Tooltip(
+    message: value,
+    waitDuration: const Duration(milliseconds: 350),
+    child: Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: color),
+    ),
+  );
+}
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Badge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+    ),
+  );
 }
 
 // ── Shared bits ───────────────────────────────────────────────────────────────

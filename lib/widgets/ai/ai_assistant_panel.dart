@@ -8,7 +8,6 @@ import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
 import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
-import '../../services/rename_service.dart';
 import '../../theme/app_theme.dart';
 import '../../services/apply_controller.dart';
 import '../../services/history_service.dart';
@@ -16,12 +15,8 @@ import '../../services/task_service.dart';
 import '../../utils/path_tree.dart';
 import '../glass/glass_panel.dart';
 import 'organize_preview_dialog.dart';
-import '../dialogs/part_dialog.dart';
-import '../dialogs/subtitle_dialog.dart';
-import '../dialogs/tv_show_dialog.dart';
-import '../../services/file_label_service.dart';
 
-/// Right pane: AI reasoning, the proposed target tree, Apply/Edit actions and a
+/// Right pane: AI reasoning, the proposed target tree, the preview action and a
 /// usage footer. When idle it shows a short hint.
 class AiAssistantPanel extends StatelessWidget {
   const AiAssistantPanel({super.key});
@@ -64,38 +59,20 @@ class AiAssistantPanel extends StatelessWidget {
           if (plan != null && plan.actions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () => _confirmApply(context, ai),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text(
-                        l10n.applyOrganize,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
+              // "Preview", not "Apply": this only opens the confirmation dialog,
+              // which is where the plan is reviewed, edited, and finally applied.
+              child: FilledButton(
+                onPressed: () => _confirmApply(context, ai),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(width: 10),
-                  OutlinedButton(
-                    onPressed: () => _edit(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(l10n.edit),
-                  ),
-                ],
+                ),
+                child: Text(
+                  l10n.previewOrganize,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           const _Divider(),
@@ -192,118 +169,6 @@ class AiAssistantPanel extends StatelessWidget {
       }),
     );
     return sizes.fold<int>(0, (sum, n) => sum + n);
-  }
-
-  /// Manual fallback: applies a Jellyfin rename rule to the selected file using
-  /// the existing dialogs + [RenameService].
-  Future<void> _edit(BuildContext context) async {
-    final l10n = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
-    final browser = context.read<FileBrowserService>();
-    final selected = browser.selectedFile;
-    if (selected == null || selected.isDirectory) {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.selectFileToPreview)));
-      return;
-    }
-    final file = File(selected.path);
-
-    final rule = await showModalBottomSheet<RenameRule>(
-      context: context,
-      builder: (ctx) {
-        final l = AppLocalizations.of(ctx)!;
-        final isSubtitle =
-            FileLabelService.getLabel(p.extension(file.path)) == 'Subtitle';
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.folder_copy),
-                title: Text(l.matchFolderName),
-                onTap: () => Navigator.pop(ctx, RenameRule.matchFolder),
-              ),
-              ListTile(
-                leading: const Icon(Icons.star),
-                title: Text(l.renameToFeaturette),
-                onTap: () => Navigator.pop(ctx, RenameRule.featurette),
-              ),
-              ListTile(
-                leading: const Icon(Icons.mic),
-                title: Text(l.renameToInterview),
-                onTap: () => Navigator.pop(ctx, RenameRule.interview),
-              ),
-              ListTile(
-                leading: const Icon(Icons.segment),
-                title: Text(l.renameToPart),
-                onTap: () => Navigator.pop(ctx, RenameRule.part),
-              ),
-              ListTile(
-                leading: const Icon(Icons.tv),
-                title: Text(l.renameToTVShow),
-                onTap: () => Navigator.pop(ctx, RenameRule.tvShow),
-              ),
-              if (isSubtitle)
-                ListTile(
-                  leading: const Icon(Icons.subtitles),
-                  title: Text(l.jellyfinSubtitle),
-                  onTap: () => Navigator.pop(ctx, RenameRule.subtitle),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-    if (rule == null) return;
-    if (!context.mounted) return;
-
-    String? extra;
-    if (rule == RenameRule.part) {
-      extra = await showDialog<String>(
-        context: context,
-        builder: (_) => const PartDialog(),
-      );
-      if (extra == null) return;
-    } else if (rule == RenameRule.tvShow) {
-      final r = await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (_) => const TVShowDialog(initialSeason: 1, initialEpisode: 1),
-      );
-      if (r == null) return;
-      extra = r['result'] as String;
-    } else if (rule == RenameRule.subtitle) {
-      final videos = file.parent
-          .listSync()
-          .whereType<File>()
-          .where(
-            (f) => FileLabelService.getLabel(p.extension(f.path)) == 'Video',
-          )
-          .toList();
-      if (videos.isEmpty) return;
-      if (!context.mounted) return;
-      final r = await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (_) => SubtitleDialog(
-          videoFiles: videos,
-          initialLang: 'zh-Hans',
-          initialDefault: false,
-        ),
-      );
-      if (r == null) return;
-      extra = r['result'] as String;
-    }
-
-    try {
-      final newName = RenameService.getNewName(file, rule, extra: extra);
-      await RenameService.rename(file, newName);
-      browser.refresh();
-      messenger.showSnackBar(
-        SnackBar(content: Text('${p.basename(file.path)} → $newName')),
-      );
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.errorRenaming(e.toString()))),
-      );
-    }
   }
 }
 

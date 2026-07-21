@@ -189,9 +189,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get directoriesCannotBePreviewed => 'Directories cannot be previewed';
 
   @override
-  String get selectFileToPreview => 'Select a file to preview';
-
-  @override
   String errorAccessingDirectory(Object error) {
     return 'Error accessing directory: $error';
   }
@@ -486,7 +483,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get targetStructure => 'Target Structure';
 
   @override
-  String get applyOrganize => 'Apply';
+  String get previewOrganize => 'Preview';
 
   @override
   String get edit => 'Edit';
@@ -700,6 +697,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String applyOrganizeCount(Object count) {
     return 'Apply ($count)';
   }
+
+  @override
+  String get editTargetTitle => 'Edit target path';
+
+  @override
+  String get targetPathLabel =>
+      'Target path (relative to the organized folder)';
+
+  @override
+  String get targetPathInvalid =>
+      'Invalid path — must stay inside the organized folder';
+
+  @override
+  String get namingRules => 'Apply a naming rule';
+
+  @override
+  String get editedBadge => 'Edited';
+
+  @override
+  String get markResolved => 'Accept this proposal';
 
   @override
   String organizing(Object count) {
