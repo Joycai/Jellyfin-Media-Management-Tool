@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../models/organize_plan.dart';
 import '../utils/ids.dart';
+import 'ai/ai_cancel_token.dart';
 import 'ai_service.dart';
 import 'apply_controller.dart';
 
@@ -37,6 +38,9 @@ class OrganizerTask {
   /// live progress; pause/stop go through it directly.
   final ApplyController? controller;
 
+  /// Analyze-only: aborts the folder walk and the in-flight model request.
+  final AiCancelToken? cancelToken;
+
   TaskStatus status;
   DateTime? finishedAt;
 
@@ -52,6 +56,7 @@ class OrganizerTask {
     required this.label,
     required this.startedAt,
     this.controller,
+    this.cancelToken,
     this.status = TaskStatus.running,
     this.finishedAt,
     this.summary,
@@ -59,6 +64,11 @@ class OrganizerTask {
   });
 
   bool get isFinished => status != TaskStatus.running;
+
+  /// Whether the user can stop this task where it currently stands.
+  bool get isCancellable =>
+      status == TaskStatus.running &&
+      (cancelToken != null || controller != null);
 }
 
 /// Tracks AI analyze + apply tasks the user has kicked off so the Tasks tab
@@ -88,6 +98,7 @@ class TaskService extends ChangeNotifier {
       kind: TaskKind.analyze,
       label: p.basename(baseDir),
       startedAt: DateTime.now(),
+      cancelToken: AiCancelToken(),
     );
     _tasks.insert(0, task);
     notifyListeners();
@@ -100,11 +111,17 @@ class TaskService extends ChangeNotifier {
           titleHint: titleHint,
           mediaTypeHint: mediaTypeHint,
           onlyPaths: onlyPaths,
+          cancelToken: task.cancelToken,
         );
         task
           ..status = TaskStatus.done
           ..finishedAt = DateTime.now()
           ..summary = _analyzeSummary(plan);
+      } on AiCancelled {
+        // User-initiated: not a failure, so no error line.
+        task
+          ..status = TaskStatus.stopped
+          ..finishedAt = DateTime.now();
       } catch (e) {
         task
           ..status = TaskStatus.failed
@@ -152,8 +169,31 @@ class TaskService extends ChangeNotifier {
     return task;
   }
 
-  /// Removes a finished task. No-op on running tasks (use the controller's
-  /// stop method first for apply tasks).
+  /// Stops a running task: analyze tasks abort their request through the
+  /// cancel token, apply tasks fall out of their move loop via the controller.
+  /// Either way the task ends up [TaskStatus.stopped] and keeps whatever work
+  /// it already completed. No-op on finished tasks.
+  void cancel(String id) {
+    final i = _tasks.indexWhere((t) => t.id == id);
+    if (i < 0) return;
+    final t = _tasks[i];
+    if (t.isFinished) return;
+    // Apply: the controller's own listener flips the task to stopped once the
+    // loop unwinds, so the count of moved files stays accurate.
+    t.controller?.stop();
+    // Analyze: closing the socket makes analyzeFolder throw AiCancelled, and
+    // the catch above records the stop. Mark it now so the UI reacts on click
+    // instead of waiting for the request to unwind.
+    if (t.cancelToken != null) {
+      t.cancelToken!.cancel();
+      t
+        ..status = TaskStatus.stopped
+        ..finishedAt = DateTime.now();
+    }
+    notifyListeners();
+  }
+
+  /// Removes a finished task. No-op on running tasks — use [cancel] first.
   void dismiss(String id) {
     final i = _tasks.indexWhere((t) => t.id == id);
     if (i < 0) return;

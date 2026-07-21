@@ -6,6 +6,8 @@
 /// stay free of any domain knowledge.
 library;
 
+import 'ai_cancel_token.dart';
+
 /// Identifies which wire protocol a provider speaks.
 enum AiProviderType {
   /// OpenAI-compatible `/chat/completions` (OpenAI, Azure, LocalAI, Ollama, …).
@@ -123,10 +125,12 @@ class AiConfig {
 abstract class AiProvider {
   AiConfig get config;
 
-  /// Performs one JSON-mode completion. Throws [AiException] on failure.
+  /// Performs one JSON-mode completion. Throws [AiException] on failure, or
+  /// [AiCancelled] when [cancelToken] is cancelled while the call is in flight.
   Future<AiResponse> complete({
     required String systemPrompt,
     required String userPrompt,
+    AiCancelToken? cancelToken,
   });
 
   /// Lightweight connectivity/credential check. Returns true on success.

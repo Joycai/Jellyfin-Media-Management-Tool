@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/organize_plan.dart';
+import 'ai/ai_cancel_token.dart';
 import 'ai/ai_prompt.dart';
 import 'ai/ai_provider.dart';
 import 'ai/google_genai_provider.dart';
@@ -124,11 +125,16 @@ class AiService extends ChangeNotifier {
   /// When [onlyPaths] is non-empty, only files whose absolute path is in the
   /// set — or that live under a selected directory — are sent to the model,
   /// so the user can organize a subset of the folder.
+  ///
+  /// Pass a [cancelToken] to make the run abortable: cancelling stops the
+  /// directory walk and tears down the in-flight request, and the call
+  /// completes with [AiCancelled] without touching [currentPlan].
   Future<OrganizePlan> analyzeFolder(
     String baseDir, {
     String? titleHint,
     String? mediaTypeHint,
     Set<String>? onlyPaths,
+    AiCancelToken? cancelToken,
   }) async {
     if (!_config.isComplete) {
       throw const AiException('AI is not configured.');
@@ -139,7 +145,11 @@ class AiService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final entries = await _collectEntries(baseDir, onlyPaths: onlyPaths);
+      final entries = await _collectEntries(
+        baseDir,
+        onlyPaths: onlyPaths,
+        cancelToken: cancelToken,
+      );
       if (entries.isEmpty) {
         throw const AiException('No files to organize in this folder.');
       }
@@ -152,8 +162,13 @@ class AiService extends ChangeNotifier {
           titleHint: titleHint,
           mediaTypeHint: mediaTypeHint,
         ),
+        cancelToken: cancelToken,
       );
       sw.stop();
+      // A cancel that lands between the response arriving and the plan being
+      // stored must still win — otherwise the panel pops a plan the user
+      // already dismissed.
+      cancelToken?.throwIfCancelled();
       _requestCount++;
       _latencies.add(sw.elapsedMilliseconds);
       if (_latencies.length > 12) _latencies.removeAt(0);
@@ -171,6 +186,7 @@ class AiService extends ChangeNotifier {
       _statusMessage = null;
       return plan;
     } finally {
+      cancelToken?.dispose();
       _isAnalyzing = false;
       notifyListeners();
     }
@@ -193,6 +209,7 @@ class AiService extends ChangeNotifier {
   Future<List<MediaEntryInput>> _collectEntries(
     String baseDir, {
     Set<String>? onlyPaths,
+    AiCancelToken? cancelToken,
   }) async {
     const cap = 400;
     final dir = Directory(baseDir);
@@ -212,6 +229,7 @@ class AiService extends ChangeNotifier {
     }
 
     await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      cancelToken?.throwIfCancelled();
       if (entity is! File) continue;
       if (!included(entity.path)) continue;
       final name = p.basename(entity.path);

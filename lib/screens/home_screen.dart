@@ -90,6 +90,10 @@ class _HomeScreenState extends State<HomeScreen> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(l10n.tasksAnalyzeStarted),
+        // A SnackBar with an action defaults to persist:true — it would sit
+        // there forever instead of timing out. This one is a "started" notice,
+        // not something the user has to answer, so opt back into auto-dismiss.
+        persist: false,
         action: SnackBarAction(
           label: l10n.tabTasks,
           onPressed: () => setState(() => _section = _Section.tasks),
