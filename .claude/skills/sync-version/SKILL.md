@@ -11,6 +11,11 @@ description: >-
   numbers across the project look out of sync. Reach for it even if the user
   only says "bump version" without naming the files — keeping the scattered
   copies in lockstep is exactly what this skill exists to prevent drift on.
+  ALSO reach for it when starting work that will ship: creating a feature or
+  bugfix branch, opening a release PR, or preparing a tag. A PreToolUse hook
+  raises the version question at branch creation, and this skill is what
+  answers it — see "Branch-creation prompt" below for what to do when that
+  reminder fires, including when the right answer is to not bump at all.
 ---
 
 # Sync version
@@ -56,6 +61,59 @@ advances the build number. Pass an explicit `+N` when you need to control it.
 4. Verify (see below) and report the new version plainly.
 
 To just read the current version: `... sync_version.py --show`.
+
+## Branch-creation prompt
+
+A `PreToolUse` hook (`scripts/branch_version_hook.py`, registered against the
+Bash tool in `.claude/settings.json`) watches for `git checkout -b` /
+`git switch -c` and injects a reminder naming the new branch, the current
+version, and the bump level its prefix implies.
+
+The hook only notices; it never bumps. That separation is deliberate — see
+"When *not* to bump" below for why applying a bump at branch creation is
+usually the wrong move.
+
+**When the reminder fires:**
+
+1. Ask once, in a single sentence, folded into whatever you were already
+   saying. It is a question in passing, not a ceremony — the user is in the
+   middle of starting work and does not want a checklist.
+2. Take no for an answer. If they decline, or just ignore it and move on, drop
+   it permanently for this branch. Re-raising it later is the fastest way to
+   make someone disable the hook.
+3. If they say yes, follow the normal flow above (`--dry-run`, show, apply).
+   Treat the prefix-derived level as a starting suggestion, not a verdict — a
+   `fix/` branch that changes user-visible behaviour may well deserve `minor`.
+
+**What the hook stays quiet about**, so its speaking up stays meaningful:
+`chore/`, `ci/`, `docs/`, `test/`, `style/`, `build/` prefixes (no shipped
+change); branches whose name contains `bump`, `release`, or `version` (those
+*are* the version change — asking would loop); any Bash command that is not
+branch creation; and any repo without a `pubspec.yaml` above the cwd.
+
+An unrecognised prefix still prompts, but without a suggested level — a wrong
+suggestion is worse than none.
+
+To silence it entirely, remove the `PreToolUse` block from
+`.claude/settings.json`. The skill keeps working; only the automatic nudge goes
+away.
+
+## When *not* to bump
+
+The pressure this skill exists to resist is drift between copies of the version.
+It is not "every branch gets a number". Bumping at branch-creation time costs
+more than it looks:
+
+- **Parallel branches collide.** Every open branch that bumped now edits
+  `version:` in `pubspec.yaml`, so they conflict with each other on merge — for
+  a line whose final value only the last merge actually decides.
+- **The history gets noisier than the releases.** Three branches merged for one
+  release produce three version numbers where users only ever saw one.
+
+The cheaper default is to bump **once, at release time**, after the work that
+ships together has landed, and pick the level from the largest change in the
+batch. A branch-time bump earns its keep when the branch *is* the release — a
+hotfix going straight out, or a release-prep branch.
 
 ## What it touches
 
