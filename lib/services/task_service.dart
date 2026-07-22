@@ -123,10 +123,17 @@ class TaskService extends ChangeNotifier {
           ..status = TaskStatus.stopped
           ..finishedAt = DateTime.now();
       } catch (e) {
-        task
-          ..status = TaskStatus.failed
-          ..finishedAt = DateTime.now()
-          ..error = e.toString();
+        if (task.cancelToken?.isCancelled ??
+            false || task.status == TaskStatus.stopped) {
+          task
+            ..status = TaskStatus.stopped
+            ..finishedAt = DateTime.now();
+        } else {
+          task
+            ..status = TaskStatus.failed
+            ..finishedAt = DateTime.now()
+            ..error = e.toString();
+        }
       }
       notifyListeners();
     }());

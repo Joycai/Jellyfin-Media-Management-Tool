@@ -50,6 +50,16 @@ void main() {
       expect(outcome.ok, isTrue);
       expect(action.status, ActionStatus.applied);
     });
+
+    test('allows case-only rename of a file', () async {
+      seedFile(fs, '/work/dune.2021.MKV', contents: 'video');
+      final action = _act('dune.2021.MKV', 'dune.2021.mkv');
+
+      final outcome = await applyOrganizeAction(action, baseDir: base, fs: fs);
+
+      expect(outcome.ok, isTrue);
+      expect(action.status, ActionStatus.applied);
+    });
   });
 
   group('applyOrganizeAction — failures', () {

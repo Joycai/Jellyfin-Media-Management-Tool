@@ -49,8 +49,11 @@ class FileBrowserService extends ChangeNotifier {
   List<FileEntry> get selectedEntries =>
       _files.where((e) => _selectedPaths.contains(e.path)).toList();
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     _reloadDebounce?.cancel();
     _directorySubscription?.cancel();
     super.dispose();
@@ -143,7 +146,11 @@ class FileBrowserService extends ChangeNotifier {
     _directorySubscription?.cancel();
     if (_currentDirectory == null) return;
     final directory = Directory(_currentDirectory!);
-    _directorySubscription = directory.watch().listen((_) => _onWatchEvent());
+    try {
+      _directorySubscription = directory.watch().listen((_) => _onWatchEvent());
+    } catch (e) {
+      debugPrint('Error watching directory $_currentDirectory: $e');
+    }
   }
 
   /// Coalesces a burst of watcher events into a single reload. Also handles
@@ -166,7 +173,7 @@ class FileBrowserService extends ChangeNotifier {
     if (_currentDirectory == null) {
       _files = [];
       _selectedFile = null;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
       return;
     }
 
@@ -174,17 +181,17 @@ class FileBrowserService extends ChangeNotifier {
     final directory = Directory(_currentDirectory!);
 
     if (!await directory.exists()) {
-      if (gen != _loadGeneration) return;
+      if (gen != _loadGeneration || _disposed) return;
       goToParent();
       return;
     }
 
     try {
       final raw = await directory.list(followLinks: false).toList();
-      if (gen != _loadGeneration) return;
+      if (gen != _loadGeneration || _disposed) return;
 
       final entries = await Future.wait(raw.map(_toEntry));
-      if (gen != _loadGeneration) return;
+      if (gen != _loadGeneration || _disposed) return;
 
       // Drop entries we couldn't stat (e.g. permission-denied symlinks).
       final usable = entries.whereType<FileEntry>().toList();
@@ -200,9 +207,9 @@ class FileBrowserService extends ChangeNotifier {
       if (_anchorPath != null && !live.contains(_anchorPath)) {
         _anchorPath = null;
       }
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     } catch (e) {
-      if (gen != _loadGeneration) return;
+      if (gen != _loadGeneration || _disposed) return;
       debugPrint('Error listing files: $e');
     }
   }

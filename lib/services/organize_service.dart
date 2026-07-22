@@ -93,8 +93,13 @@ Future<MoveOutcome> applyOrganizeAction(
 /// existing target. If the post-copy delete of the source fails, the partial
 /// target is cleaned up so we don't leave a silent duplicate.
 Future<void> _moveFile(File source, String targetPath, FileSystem fs) async {
-  if (await fs.file(targetPath).exists() ||
-      await fs.directory(targetPath).exists()) {
+  final isCaseOnlyRename =
+      source.path != targetPath &&
+      source.path.toLowerCase() == targetPath.toLowerCase();
+
+  if (!isCaseOnlyRename &&
+      (await fs.file(targetPath).exists() ||
+          await fs.directory(targetPath).exists())) {
     throw FileSystemException('Target already exists', targetPath);
   }
   try {

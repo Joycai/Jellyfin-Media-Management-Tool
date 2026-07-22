@@ -69,6 +69,8 @@ class ApplyController extends ChangeNotifier {
   bool _stopRequested = false;
   bool _started = false;
 
+  bool _disposed = false;
+
   /// Pending throttled notify; non-null means a rebuild is already queued.
   /// Lifecycle, pause/resume and terminal transitions flush via
   /// [_notifyNow] so the UI never lags behind a user-initiated state change.
@@ -79,9 +81,10 @@ class ApplyController extends ChangeNotifier {
   /// per [_notifyThrottle]. A 10k-action job rebuilds the progress screen at
   /// ~20 fps instead of ~20k times.
   void _scheduleNotify() {
+    if (_disposed) return;
     _notifyTimer ??= Timer(_notifyThrottle, () {
       _notifyTimer = null;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     });
   }
 
@@ -89,6 +92,7 @@ class ApplyController extends ChangeNotifier {
   /// terminal transitions and user-initiated state changes (start, pause,
   /// resume, stop, done) so they never appear delayed.
   void _notifyNow() {
+    if (_disposed) return;
     _notifyTimer?.cancel();
     _notifyTimer = null;
     notifyListeners();
@@ -96,6 +100,7 @@ class ApplyController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _notifyTimer?.cancel();
     super.dispose();
   }

@@ -2,7 +2,7 @@ name: jellyfin_media_management_tool
 description: "A powerful cross-platform desktop tool for organizing and managing media files according to Jellyfin naming standards."
 publish_to: 'none'
 
-version: 0.10.0+3
+version: 0.10.1+4
 
 environment:
   sdk: ^3.10.4
@@ -55,7 +55,7 @@ msix_config:
   identity_name: cn.joycai.jellyfinMediaManagementTool
   # MSIX requires a 4-part a.b.c.d version; keep the first three parts in sync
   # with `version:` above. The 4th part must be 0 for Store submissions.
-  msix_version: 0.10.0.0
+  msix_version: 0.10.1.0
   logo_path: windows/runner/resources/app_icon.png
   # Broad file access is provided by runFullTrust (added automatically for
   # sideloaded packages); internetClient covers the in-app search sites.
