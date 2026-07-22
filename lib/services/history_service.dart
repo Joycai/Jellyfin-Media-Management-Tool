@@ -237,4 +237,3 @@ class HistoryService extends ChangeNotifier {
     }
   }
 }
-
