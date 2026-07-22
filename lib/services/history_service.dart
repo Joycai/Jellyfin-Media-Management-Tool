@@ -202,7 +202,7 @@ class HistoryService extends ChangeNotifier {
           continue;
         }
         await _fs.directory(p.dirname(from)).create(recursive: true);
-        await file.rename(from);
+        await _moveFile(file, from);
         succeeded++;
       } catch (e) {
         failures.add('$to → $from: $e');
@@ -220,4 +220,21 @@ class HistoryService extends ChangeNotifier {
       remaining: remaining,
     );
   }
+
+  Future<void> _moveFile(File source, String targetPath) async {
+    try {
+      await source.rename(targetPath);
+    } on FileSystemException {
+      await source.copy(targetPath);
+      try {
+        await source.delete();
+      } catch (_) {
+        try {
+          await _fs.file(targetPath).delete();
+        } catch (_) {}
+        rethrow;
+      }
+    }
+  }
 }
+

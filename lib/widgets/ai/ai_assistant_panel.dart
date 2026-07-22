@@ -135,18 +135,17 @@ class AiAssistantPanel extends StatelessWidget {
       onDone: () {
         final result = controller.result;
         browser.refresh();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              result.hasFailures
-                  ? l10n.applyPartial(result.failed, result.succeeded)
-                  : l10n.applyDone(result.succeeded),
+        if (messenger.mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                result.hasFailures
+                    ? l10n.applyPartial(result.failed, result.succeeded)
+                    : l10n.applyDone(result.succeeded),
+              ),
             ),
-          ),
-        );
-        // controller stays alive until the task is dismissed so the user can
-        // re-open the detail screen post-completion; TaskService.dismiss is
-        // the cue to free it. For now keep it — typical tasks are small.
+          );
+        }
       },
     );
     ai.clearPlan();
