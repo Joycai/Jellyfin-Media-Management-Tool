@@ -83,7 +83,6 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Jellyfin Media Management Tool',
-      debugShowCheckedModeBanner: false,
       themeMode: settings.themeMode,
       locale: settings.locale,
       localizationsDelegates: const [
