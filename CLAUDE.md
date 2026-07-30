@@ -40,6 +40,10 @@ The app shell is `MainWorkspace` in `lib/main.dart`, a two-tab `NavigationRail` 
 - `lib/widgets/file_browser/` — reusable, stateless list + toolbar widgets
 - `lib/widgets/dialogs/` — modal rename workflows (`tv_show_dialog.dart`, `part_dialog.dart`, `subtitle_dialog.dart`, `search_dialog.dart`, `input_dialog.dart`). Each returns structured data (e.g. `{'result': 'S01E02', 'season': 1, 'episode': 2}`) that the calling screen feeds into `RenameService`.
 
+### media_kit
+
+`media_kit` is used for exactly one thing: playing a local video file inside [preview_dialog.dart](lib/widgets/dialogs/preview_dialog.dart) (a `Player` + `VideoController` + the stock `Video` widget), plus the one `MediaKit.ensureInitialized()` call in [lib/main.dart](lib/main.dart). It does **not** do metadata extraction, thumbnails, or duration probing anywhere. Keep it that way unless there's a reason — the dependency drags in libmpv and CocoaPods on macOS (see Platform-specific notes).
+
 ### Data flow
 
 UI → dialog → service mutates filesystem → `notifyListeners()` → UI rebuilds. No caching layer; the filesystem is the source of truth and `FileSystemEvent` keeps the view in sync.
@@ -60,5 +64,7 @@ ARB files at `lib/l10n/app_en.arb` and `lib/l10n/app_zh.arb`. `flutter: generate
 ## Platform-specific notes
 
 - **macOS sandbox:** Entitlements are split. `macos/Runner/DebugProfile.entitlements` enables JIT and a network server (needed for `flutter run`'s Dart VM); `macos/Runner/Release.entitlements` is stricter (no JIT, no network server). When adding capabilities (Bonjour, downloads folder, etc.), edit **both** files or the change won't take effect in release builds.
+- **macOS still uses CocoaPods.** The pub.dev releases of `media_kit_video` (2.0.1) and `media_kit_libs_macos_video` (1.1.4) ship no `Package.swift`, so Flutter 3.44 — where Swift Package Manager is the default — falls back to CocoaPods for them. `macos/Podfile` and `macos/Podfile.lock` are **checked in and required; do not delete them**, and leave the `#include? ".../Pods-Runner.*.xcconfig"` lines in `macos/Flutter/Flutter-{Debug,Release}.xcconfig` (they must stay *above* the `ephemeral/Flutter-Generated.xcconfig` include). The build-time warning `The following plugins do not support Swift Package Manager for macos` is expected and harmless. Upstream SPM support is merged but unpublished ([media-kit#1412](https://github.com/media-kit/media-kit/pull/1412)); track [#1399](https://github.com/media-kit/media-kit/issues/1399) and [#1435](https://github.com/media-kit/media-kit/pull/1435) and drop CocoaPods once new versions land on pub.dev.
+- **`intl` is pinned to `0.20.2`, not a caret range.** `flutter_localizations` from the SDK pins it exactly; `^0.20.3` makes `flutter pub get` fail version solving.
 - **App identifier / org:** `joycai.cn`.
 - **No CI/CD:** `.github/workflows/` was removed. Builds and releases are manual.
