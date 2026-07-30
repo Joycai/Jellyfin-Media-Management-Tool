@@ -10,13 +10,13 @@ The **Jellyfin Media Management Tool** is a cross-platform desktop application b
 - **Framework:** [Flutter](https://flutter.dev/) (Material 3)
 - **Language:** [Dart](https://dart.dev/)
 - **State Management:** [Provider](https://pub.dev/packages/provider)
-- **Media Engine:** [Media Kit](https://media-kit.github.io/) (based on libmpv) for metadata extraction and media handling.
+- **Media Engine:** [Media Kit](https://media-kit.github.io/) (based on libmpv) — used solely for playing local video files inside the preview dialog. It is not used for metadata extraction.
 - **Localization:** Flutter `intl` and ARB files for multi-language support (English & Chinese).
 - **Storage:** Local JSON configuration for settings and user preferences.
 
 ### Key Features
 - **File Browser:** Advanced navigation with smart sorting and real-time directory monitoring.
-- **Media Preview:** Rich previews for video (metadata), images, and text (subtitles/NFO).
+- **Media Preview:** Rich previews for video (inline playback), images, and text (subtitles/NFO).
 - **Renaming Engine:** Automated renaming rules for Jellyfin compliance (extras, TV episodes, multi-part movies, standardized subtitles).
 - **Web Search:** Integrated search to find media information from online databases.
 
@@ -39,7 +39,7 @@ lib/
 
 ### Prerequisites
 - Flutter SDK (>= 3.10.4)
-- **libmpv** must be installed on the system for media metadata extraction.
+- **libmpv** is required for video preview playback. On Windows and macOS it is bundled by `media_kit_libs_video`; on Linux it must be installed system-wide (e.g. `apt install libmpv-dev mpv`).
 
 ### Common Commands
 - **Install Dependencies:** `flutter pub get`
