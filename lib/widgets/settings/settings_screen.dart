@@ -10,6 +10,7 @@ import '../../services/ai_service.dart';
 import '../../services/font_service.dart';
 import '../../services/history_service.dart';
 import '../../services/settings_service.dart';
+import '../../services/thumbnail_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import 'ai_services_screen.dart';
@@ -446,6 +447,12 @@ class _AppearanceSection extends StatelessWidget {
                 label: l10n.behaviorLowConfSuggest,
                 value: settings.lowConfidenceSuggestOnly,
                 onChanged: settings.setLowConfidenceSuggestOnly,
+              ),
+              _Divider(),
+              _ToggleRow(
+                label: l10n.behaviorVideoThumbnails,
+                value: settings.showVideoThumbnails,
+                onChanged: settings.setShowVideoThumbnails,
               ),
             ],
           ),
@@ -1283,12 +1290,58 @@ class _PrivacySection extends StatelessWidget {
                       l10n.privacyClearHistory(history.entries.length),
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  const _ClearThumbnailCacheButton(),
                 ],
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Reports how much disk the video-thumbnail cache is using and empties it.
+/// Stateful because the size has to be measured off-disk and re-measured after
+/// a clear — [SettingsService] doesn't own the cache.
+class _ClearThumbnailCacheButton extends StatefulWidget {
+  const _ClearThumbnailCacheButton();
+
+  @override
+  State<_ClearThumbnailCacheButton> createState() =>
+      _ClearThumbnailCacheButtonState();
+}
+
+class _ClearThumbnailCacheButtonState
+    extends State<_ClearThumbnailCacheButton> {
+  int? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _measure();
+  }
+
+  Future<void> _measure() async {
+    final size = await ThumbnailService.instance.cacheSizeOnDisk();
+    if (!mounted) return;
+    setState(() => _bytes = size);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final bytes = _bytes;
+    return OutlinedButton.icon(
+      onPressed: bytes == null || bytes == 0
+          ? null
+          : () async {
+              await ThumbnailService.instance.clearCache();
+              await _measure();
+            },
+      icon: const Icon(Icons.image_not_supported_outlined, size: 16),
+      label: Text(l10n.privacyClearThumbnails(formatBytes(bytes ?? 0))),
     );
   }
 }

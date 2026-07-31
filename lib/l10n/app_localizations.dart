@@ -1718,6 +1718,12 @@ abstract class AppLocalizations {
   /// **'Only suggest (don\'t auto-apply) when confidence < 60%'**
   String get behaviorLowConfSuggest;
 
+  /// No description provided for @behaviorVideoThumbnails.
+  ///
+  /// In en, this message translates to:
+  /// **'Show video thumbnails in the file list'**
+  String get behaviorVideoThumbnails;
+
   /// No description provided for @privacyStorage.
   ///
   /// In en, this message translates to:
@@ -1735,6 +1741,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Undo all {count} entries'**
   String privacyClearHistory(Object count);
+
+  /// No description provided for @privacyClearThumbnails.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear thumbnail cache ({size})'**
+  String privacyClearThumbnails(Object size);
 
   /// No description provided for @shortcutSearch.
   ///
