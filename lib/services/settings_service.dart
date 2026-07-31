@@ -37,6 +37,7 @@ class SettingsService extends ChangeNotifier {
   bool _autoConnectAi = true;
   bool _alwaysShowPreview = true;
   bool _lowConfidenceSuggestOnly = false;
+  bool _showVideoThumbnails = true;
   bool _onboardingSeen = false;
 
   /// UI font id: 'system' | 'harmony' | 'misans' (see FontService).
@@ -69,6 +70,7 @@ class SettingsService extends ChangeNotifier {
   bool get autoConnectAi => _autoConnectAi;
   bool get alwaysShowPreview => _alwaysShowPreview;
   bool get lowConfidenceSuggestOnly => _lowConfidenceSuggestOnly;
+  bool get showVideoThumbnails => _showVideoThumbnails;
   bool get onboardingSeen => _onboardingSeen;
   String get fontChoice => _fontChoice;
 
@@ -119,6 +121,9 @@ class SettingsService extends ChangeNotifier {
           if (data['low_confidence_suggest_only'] is bool) {
             _lowConfidenceSuggestOnly =
                 data['low_confidence_suggest_only'] as bool;
+          }
+          if (data['show_video_thumbnails'] is bool) {
+            _showVideoThumbnails = data['show_video_thumbnails'] as bool;
           }
           if (data['onboarding_seen'] is bool) {
             _onboardingSeen = data['onboarding_seen'] as bool;
@@ -179,6 +184,7 @@ class SettingsService extends ChangeNotifier {
         'auto_connect_ai': _autoConnectAi,
         'always_show_preview': _alwaysShowPreview,
         'low_confidence_suggest_only': _lowConfidenceSuggestOnly,
+        'show_video_thumbnails': _showVideoThumbnails,
         'onboarding_seen': _onboardingSeen,
         'font_choice': _fontChoice,
         'favorites': _favorites,
@@ -255,6 +261,12 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setLowConfidenceSuggestOnly(bool v) async {
     _lowConfidenceSuggestOnly = v;
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  Future<void> setShowVideoThumbnails(bool v) async {
+    _showVideoThumbnails = v;
     _scheduleSave();
     notifyListeners();
   }

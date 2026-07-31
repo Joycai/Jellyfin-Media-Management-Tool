@@ -29,6 +29,12 @@ dependencies:
   media_kit: ^1.2.3
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
+  # Video thumbnails in the file table. Native decoders per platform
+  # (AVFoundation / Media Foundation / FFmpeg on Linux) — see ThumbnailService.
+  fc_native_video_thumbnail: ^3.0.1
+  # sha1 for thumbnail cache keys (already in the tree transitively; declared
+  # directly because we import it).
+  crypto: ^3.0.6
   # Native window control (minimum window size).
   window_manager: ^0.5.2
   # Unzipping downloaded font packages (HarmonyOS Sans / MiSans).

@@ -932,6 +932,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only suggest (don\'t auto-apply) when confidence < 60%';
 
   @override
+  String get behaviorVideoThumbnails =>
+      'Show video thumbnails in the file list';
+
+  @override
   String get privacyStorage => 'Local storage';
 
   @override
@@ -941,6 +945,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String privacyClearHistory(Object count) {
     return 'Undo all $count entries';
+  }
+
+  @override
+  String privacyClearThumbnails(Object size) {
+    return 'Clear thumbnail cache ($size)';
   }
 
   @override

@@ -14,6 +14,7 @@ import '../../utils/format.dart';
 import '../dialogs/preview_dialog.dart';
 import '../glass/glass_panel.dart';
 import 'file_context_menu.dart';
+import 'file_thumbnail.dart';
 
 /// Center pane: breadcrumb + actions, the file table with AI-suggestion and
 /// confidence columns, and a status footer.
@@ -73,6 +74,12 @@ class MediaTable extends StatelessWidget {
       }
     }
 
+    // Read once here rather than per row so toggling the setting doesn't
+    // subscribe every visible _FileRow to SettingsService.
+    final showThumbnails = context.select<SettingsService, bool>(
+      (s) => s.showVideoThumbnails,
+    );
+
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassPanel(
@@ -119,7 +126,9 @@ class MediaTable extends StatelessWidget {
                           ? p.relative(file.path, from: base)
                           : null;
                       return _FileRow(
+                        key: ValueKey(file.path),
                         entry: file,
+                        showThumbnail: showThumbnails,
                         action: rel != null ? actionBySource[rel] : null,
                         selected: browser.selectedFile?.path == file.path,
                         checked: browser.isSelected(file.path),
@@ -348,15 +357,18 @@ class _FileRow extends StatefulWidget {
   final OrganizeAction? action;
   final bool selected;
   final bool checked;
+  final bool showThumbnail;
   final VoidCallback onCheck;
   final VoidCallback onTap;
   final VoidCallback onDoubleTap;
 
   const _FileRow({
+    super.key,
     required this.entry,
     required this.action,
     required this.selected,
     required this.checked,
+    required this.showThumbnail,
     required this.onCheck,
     required this.onTap,
     required this.onDoubleTap,
@@ -478,18 +490,11 @@ class _FileRowState extends State<_FileRow> {
                       flex: 32,
                       child: Row(
                         children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: iconColor.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                            child: Icon(
-                              FileLabelService.getIcon(label, isDir),
-                              size: 18,
-                              color: iconColor,
-                            ),
+                          FileThumbnail(
+                            entry: entry,
+                            label: label,
+                            iconColor: iconColor,
+                            enabled: widget.showThumbnail,
                           ),
                           const SizedBox(width: 12),
                           Expanded(

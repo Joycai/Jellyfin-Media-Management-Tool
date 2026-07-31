@@ -925,6 +925,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get behaviorLowConfSuggest => '置信度低于 60% 时仅建议、不自动应用';
 
   @override
+  String get behaviorVideoThumbnails => '在文件列表中显示视频缩略图';
+
+  @override
   String get privacyStorage => '本地存储';
 
   @override
@@ -933,6 +936,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String privacyClearHistory(Object count) {
     return '撤销全部 $count 条记录';
+  }
+
+  @override
+  String privacyClearThumbnails(Object size) {
+    return '清除缩略图缓存（$size）';
   }
 
   @override
