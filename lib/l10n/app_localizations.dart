@@ -1748,17 +1748,125 @@ abstract class AppLocalizations {
   /// **'Clear thumbnail cache ({size})'**
   String privacyClearThumbnails(Object size);
 
+  /// No description provided for @shortcutGroupNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation'**
+  String get shortcutGroupNavigation;
+
+  /// No description provided for @shortcutGroupSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection'**
+  String get shortcutGroupSelection;
+
+  /// No description provided for @shortcutGroupFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get shortcutGroupFiles;
+
+  /// No description provided for @shortcutGroupApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get shortcutGroupApp;
+
+  /// No description provided for @shortcutsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcuts are inactive while you are typing in a text field, except for search.'**
+  String get shortcutsHint;
+
   /// No description provided for @shortcutSearch.
   ///
   /// In en, this message translates to:
   /// **'Focus search'**
   String get shortcutSearch;
 
-  /// No description provided for @shortcutCloseDialog.
+  /// No description provided for @shortcutParentFolder.
   ///
   /// In en, this message translates to:
-  /// **'Close dialog'**
-  String get shortcutCloseDialog;
+  /// **'Go to parent folder'**
+  String get shortcutParentFolder;
+
+  /// No description provided for @shortcutOpenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a folder'**
+  String get shortcutOpenFolder;
+
+  /// No description provided for @shortcutRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the file list'**
+  String get shortcutRefresh;
+
+  /// No description provided for @shortcutSectionFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Files'**
+  String get shortcutSectionFiles;
+
+  /// No description provided for @shortcutSectionLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Library'**
+  String get shortcutSectionLibrary;
+
+  /// No description provided for @shortcutSectionTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Tasks'**
+  String get shortcutSectionTasks;
+
+  /// No description provided for @shortcutSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select every visible file'**
+  String get shortcutSelectAll;
+
+  /// No description provided for @shortcutEscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Close dialog · clear search or selection'**
+  String get shortcutEscape;
+
+  /// No description provided for @shortcutRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename the focused file'**
+  String get shortcutRename;
+
+  /// No description provided for @shortcutDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the selection'**
+  String get shortcutDelete;
+
+  /// No description provided for @shortcutOrganize.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize with AI'**
+  String get shortcutOrganize;
+
+  /// No description provided for @shortcutToggleFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin or unpin the current folder'**
+  String get shortcutToggleFavorite;
+
+  /// No description provided for @shortcutHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation history'**
+  String get shortcutHistory;
+
+  /// No description provided for @shortcutSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get shortcutSettings;
 
   /// No description provided for @aboutTagline.
   ///

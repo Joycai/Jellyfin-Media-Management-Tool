@@ -77,9 +77,12 @@ Future<void> showFileContextMenu(
     case _MenuAction.preview:
       await PreviewDialog.show(context, entry);
     case _MenuAction.rename:
-      await _rename(context, entry);
+      await renameEntry(context, entry);
     case _MenuAction.delete:
-      await _delete(context, multiDelete ? browser.selectedEntries : [entry]);
+      await deleteEntries(
+        context,
+        multiDelete ? browser.selectedEntries : [entry],
+      );
     case _MenuAction.properties:
       await _showProperties(context, entry);
     case _MenuAction.reveal:
@@ -106,7 +109,9 @@ PopupMenuItem<_MenuAction> _item(
   );
 }
 
-Future<void> _rename(BuildContext context, FileEntry entry) async {
+/// Prompts for a new name and renames [entry] in place. Shared by the context
+/// menu and the F2 shortcut.
+Future<void> renameEntry(BuildContext context, FileEntry entry) async {
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
   final browser = context.read<FileBrowserService>();
@@ -142,7 +147,14 @@ Future<void> _rename(BuildContext context, FileEntry entry) async {
   }
 }
 
-Future<void> _delete(BuildContext context, List<FileEntry> entries) async {
+/// Confirms, then deletes every entry in [entries], reporting a count rather
+/// than aborting on the first failure. Shared by the context menu and the
+/// Delete shortcut. A no-op for an empty list.
+Future<void> deleteEntries(
+  BuildContext context,
+  List<FileEntry> entries,
+) async {
+  if (entries.isEmpty) return;
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
   final browser = context.read<FileBrowserService>();

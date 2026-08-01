@@ -120,6 +120,19 @@ class FileBrowserService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Select-all: replaces the selection with every entry in [visible] (the
+  /// UI's filtered/sorted list, not [files], so it honors an active search).
+  void selectAll(Iterable<FileEntry> visible) {
+    final paths = visible.map((e) => e.path).toList();
+    if (paths.isEmpty) return;
+    _selectedPaths
+      ..clear()
+      ..addAll(paths);
+    _selectedFile ??= visible.first;
+    _anchorPath = paths.first;
+    notifyListeners();
+  }
+
   void clearSelection() {
     if (_selectedPaths.isEmpty && _selectedFile == null) return;
     _selectedPaths.clear();

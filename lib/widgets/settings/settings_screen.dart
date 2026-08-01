@@ -11,6 +11,7 @@ import '../../services/font_service.dart';
 import '../../services/history_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/thumbnail_service.dart';
+import '../../shortcuts/app_shortcuts.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import 'ai_services_screen.dart';
@@ -44,7 +45,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   _Section _section = _Section.appearance;
 
-  static const String _appVersion = '0.11.0';
+  static const String _appVersion = '0.12.0';
 
   @override
   Widget build(BuildContext context) {
@@ -1348,64 +1349,116 @@ class _ClearThumbnailCacheButtonState
 
 // ── Shortcuts section ───────────────────────────────────────────────────────
 
+/// Rendered entirely from [appShortcuts] so this page can never disagree with
+/// what is actually bound. Adding a shortcut there adds a row here.
 class _ShortcutsSection extends StatelessWidget {
   const _ShortcutsSection();
+
+  String _groupLabel(AppLocalizations l10n, AppShortcutGroup group) =>
+      switch (group) {
+        AppShortcutGroup.navigation => l10n.shortcutGroupNavigation,
+        AppShortcutGroup.selection => l10n.shortcutGroupSelection,
+        AppShortcutGroup.files => l10n.shortcutGroupFiles,
+        AppShortcutGroup.app => l10n.shortcutGroupApp,
+      };
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final entries = [
-      ('⌘K / Ctrl K', l10n.shortcutSearch),
-      ('Esc', l10n.shortcutCloseDialog),
-    ];
+    final scheme = Theme.of(context).colorScheme;
+    final all = appShortcuts();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
       children: [
         _SectionTitle(l10n.secShortcuts),
-        _Card(
-          child: Column(
-            children: [
-              for (var i = 0; i < entries.length; i++) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          entries[i].$1,
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          entries[i].$2,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (i != entries.length - 1) _Divider(),
-              ],
-            ],
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Text(
+            l10n.shortcutsHint,
+            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
           ),
         ),
+        for (final group in AppShortcutGroup.values) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 6, 0, 8),
+            child: Text(
+              _groupLabel(l10n, group),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          _Card(
+            child: Column(
+              children: [
+                for (final (i, shortcut)
+                    in all.where((s) => s.group == group).indexed) ...[
+                  if (i != 0) _Divider(),
+                  _ShortcutRow(shortcut: shortcut),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
       ],
+    );
+  }
+}
+
+class _ShortcutRow extends StatelessWidget {
+  final AppShortcut shortcut;
+  const _ShortcutRow({required this.shortcut});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          // Every accepted alias is shown, not just the primary — an alias the
+          // user can't discover may as well not exist.
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              for (final activator in shortcut.activators)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.onSurface.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    formatActivator(activator),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              shortcut.describe(l10n),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
