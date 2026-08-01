@@ -30,6 +30,20 @@ class MediaTable extends StatelessWidget {
     required this.onPickFolder,
   });
 
+  /// The rows actually rendered for [searchQuery] — the same list the
+  /// select-all shortcut acts on, which is why it lives here rather than
+  /// inline in [build].
+  static List<FileEntry> visibleFiles(
+    List<FileEntry> files,
+    String searchQuery,
+  ) {
+    final query = searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return files;
+    return files
+        .where((f) => p.basename(f.path).toLowerCase().contains(query))
+        .toList();
+  }
+
   static String localizedType(AppLocalizations l10n, String label, bool isDir) {
     if (isDir) return l10n.typeFolder;
     return switch (label) {
@@ -57,12 +71,7 @@ class MediaTable extends StatelessWidget {
       );
     }
 
-    final query = searchQuery.trim().toLowerCase();
-    final files = query.isEmpty
-        ? browser.files
-        : browser.files
-              .where((f) => p.basename(f.path).toLowerCase().contains(query))
-              .toList();
+    final files = visibleFiles(browser.files, searchQuery);
 
     // Index plan actions by their folder-relative source path for quick lookup.
     final actionBySource = <String, OrganizeAction>{};

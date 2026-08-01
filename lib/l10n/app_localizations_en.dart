@@ -953,10 +953,65 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get shortcutGroupNavigation => 'Navigation';
+
+  @override
+  String get shortcutGroupSelection => 'Selection';
+
+  @override
+  String get shortcutGroupFiles => 'Files';
+
+  @override
+  String get shortcutGroupApp => 'Application';
+
+  @override
+  String get shortcutsHint =>
+      'Shortcuts are inactive while you are typing in a text field, except for search.';
+
+  @override
   String get shortcutSearch => 'Focus search';
 
   @override
-  String get shortcutCloseDialog => 'Close dialog';
+  String get shortcutParentFolder => 'Go to parent folder';
+
+  @override
+  String get shortcutOpenFolder => 'Open a folder';
+
+  @override
+  String get shortcutRefresh => 'Refresh the file list';
+
+  @override
+  String get shortcutSectionFiles => 'Go to Files';
+
+  @override
+  String get shortcutSectionLibrary => 'Go to Library';
+
+  @override
+  String get shortcutSectionTasks => 'Go to Tasks';
+
+  @override
+  String get shortcutSelectAll => 'Select every visible file';
+
+  @override
+  String get shortcutEscape => 'Close dialog · clear search or selection';
+
+  @override
+  String get shortcutRename => 'Rename the focused file';
+
+  @override
+  String get shortcutDelete => 'Delete the selection';
+
+  @override
+  String get shortcutOrganize => 'Organize with AI';
+
+  @override
+  String get shortcutToggleFavorite => 'Pin or unpin the current folder';
+
+  @override
+  String get shortcutHistory => 'Operation history';
+
+  @override
+  String get shortcutSettings => 'Settings';
 
   @override
   String get aboutTagline => 'AI-driven media organizer for Jellyfin.';

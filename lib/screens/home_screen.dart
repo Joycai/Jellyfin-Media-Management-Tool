@@ -1,6 +1,5 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -9,9 +8,11 @@ import '../services/ai_service.dart';
 import '../services/file_browser_service.dart';
 import '../services/settings_service.dart';
 import '../services/task_service.dart';
+import '../shortcuts/app_shortcuts.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ai/ai_assistant_panel.dart';
 import '../widgets/dialogs/title_hint_dialog.dart';
+import '../widgets/file_browser/file_context_menu.dart';
 import '../widgets/file_browser/media_table.dart';
 import '../widgets/ai/organize_history_screen.dart';
 import '../widgets/glass/glass_panel.dart';
@@ -34,10 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String _search = '';
   _Section _section = _Section.files;
   final _searchFocus = FocusNode();
+  final _searchController = TextEditingController();
 
   @override
   void dispose() {
     _searchFocus.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -102,30 +105,111 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // Bindings and their descriptions live in lib/shortcuts/app_shortcuts.dart;
+  // this only supplies the callbacks. Ids with no entry here stay unbound.
+
+  /// Shortcuts that act on the file table are no-ops outside the Files tab.
+  bool get _onFiles => _section == _Section.files;
+
+  void _selectAll() {
+    if (!_onFiles) return;
+    final browser = context.read<FileBrowserService>();
+    browser.selectAll(MediaTable.visibleFiles(browser.files, _search));
+  }
+
+  /// Esc unwinds one layer at a time: an active search first, then focus, then
+  /// the selection. (A dialog on top would have consumed the key before us.)
+  void _escape() {
+    if (_search.isNotEmpty) {
+      _searchController.clear();
+      setState(() => _search = '');
+      return;
+    }
+    if (_searchFocus.hasFocus) {
+      _searchFocus.unfocus();
+      return;
+    }
+    context.read<FileBrowserService>().clearSelection();
+  }
+
+  Future<void> _renameFocused() async {
+    if (!_onFiles) return;
+    final entry = context.read<FileBrowserService>().selectedFile;
+    if (entry == null) return;
+    await renameEntry(context, entry);
+  }
+
+  Future<void> _deleteSelection() async {
+    if (!_onFiles) return;
+    final browser = context.read<FileBrowserService>();
+    // Mirrors the context menu: an explicit multi-selection wins, otherwise
+    // the focused row.
+    final targets = browser.selectedEntries.isNotEmpty
+        ? browser.selectedEntries
+        : [if (browser.selectedFile != null) browser.selectedFile!];
+    await deleteEntries(context, targets);
+  }
+
+  void _toggleFavorite() {
+    if (!_onFiles) return;
+    final dir = context.read<FileBrowserService>().currentDirectory;
+    if (dir == null) return;
+    context.read<SettingsService>().toggleFavorite(dir);
+  }
+
+  Map<AppShortcutId, VoidCallback> _shortcutHandlers() {
+    final browser = context.read<FileBrowserService>();
+    return {
+      AppShortcutId.focusSearch: _searchFocus.requestFocus,
+      AppShortcutId.refresh: browser.refresh,
+      AppShortcutId.parentFolder: browser.goToParent,
+      AppShortcutId.openFolder: _pickFolder,
+      AppShortcutId.selectAll: _selectAll,
+      AppShortcutId.escape: _escape,
+      AppShortcutId.rename: _renameFocused,
+      AppShortcutId.delete: _deleteSelection,
+      AppShortcutId.organize: _organize,
+      AppShortcutId.toggleFavorite: _toggleFavorite,
+      AppShortcutId.history: () => OrganizeHistoryScreen.show(context),
+      AppShortcutId.settings: () => SettingsScreen.show(context),
+      AppShortcutId.sectionFiles: () =>
+          setState(() => _section = _Section.files),
+      AppShortcutId.sectionLibrary: () =>
+          setState(() => _section = _Section.library),
+      AppShortcutId.sectionTasks: () =>
+          setState(() => _section = _Section.tasks),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final glass = Theme.of(context).extension<GlassTheme>()!;
 
     return Scaffold(
       body: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
-              _searchFocus.requestFocus(),
-          const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
-              _searchFocus.requestFocus(),
-        },
-        child: Container(
-          decoration: BoxDecoration(gradient: glass.backdrop),
-          child: Column(
-            children: [
-              _Header(
-                section: _section,
-                onSection: (s) => setState(() => _section = s),
-                searchFocus: _searchFocus,
-                onSearch: (v) => setState(() => _search = v),
-              ),
-              Expanded(child: _body()),
-            ],
+        bindings: buildShortcutBindings(_shortcutHandlers()),
+        // Shortcuts are dispatched up the focus chain, so without a focused
+        // node inside this subtree nothing reaches CallbackShortcuts and every
+        // binding is dead until the user clicks something. skipTraversal keeps
+        // this scope holder out of the Tab order.
+        child: Focus(
+          autofocus: true,
+          skipTraversal: true,
+          child: Container(
+            decoration: BoxDecoration(gradient: glass.backdrop),
+            child: Column(
+              children: [
+                _Header(
+                  section: _section,
+                  onSection: (s) => setState(() => _section = s),
+                  searchFocus: _searchFocus,
+                  searchController: _searchController,
+                  onSearch: (v) => setState(() => _search = v),
+                ),
+                Expanded(child: _body()),
+              ],
+            ),
           ),
         ),
       ),
@@ -167,12 +251,14 @@ class _Header extends StatelessWidget {
   final _Section section;
   final ValueChanged<_Section> onSection;
   final FocusNode searchFocus;
+  final TextEditingController searchController;
   final ValueChanged<String> onSearch;
 
   const _Header({
     required this.section,
     required this.onSection,
     required this.searchFocus,
+    required this.searchController,
     required this.onSearch,
   });
 
@@ -266,6 +352,7 @@ class _Header extends StatelessWidget {
                   height: 36,
                   child: TextField(
                     focusNode: searchFocus,
+                    controller: searchController,
                     onChanged: onSearch,
                     decoration: InputDecoration(
                       isDense: true,
@@ -281,7 +368,7 @@ class _Header extends StatelessWidget {
                       suffixIcon: Padding(
                         padding: const EdgeInsets.only(right: 10),
                         child: Text(
-                          '⌘K',
+                          shortcutLabel(AppShortcutId.focusSearch),
                           style: TextStyle(
                             fontSize: 12,
                             color: scheme.onSurfaceVariant,
@@ -296,7 +383,8 @@ class _Header extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: l10n.historyTitle,
+            tooltip:
+                '${l10n.historyTitle}  ${shortcutLabel(AppShortcutId.history)}',
             onPressed: () => OrganizeHistoryScreen.show(context),
             icon: const Icon(Icons.history_rounded),
             style: IconButton.styleFrom(
@@ -305,7 +393,7 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            tooltip: l10n.refresh,
+            tooltip: '${l10n.refresh}  ${shortcutLabel(AppShortcutId.refresh)}',
             onPressed: context.read<FileBrowserService>().refresh,
             icon: const Icon(Icons.refresh_rounded),
             style: IconButton.styleFrom(
@@ -314,7 +402,8 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            tooltip: l10n.settings,
+            tooltip:
+                '${l10n.settings}  ${shortcutLabel(AppShortcutId.settings)}',
             onPressed: () => SettingsScreen.show(context),
             icon: const Icon(Icons.settings_outlined),
             style: IconButton.styleFrom(

@@ -944,10 +944,64 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get shortcutGroupNavigation => '导航';
+
+  @override
+  String get shortcutGroupSelection => '选择';
+
+  @override
+  String get shortcutGroupFiles => '文件';
+
+  @override
+  String get shortcutGroupApp => '应用';
+
+  @override
+  String get shortcutsHint => '在文本框中输入时快捷键不会触发（搜索快捷键除外）。';
+
+  @override
   String get shortcutSearch => '聚焦搜索';
 
   @override
-  String get shortcutCloseDialog => '关闭对话框';
+  String get shortcutParentFolder => '返回上级目录';
+
+  @override
+  String get shortcutOpenFolder => '打开文件夹';
+
+  @override
+  String get shortcutRefresh => '刷新文件列表';
+
+  @override
+  String get shortcutSectionFiles => '切换到「文件」';
+
+  @override
+  String get shortcutSectionLibrary => '切换到「媒体库」';
+
+  @override
+  String get shortcutSectionTasks => '切换到「任务」';
+
+  @override
+  String get shortcutSelectAll => '全选当前列表';
+
+  @override
+  String get shortcutEscape => '关闭对话框 · 清除搜索或选择';
+
+  @override
+  String get shortcutRename => '重命名当前文件';
+
+  @override
+  String get shortcutDelete => '删除选中项';
+
+  @override
+  String get shortcutOrganize => '使用 AI 整理';
+
+  @override
+  String get shortcutToggleFavorite => '收藏 / 取消收藏当前目录';
+
+  @override
+  String get shortcutHistory => '操作历史';
+
+  @override
+  String get shortcutSettings => '设置';
 
   @override
   String get aboutTagline => '面向 Jellyfin 的 AI 媒体整理工具。';
