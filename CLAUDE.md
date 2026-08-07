@@ -34,7 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Services
 
-Seven `ChangeNotifier`s are registered in `lib/main.dart`:
+Nine `ChangeNotifier`s are registered in `lib/main.dart`:
 
 | Service | Owns |
 |---|---|
@@ -45,6 +45,8 @@ Seven `ChangeNotifier`s are registered in `lib/main.dart`:
 | [task_service.dart](lib/services/task_service.dart) | The Tasks-tab list of running/finished analyze + apply tasks |
 | [history_service.dart](lib/services/history_service.dart) | Undo manifests under `undo/op-*.json`, 7-day retention |
 | [font_service.dart](lib/services/font_service.dart) | Optional downloadable CJK UI fonts (HarmonyOS Sans SC, MiSans) |
+| [recipe_store.dart](lib/services/scrape/recipe_store.dart) | Learned / user-edited scrape recipes → `scrapers.json`, plus per-recipe health counters |
+| [scrape_service.dart](lib/services/scrape/scrape_service.dart) | One scrape at a time: fetch → extract → merge plan → commit |
 
 [apply_controller.dart](lib/services/apply_controller.dart) is also a `ChangeNotifier` but is **not** registered — one instance is created per apply and owned by its `OrganizerTask`.
 
@@ -111,7 +113,13 @@ Cookies come from two places, in this order: the static string in a recipe (`old
 
 `NfoWriter` only replaces the elements in `managedElements`; anything else in an existing NFO (another scraper's tags, watch state, hand corrections) is copied through verbatim. `NfoMerge` produces the per-field keep/replace/merge plan, defaulting to **fill blanks automatically, keep conflicts** — adding information is safe, replacing it is a judgement call — and never lets an LLM-sourced value overwrite an existing one.
 
-Not wired into the UI yet: `ScrapeService` is not registered in `main.dart` and there is no dialog. `test/fixtures/giga_product_7743.html` is real (trimmed) markup and pins the two traps that page contains — duplicated `id` attributes, and folded/expanded copies of the same text where picking the wrong one yields a plausible but silently truncated result.
+The UI flow lives in [scrape_flow.dart](lib/widgets/scrape/scrape_flow.dart), shared by the context menu and the `Ctrl/⌘+M` shortcut the way `renameEntry` is: URL dialog → `TaskService.startScrape` → a SnackBar offering the review → `ScrapePreviewDialog` → `TaskService.startScrapeCommit`. **Only the commit task writes anything**; cancelling the preview leaves the disk untouched, exactly as in the organize pipeline.
+
+Scraping is single-target on purpose. Batch is a later phase, and `PageFetcher`'s per-host queue is serial, so a folder of 300 titles is a queue rather than a click.
+
+`test/fixtures/giga_product_7743.html` is real (trimmed) markup and pins the two traps that page contains — duplicated `id` attributes, and folded/expanded copies of the same text where picking the wrong one yields a plausible but silently truncated result.
+
+Not done yet: tier 3 (the LLM learning a recipe), batch scraping, and undo. **The preview's backup checkbox really copies a replaced NFO** into `<appSupport>/undo/blobs/scrape-<millis>/`, but nothing reads those blobs back — `HistoryService`'s manifest format only describes moves, so extending it with `created` / `restored` lists is what turns those copies into a working undo. `MetadataWriteResult` already exposes `createdPaths` and `restorablePaths` in the shape that needs.
 
 ### Persistence
 

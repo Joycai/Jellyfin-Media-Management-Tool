@@ -17,6 +17,8 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../models/media_metadata.dart';
 import '../../models/scrape_recipe.dart';
@@ -272,6 +274,27 @@ class ScrapeService extends ChangeNotifier {
       images: assets,
       backupDir: backupDir,
     );
+  }
+
+  /// A fresh directory under `<appSupport>/undo/blobs/` for one commit's
+  /// backups, or null when the app-support directory is unavailable.
+  ///
+  /// Lives here rather than on [MetadataWriter] because the writer may be
+  /// pointed at an injected in-memory filesystem in tests, while this is a real
+  /// on-disk location; the caller passes the result in as `backupDir`. A failure
+  /// is not fatal — it just means the commit runs without backups.
+  static Future<String?> newBackupDir() async {
+    try {
+      final support = await getApplicationSupportDirectory();
+      return p.join(
+        support.path,
+        'undo',
+        'blobs',
+        'scrape-${DateTime.now().millisecondsSinceEpoch}',
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   static String? _assetNamed(List<ImageAsset> assets, String stem) {

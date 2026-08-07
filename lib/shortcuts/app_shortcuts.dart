@@ -26,6 +26,7 @@ enum AppShortcutId {
   rename,
   delete,
   organize,
+  scrape,
   toggleFavorite,
   history,
   settings,
@@ -180,6 +181,15 @@ List<AppShortcut> appShortcuts({bool? isMac}) {
       group: AppShortcutGroup.files,
       activators: [cmd(LogicalKeyboardKey.enter)],
       describe: (l) => l.shortcutOrganize,
+      skipWhileTyping: true,
+    ),
+    AppShortcut(
+      id: AppShortcutId.scrape,
+      group: AppShortcutGroup.files,
+      // M for metadata. ⌘S/Ctrl+S carries a "save" expectation this action
+      // would not meet, and Ctrl+I is italics in every text field.
+      activators: [cmd(LogicalKeyboardKey.keyM)],
+      describe: (l) => l.shortcutScrape,
       skipWhileTyping: true,
     ),
     AppShortcut(

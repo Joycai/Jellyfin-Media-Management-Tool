@@ -1191,4 +1191,338 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tasksDismiss => '移除';
+
+  @override
+  String tasksScrapeLabel(Object target) {
+    return '刮削 · $target';
+  }
+
+  @override
+  String tasksScrapeCommitLabel(Object target) {
+    return '写入元数据 · $target';
+  }
+
+  @override
+  String get menuScrapeMetadata => '刮削元数据';
+
+  @override
+  String get shortcutScrape => '为当前项刮削元数据';
+
+  @override
+  String get scrapeUrlTitle => '刮削元数据';
+
+  @override
+  String scrapeUrlSubtitle(Object target) {
+    return '元数据将写入 $target 旁边';
+  }
+
+  @override
+  String get scrapeUrlLabel => '作品页地址';
+
+  @override
+  String get scrapeUrlHint => 'https://example.com/product/12345';
+
+  @override
+  String get scrapeUrlInvalid => '请填写完整地址，需包含 http:// 或 https://';
+
+  @override
+  String scrapeDetectedCode(Object code) {
+    return '识别到番号：$code';
+  }
+
+  @override
+  String scrapeSearchOnSite(Object site) {
+    return '在 $site 搜索';
+  }
+
+  @override
+  String get scrapePasteHtml => '改为直接粘贴页面 HTML';
+
+  @override
+  String get scrapePasteHtmlHint => '在此粘贴页面源码';
+
+  @override
+  String get scrapePasteNeedsUrl => '地址仍然必填 —— 粘贴的 HTML 里的相对链接要靠它来解析。';
+
+  @override
+  String get scrapeCookieBuiltIn => '该站点已内置访问 Cookie。';
+
+  @override
+  String get scrapeCookieMissing =>
+      '该站点未配置 Cookie。若抓取失败，可在「设置 → 刮削」里导入 cookies.txt。';
+
+  @override
+  String get scrapeStart => '开始刮削';
+
+  @override
+  String get scrapeStarted => '刮削已开始 —— 可在「任务」中查看进度';
+
+  @override
+  String scrapeFailed(Object error) {
+    return '刮削失败：$error';
+  }
+
+  @override
+  String get scrapeReady => '刮削完成 —— 请查看结果';
+
+  @override
+  String get scrapeReview => '查看';
+
+  @override
+  String get scrapeNoFolder => '请先打开一个文件夹';
+
+  @override
+  String get scrapeNoteSiteWideIgnored => '该站点每个页面都输出同一份 OpenGraph 数据，已忽略。';
+
+  @override
+  String get scrapeNoteNoRecipe => '没有匹配到该站点的配方 —— 只读取了页面自带的结构化数据。';
+
+  @override
+  String get scrapeNoteDegradedEncoding => '无法确定页面编码，部分文字可能是乱码。';
+
+  @override
+  String get scrapeNoteRecipeStale => '配方匹配上了但没抓到任何内容 —— 站点结构多半已经改版。';
+
+  @override
+  String get scrapePreviewTitle => '确认元数据';
+
+  @override
+  String scrapePreviewSubtitle(Object count, Object images) {
+    return '$count 个字段 · $images 张图';
+  }
+
+  @override
+  String get scrapeSource => '来源';
+
+  @override
+  String get scrapeRecipeName => '配方';
+
+  @override
+  String get scrapeRecipeNone => '无';
+
+  @override
+  String get scrapeColumnField => '字段';
+
+  @override
+  String get scrapeColumnExisting => '磁盘上的值';
+
+  @override
+  String get scrapeColumnScraped => '抓取到的值';
+
+  @override
+  String get scrapeColumnDecision => '处理方式';
+
+  @override
+  String get scrapeDecisionKeep => '保留';
+
+  @override
+  String get scrapeDecisionReplace => '覆盖';
+
+  @override
+  String get scrapeDecisionMerge => '合并';
+
+  @override
+  String get scrapePresetFillEmpty => '只补空缺';
+
+  @override
+  String get scrapePresetReplaceAll => '全部覆盖';
+
+  @override
+  String get scrapePresetKeepAll => '全部保留';
+
+  @override
+  String get scrapeOriginStructured => '页面数据';
+
+  @override
+  String get scrapeOriginRecipe => '配方';
+
+  @override
+  String get scrapeOriginLlm => 'AI 推测';
+
+  @override
+  String get scrapeOriginExisting => '已有 NFO';
+
+  @override
+  String get scrapeOriginManual => '手动修改';
+
+  @override
+  String get scrapeOriginDerived => '推导';
+
+  @override
+  String get scrapeNoChanges => '没有需要改动的内容 —— 磁盘上的 NFO 已经包含这些信息。';
+
+  @override
+  String get scrapeWriteBackup => '记录撤销信息（会备份被替换的 NFO）';
+
+  @override
+  String get scrapeTargetFolder => '目标文件夹';
+
+  @override
+  String get scrapeNfoFileName => 'NFO 文件名';
+
+  @override
+  String get scrapeWrite => '写入';
+
+  @override
+  String scrapeEditValue(Object field) {
+    return '编辑$field';
+  }
+
+  @override
+  String get scrapeImages => '图片';
+
+  @override
+  String get scrapeImagePoster => '封面';
+
+  @override
+  String get scrapeImageFanart => '背景';
+
+  @override
+  String scrapeImageExtra(Object index) {
+    return '样张 $index';
+  }
+
+  @override
+  String scrapeImageCount(Object count, Object total) {
+    return '已选 $count / $total';
+  }
+
+  @override
+  String get scrapeImageNone => '该页面没有提供图片。';
+
+  @override
+  String get scrapeCommitStarted => '正在写入元数据 —— 可在「任务」中查看进度';
+
+  @override
+  String scrapeWriteSucceeded(Object count) {
+    return '已写入 $count 个文件';
+  }
+
+  @override
+  String scrapeWritePartial(Object count, Object failed) {
+    return '已写入 $count 个文件 · $failed 个失败';
+  }
+
+  @override
+  String scrapeWriteFailed(Object error) {
+    return '没有写入任何内容：$error';
+  }
+
+  @override
+  String get fieldTitle => '标题';
+
+  @override
+  String get fieldOriginalTitle => '原始标题';
+
+  @override
+  String get fieldSortTitle => '排序标题';
+
+  @override
+  String get fieldCode => '番号';
+
+  @override
+  String get fieldPlot => '简介';
+
+  @override
+  String get fieldOutline => '短介绍';
+
+  @override
+  String get fieldTagline => '标语';
+
+  @override
+  String get fieldPremiered => '发行日期';
+
+  @override
+  String get fieldRuntime => '时长';
+
+  @override
+  String get fieldStudio => '制作商';
+
+  @override
+  String get fieldSeries => '系列';
+
+  @override
+  String get fieldDirector => '导演';
+
+  @override
+  String get fieldRating => '评分';
+
+  @override
+  String get fieldGenres => '类型';
+
+  @override
+  String get fieldTags => '标签';
+
+  @override
+  String get fieldActors => '演员';
+
+  @override
+  String get fieldPoster => '封面';
+
+  @override
+  String get fieldFanart => '背景图';
+
+  @override
+  String get fieldExtraFanart => '样张';
+
+  @override
+  String get secScraping => '刮削';
+
+  @override
+  String get settingsScrapeCookies => 'Cookie';
+
+  @override
+  String get settingsScrapeCookieWarning =>
+      '从浏览器导出的 cookies.txt 可能包含等同于登录态的会话凭证。Cookie 只保存在内存里，关闭应用即清空；浏览器里退出登录后也会失效，需要重新导入。';
+
+  @override
+  String get settingsScrapeImportCookies => '导入 cookies.txt';
+
+  @override
+  String get settingsScrapeClearCookies => '全部清除';
+
+  @override
+  String get settingsScrapeClearDomain => '清除';
+
+  @override
+  String get settingsScrapeCookieEmpty => '尚未导入 Cookie。';
+
+  @override
+  String settingsScrapeCookieCount(Object count) {
+    return '$count 条 Cookie';
+  }
+
+  @override
+  String settingsScrapeCookieImported(Object count) {
+    return '已导入 $count 条 Cookie';
+  }
+
+  @override
+  String get settingsScrapeCookieImportFailed => '该文件里没有可用的 Cookie';
+
+  @override
+  String get settingsScrapeRecipes => '站点配方';
+
+  @override
+  String get settingsScrapeRecipeBuiltin => '内置';
+
+  @override
+  String get settingsScrapeRecipeLearned => '学习';
+
+  @override
+  String get settingsScrapeRecipeUser => '手编';
+
+  @override
+  String get settingsScrapeRecipeRetired => '已退休';
+
+  @override
+  String get settingsScrapeRecipeDelete => '删除配方';
+
+  @override
+  String settingsScrapeRecipeHealth(Object count, Object failed) {
+    return '成功 $count · 失败 $failed';
+  }
+
+  @override
+  String get settingsScrapeRecipeAnyPath => '任意页面';
 }

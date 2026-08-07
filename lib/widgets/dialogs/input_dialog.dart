@@ -7,12 +7,17 @@ class InputDialog extends StatefulWidget {
   final String initialValue;
   final String actionLabel;
 
+  /// Above 1 the field grows into a text area and Enter inserts a newline
+  /// instead of confirming — a synopsis is several paragraphs long.
+  final int maxLines;
+
   const InputDialog({
     super.key,
     required this.title,
     required this.labelText,
     this.initialValue = '',
     required this.actionLabel,
+    this.maxLines = 1,
   });
 
   @override
@@ -40,14 +45,21 @@ class _InputDialogState extends State<InputDialog> {
 
     return AlertDialog(
       title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: widget.labelText,
-          border: const OutlineInputBorder(),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: TextField(
+          controller: _controller,
+          autofocus: true,
+          minLines: widget.maxLines > 1 ? 3 : null,
+          maxLines: widget.maxLines,
+          decoration: InputDecoration(
+            labelText: widget.labelText,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: widget.maxLines > 1
+              ? null
+              : (value) => Navigator.pop(context, value),
         ),
-        onSubmitted: (value) => Navigator.pop(context, value),
       ),
       actions: [
         TextButton(
