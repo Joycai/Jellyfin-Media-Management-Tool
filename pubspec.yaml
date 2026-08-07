@@ -39,6 +39,13 @@ dependencies:
   window_manager: ^0.5.2
   # Unzipping downloaded font packages (HarmonyOS Sans / MiSans).
   archive: ^4.0.9
+  # Metadata scraping: HTML5 parsing with CSS-selector queries for the
+  # recipe engine, and XML for reading/writing Jellyfin .nfo files.
+  # `xml` was already in the lock file transitively (via msix) at 6.6.1 —
+  # keep the caret on ^6, not ^7, or version solving fails the same way an
+  # `intl: ^0.20.3` would.
+  html: ^0.15.6
+  xml: ^6.6.1
 
 dev_dependencies:
   flutter_test:

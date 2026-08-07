@@ -88,6 +88,31 @@ It takes a `FileSystem` (package `file`) so tests can run against an in-memory F
 
 [history_service.dart](lib/services/history_service.dart) writes one JSON manifest per operation to `<appSupport>/undo/op-<millis>.json`. `undo()` reverses moves **in reverse order** (so child folders empty before parents), re-checks `PathSafety` against the manifest's `baseDir` as defense against tampering, and treats an already-present source as success. Full success deletes the manifest; **partial success rewrites it with only the unrecovered moves** so a retry makes progress. `refresh()` prunes manifests older than `retentionDays = 7` — that pruning is the entire implementation of the UI's 7-day promise. Note it does not remove directories the apply created.
 
+### Metadata scraping
+
+A second pipeline, parallel to organize and sharing only `AiProvider`. Point it at a product-page URL; it extracts title / code / synopsis / cast / artwork, shows a reviewable diff against any NFO already on disk, and only then writes. Design notes and the verified GIGA analysis are in [docs/spec/scrape-module-spec.md](docs/spec/scrape-module-spec.md) and [docs/spec/scrape-giga-recipe.md](docs/spec/scrape-giga-recipe.md).
+
+**It is deliberately not routed through `OrganizePlan`.** Only one plan exists app-wide and a second `analyzeFolder` nulls it, so a stray Organize click would discard metadata the user had not committed yet.
+
+Extraction is a four-tier ladder, cheapest first:
+
+1. `structured_data.dart` — JSON-LD / OpenGraph. Free, and **always validated by `isSiteWideTemplate` first**: plenty of sites emit one static OpenGraph block for the whole domain, and trusting it gives every title in a library identical metadata. A recipe can disable the tier outright with `skipStructuredData`.
+2. `recipe_applier.dart` — a declarative `ScrapeRecipe` (built-in, learned, or hand-edited). Free.
+3. LLM learns a recipe — **not implemented yet**.
+4. The user pastes page HTML (`ScrapeService.scrapeHtml`) — same pipeline from there on.
+
+`ScrapeRecipe` supports two extraction shapes. `fields` is one CSS selector per field; `keyValue` walks a `dl/dt/dd` table and maps the *label text* to a field. **Prefer `keyValue` where a page has one** — a label like `作品番号` survives a redesign that renames every CSS class. Selector lists are priority-ordered fallbacks, which is how "prefer the expanded synopsis over the truncated one" is expressed as data.
+
+`page_fetcher.dart` is the only code that talks to a scraped site: it owns encoding detection (`http`'s latin1 default mangles Japanese pages — see `html_decoding.dart`), the cookie header, `Referer` on image downloads, and a per-host request queue with a minimum interval.
+
+Cookies come from two places, in this order: the static string in a recipe (`old_check=yes` for GIGA's age gate — no login, no session, no expiry) and a user-imported Netscape `cookies.txt`. `CookieStore` is pure and in-memory; a browser export can contain a session ID equivalent to being logged in, so persisting it is an explicit decision for the owning service, guarded like `ai_profiles.json`.
+
+**`MetadataWriter` is the second filesystem chokepoint**, alongside `applyOrganizeAction`. It carries the same obligations (`PathSafety.isWithin` with `context:`, `path` package only, one failure never aborts the batch) but not the same contract — `applyOrganizeAction` relocates an existing file and refuses to clobber, this writes new content and sometimes must overwrite. **`backup` here really copies**, unlike everywhere else in the app: overwriting an NFO is not reversible by moving a file back.
+
+`NfoWriter` only replaces the elements in `managedElements`; anything else in an existing NFO (another scraper's tags, watch state, hand corrections) is copied through verbatim. `NfoMerge` produces the per-field keep/replace/merge plan, defaulting to **fill blanks automatically, keep conflicts** — adding information is safe, replacing it is a judgement call — and never lets an LLM-sourced value overwrite an existing one.
+
+Not wired into the UI yet: `ScrapeService` is not registered in `main.dart` and there is no dialog. `test/fixtures/giga_product_7743.html` is real (trimmed) markup and pins the two traps that page contains — duplicated `id` attributes, and folded/expanded copies of the same text where picking the wrong one yields a plausible but silently truncated result.
+
 ### Persistence
 
 Everything lives in the `path_provider` application-support directory, hand-rolled JSON in the owning service:
@@ -95,6 +120,7 @@ Everything lives in the `path_provider` application-support directory, hand-roll
 - `config.json` — settings (debounced 250ms, flushed on dispose)
 - `ai_profiles.json` — AI profiles and API keys, deliberately separate so a slider drag never rewrites keys
 - `sites.json` — custom search sites
+- `scrapers.json` — learned / user-edited scrape recipes (built-ins live in code)
 - `undo/op-*.json` — undo manifests
 - `thumbnails/*.jpg` — the thumbnail cache
 - `fonts/<id>/*.ttf` — downloaded UI fonts
@@ -139,6 +165,7 @@ Three persisted settings toggles — `autoConnectAi`, `alwaysShowPreview`, `lowC
 - New keyboard shortcuts go in `lib/shortcuts/app_shortcuts.dart` — do not add a bare `SingleActivator` in a widget.
 - Failures are reported via `ScaffoldMessenger`; batch operations report counts, not just the first error.
 - UI is Material 3; respect light/dark themes, the accent seed, and `GlassTheme`.
+- `xml` is pinned to `^6`, not `^7`: it was already in the lock file transitively via `msix` at 6.6.1, and a `^7` caret fails version solving the same way `intl: ^0.20.3` does.
 - No `freezed` / `json_serializable` / `build_runner` in this project — JSON is hand-rolled in the services. Don't introduce codegen without a reason.
 
 ## Platform-specific notes
