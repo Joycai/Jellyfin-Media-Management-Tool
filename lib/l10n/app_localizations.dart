@@ -2519,7 +2519,7 @@ abstract class AppLocalizations {
   /// No description provided for @scrapeWriteBackup.
   ///
   /// In en, this message translates to:
-  /// **'Record undo information (backs up any NFO being replaced)'**
+  /// **'Back up any NFO this replaces'**
   String get scrapeWriteBackup;
 
   /// No description provided for @scrapeTargetFolder.

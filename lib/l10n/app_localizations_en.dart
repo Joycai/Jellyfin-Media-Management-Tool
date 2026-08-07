@@ -1378,8 +1378,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing to change — the NFO on disk already says all of this.';
 
   @override
-  String get scrapeWriteBackup =>
-      'Record undo information (backs up any NFO being replaced)';
+  String get scrapeWriteBackup => 'Back up any NFO this replaces';
 
   @override
   String get scrapeTargetFolder => 'Target folder';

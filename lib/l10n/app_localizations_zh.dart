@@ -1352,7 +1352,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeNoChanges => '没有需要改动的内容 —— 磁盘上的 NFO 已经包含这些信息。';
 
   @override
-  String get scrapeWriteBackup => '记录撤销信息（会备份被替换的 NFO）';
+  String get scrapeWriteBackup => '备份被替换的 NFO';
 
   @override
   String get scrapeTargetFolder => '目标文件夹';
