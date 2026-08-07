@@ -40,6 +40,15 @@ class ImageSelection {
     extraFanart: <int>{},
   );
 
+  /// No artwork at all. The default for a folder-wide refresh: the images were
+  /// downloaded on the first scrape and re-fetching hundreds of them to write
+  /// identical bytes is pure cost.
+  static const none = ImageSelection(
+    poster: false,
+    fanart: false,
+    extraFanart: <int>{},
+  );
+
   Set<int> resolveExtra(int available) =>
       extraFanart ??
       {for (var i = 0; i < available && i < defaultExtraFanartCount; i++) i};

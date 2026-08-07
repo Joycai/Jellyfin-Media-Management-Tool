@@ -363,6 +363,18 @@
   "tasksScrapeCommitLabel": "Write metadata · {target}",
 
   "menuScrapeMetadata": "Scrape metadata",
+  "menuRescrapeFolder": "Refresh metadata in folder",
+  "batchScrapeTitle": "Refresh metadata",
+  "batchScrapeScanning": "Looking for titles to refresh…",
+  "batchScrapeFound": "{count} titles record where they were scraped from.",
+  "batchScrapeEmpty": "Nothing to refresh here. Only NFOs this app wrote record their source page, so titles scraped elsewhere have no URL to go back to.",
+  "batchScrapePolicy": "Each title is refreshed with the safe defaults: blanks are filled, existing values are kept, and lists are merged. There is no per-title review — use Scrape metadata on a single title for that.",
+  "batchScrapeArtwork": "Re-download artwork too",
+  "batchScrapeArtworkHint": "Off by default: the images were downloaded on the first scrape.",
+  "batchScrapeStart": "Refresh {count} titles",
+  "batchScrapeStarted": "Refreshing metadata — see Tasks for progress",
+  "batchScrapeDone": "Refreshed {count} titles",
+  "batchScrapePartial": "Refreshed {count} titles · {failed} failed",
   "shortcutScrape": "Scrape metadata for the focused item",
 
   "scrapeUrlTitle": "Scrape metadata",

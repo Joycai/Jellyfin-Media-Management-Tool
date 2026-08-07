@@ -187,6 +187,112 @@ void main() {
     });
   });
 
+  group('folder refresh', () {
+    /// An NFO carrying the provenance comment `NfoWriter` leaves behind.
+    String nfoWithSource(String title, String url) =>
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<movie><title>$title</title><!-- scraped from $url --></movie>';
+
+    test('finds only the NFOs that record where they came from', () async {
+      final fs = newMemoryFs();
+      seedFile(fs, '/work/a/a.nfo', contents: nfoWithSource('A', _url));
+      seedFile(fs, '/work/b/b.nfo', contents: nfoWithSource('B', _url));
+      // Written by some other tool: no source comment, so nothing to go back to.
+      seedFile(
+        fs,
+        '/work/c/c.nfo',
+        contents: '<movie><title>C</title></movie>',
+      );
+      seedFile(fs, '/work/d/notes.txt', contents: 'ignore me');
+      seedFile(fs, '/work/.hidden/h.nfo', contents: nfoWithSource('H', _url));
+
+      final targets = await _service(
+        _Site(),
+        fs: fs,
+      ).findRescrapeTargets('/work');
+
+      expect(targets.map((t) => t.title), containsAll(['A', 'B']));
+      expect(targets.map((t) => t.title), isNot(contains('C')));
+      expect(targets.map((t) => t.title), isNot(contains('H')));
+      expect(targets.first.sourceUrl, _url);
+    });
+
+    test('refreshes each title with the safe defaults', () async {
+      final fs = newMemoryFs();
+      seedFile(
+        fs,
+        '/work/a/a.nfo',
+        contents:
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<movie><title>My Own Title</title><playcount>7</playcount>'
+            '<!-- scraped from $_url --></movie>',
+      );
+      final service = _service(_Site(), fs: fs);
+      final targets = await service.findRescrapeTargets('/work');
+
+      final progress = <int>[];
+      final result = await service.rescrapeAll(
+        targets,
+        onProgress: (done, _) => progress.add(done),
+      );
+
+      expect(result.succeeded, 1);
+      expect(result.hasFailures, isFalse);
+      expect(progress, [1]);
+
+      final nfo = fs.file('/work/a/a.nfo').readAsStringSync();
+      // Conflict kept, blank filled, unmanaged element carried through.
+      expect(nfo, contains('My Own Title'));
+      expect(nfo, contains('<runtime>85</runtime>'));
+      expect(nfo, contains('<playcount>7</playcount>'));
+    });
+
+    test('downloads no artwork by default', () async {
+      final fs = newMemoryFs();
+      seedFile(fs, '/work/a/a.nfo', contents: nfoWithSource('A', _url));
+      final site = _Site();
+      final service = _service(site, fs: fs);
+
+      await service.rescrapeAll(await service.findRescrapeTargets('/work'));
+
+      // One request for the page, none for images.
+      expect(site.requests, hasLength(1));
+      expect(fs.file('/work/a/poster.jpg').existsSync(), isFalse);
+    });
+
+    test('one bad title does not sink the batch', () async {
+      final fs = newMemoryFs();
+      seedFile(fs, '/work/a/a.nfo', contents: nfoWithSource('A', _url));
+      seedFile(fs, '/work/b/b.nfo', contents: nfoWithSource('B', 'not-a-url'));
+      final service = _service(_Site(), fs: fs);
+
+      final result = await service.rescrapeAll(
+        await service.findRescrapeTargets('/work'),
+      );
+
+      expect(result.succeeded, 1);
+      expect(result.failed, 1);
+      expect(result.failures.keys.single, contains('b.nfo'));
+    });
+
+    test('collects undo bookkeeping across the whole batch', () async {
+      final fs = newMemoryFs();
+      seedFile(fs, '/work/a/a.nfo', contents: nfoWithSource('A', _url));
+      seedFile(fs, '/work/b/b.nfo', contents: nfoWithSource('B', _url));
+      final service = _service(_Site(), fs: fs);
+
+      final result = await service.rescrapeAll(
+        await service.findRescrapeTargets('/work'),
+        backupDir: '/undo/blobs/op-1',
+      );
+
+      // Both NFOs existed, so both are restorable rather than created — one
+      // manifest covers the operation the user thinks of as one action.
+      expect(result.restored, hasLength(2));
+      expect(result.created, isEmpty);
+    });
+  });
+
   group('scrapeHtml (paste fallback)', () {
     test(
       'takes the same path as a live fetch, with no network at all',

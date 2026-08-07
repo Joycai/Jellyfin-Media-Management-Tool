@@ -146,6 +146,40 @@ class MetadataWriter {
     return MetadataWriteResult(written: written, failures: failures);
   }
 
+  /// Every `.nfo` under [rootDir], deepest-last, capped at [limit].
+  ///
+  /// The cap mirrors the 400-file ceiling on the organize walk: a library root
+  /// picked by accident should come back with a big-but-finite list rather than
+  /// stalling on a network share. Dotfiles and dot-directories are skipped, as
+  /// they are everywhere else in the app.
+  Future<List<String>> findNfoFiles(String rootDir, {int limit = 400}) async {
+    final out = <String>[];
+    try {
+      final dir = fs.directory(rootDir);
+      if (!await dir.exists()) return out;
+      for (final entity in dir.listSync(recursive: true, followLinks: false)) {
+        if (out.length >= limit) break;
+        if (entity is! File) continue;
+        if (!fs.path.basename(entity.path).toLowerCase().endsWith('.nfo')) {
+          continue;
+        }
+        if (!PathSafety.isWithin(rootDir, entity.path, context: fs.path)) {
+          continue;
+        }
+        // Skip anything under a dot-segment, not just dot-named files: a
+        // `.git` or `.thumbnails` directory is exactly where a stray NFO
+        // should not drag the whole library into a refresh.
+        final relative = fs.path.relative(entity.path, from: rootDir);
+        if (fs.path.split(relative).any((s) => s.startsWith('.'))) continue;
+        out.add(entity.path);
+      }
+    } catch (_) {
+      // A folder we cannot list yields what we already found, not an error —
+      // one unreadable subdirectory must not sink a whole-library refresh.
+    }
+    return out;
+  }
+
   /// Reads the NFO already at `baseDir/nfoFileName`, or null when there is
   /// none (or it cannot be read).
   Future<String?> readExisting(String baseDir, String nfoFileName) async {

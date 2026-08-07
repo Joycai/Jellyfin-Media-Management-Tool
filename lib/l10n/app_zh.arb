@@ -363,6 +363,18 @@
   "tasksScrapeCommitLabel": "写入元数据 · {target}",
 
   "menuScrapeMetadata": "刮削元数据",
+  "menuRescrapeFolder": "刷新文件夹内的元数据",
+  "batchScrapeTitle": "刷新元数据",
+  "batchScrapeScanning": "正在查找可刷新的条目…",
+  "batchScrapeFound": "有 {count} 个条目记录了当初的来源页。",
+  "batchScrapeEmpty": "这里没有可刷新的内容。只有本应用写入的 NFO 才会记录来源页，别处刮削的条目没有可回溯的地址。",
+  "batchScrapePolicy": "每个条目都按安全默认值刷新：补空缺、保留已有值、列表合并。批量刷新不提供逐条确认 —— 需要逐条核对请对单个条目使用「刮削元数据」。",
+  "batchScrapeArtwork": "同时重新下载图片",
+  "batchScrapeArtworkHint": "默认关闭：图片在首次刮削时已经下载过了。",
+  "batchScrapeStart": "刷新 {count} 个条目",
+  "batchScrapeStarted": "正在刷新元数据 —— 可在「任务」中查看进度",
+  "batchScrapeDone": "已刷新 {count} 个条目",
+  "batchScrapePartial": "已刷新 {count} 个条目 · {failed} 个失败",
   "shortcutScrape": "为当前项刮削元数据",
 
   "scrapeUrlTitle": "刮削元数据",

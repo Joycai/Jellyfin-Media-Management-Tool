@@ -86,8 +86,29 @@ class NfoReader {
     // metadata pointing at a file name that `ImageDownloader` cannot fetch.
     // Artwork selection belongs to the preview, not to the field merge.
 
+    m.sourceUrl = _sourceUrl(root);
+
     return m;
   }
+
+  /// Recovers the `<!-- scraped from … -->` comment `NfoWriter` leaves behind.
+  ///
+  /// That comment exists so a later re-scrape can find the page again; reading
+  /// it back is what makes a folder-wide refresh possible without asking for
+  /// every URL a second time. A comment rather than an element because it is
+  /// our provenance, not something Jellyfin should ever try to interpret.
+  static String? _sourceUrl(XmlElement root) {
+    for (final node in root.children.whereType<XmlComment>()) {
+      final text = node.value.trim();
+      if (!text.startsWith(_sourceMarker)) continue;
+      final url = text.substring(_sourceMarker.length).trim();
+      if (url.isNotEmpty) return url;
+    }
+    return null;
+  }
+
+  /// Must match what `NfoWriter` emits.
+  static const _sourceMarker = 'scraped from ';
 
   static String? _text(XmlElement parent, String name) {
     final el = parent.getElement(name);

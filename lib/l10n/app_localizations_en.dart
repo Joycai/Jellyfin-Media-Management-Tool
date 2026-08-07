@@ -1241,6 +1241,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuScrapeMetadata => 'Scrape metadata';
 
   @override
+  String get menuRescrapeFolder => 'Refresh metadata in folder';
+
+  @override
+  String get batchScrapeTitle => 'Refresh metadata';
+
+  @override
+  String get batchScrapeScanning => 'Looking for titles to refresh…';
+
+  @override
+  String batchScrapeFound(Object count) {
+    return '$count titles record where they were scraped from.';
+  }
+
+  @override
+  String get batchScrapeEmpty =>
+      'Nothing to refresh here. Only NFOs this app wrote record their source page, so titles scraped elsewhere have no URL to go back to.';
+
+  @override
+  String get batchScrapePolicy =>
+      'Each title is refreshed with the safe defaults: blanks are filled, existing values are kept, and lists are merged. There is no per-title review — use Scrape metadata on a single title for that.';
+
+  @override
+  String get batchScrapeArtwork => 'Re-download artwork too';
+
+  @override
+  String get batchScrapeArtworkHint =>
+      'Off by default: the images were downloaded on the first scrape.';
+
+  @override
+  String batchScrapeStart(Object count) {
+    return 'Refresh $count titles';
+  }
+
+  @override
+  String get batchScrapeStarted =>
+      'Refreshing metadata — see Tasks for progress';
+
+  @override
+  String batchScrapeDone(Object count) {
+    return 'Refreshed $count titles';
+  }
+
+  @override
+  String batchScrapePartial(Object count, Object failed) {
+    return 'Refreshed $count titles · $failed failed';
+  }
+
+  @override
   String get shortcutScrape => 'Scrape metadata for the focused item';
 
   @override

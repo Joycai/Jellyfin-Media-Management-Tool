@@ -321,6 +321,64 @@ class TaskService extends ChangeNotifier {
     return task;
   }
 
+  /// Refreshes a whole folder's NFOs from the URLs they recorded.
+  ///
+  /// One task for the batch, one progress bar, one summary — the per-host
+  /// queue makes this genuinely serial, and a task per title would suggest
+  /// otherwise.
+  OrganizerTask startBatchScrape({
+    required ScrapeService scraper,
+    required String label,
+    required List<RescrapeTarget> targets,
+    ImageSelection images = ImageSelection.none,
+    String? backupDir,
+    required void Function(BatchScrapeResult) onDone,
+  }) {
+    final task = OrganizerTask(
+      id: newId(),
+      kind: TaskKind.scrapeCommit,
+      label: label,
+      startedAt: DateTime.now(),
+      cancelToken: AiCancelToken(),
+      progress: 0,
+    );
+    _tasks.insert(0, task);
+    notifyListeners();
+
+    unawaited(() async {
+      try {
+        final result = await scraper.rescrapeAll(
+          targets,
+          images: images,
+          backupDir: backupDir,
+          cancelToken: task.cancelToken,
+          onProgress: (done, total) {
+            task.progress = total == 0 ? 1 : done / total;
+            task.summary = '$done/$total';
+            notifyListeners();
+          },
+        );
+        task
+          ..status = TaskStatus.done
+          ..finishedAt = DateTime.now()
+          ..progress = 1
+          ..summary = _batchSummary(result);
+        notifyListeners();
+        onDone(result);
+        return;
+      } on AiCancelled {
+        _markStopped(task);
+      } catch (e) {
+        _markFailed(task, e);
+      } finally {
+        task.cancelToken?.dispose();
+      }
+      notifyListeners();
+    }());
+
+    return task;
+  }
+
   void _markStopped(OrganizerTask task) {
     task
       ..status = TaskStatus.stopped
@@ -400,6 +458,10 @@ class TaskService extends ChangeNotifier {
     final counts = '$fields fields · $images images';
     return code == null ? counts : '$code · $counts';
   }
+
+  String _batchSummary(BatchScrapeResult r) => r.hasFailures
+      ? '${r.succeeded} ok · ${r.failed} failed'
+      : '${r.succeeded} titles';
 
   String _writeSummary(MetadataWriteResult r) => r.hasFailures
       ? '${r.succeeded} ok · ${r.failed} failed'

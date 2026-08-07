@@ -2270,6 +2270,78 @@ abstract class AppLocalizations {
   /// **'Scrape metadata'**
   String get menuScrapeMetadata;
 
+  /// No description provided for @menuRescrapeFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh metadata in folder'**
+  String get menuRescrapeFolder;
+
+  /// No description provided for @batchScrapeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh metadata'**
+  String get batchScrapeTitle;
+
+  /// No description provided for @batchScrapeScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for titles to refresh…'**
+  String get batchScrapeScanning;
+
+  /// No description provided for @batchScrapeFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} titles record where they were scraped from.'**
+  String batchScrapeFound(Object count);
+
+  /// No description provided for @batchScrapeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to refresh here. Only NFOs this app wrote record their source page, so titles scraped elsewhere have no URL to go back to.'**
+  String get batchScrapeEmpty;
+
+  /// No description provided for @batchScrapePolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Each title is refreshed with the safe defaults: blanks are filled, existing values are kept, and lists are merged. There is no per-title review — use Scrape metadata on a single title for that.'**
+  String get batchScrapePolicy;
+
+  /// No description provided for @batchScrapeArtwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-download artwork too'**
+  String get batchScrapeArtwork;
+
+  /// No description provided for @batchScrapeArtworkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default: the images were downloaded on the first scrape.'**
+  String get batchScrapeArtworkHint;
+
+  /// No description provided for @batchScrapeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh {count} titles'**
+  String batchScrapeStart(Object count);
+
+  /// No description provided for @batchScrapeStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing metadata — see Tasks for progress'**
+  String get batchScrapeStarted;
+
+  /// No description provided for @batchScrapeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshed {count} titles'**
+  String batchScrapeDone(Object count);
+
+  /// No description provided for @batchScrapePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshed {count} titles · {failed} failed'**
+  String batchScrapePartial(Object count, Object failed);
+
   /// No description provided for @shortcutScrape.
   ///
   /// In en, this message translates to:

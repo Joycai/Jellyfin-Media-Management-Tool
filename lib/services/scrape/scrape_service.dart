@@ -94,6 +94,50 @@ class ScrapeResult {
   MediaMetadata get merged => NfoMerge.resolve(existing, scraped, mergePlan);
 }
 
+/// One NFO on disk that records where it was scraped from, and so can be
+/// refreshed without asking the user for the URL again.
+class RescrapeTarget {
+  final String targetDir;
+  final String nfoFileName;
+  final String sourceUrl;
+
+  /// Title as the NFO currently has it, for the confirmation list.
+  final String? title;
+
+  const RescrapeTarget({
+    required this.targetDir,
+    required this.nfoFileName,
+    required this.sourceUrl,
+    this.title,
+  });
+
+  String get label => title ?? nfoFileName;
+}
+
+/// What a folder-wide refresh did. Counts, not the first error — a batch that
+/// stops at the first bad page is worse than useless.
+class BatchScrapeResult {
+  final int succeeded;
+
+  /// NFO path -> what went wrong.
+  final Map<String, String> failures;
+
+  /// Undo bookkeeping merged across every title in the batch, so one manifest
+  /// covers the whole operation rather than one per title.
+  final List<String> created;
+  final Map<String, String> restored;
+
+  const BatchScrapeResult({
+    required this.succeeded,
+    required this.failures,
+    required this.created,
+    required this.restored,
+  });
+
+  int get failed => failures.length;
+  bool get hasFailures => failures.isNotEmpty;
+}
+
 class ScrapeService extends ChangeNotifier {
   final PageFetcher fetcher;
   final RecipeStore recipes;
@@ -318,6 +362,105 @@ class ScrapeService extends ChangeNotifier {
       nfoXml: xml,
       images: assets,
       backupDir: backupDir,
+    );
+  }
+
+  /// Every title under [rootDir] that can be refreshed without asking for a
+  /// URL — i.e. whose NFO still carries the `scraped from` comment this app
+  /// wrote.
+  ///
+  /// An NFO from another tool has no such comment and is simply not a
+  /// candidate; there is nothing to guess from and inventing a search would be
+  /// a different feature.
+  Future<List<RescrapeTarget>> findRescrapeTargets(
+    String rootDir, {
+    int limit = 400,
+  }) async {
+    final out = <RescrapeTarget>[];
+    for (final path in await writer.findNfoFiles(rootDir, limit: limit)) {
+      final dir = writer.fs.path.dirname(path);
+      final name = writer.fs.path.basename(path);
+      final xml = await writer.readExisting(dir, name);
+      if (xml == null) continue;
+      final existing = NfoReader.read(xml);
+      final url = existing?.sourceUrl;
+      if (url == null || url.isEmpty) continue;
+      out.add(
+        RescrapeTarget(
+          targetDir: dir,
+          nfoFileName: name,
+          sourceUrl: url,
+          title: existing?.title,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Refreshes every target in turn, applying each one's **default** merge
+  /// plan — blanks filled, conflicts kept, lists merged.
+  ///
+  /// There is no per-title preview here and that is the point: 300 dialogs is
+  /// not review, it is a fatigue test. The gate is the confirmation shown
+  /// before the batch starts, and the defaults are the conservative ones, so
+  /// the worst case is that a title gains information it was missing.
+  ///
+  /// Deliberately serial. `PageFetcher` enforces a per-host minimum interval
+  /// anyway, so parallelism here would only queue up inside the fetcher while
+  /// making the progress bar lie about what is happening.
+  Future<BatchScrapeResult> rescrapeAll(
+    List<RescrapeTarget> targets, {
+    ImageSelection images = ImageSelection.none,
+    String? backupDir,
+    AiCancelToken? cancelToken,
+    void Function(int done, int total)? onProgress,
+  }) async {
+    var succeeded = 0;
+    final failures = <String, String>{};
+    final created = <String>[];
+    final restored = <String, String>{};
+
+    for (var i = 0; i < targets.length; i++) {
+      final target = targets[i];
+      final path = writer.fs.path.join(target.targetDir, target.nfoFileName);
+      try {
+        cancelToken?.throwIfCancelled();
+        final result = await scrapeUrl(
+          target.sourceUrl,
+          targetDir: target.targetDir,
+          nfoFileName: target.nfoFileName,
+          cancelToken: cancelToken,
+        );
+        final written = await commit(
+          metadata: result.merged,
+          pageUrl: result.pageUrl,
+          targetDir: target.targetDir,
+          nfoFileName: target.nfoFileName,
+          recipe: result.recipe,
+          images: images,
+          backupDir: backupDir,
+          cancelToken: cancelToken,
+        );
+        created.addAll(written.createdPaths);
+        restored.addAll(written.restorablePaths);
+        if (written.hasFailures) {
+          failures[path] = written.failures.values.first;
+        } else {
+          succeeded++;
+        }
+      } on AiCancelled {
+        rethrow;
+      } catch (e) {
+        failures[path] = e.toString();
+      }
+      onProgress?.call(i + 1, targets.length);
+    }
+
+    return BatchScrapeResult(
+      succeeded: succeeded,
+      failures: failures,
+      created: created,
+      restored: restored,
     );
   }
 

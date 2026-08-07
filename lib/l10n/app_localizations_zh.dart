@@ -1222,6 +1222,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuScrapeMetadata => '刮削元数据';
 
   @override
+  String get menuRescrapeFolder => '刷新文件夹内的元数据';
+
+  @override
+  String get batchScrapeTitle => '刷新元数据';
+
+  @override
+  String get batchScrapeScanning => '正在查找可刷新的条目…';
+
+  @override
+  String batchScrapeFound(Object count) {
+    return '有 $count 个条目记录了当初的来源页。';
+  }
+
+  @override
+  String get batchScrapeEmpty =>
+      '这里没有可刷新的内容。只有本应用写入的 NFO 才会记录来源页，别处刮削的条目没有可回溯的地址。';
+
+  @override
+  String get batchScrapePolicy =>
+      '每个条目都按安全默认值刷新：补空缺、保留已有值、列表合并。批量刷新不提供逐条确认 —— 需要逐条核对请对单个条目使用「刮削元数据」。';
+
+  @override
+  String get batchScrapeArtwork => '同时重新下载图片';
+
+  @override
+  String get batchScrapeArtworkHint => '默认关闭：图片在首次刮削时已经下载过了。';
+
+  @override
+  String batchScrapeStart(Object count) {
+    return '刷新 $count 个条目';
+  }
+
+  @override
+  String get batchScrapeStarted => '正在刷新元数据 —— 可在「任务」中查看进度';
+
+  @override
+  String batchScrapeDone(Object count) {
+    return '已刷新 $count 个条目';
+  }
+
+  @override
+  String batchScrapePartial(Object count, Object failed) {
+    return '已刷新 $count 个条目 · $failed 个失败';
+  }
+
+  @override
   String get shortcutScrape => '为当前项刮削元数据';
 
   @override

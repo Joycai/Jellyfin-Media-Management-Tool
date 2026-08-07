@@ -127,13 +127,15 @@ Cookies come from two places, in this order: the static string in a recipe (`old
 
 The UI flow lives in [scrape_flow.dart](lib/widgets/scrape/scrape_flow.dart), shared by the context menu and the `Ctrl/⌘+M` shortcut the way `renameEntry` is: URL dialog → `TaskService.startScrape` → a SnackBar offering the review → `ScrapePreviewDialog` → `TaskService.startScrapeCommit`. **Only the commit task writes anything**; cancelling the preview leaves the disk untouched, exactly as in the organize pipeline.
 
-Scraping is single-target on purpose. Batch is a later phase, and `PageFetcher`'s per-host queue is serial, so a folder of 300 titles is a queue rather than a click.
+A **folder refresh** is the batch form, on a directory's context menu. It is deliberately *not* "scrape this whole folder from scratch": `NfoWriter` leaves a `<!-- scraped from … -->` comment and `NfoReader` reads it back, so a refresh re-fetches exactly the pages the app already knows about. An NFO from another tool has no such comment and is not a candidate — there is nothing to guess from, and inventing a per-site search would be a different feature.
+
+The batch applies each title's **default** merge plan (blanks filled, conflicts kept, lists merged) with no per-title diff: three hundred dialogs is a fatigue test, not review. The gate is the confirmation dialog, which states that policy, lists what will be touched, and lets rows be deselected. Artwork is off by default — the images landed on the first scrape. One manifest covers the whole batch, since that is the operation the user thinks they performed. `rescrapeAll` is serial on purpose: `PageFetcher` enforces a per-host interval anyway, so concurrency would only queue inside the fetcher while making the progress bar lie.
 
 `test/fixtures/giga_product_7743.html` is real (trimmed) markup and pins the two traps that page contains — duplicated `id` attributes, and folded/expanded copies of the same text where picking the wrong one yields a plausible but silently truncated result.
 
 The preview's backup checkbox gates both halves of undo: the real copies into `<appSupport>/undo/blobs/scrape-<millis>/` and the `HistoryService.recordScrape` manifest that says what to reverse. Unchecked means neither, so the write is not undoable — which is what the label says.
 
-Not done yet: batch scraping.
+Not done yet: the Library section (still the `_ComingSoon` placeholder), recipe import/export, and feeding a scraped title/year into `AiPrompt` as an organize hint.
 
 ### Persistence
 

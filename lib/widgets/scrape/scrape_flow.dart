@@ -22,6 +22,7 @@ import '../../services/scrape/recipe_learner.dart';
 import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/task_service.dart';
+import 'batch_scrape_dialog.dart';
 import 'scrape_preview_dialog.dart';
 import 'scrape_url_dialog.dart';
 
@@ -95,6 +96,64 @@ Future<void> startScrapeFlow(
           : SnackBarAction(label: l10n.tabTasks, onPressed: onShowTasks),
     ),
   );
+}
+
+/// Refreshes every title under [dir] whose NFO records where it came from.
+///
+/// The counterpart to [startScrapeFlow]: no URL is asked for because each NFO
+/// already carries one, and no per-title diff is shown because a batch cannot
+/// meaningfully offer one — the confirmation dialog is the gate.
+Future<void> startBatchScrapeFlow(
+  BuildContext context, {
+  required String dir,
+}) async {
+  final l10n = AppLocalizations.of(context)!;
+  final messenger = ScaffoldMessenger.of(context);
+  final tasks = context.read<TaskService>();
+  final scraper = context.read<ScrapeService>();
+  final history = context.read<HistoryService>();
+
+  final targets = await scraper.findRescrapeTargets(dir);
+  if (!context.mounted) return;
+
+  final decision = await showBatchScrapeDialog(context, targets: targets);
+  if (decision == null || decision.targets.isEmpty) return;
+
+  final backupDir = decision.backup ? await ScrapeService.newBackupDir() : null;
+
+  tasks.startBatchScrape(
+    scraper: scraper,
+    label: p.basename(dir),
+    targets: decision.targets,
+    images: decision.images,
+    backupDir: backupDir,
+    onDone: (result) {
+      if (decision.backup) {
+        // One manifest for the whole batch: the user thinks of this as a
+        // single operation, so undo should too.
+        unawaited(
+          history.recordScrape(
+            baseDir: dir,
+            created: result.created,
+            restored: result.restored,
+            backupDir: backupDir,
+          ),
+        );
+      }
+      if (!messenger.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result.hasFailures
+                ? l10n.batchScrapePartial(result.succeeded, result.failed)
+                : l10n.batchScrapeDone(result.succeeded),
+          ),
+        ),
+      );
+    },
+  );
+
+  messenger.showSnackBar(SnackBar(content: Text(l10n.batchScrapeStarted)));
 }
 
 /// Opens the preview and, if confirmed, starts the write task.
