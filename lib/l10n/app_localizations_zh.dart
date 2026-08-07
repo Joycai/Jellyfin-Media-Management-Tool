@@ -1300,6 +1300,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeNoteRecipeStale => '配方匹配上了但没抓到任何内容 —— 站点结构多半已经改版。';
 
   @override
+  String get scrapeNoteRecipeLearned =>
+      '该站点没有现成配方，已由 AI 生成一份。保存前请核对高亮的字段 —— 选择器选错时看起来完全正常，内容却可能被悄悄截断。';
+
+  @override
+  String get scrapeNoteRecipeLearningFailed =>
+      'AI 没能弄清这个页面的结构。可以改用粘贴页面 HTML 再试一次。';
+
+  @override
+  String scrapeSaveRecipe(Object domain) {
+    return '记住 $domain 的这份配方';
+  }
+
+  @override
+  String scrapeRecipeSaved(Object domain) {
+    return '已保存 $domain 的配方';
+  }
+
+  @override
   String get scrapePreviewTitle => '确认元数据';
 
   @override

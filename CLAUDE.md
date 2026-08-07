@@ -110,8 +110,10 @@ Extraction is a four-tier ladder, cheapest first:
 
 1. `structured_data.dart` — JSON-LD / OpenGraph. Free, and **always validated by `isSiteWideTemplate` first**: plenty of sites emit one static OpenGraph block for the whole domain, and trusting it gives every title in a library identical metadata. A recipe can disable the tier outright with `skipStructuredData`.
 2. `recipe_applier.dart` — a declarative `ScrapeRecipe` (built-in, learned, or hand-edited). Free.
-3. LLM learns a recipe — **not implemented yet**.
+3. `recipe_learner.dart` — the LLM writes a recipe. Only reached when tier 2 had no recipe to run and the caller passed a `RecipeLearner`, so a site with a working recipe never costs a token. `html_cleaner.dart` strips the page to a selector-only skeleton first (scripts, styling and most text gone; ~200 KB → 20–30 KB), and `scrape_prompt.dart` asks for **selectors, not content**, using the built-in GIGA recipe as its worked example so the few-shot can never drift from the schema the parser accepts. Every attempt is self-checked by running the new recipe against the same page; a shortfall is fed back for one retry, then it gives up.
 4. The user pastes page HTML (`ScrapeService.scrapeHtml`) — same pipeline from there on.
+
+**A learned recipe is never saved automatically.** `ScrapeService` returns it on `ScrapeResult.learnedRecipe` and only the preview dialog's confirmation puts it in `RecipeStore`. The reason is in [scrape-giga-recipe.md](docs/spec/scrape-giga-recipe.md) §2.3: GIGA's synopsis exists twice, folded and expanded, and a model that grabs the folded copy yields a recipe that runs, returns non-empty values and looks entirely healthy while storing truncated text for every title on the site. The self-check can only catch *empty* fields, never short ones — which is exactly why the decision has to be a human's. Everything the learned recipe extracted is stamped `FieldOrigin.llm` so the preview flags it in amber.
 
 `ScrapeRecipe` supports two extraction shapes. `fields` is one CSS selector per field; `keyValue` walks a `dl/dt/dd` table and maps the *label text* to a field. **Prefer `keyValue` where a page has one** — a label like `作品番号` survives a redesign that renames every CSS class. Selector lists are priority-ordered fallbacks, which is how "prefer the expanded synopsis over the truncated one" is expressed as data.
 
@@ -131,7 +133,7 @@ Scraping is single-target on purpose. Batch is a later phase, and `PageFetcher`'
 
 The preview's backup checkbox gates both halves of undo: the real copies into `<appSupport>/undo/blobs/scrape-<millis>/` and the `HistoryService.recordScrape` manifest that says what to reverse. Unchecked means neither, so the write is not undoable — which is what the label says.
 
-Not done yet: tier 3 (the LLM learning a recipe) and batch scraping.
+Not done yet: batch scraping.
 
 ### Persistence
 

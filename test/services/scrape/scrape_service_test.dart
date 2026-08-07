@@ -8,11 +8,14 @@ import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/metadata_writer.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_merge.dart';
+import 'package:jellyfin_media_management_tool/services/scrape/builtin_recipes.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/image_downloader.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/page_fetcher.dart';
+import 'package:jellyfin_media_management_tool/services/scrape/recipe_learner.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/recipe_store.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/scrape_service.dart';
 
+import '../../helpers/ai.dart';
 import '../../helpers/fs.dart';
 
 const _url = 'https://www.giga-web.jp/product/index.php?product_id=7743';
@@ -117,6 +120,70 @@ void main() {
         _service(_Site(), status: 503).scrapeUrl(_url),
         throwsA(isA<PageFetchException>()),
       );
+    });
+  });
+
+  group('tier 3 — the LLM learns a recipe', () {
+    // A host with no built-in recipe, served the same fixture markup.
+    const unknownUrl = 'https://unknown.example/product/index.php?id=1';
+
+    test('is not reached while a recipe already matches', () async {
+      final provider = ScriptedProvider([BuiltinRecipes.gigaWebJson]);
+      final result = await _service(
+        _Site(),
+      ).scrapeUrl(_url, learner: RecipeLearner(provider));
+
+      // The built-in GIGA recipe handles this page, so a healthy site never
+      // pays for a model call.
+      expect(provider.calls, 0);
+      expect(result.learnedRecipe, isNull);
+    });
+
+    test(
+      'runs when nothing matches, and does not save what it learns',
+      () async {
+        final recipes = RecipeStore();
+        final provider = ScriptedProvider([BuiltinRecipes.gigaWebJson]);
+        final service = ScrapeService(
+          fetcher: PageFetcher(client: _Site().client(), minIntervalMs: 0),
+          recipes: recipes,
+          writer: MetadataWriter(fs: newMemoryFs()),
+        );
+
+        final result = await service.scrapeUrl(
+          unknownUrl,
+          learner: RecipeLearner(provider),
+        );
+
+        expect(provider.calls, 1);
+        expect(result.learnedRecipe, isNotNull);
+        expect(result.scraped.code, 'SPSF-43');
+        expect(result.notes, contains(ScrapeNote.recipeLearned));
+        // The whole point: a recipe the model invented reaches the store only
+        // after a human confirms it in the preview.
+        expect(recipes.learned, isEmpty);
+      },
+    );
+
+    test('reports a note when the model cannot work the page out', () async {
+      final provider = ScriptedProvider([
+        '{"fields":{"title":{"selector":"#nope"}}}',
+      ]);
+      final result = await _service(
+        _Site(),
+      ).scrapeUrl(unknownUrl, learner: RecipeLearner(provider));
+
+      expect(provider.calls, RecipeLearner.maxAttempts);
+      expect(result.learnedRecipe, isNull);
+      expect(result.notes, contains(ScrapeNote.recipeLearningFailed));
+    });
+
+    test('stays on the free tiers when no learner is supplied', () async {
+      final result = await _service(_Site()).scrapeUrl(unknownUrl);
+
+      expect(result.learnedRecipe, isNull);
+      expect(result.notes, contains(ScrapeNote.noRecipe));
+      expect(result.notes, isNot(contains(ScrapeNote.recipeLearningFailed)));
     });
   });
 

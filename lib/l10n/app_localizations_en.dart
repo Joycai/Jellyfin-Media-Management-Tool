@@ -1325,6 +1325,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'The recipe matched but extracted nothing — the site has probably changed.';
 
   @override
+  String get scrapeNoteRecipeLearned =>
+      'No recipe existed for this site, so the AI wrote one. Check the highlighted values before saving it — a wrong selector can look perfectly healthy while quietly truncating text.';
+
+  @override
+  String get scrapeNoteRecipeLearningFailed =>
+      'The AI could not work out how to read this page. Paste the page HTML to try again.';
+
+  @override
+  String scrapeSaveRecipe(Object domain) {
+    return 'Remember this recipe for $domain';
+  }
+
+  @override
+  String scrapeRecipeSaved(Object domain) {
+    return 'Recipe saved for $domain';
+  }
+
+  @override
   String get scrapePreviewTitle => 'Review metadata';
 
   @override

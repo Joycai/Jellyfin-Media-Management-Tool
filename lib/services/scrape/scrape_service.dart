@@ -11,7 +11,9 @@
 ///   1. structured data the page publishes (JSON-LD / OpenGraph) — free, but
 ///      validated against [StructuredData.isSiteWideTemplate] first;
 ///   2. a recipe (learned, user-edited, or built in) — free;
-///   3. *(not yet implemented)* ask the LLM to learn a recipe;
+///   3. ask the LLM to learn a recipe, when a [RecipeLearner] is supplied and
+///      nothing matched. The result is **returned, never stored** — see
+///      [RecipeLearner] for why that has to be a human's call;
 ///   4. the user pastes the page HTML — always available via [scrapeHtml].
 library;
 
@@ -30,6 +32,7 @@ import '../metadata/nfo_writer.dart';
 import 'image_downloader.dart';
 import 'page_fetcher.dart';
 import 'recipe_applier.dart';
+import 'recipe_learner.dart';
 import 'recipe_store.dart';
 import 'structured_data.dart';
 
@@ -46,6 +49,12 @@ enum ScrapeNote {
 
   /// The recipe matched but produced nothing — it has probably gone stale.
   recipeProducedNothing,
+
+  /// No recipe existed, so the LLM wrote one. It is not saved yet.
+  recipeLearned,
+
+  /// The LLM was asked for a recipe and could not produce a working one.
+  recipeLearningFailed,
 }
 
 /// Everything the preview dialog needs.
@@ -66,6 +75,11 @@ class ScrapeResult {
   final ScrapeRecipe? recipe;
   final List<ScrapeNote> notes;
 
+  /// Set when tier 3 ran and produced something usable. **Not in
+  /// `RecipeStore`** — the preview offers to remember it, and only the user's
+  /// confirmation puts it there.
+  final ScrapeRecipe? learnedRecipe;
+
   const ScrapeResult({
     required this.scraped,
     required this.existing,
@@ -73,6 +87,7 @@ class ScrapeResult {
     required this.pageUrl,
     required this.recipe,
     required this.notes,
+    this.learnedRecipe,
   });
 
   /// Metadata as it would be written if the user changed nothing.
@@ -100,11 +115,14 @@ class ScrapeService extends ChangeNotifier {
   /// [targetDir] and [nfoFileName], when given, are used to read back an
   /// existing NFO so the result carries a real merge plan instead of assuming
   /// a clean slate.
+  /// [learner] enables tier 3 for pages no recipe matches; omit it to stay on
+  /// the free tiers.
   Future<ScrapeResult> scrapeUrl(
     String url, {
     String? targetDir,
     String? nfoFileName,
     AiCancelToken? cancelToken,
+    RecipeLearner? learner,
   }) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
@@ -126,6 +144,8 @@ class ScrapeService extends ChangeNotifier {
         degradedEncoding: page.degraded,
         targetDir: targetDir,
         nfoFileName: nfoFileName,
+        learner: learner,
+        cancelToken: cancelToken,
       );
     } finally {
       cancelToken?.dispose();
@@ -142,6 +162,8 @@ class ScrapeService extends ChangeNotifier {
     required String sourceUrl,
     String? targetDir,
     String? nfoFileName,
+    RecipeLearner? learner,
+    AiCancelToken? cancelToken,
   }) async {
     final uri = Uri.tryParse(sourceUrl.trim());
     if (uri == null || !uri.hasScheme) {
@@ -157,6 +179,8 @@ class ScrapeService extends ChangeNotifier {
       degradedEncoding: false,
       targetDir: targetDir,
       nfoFileName: nfoFileName,
+      learner: learner,
+      cancelToken: cancelToken,
     );
   }
 
@@ -167,6 +191,8 @@ class ScrapeService extends ChangeNotifier {
     required bool degradedEncoding,
     String? targetDir,
     String? nfoFileName,
+    RecipeLearner? learner,
+    AiCancelToken? cancelToken,
   }) async {
     final document = html_parser.parse(html);
     final notes = <ScrapeNote>[];
@@ -187,8 +213,26 @@ class ScrapeService extends ChangeNotifier {
 
     // Tier 2 — a recipe overrides structured data field by field, because a
     // selector aimed at this page beats a generic tag.
+    ScrapeRecipe? learned;
     if (recipe == null) {
       notes.add(ScrapeNote.noRecipe);
+      // Tier 3 — only reached when tier 2 had nothing to run, so a healthy
+      // site never pays for a model call.
+      if (learner != null) {
+        final result = await learner.learn(
+          html: html,
+          document: document,
+          pageUrl: pageUrl,
+          cancelToken: cancelToken,
+        );
+        if (result == null) {
+          notes.add(ScrapeNote.recipeLearningFailed);
+        } else {
+          learned = result.recipe;
+          notes.add(ScrapeNote.recipeLearned);
+          metadata.fillFrom(result.extracted, overwrite: true);
+        }
+      }
     } else {
       final fromRecipe = RecipeApplier.apply(document, recipe, pageUrl);
       if (fromRecipe.isEmpty) {
@@ -220,8 +264,9 @@ class ScrapeService extends ChangeNotifier {
       existing: existing,
       mergePlan: NfoMerge.suggest(existing, metadata),
       pageUrl: pageUrl,
-      recipe: recipe,
+      recipe: recipe ?? learned,
       notes: notes,
+      learnedRecipe: learned,
     );
   }
 

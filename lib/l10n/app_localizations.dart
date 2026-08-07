@@ -2408,6 +2408,30 @@ abstract class AppLocalizations {
   /// **'The recipe matched but extracted nothing — the site has probably changed.'**
   String get scrapeNoteRecipeStale;
 
+  /// No description provided for @scrapeNoteRecipeLearned.
+  ///
+  /// In en, this message translates to:
+  /// **'No recipe existed for this site, so the AI wrote one. Check the highlighted values before saving it — a wrong selector can look perfectly healthy while quietly truncating text.'**
+  String get scrapeNoteRecipeLearned;
+
+  /// No description provided for @scrapeNoteRecipeLearningFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI could not work out how to read this page. Paste the page HTML to try again.'**
+  String get scrapeNoteRecipeLearningFailed;
+
+  /// No description provided for @scrapeSaveRecipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember this recipe for {domain}'**
+  String scrapeSaveRecipe(Object domain);
+
+  /// No description provided for @scrapeRecipeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipe saved for {domain}'**
+  String scrapeRecipeSaved(Object domain);
+
   /// No description provided for @scrapePreviewTitle.
   ///
   /// In en, this message translates to:

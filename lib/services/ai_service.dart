@@ -55,7 +55,11 @@ class AiService extends ChangeNotifier {
   /// Recent per-request latencies (newest last), for the usage sparkline.
   List<int> get recentLatencies => List.unmodifiable(_latencies);
 
-  AiProvider _buildProvider() => switch (_config.provider) {
+  /// Builds a provider for the current config.
+  ///
+  /// Public because the scrape module's recipe learner needs one too, and
+  /// duplicating the provider/transport choice there would let the two drift.
+  AiProvider buildProvider() => switch (_config.provider) {
     AiProviderType.googleGenAi => GoogleGenAiProvider(_config),
     AiProviderType.openAi => OpenAiProvider(_config),
   };
@@ -106,7 +110,7 @@ class AiService extends ChangeNotifier {
     _statusMessage = null;
     notifyListeners();
     try {
-      final ok = await _buildProvider().testConnection();
+      final ok = await buildProvider().testConnection();
       _status = ok ? ConnectionStatus.connected : ConnectionStatus.error;
       _statusMessage = ok ? null : 'Unexpected response';
       notifyListeners();
@@ -154,7 +158,7 @@ class AiService extends ChangeNotifier {
         throw const AiException('No files to organize in this folder.');
       }
       final sw = Stopwatch()..start();
-      final response = await _buildProvider().complete(
+      final response = await buildProvider().complete(
         systemPrompt: AiPrompt.systemPrompt,
         userPrompt: AiPrompt.buildUserPrompt(
           folderName: p.basename(baseDir),

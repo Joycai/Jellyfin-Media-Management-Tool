@@ -13,10 +13,13 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
+import '../../services/ai_service.dart';
 import '../../services/file_label_service.dart';
 import '../../services/history_service.dart';
 import '../../services/metadata/metadata_writer.dart';
 import '../../services/scrape/media_code.dart';
+import '../../services/scrape/recipe_learner.dart';
+import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/task_service.dart';
 import 'scrape_preview_dialog.dart';
@@ -43,6 +46,7 @@ Future<void> startScrapeFlow(
   final messenger = ScaffoldMessenger.of(context);
   final tasks = context.read<TaskService>();
   final scraper = context.read<ScrapeService>();
+  final ai = context.read<AiService>();
 
   final where = _resolveTarget(target, baseDir);
 
@@ -60,6 +64,9 @@ Future<void> startScrapeFlow(
     pastedHtml: input.pastedHtml,
     targetDir: where.targetDir,
     nfoFileName: where.nfoFileName,
+    // Tier 3 is only offered when there is an endpoint to ask. Without one the
+    // ladder simply stops at tier 2 and the user falls back to pasting HTML.
+    learner: ai.isConfigured ? RecipeLearner(ai.buildProvider()) : null,
     onDone: (result) {
       // Fire-and-forget work: by now the user may be anywhere in the app, so
       // this offers the review rather than stealing focus with a dialog.
@@ -101,6 +108,7 @@ Future<void> _review(
   final tasks = context.read<TaskService>();
   final scraper = context.read<ScrapeService>();
   final history = context.read<HistoryService>();
+  final recipes = context.read<RecipeStore>();
 
   final decision = await showScrapePreviewDialog(
     context,
@@ -108,8 +116,20 @@ Future<void> _review(
     defaultTargetDir: where.targetDir,
     defaultNfoFileName: where.nfoFileName,
   );
-  // Cancelled: not one byte has been written, and none will be.
+  // Cancelled: not one byte has been written, and none will be — and a recipe
+  // the model just invented is discarded with it.
   if (decision == null) return;
+
+  // The only path from tier 3 into scrapers.json, and it runs after a human
+  // looked at what the recipe extracted.
+  final learned = result.learnedRecipe;
+  if (decision.saveRecipe && learned != null) {
+    await recipes.save(learned);
+    if (!messenger.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.scrapeRecipeSaved(learned.domain))),
+    );
+  }
 
   // One checkbox, both halves of undo: the backup copies that make an
   // overwritten NFO recoverable, and the manifest that says what to reverse.

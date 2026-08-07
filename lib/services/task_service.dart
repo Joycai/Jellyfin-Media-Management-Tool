@@ -12,6 +12,7 @@ import 'ai_service.dart';
 import 'apply_controller.dart';
 import 'metadata/metadata_writer.dart';
 import 'scrape/image_downloader.dart';
+import 'scrape/recipe_learner.dart';
 import 'scrape/scrape_service.dart';
 
 /// What kind of work a [OrganizerTask] is doing.
@@ -208,6 +209,7 @@ class TaskService extends ChangeNotifier {
     String? pastedHtml,
     String? targetDir,
     String? nfoFileName,
+    RecipeLearner? learner,
     required void Function(ScrapeResult) onDone,
   }) {
     final pasted = pastedHtml != null && pastedHtml.trim().isNotEmpty;
@@ -229,12 +231,14 @@ class TaskService extends ChangeNotifier {
                 sourceUrl: url,
                 targetDir: targetDir,
                 nfoFileName: nfoFileName,
+                learner: learner,
               )
             : await scraper.scrapeUrl(
                 url,
                 targetDir: targetDir,
                 nfoFileName: nfoFileName,
                 cancelToken: task.cancelToken,
+                learner: learner,
               );
         task
           ..status = TaskStatus.done

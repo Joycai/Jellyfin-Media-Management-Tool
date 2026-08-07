@@ -388,6 +388,10 @@
   "scrapeNoteNoRecipe": "No recipe matched this site — only the page's own structured data was read.",
   "scrapeNoteDegradedEncoding": "The page's character encoding could not be determined; some text may be garbled.",
   "scrapeNoteRecipeStale": "The recipe matched but extracted nothing — the site has probably changed.",
+  "scrapeNoteRecipeLearned": "No recipe existed for this site, so the AI wrote one. Check the highlighted values before saving it — a wrong selector can look perfectly healthy while quietly truncating text.",
+  "scrapeNoteRecipeLearningFailed": "The AI could not work out how to read this page. Paste the page HTML to try again.",
+  "scrapeSaveRecipe": "Remember this recipe for {domain}",
+  "scrapeRecipeSaved": "Recipe saved for {domain}",
 
   "scrapePreviewTitle": "Review metadata",
   "scrapePreviewSubtitle": "{count} fields · {images} images",

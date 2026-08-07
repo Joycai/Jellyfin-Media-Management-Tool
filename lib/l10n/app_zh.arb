@@ -388,6 +388,10 @@
   "scrapeNoteNoRecipe": "没有匹配到该站点的配方 —— 只读取了页面自带的结构化数据。",
   "scrapeNoteDegradedEncoding": "无法确定页面编码，部分文字可能是乱码。",
   "scrapeNoteRecipeStale": "配方匹配上了但没抓到任何内容 —— 站点结构多半已经改版。",
+  "scrapeNoteRecipeLearned": "该站点没有现成配方，已由 AI 生成一份。保存前请核对高亮的字段 —— 选择器选错时看起来完全正常，内容却可能被悄悄截断。",
+  "scrapeNoteRecipeLearningFailed": "AI 没能弄清这个页面的结构。可以改用粘贴页面 HTML 再试一次。",
+  "scrapeSaveRecipe": "记住 {domain} 的这份配方",
+  "scrapeRecipeSaved": "已保存 {domain} 的配方",
 
   "scrapePreviewTitle": "确认元数据",
   "scrapePreviewSubtitle": "{count} 个字段 · {images} 张图",

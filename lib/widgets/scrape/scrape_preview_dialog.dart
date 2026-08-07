@@ -17,10 +17,15 @@ class ScrapeCommitDecision {
   final MediaMetadata metadata;
   final ImageSelection images;
 
-  /// Back up an NFO that is about to be replaced.
+  /// Back up an NFO that is about to be replaced, and record an undo manifest.
   final bool backup;
   final String nfoFileName;
   final String targetDir;
+
+  /// Whether to store `ScrapeResult.learnedRecipe`. Always false when tier 3
+  /// did not run — a learned recipe reaching `RecipeStore` is the one thing
+  /// this dialog exists to gate.
+  final bool saveRecipe;
 
   const ScrapeCommitDecision({
     required this.metadata,
@@ -28,6 +33,7 @@ class ScrapeCommitDecision {
     required this.backup,
     required this.nfoFileName,
     required this.targetDir,
+    this.saveRecipe = false,
   });
 }
 
@@ -84,6 +90,12 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
   bool _backup = true;
   bool _poster = true;
   bool _fanart = true;
+
+  /// Pre-ticked, because this dialog *is* the human review the learned-recipe
+  /// rule asks for: the values are on screen with their LLM badges, and the
+  /// user is about to accept them. Unticking keeps the metadata and throws the
+  /// recipe away.
+  bool _saveRecipe = true;
 
   /// Stills are tracked by URL, not by index: a decision change can reorder or
   /// lengthen `extraFanartUrls` (merge puts the existing entries first), and an
@@ -169,6 +181,7 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
         targetDir: _targetDir.text.trim().isEmpty
             ? widget.defaultTargetDir
             : _targetDir.text.trim(),
+        saveRecipe: widget.result.learnedRecipe != null && _saveRecipe,
       ),
     );
   }
@@ -305,6 +318,8 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
         ScrapeNote.noRecipe => l10n.scrapeNoteNoRecipe,
         ScrapeNote.degradedEncoding => l10n.scrapeNoteDegradedEncoding,
         ScrapeNote.recipeProducedNothing => l10n.scrapeNoteRecipeStale,
+        ScrapeNote.recipeLearned => l10n.scrapeNoteRecipeLearned,
+        ScrapeNote.recipeLearningFailed => l10n.scrapeNoteRecipeLearningFailed,
       };
 
   // ── Preset toolbar ────────────────────────────────────────────────────────
@@ -477,6 +492,25 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
           ],
         ),
         const SizedBox(height: 12),
+        if (widget.result.learnedRecipe != null)
+          Row(
+            children: [
+              Checkbox(
+                value: _saveRecipe,
+                onChanged: (v) => setState(() => _saveRecipe = v ?? true),
+              ),
+              const SizedBox(width: 2),
+              Flexible(
+                child: Text(
+                  l10n.scrapeSaveRecipe(widget.result.learnedRecipe!.domain),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
         Row(
           children: [
             Checkbox(
