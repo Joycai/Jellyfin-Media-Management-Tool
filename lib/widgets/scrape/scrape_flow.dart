@@ -5,6 +5,8 @@
 /// commit task, and **only the commit task writes anything**.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -12,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_label_service.dart';
+import '../../services/history_service.dart';
 import '../../services/metadata/metadata_writer.dart';
 import '../../services/scrape/media_code.dart';
 import '../../services/scrape/scrape_service.dart';
@@ -97,6 +100,7 @@ Future<void> _review(
   final messenger = ScaffoldMessenger.of(context);
   final tasks = context.read<TaskService>();
   final scraper = context.read<ScrapeService>();
+  final history = context.read<HistoryService>();
 
   final decision = await showScrapePreviewDialog(
     context,
@@ -107,6 +111,8 @@ Future<void> _review(
   // Cancelled: not one byte has been written, and none will be.
   if (decision == null) return;
 
+  // One checkbox, both halves of undo: the backup copies that make an
+  // overwritten NFO recoverable, and the manifest that says what to reverse.
   final backupDir = decision.backup ? await ScrapeService.newBackupDir() : null;
 
   tasks.startScrapeCommit(
@@ -120,6 +126,18 @@ Future<void> _review(
     images: decision.images,
     backupDir: backupDir,
     onDone: (written) {
+      if (decision.backup) {
+        // Best-effort and off the critical path: the files are already on disk
+        // whether or not we manage to describe them.
+        unawaited(
+          history.recordScrape(
+            baseDir: decision.targetDir,
+            created: written.createdPaths,
+            restored: written.restorablePaths,
+            backupDir: backupDir,
+          ),
+        );
+      }
       if (!messenger.mounted) return;
       messenger.showSnackBar(
         SnackBar(

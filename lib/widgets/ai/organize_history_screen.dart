@@ -253,6 +253,13 @@ class _HistoryCard extends StatelessWidget {
     final parts = <String>[];
     if (entry.moveCount > 0) parts.add(l10n.subMoves(entry.moveCount));
     if (entry.renameCount > 0) parts.add(l10n.subRenames(entry.renameCount));
+    // A scrape moves nothing; these are what it did instead.
+    if (entry.created.isNotEmpty) {
+      parts.add(l10n.subWritten(entry.created.length));
+    }
+    if (entry.restored.isNotEmpty) {
+      parts.add(l10n.subReplaced(entry.restored.length));
+    }
     if (entry.totalBytes > 0) parts.add(formatBytes(entry.totalBytes));
     return parts.isEmpty ? entry.baseDir : parts.join(' · ');
   }
@@ -379,14 +386,55 @@ class _KindBadge extends StatelessWidget {
   }
 }
 
+/// One line of the detail dialog: a relocated file, a newly written one, or a
+/// replaced one. Flattening the three into a single shape keeps the dialog a
+/// list rather than three conditional sections.
+class _HistoryRow {
+  /// Shown small and grey above [detail].
+  final String caption;
+
+  /// Path relative to the operation's base directory.
+  final String detail;
+  final IconData icon;
+
+  const _HistoryRow({
+    required this.caption,
+    required this.detail,
+    required this.icon,
+  });
+}
+
 class _MovesDialog extends StatelessWidget {
   final HistoryEntry entry;
   const _MovesDialog({required this.entry});
+
+  List<_HistoryRow> _rows(AppLocalizations l10n) => [
+    for (final m in entry.moves)
+      _HistoryRow(
+        caption: p.basename(m['from']!),
+        detail: p.relative(m['to']!, from: entry.baseDir),
+        icon: Icons.subdirectory_arrow_right,
+      ),
+    for (final path in entry.created)
+      _HistoryRow(
+        caption: l10n.historyRowWritten,
+        detail: p.relative(path, from: entry.baseDir),
+        icon: Icons.note_add_outlined,
+      ),
+    for (final path in entry.restored.keys)
+      _HistoryRow(
+        caption: l10n.historyRowReplaced,
+        detail: p.relative(path, from: entry.baseDir),
+        icon: Icons.change_circle_outlined,
+      ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    final rows = _rows(l10n);
+
     return Dialog(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720, maxHeight: 560),
@@ -398,7 +446,7 @@ class _MovesDialog extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    l10n.movesListTitle(entry.moves.length),
+                    l10n.movesListTitle(rows.length),
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -414,58 +462,51 @@ class _MovesDialog extends StatelessWidget {
               const SizedBox(height: 10),
               Expanded(
                 child: ListView.separated(
-                  itemCount: entry.moves.length,
+                  itemCount: rows.length,
                   separatorBuilder: (_, _) => Divider(
                     height: 1,
                     color: scheme.outlineVariant.withValues(alpha: 0.3),
                   ),
-                  itemBuilder: (_, i) {
-                    final m = entry.moves[i];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 4,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            p.basename(m['from']!),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 13,
-                              color: scheme.onSurfaceVariant,
-                            ),
+                  itemBuilder: (_, i) => Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          rows[i].caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            color: scheme.onSurfaceVariant,
                           ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.subdirectory_arrow_right,
-                                size: 14,
-                                color: scheme.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  p.relative(m['to']!, from: entry.baseDir),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontFamily: 'monospace',
-                                    fontSize: 13,
-                                    color: scheme.onSurface,
-                                  ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(rows[i].icon, size: 14, color: scheme.primary),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                rows[i].detail,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 13,
+                                  color: scheme.onSurface,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],

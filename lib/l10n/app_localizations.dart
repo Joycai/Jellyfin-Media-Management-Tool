@@ -1550,6 +1550,30 @@ abstract class AppLocalizations {
   /// **'{count} renamed'**
   String subRenames(Object count);
 
+  /// No description provided for @subWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} written'**
+  String subWritten(Object count);
+
+  /// No description provided for @subReplaced.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} replaced'**
+  String subReplaced(Object count);
+
+  /// No description provided for @historyRowWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'written'**
+  String get historyRowWritten;
+
+  /// No description provided for @historyRowReplaced.
+  ///
+  /// In en, this message translates to:
+  /// **'replaced'**
+  String get historyRowReplaced;
+
   /// No description provided for @undoAction.
   ///
   /// In en, this message translates to:
@@ -2519,7 +2543,7 @@ abstract class AppLocalizations {
   /// No description provided for @scrapeWriteBackup.
   ///
   /// In en, this message translates to:
-  /// **'Back up any NFO this replaces'**
+  /// **'Record undo information (backs up any NFO this replaces)'**
   String get scrapeWriteBackup;
 
   /// No description provided for @scrapeTargetFolder.

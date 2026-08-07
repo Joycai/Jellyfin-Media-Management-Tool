@@ -835,6 +835,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String subWritten(Object count) {
+    return '$count written';
+  }
+
+  @override
+  String subReplaced(Object count) {
+    return '$count replaced';
+  }
+
+  @override
+  String get historyRowWritten => 'written';
+
+  @override
+  String get historyRowReplaced => 'replaced';
+
+  @override
   String get undoAction => 'Undo';
 
   @override
@@ -1378,7 +1394,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing to change — the NFO on disk already says all of this.';
 
   @override
-  String get scrapeWriteBackup => 'Back up any NFO this replaces';
+  String get scrapeWriteBackup =>
+      'Record undo information (backs up any NFO this replaces)';
 
   @override
   String get scrapeTargetFolder => 'Target folder';

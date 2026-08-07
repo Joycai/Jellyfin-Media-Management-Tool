@@ -88,7 +88,17 @@ It takes a `FileSystem` (package `file`) so tests can run against an in-memory F
 
 ### Undo
 
-[history_service.dart](lib/services/history_service.dart) writes one JSON manifest per operation to `<appSupport>/undo/op-<millis>.json`. `undo()` reverses moves **in reverse order** (so child folders empty before parents), re-checks `PathSafety` against the manifest's `baseDir` as defense against tampering, and treats an already-present source as success. Full success deletes the manifest; **partial success rewrites it with only the unrecovered moves** so a retry makes progress. `refresh()` prunes manifests older than `retentionDays = 7` — that pruning is the entire implementation of the UI's 7-day promise. Note it does not remove directories the apply created.
+[history_service.dart](lib/services/history_service.dart) writes one JSON manifest per operation to `<appSupport>/undo/op-<millis>.json`. A manifest describes three kinds of reversible work, and `undo()` handles all three:
+
+- `moves` — reversed **in reverse order** (so child folders empty before parents); an already-present source counts as success.
+- `created` — files the operation brought into existence, deleted on undo. This and the next are what a scrape commit records.
+- `restored` — files it overwrote, mapped to a real copy of the original under `<appSupport>/undo/blobs/<opId>/`, copied back on undo.
+
+Every path is re-checked with `PathSafety` as defense against a tampered manifest: move and `created` paths against the manifest's `baseDir`, and a `restored` **source against the undo directory** — without that last one a hand-edited manifest could name any file on disk as a "backup" and have its contents copied into the library.
+
+Full success deletes the manifest *and* its blob directory; **partial success rewrites it with only the unrecovered work** so a retry makes progress. `refresh()` prunes manifests older than `retentionDays = 7` and blob directories by their newest contained file — that pruning is the entire implementation of the UI's 7-day promise, and the blob half of it is what stops backups growing without bound. Note undo does not remove directories the operation created.
+
+The service does all path work through `_fs.path` and passes `context:` to `PathSafety`, so an injected in-memory POSIX filesystem isn't parsed with Windows rules — the same obligation `applyOrganizeAction` and `MetadataWriter` carry.
 
 ### Metadata scraping
 
@@ -119,7 +129,9 @@ Scraping is single-target on purpose. Batch is a later phase, and `PageFetcher`'
 
 `test/fixtures/giga_product_7743.html` is real (trimmed) markup and pins the two traps that page contains — duplicated `id` attributes, and folded/expanded copies of the same text where picking the wrong one yields a plausible but silently truncated result.
 
-Not done yet: tier 3 (the LLM learning a recipe), batch scraping, and undo. **The preview's backup checkbox really copies a replaced NFO** into `<appSupport>/undo/blobs/scrape-<millis>/`, but nothing reads those blobs back — `HistoryService`'s manifest format only describes moves, so extending it with `created` / `restored` lists is what turns those copies into a working undo. `MetadataWriteResult` already exposes `createdPaths` and `restorablePaths` in the shape that needs.
+The preview's backup checkbox gates both halves of undo: the real copies into `<appSupport>/undo/blobs/scrape-<millis>/` and the `HistoryService.recordScrape` manifest that says what to reverse. Unchecked means neither, so the write is not undoable — which is what the label says.
+
+Not done yet: tier 3 (the LLM learning a recipe) and batch scraping.
 
 ### Persistence
 
