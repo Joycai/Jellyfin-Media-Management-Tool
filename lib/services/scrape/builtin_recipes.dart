@@ -11,10 +11,21 @@ import '../../models/scrape_recipe.dart';
 
 class BuiltinRecipes {
   /// GIGA (www.giga-web.jp) — verified against a real product page on
-  /// 2026-08-07, see `docs/spec/scrape-giga-recipe.md`.
+  /// 2026-08-07 and re-verified live on 2026-08-08, see
+  /// `docs/spec/scrape-giga-recipe.md`.
   ///
-  /// Three things about this site drove the shape of the recipe and are worth
+  /// Five things about this site drove the shape of the recipe and are worth
   /// keeping in mind when adding the next one:
+  ///
+  /// * The age gate is **server-side session state**, not a cookie you can
+  ///   replay. Sending `old_check=yes` by itself returns the gate page with a
+  ///   200; the flag only means anything on a `PHPSESSID` that has been
+  ///   through `/cookie_set.php`, hence `sessionUrl`. The static `cookies` are
+  ///   kept because they cost nothing and the gate sets them too.
+  /// * Product pages **require a same-origin `Referer`**. Without one the
+  ///   server answers 302 to `/top.php` — a redirect to a real, parseable page
+  ///   that contains none of the requested title, which is the most confusing
+  ///   possible failure. Any same-origin referer is accepted.
   ///
   /// * `skipStructuredData` is on because the page's OpenGraph block is a
   ///   *site-wide* template (`og:title` is the site name, `og:url` is the
@@ -34,6 +45,8 @@ class BuiltinRecipes {
   "pathPattern": "/product/*",
   "schemaVersion": 1,
   "cookies": "old_check=yes; layout=jpn",
+  "sessionUrl": "/cookie_set.php",
+  "referer": "/top.php",
   "headers": { "Accept-Language": "ja,en;q=0.8" },
   "minIntervalMs": 800,
   "skipStructuredData": true,

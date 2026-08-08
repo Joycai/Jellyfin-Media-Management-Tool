@@ -79,15 +79,26 @@ void main() {
       expect(result.recipe, isNotNull);
     });
 
-    test('sends the age-gate cookie and a browser user agent', () async {
+    test('walks the age gate, then asks for the page', () async {
       final site = _Site();
       await _service(site).scrapeUrl(_url);
 
-      final headers = site.requests.single.headers;
+      // Two requests, in this order. The flag cookie on its own means nothing
+      // to this site: it only counts on a session that has been through the
+      // gate, which is what the first request is for.
+      expect(site.requests.map((r) => r.url.path).toList(), [
+        '/cookie_set.php',
+        '/product/index.php',
+      ]);
+
+      final headers = site.requests.last.headers;
       expect(headers['Cookie'], contains('old_check=yes'));
       expect(headers['Cookie'], contains('layout=jpn'));
       expect(headers['User-Agent'], contains('Mozilla/5.0'));
       expect(headers['Accept-Language'], 'ja,en;q=0.8');
+      // A product request with no referer is answered with a redirect to the
+      // front page, so this header is load-bearing, not decoration.
+      expect(headers['Referer'], 'https://www.giga-web.jp/top.php');
     });
 
     test(
@@ -255,8 +266,9 @@ void main() {
 
       await service.rescrapeAll(await service.findRescrapeTargets('/work'));
 
-      // One request for the page, none for images.
-      expect(site.requests, hasLength(1));
+      // The page (and the age gate in front of it), but nothing for images —
+      // which is the actual claim, so assert that rather than a bare count.
+      expect(site.requests.where((r) => r.url.path.endsWith('.jpg')), isEmpty);
       expect(fs.file('/work/a/poster.jpg').existsSync(), isFalse);
     });
 

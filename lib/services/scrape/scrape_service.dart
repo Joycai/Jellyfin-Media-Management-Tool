@@ -55,6 +55,11 @@ enum ScrapeNote {
 
   /// The LLM was asked for a recipe and could not produce a working one.
   recipeLearningFailed,
+
+  /// The site sent us somewhere else — typically an age gate or its front
+  /// page. Whatever was extracted describes that page, not the title, so this
+  /// is the note to show before any other.
+  redirectedAway,
 }
 
 /// Everything the preview dialog needs.
@@ -186,6 +191,7 @@ class ScrapeService extends ChangeNotifier {
         pageUrl: page.url,
         recipe: recipe,
         degradedEncoding: page.degraded,
+        redirectedAway: page.wasRedirected,
         targetDir: targetDir,
         nfoFileName: nfoFileName,
         learner: learner,
@@ -233,6 +239,7 @@ class ScrapeService extends ChangeNotifier {
     required Uri pageUrl,
     required ScrapeRecipe? recipe,
     required bool degradedEncoding,
+    bool redirectedAway = false,
     String? targetDir,
     String? nfoFileName,
     RecipeLearner? learner,
@@ -240,6 +247,9 @@ class ScrapeService extends ChangeNotifier {
   }) async {
     final document = html_parser.parse(html);
     final notes = <ScrapeNote>[];
+    // First, because it explains every other disappointing thing about the
+    // result: we are parsing a page the user never asked for.
+    if (redirectedAway) notes.add(ScrapeNote.redirectedAway);
     if (degradedEncoding) notes.add(ScrapeNote.degradedEncoding);
 
     final metadata = MediaMetadata(sourceUrl: pageUrl.toString());

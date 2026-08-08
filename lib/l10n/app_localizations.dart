@@ -2492,6 +2492,12 @@ abstract class AppLocalizations {
   /// **'The AI could not work out how to read this page. Paste the page HTML to try again.'**
   String get scrapeNoteRecipeLearningFailed;
 
+  /// No description provided for @scrapeNoteRedirectedAway.
+  ///
+  /// In en, this message translates to:
+  /// **'The site redirected us away from that URL — you probably need to pass its age gate or sign in. What is shown below describes the page we landed on, not the title.'**
+  String get scrapeNoteRedirectedAway;
+
   /// No description provided for @scrapeSaveRecipe.
   ///
   /// In en, this message translates to:

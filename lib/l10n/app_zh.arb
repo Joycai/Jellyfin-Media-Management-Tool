@@ -191,7 +191,7 @@
   "previewTitle": "确认整理 {count} 项媒体到 Jellyfin 结构",
   "previewSubtitle": "将移动 {folders} 个文件夹、{size} · AI 置信度 平均 {pct}%",
   "viewTree": "树状对比",
-  "viewList": "列表 Diff",
+  "viewList": "查看清单",
   "viewPoster": "海报视图",
   "showOnly": "仅显示",
   "filterChanges": "变更",
@@ -246,7 +246,6 @@
   "historyRowWritten": "新建",
   "historyRowReplaced": "替换",
   "undoAction": "撤销",
-  "viewList": "查看清单",
   "movesListTitle": "操作清单 · {count} 项",
   "undoDone": "已撤销 {count} 个文件",
   "undoPartial": "已撤销 {succeeded} 个，{failed} 个失败",
@@ -361,7 +360,6 @@
   "tasksDismiss": "移除",
   "tasksScrapeLabel": "刮削 · {target}",
   "tasksScrapeCommitLabel": "写入元数据 · {target}",
-
   "menuScrapeMetadata": "刮削元数据",
   "menuRescrapeFolder": "刷新文件夹内的元数据",
   "batchScrapeTitle": "刷新元数据",
@@ -376,7 +374,6 @@
   "batchScrapeDone": "已刷新 {count} 个条目",
   "batchScrapePartial": "已刷新 {count} 个条目 · {failed} 个失败",
   "shortcutScrape": "为当前项刮削元数据",
-
   "scrapeUrlTitle": "刮削元数据",
   "scrapeUrlSubtitle": "元数据将写入 {target} 旁边",
   "scrapeUrlLabel": "作品页地址",
@@ -395,16 +392,15 @@
   "scrapeReady": "刮削完成 —— 请查看结果",
   "scrapeReview": "查看",
   "scrapeNoFolder": "请先打开一个文件夹",
-
   "scrapeNoteSiteWideIgnored": "该站点每个页面都输出同一份 OpenGraph 数据，已忽略。",
   "scrapeNoteNoRecipe": "没有匹配到该站点的配方 —— 只读取了页面自带的结构化数据。",
   "scrapeNoteDegradedEncoding": "无法确定页面编码，部分文字可能是乱码。",
   "scrapeNoteRecipeStale": "配方匹配上了但没抓到任何内容 —— 站点结构多半已经改版。",
   "scrapeNoteRecipeLearned": "该站点没有现成配方，已由 AI 生成一份。保存前请核对高亮的字段 —— 选择器选错时看起来完全正常，内容却可能被悄悄截断。",
   "scrapeNoteRecipeLearningFailed": "AI 没能弄清这个页面的结构。可以改用粘贴页面 HTML 再试一次。",
+  "scrapeNoteRedirectedAway": "站点把请求重定向到了别处 —— 通常意味着需要先通过年龄确认或登录。下面显示的是落地页的内容，不是该作品的元数据。",
   "scrapeSaveRecipe": "记住 {domain} 的这份配方",
   "scrapeRecipeSaved": "已保存 {domain} 的配方",
-
   "scrapePreviewTitle": "确认元数据",
   "scrapePreviewSubtitle": "{count} 个字段 · {images} 张图",
   "scrapeSource": "来源",
@@ -432,19 +428,16 @@
   "scrapeNfoFileName": "NFO 文件名",
   "scrapeWrite": "写入",
   "scrapeEditValue": "编辑{field}",
-
   "scrapeImages": "图片",
   "scrapeImagePoster": "封面",
   "scrapeImageFanart": "背景",
   "scrapeImageExtra": "样张 {index}",
   "scrapeImageCount": "已选 {count} / {total}",
   "scrapeImageNone": "该页面没有提供图片。",
-
   "scrapeCommitStarted": "正在写入元数据 —— 可在「任务」中查看进度",
   "scrapeWriteSucceeded": "已写入 {count} 个文件",
   "scrapeWritePartial": "已写入 {count} 个文件 · {failed} 个失败",
   "scrapeWriteFailed": "没有写入任何内容：{error}",
-
   "fieldTitle": "标题",
   "fieldOriginalTitle": "原始标题",
   "fieldSortTitle": "排序标题",
@@ -464,7 +457,6 @@
   "fieldPoster": "封面",
   "fieldFanart": "背景图",
   "fieldExtraFanart": "样张",
-
   "secScraping": "刮削",
   "settingsScrapeCookies": "Cookie",
   "settingsScrapeCookieWarning": "从浏览器导出的 cookies.txt 可能包含等同于登录态的会话凭证。Cookie 只保存在内存里，关闭应用即清空；浏览器里退出登录后也会失效，需要重新导入。",

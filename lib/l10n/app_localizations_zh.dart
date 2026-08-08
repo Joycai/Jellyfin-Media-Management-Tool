@@ -1354,6 +1354,10 @@ class AppLocalizationsZh extends AppLocalizations {
       'AI 没能弄清这个页面的结构。可以改用粘贴页面 HTML 再试一次。';
 
   @override
+  String get scrapeNoteRedirectedAway =>
+      '站点把请求重定向到了别处 —— 通常意味着需要先通过年龄确认或登录。下面显示的是落地页的内容，不是该作品的元数据。';
+
+  @override
   String scrapeSaveRecipe(Object domain) {
     return '记住 $domain 的这份配方';
   }

@@ -235,6 +235,22 @@ class ScrapeRecipe {
   /// Static request cookies, e.g. an age-gate flag. Sent verbatim.
   final String? cookies;
 
+  /// A URL to request once per host before the first page, so the server can
+  /// establish a session.
+  ///
+  /// Age gates increasingly work this way: clicking "I am over 18" sets a flag
+  /// cookie *and* marks the session verified server-side, so replaying the flag
+  /// on its own gets you the gate again. Relative values resolve against the
+  /// page being fetched. Cookies the response sets are held in memory for the
+  /// run and never persisted — see [CookieStore] for why that distinction
+  /// matters.
+  final String? sessionUrl;
+
+  /// `Referer` to send on page fetches; relative values resolve against the
+  /// page. Defaults to the site root, because some sites bounce a request that
+  /// arrives with no referer at all. An empty string disables the header.
+  final String? referer;
+
   final Map<String, String> headers;
 
   /// Politeness floor between two requests to the same host.
@@ -265,6 +281,8 @@ class ScrapeRecipe {
     this.pathPattern = '',
     this.schemaVersion = 1,
     this.cookies,
+    this.sessionUrl,
+    this.referer,
     this.headers = const {},
     this.minIntervalMs = 800,
     this.skipStructuredData = false,
@@ -314,6 +332,8 @@ class ScrapeRecipe {
     if (pathPattern.isNotEmpty) 'pathPattern': pathPattern,
     'schemaVersion': schemaVersion,
     if (cookies != null) 'cookies': cookies,
+    if (sessionUrl != null) 'sessionUrl': sessionUrl,
+    if (referer != null) 'referer': referer,
     if (headers.isNotEmpty) 'headers': headers,
     'minIntervalMs': minIntervalMs,
     if (skipStructuredData) 'skipStructuredData': true,
@@ -335,6 +355,8 @@ class ScrapeRecipe {
     pathPattern: (json['pathPattern'] as String?)?.trim() ?? '',
     schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 0,
     cookies: (json['cookies'] as String?)?.trim(),
+    sessionUrl: (json['sessionUrl'] as String?)?.trim(),
+    referer: (json['referer'] as String?)?.trim(),
     headers: {
       for (final e in ((json['headers'] as Map?) ?? const {}).entries)
         e.key.toString(): e.value.toString(),

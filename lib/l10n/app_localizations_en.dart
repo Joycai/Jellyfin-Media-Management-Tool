@@ -1381,6 +1381,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The AI could not work out how to read this page. Paste the page HTML to try again.';
 
   @override
+  String get scrapeNoteRedirectedAway =>
+      'The site redirected us away from that URL — you probably need to pass its age gate or sign in. What is shown below describes the page we landed on, not the title.';
+
+  @override
   String scrapeSaveRecipe(Object domain) {
     return 'Remember this recipe for $domain';
   }

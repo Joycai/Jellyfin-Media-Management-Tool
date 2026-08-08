@@ -88,13 +88,23 @@ class CookieStore {
 
   /// The `Cookie:` header value for [url].
   ///
-  /// [staticCookies] is the recipe's own string and is applied first, so a
-  /// browser-exported cookie of the same name wins — the exported one is the
-  /// fresher of the two.
+  /// Three sources, applied in increasing order of precedence:
+  ///
+  /// 1. [staticCookies] — the recipe's own string, the same for every user;
+  /// 2. [sessionCookies] — what the server handed *this run* in response to a
+  ///    recipe's `sessionUrl`, which is fresher than any constant;
+  /// 3. the browser-exported cookies held here, which win outright: if the
+  ///    user went to the trouble of importing a signed-in session, an
+  ///    anonymous one we minted ourselves must not displace it.
   ///
   /// Returns an empty string when there is nothing to send, so callers can
   /// skip the header entirely.
-  String headerFor(Uri url, {String? staticCookies, DateTime? now}) {
+  String headerFor(
+    Uri url, {
+    String? staticCookies,
+    Map<String, String>? sessionCookies,
+    DateTime? now,
+  }) {
     final at = now ?? DateTime.now();
     final merged = <String, String>{};
 
@@ -105,11 +115,27 @@ class CookieStore {
       if (name.isEmpty) continue;
       merged[name] = pair.substring(eq + 1).trim();
     }
+    if (sessionCookies != null) merged.addAll(sessionCookies);
     for (final c in _cookies) {
       if (c.matches(url, now: at)) merged[c.name] = c.value;
     }
 
     return merged.entries.map((e) => '${e.key}=${e.value}').join('; ');
+  }
+
+  /// Parses the `name=value` out of one `Set-Cookie` header.
+  ///
+  /// Attributes after the first `;` are deliberately dropped: these cookies are
+  /// held per host for the length of a run, so `Path`, `Expires` and `Domain`
+  /// have nothing to scope. A `Max-Age=0` deletion is honoured by returning an
+  /// empty value, which callers treat as a removal.
+  static MapEntry<String, String>? parseSetCookie(String header) {
+    final parts = header.split(';');
+    final eq = parts.first.indexOf('=');
+    if (eq <= 0) return null;
+    final name = parts.first.substring(0, eq).trim();
+    if (name.isEmpty) return null;
+    return MapEntry(name, parts.first.substring(eq + 1).trim());
   }
 
   /// Parses a Netscape/curl `cookies.txt`.
