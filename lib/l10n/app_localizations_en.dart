@@ -835,6 +835,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String subWritten(Object count) {
+    return '$count written';
+  }
+
+  @override
+  String subReplaced(Object count) {
+    return '$count replaced';
+  }
+
+  @override
+  String get historyRowWritten => 'written';
+
+  @override
+  String get historyRowReplaced => 'replaced';
+
+  @override
   String get undoAction => 'Undo';
 
   @override
@@ -1210,4 +1226,544 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksDismiss => 'Dismiss';
+
+  @override
+  String tasksScrapeLabel(Object target) {
+    return 'Scrape · $target';
+  }
+
+  @override
+  String tasksScrapeCommitLabel(Object target) {
+    return 'Write metadata · $target';
+  }
+
+  @override
+  String get menuScrapeMetadata => 'Scrape metadata';
+
+  @override
+  String get menuRescrapeFolder => 'Refresh metadata in folder';
+
+  @override
+  String get batchScrapeTitle => 'Refresh metadata';
+
+  @override
+  String get batchScrapeScanning => 'Looking for titles to refresh…';
+
+  @override
+  String batchScrapeFound(Object count) {
+    return '$count titles record where they were scraped from.';
+  }
+
+  @override
+  String get batchScrapeEmpty =>
+      'Nothing to refresh here. Only NFOs this app wrote record their source page, so titles scraped elsewhere have no URL to go back to.';
+
+  @override
+  String get batchScrapePolicy =>
+      'Each title is refreshed with the safe defaults: blanks are filled, existing values are kept, and lists are merged. There is no per-title review — use Scrape metadata on a single title for that.';
+
+  @override
+  String get batchScrapeArtwork => 'Re-download artwork too';
+
+  @override
+  String get batchScrapeArtworkHint =>
+      'Off by default: the images were downloaded on the first scrape.';
+
+  @override
+  String batchScrapeStart(Object count) {
+    return 'Refresh $count titles';
+  }
+
+  @override
+  String get batchScrapeStarted =>
+      'Refreshing metadata — see Tasks for progress';
+
+  @override
+  String batchScrapeDone(Object count) {
+    return 'Refreshed $count titles';
+  }
+
+  @override
+  String batchScrapePartial(Object count, Object failed) {
+    return 'Refreshed $count titles · $failed failed';
+  }
+
+  @override
+  String get shortcutScrape => 'Scrape metadata for the focused item';
+
+  @override
+  String get scrapeUrlTitle => 'Scrape metadata';
+
+  @override
+  String scrapeUrlSubtitle(Object target) {
+    return 'Metadata will be written next to $target';
+  }
+
+  @override
+  String get scrapeUrlLabel => 'Product page URL';
+
+  @override
+  String get scrapeUrlHint => 'https://example.com/product/12345';
+
+  @override
+  String get scrapeUrlInvalid =>
+      'Enter a full URL, including http:// or https://';
+
+  @override
+  String scrapeDetectedCode(Object code) {
+    return 'Detected code: $code';
+  }
+
+  @override
+  String scrapeSearchOnSite(Object site) {
+    return 'Search on $site';
+  }
+
+  @override
+  String get scrapePasteHtml => 'Paste the page HTML instead';
+
+  @override
+  String get scrapePasteHtmlHint => 'Paste the page source here';
+
+  @override
+  String get scrapePasteNeedsUrl =>
+      'The URL is still required — relative links in the pasted HTML are resolved against it.';
+
+  @override
+  String get scrapeCookieBuiltIn => 'This site has a built-in access cookie.';
+
+  @override
+  String get scrapeCookieMissing =>
+      'No cookies configured for this site. If the fetch fails, import a cookies.txt under Settings → Scraping.';
+
+  @override
+  String get scrapeStart => 'Scrape';
+
+  @override
+  String get scrapeStarted => 'Scrape started — see Tasks for progress';
+
+  @override
+  String scrapeFailed(Object error) {
+    return 'Scrape failed: $error';
+  }
+
+  @override
+  String get scrapeReady => 'Scrape finished — review the result';
+
+  @override
+  String get scrapeReview => 'Review';
+
+  @override
+  String get scrapeNoFolder => 'Open a folder first';
+
+  @override
+  String get scrapeNoteSiteWideIgnored =>
+      'This site serves the same OpenGraph block on every page, so it was ignored.';
+
+  @override
+  String get scrapeNoteNoRecipe =>
+      'No recipe matched this site — only the page\'s own structured data was read.';
+
+  @override
+  String get scrapeNoteDegradedEncoding =>
+      'The page\'s character encoding could not be determined; some text may be garbled.';
+
+  @override
+  String get scrapeNoteRecipeStale =>
+      'The recipe matched but extracted nothing — the site has probably changed.';
+
+  @override
+  String get scrapeNoteRecipeLearned =>
+      'No recipe existed for this site, so the AI wrote one. Check the highlighted values before saving it — a wrong selector can look perfectly healthy while quietly truncating text.';
+
+  @override
+  String get scrapeNoteRecipeLearningFailed =>
+      'The AI could not work out how to read this page. Paste the page HTML to try again.';
+
+  @override
+  String get scrapeNoteRedirectedAway =>
+      'The site redirected us away from that URL — you probably need to pass its age gate or sign in. What is shown below describes the page we landed on, not the title.';
+
+  @override
+  String scrapeSaveRecipe(Object domain) {
+    return 'Remember this recipe for $domain';
+  }
+
+  @override
+  String scrapeRecipeSaved(Object domain) {
+    return 'Recipe saved for $domain';
+  }
+
+  @override
+  String get scrapePreviewTitle => 'Review metadata';
+
+  @override
+  String scrapePreviewSubtitle(Object count, Object images) {
+    return '$count fields · $images images';
+  }
+
+  @override
+  String get scrapeSource => 'Source';
+
+  @override
+  String get scrapeRecipeName => 'Recipe';
+
+  @override
+  String get scrapeRecipeNone => 'none';
+
+  @override
+  String get scrapeColumnField => 'Field';
+
+  @override
+  String get scrapeColumnExisting => 'On disk';
+
+  @override
+  String get scrapeColumnScraped => 'Scraped';
+
+  @override
+  String get scrapeColumnDecision => 'Action';
+
+  @override
+  String get scrapeDecisionKeep => 'Keep';
+
+  @override
+  String get scrapeDecisionReplace => 'Replace';
+
+  @override
+  String get scrapeDecisionMerge => 'Merge';
+
+  @override
+  String get scrapePresetFillEmpty => 'Fill blanks only';
+
+  @override
+  String get scrapePresetReplaceAll => 'Replace all';
+
+  @override
+  String get scrapePresetKeepAll => 'Keep all';
+
+  @override
+  String get scrapeOriginStructured => 'Page data';
+
+  @override
+  String get scrapeOriginRecipe => 'Recipe';
+
+  @override
+  String get scrapeOriginLlm => 'AI guess';
+
+  @override
+  String get scrapeOriginExisting => 'Existing NFO';
+
+  @override
+  String get scrapeOriginManual => 'Edited';
+
+  @override
+  String get scrapeOriginDerived => 'Derived';
+
+  @override
+  String get scrapeNoChanges =>
+      'Nothing to change — the NFO on disk already says all of this.';
+
+  @override
+  String get scrapeWriteBackup =>
+      'Record undo information (backs up any NFO this replaces)';
+
+  @override
+  String get scrapeTargetFolder => 'Target folder';
+
+  @override
+  String get scrapeNfoFileName => 'NFO file name';
+
+  @override
+  String get scrapeWrite => 'Write';
+
+  @override
+  String scrapeEditValue(Object field) {
+    return 'Edit $field';
+  }
+
+  @override
+  String get scrapeImages => 'Artwork';
+
+  @override
+  String get scrapeImagePoster => 'Poster';
+
+  @override
+  String get scrapeImageFanart => 'Backdrop';
+
+  @override
+  String scrapeImageExtra(Object index) {
+    return 'Still $index';
+  }
+
+  @override
+  String scrapeImageCount(Object count, Object total) {
+    return '$count of $total selected';
+  }
+
+  @override
+  String get scrapeImageNone => 'This page offered no artwork.';
+
+  @override
+  String get scrapeCommitStarted => 'Writing metadata — see Tasks for progress';
+
+  @override
+  String scrapeWriteSucceeded(Object count) {
+    return 'Wrote $count files';
+  }
+
+  @override
+  String scrapeWritePartial(Object count, Object failed) {
+    return 'Wrote $count files · $failed failed';
+  }
+
+  @override
+  String scrapeWriteFailed(Object error) {
+    return 'Nothing was written: $error';
+  }
+
+  @override
+  String get fieldTitle => 'Title';
+
+  @override
+  String get fieldOriginalTitle => 'Original title';
+
+  @override
+  String get fieldSortTitle => 'Sort title';
+
+  @override
+  String get fieldCode => 'Code';
+
+  @override
+  String get fieldPlot => 'Synopsis';
+
+  @override
+  String get fieldOutline => 'Blurb';
+
+  @override
+  String get fieldTagline => 'Tagline';
+
+  @override
+  String get fieldPremiered => 'Release date';
+
+  @override
+  String get fieldRuntime => 'Runtime';
+
+  @override
+  String get fieldStudio => 'Studio';
+
+  @override
+  String get fieldSeries => 'Series';
+
+  @override
+  String get fieldDirector => 'Director';
+
+  @override
+  String get fieldRating => 'Rating';
+
+  @override
+  String get fieldGenres => 'Genres';
+
+  @override
+  String get fieldTags => 'Tags';
+
+  @override
+  String get fieldActors => 'Cast';
+
+  @override
+  String get fieldPoster => 'Poster';
+
+  @override
+  String get fieldFanart => 'Backdrop';
+
+  @override
+  String get fieldExtraFanart => 'Stills';
+
+  @override
+  String get secScraping => 'Scraping';
+
+  @override
+  String get settingsScrapeCookies => 'Cookies';
+
+  @override
+  String get settingsScrapeCookieWarning =>
+      'A cookies.txt exported from your browser can contain a session identifier equivalent to being signed in. Cookies are held in memory only and are gone when the app closes; they also stop working once you sign out in that browser.';
+
+  @override
+  String get settingsScrapeImportCookies => 'Import cookies.txt';
+
+  @override
+  String get settingsScrapeClearCookies => 'Clear all';
+
+  @override
+  String get settingsScrapeClearDomain => 'Clear';
+
+  @override
+  String get settingsScrapeCookieEmpty => 'No cookies imported.';
+
+  @override
+  String settingsScrapeCookieCount(Object count) {
+    return '$count cookies';
+  }
+
+  @override
+  String settingsScrapeCookieImported(Object count) {
+    return 'Imported $count cookies';
+  }
+
+  @override
+  String get settingsScrapeCookieImportFailed =>
+      'That file contained no usable cookies';
+
+  @override
+  String get settingsScrapeRecipes => 'Site recipes';
+
+  @override
+  String get settingsScrapeRecipeBuiltin => 'Built in';
+
+  @override
+  String get settingsScrapeRecipeLearned => 'Learned';
+
+  @override
+  String get settingsScrapeRecipeUser => 'Edited';
+
+  @override
+  String get settingsScrapeRecipeRetired => 'Retired';
+
+  @override
+  String get settingsScrapeRecipeDelete => 'Delete recipe';
+
+  @override
+  String settingsScrapeRecipeHealth(Object count, Object failed) {
+    return '$count ok · $failed failed';
+  }
+
+  @override
+  String get settingsScrapeRecipeAnyPath => 'any page';
+
+  @override
+  String get scrapeNoteLlmExtracted =>
+      'These values were read off the page by the model, not matched by a selector — nothing verified them against the document. Check anything that matters before writing.';
+
+  @override
+  String get scrapeNoteLlmExtractionFailed =>
+      'The model could not read usable metadata off this page.';
+
+  @override
+  String get scrapeAskLlm => 'Ask the LLM directly';
+
+  @override
+  String get scrapeAskLlmHint =>
+      'Reads the page you already fetched and reports the fields itself. Costs a request, and the values are the model’s rather than the page’s.';
+
+  @override
+  String get scrapeCustomPrompt =>
+      'Extra instructions for the model (optional)';
+
+  @override
+  String get scrapeCustomPromptHint => 'e.g. “use the sidebar credits as tags”';
+
+  @override
+  String get scrapeBackend => 'AI backend';
+
+  @override
+  String get scrapeBackendNone => 'No AI profile configured';
+
+  @override
+  String get scrapeCookiesLabel => 'Cookies for this site (optional)';
+
+  @override
+  String get scrapeCookiesHint =>
+      'name=value; name2=value2 — held in memory for this run only';
+
+  @override
+  String get scrapeNfoTarget => 'Compare against';
+
+  @override
+  String get scrapeNfoBrowse => 'Browse…';
+
+  @override
+  String scrapeNfoAutoDetected(Object name) {
+    return 'Auto-detected from $name';
+  }
+
+  @override
+  String get scrapePanelTitle => 'Scrape metadata';
+
+  @override
+  String get scrapeProcess => 'Process';
+
+  @override
+  String get scrapeWorking => 'Working…';
+
+  @override
+  String get scrapeBackToSetup => 'Back';
+
+  @override
+  String get scrapeRetry => 'Try again';
+
+  @override
+  String get scrapeAdvanced => 'Advanced';
+
+  @override
+  String scrapeImageLoading(Object count) {
+    return 'loading $count…';
+  }
+
+  @override
+  String get scrapeImageSelectAll => 'Select all';
+
+  @override
+  String get scrapeImageSelectNone => 'None';
+
+  @override
+  String scrapeSaveImages(Object count) {
+    return 'Save $count images';
+  }
+
+  @override
+  String get scrapeSaveImagesHint =>
+      'Writes the ticked images into the media folder now. Does not touch the NFO.';
+
+  @override
+  String scrapeSaveImagesDone(Object count, Object folder) {
+    return 'Saved $count images to $folder';
+  }
+
+  @override
+  String scrapeSaveImagesPartial(Object count, Object failed) {
+    return 'Saved $count images · $failed failed';
+  }
+
+  @override
+  String get scrapeImageRole => 'Save as';
+
+  @override
+  String get scrapeRoleOriginal => 'Original name';
+
+  @override
+  String get scrapeRolePoster => 'Poster';
+
+  @override
+  String get scrapeRoleFanart => 'Backdrop (fanart)';
+
+  @override
+  String get scrapeRoleExtraFanart => 'Extra backdrop';
+
+  @override
+  String get scrapeRoleLandscape => 'Landscape';
+
+  @override
+  String get scrapeRoleThumb => 'Thumb';
+
+  @override
+  String get scrapeRoleBanner => 'Banner';
+
+  @override
+  String get scrapeRoleLogo => 'Logo';
+
+  @override
+  String get scrapeRoleClearArt => 'Clear art';
+
+  @override
+  String get scrapeRoleDisc => 'Disc';
 }

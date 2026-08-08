@@ -3,11 +3,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../models/media_metadata.dart';
 import '../models/organize_plan.dart';
+import '../models/scrape_recipe.dart';
 import '../utils/ids.dart';
 import 'ai/ai_cancel_token.dart';
 import 'ai_service.dart';
 import 'apply_controller.dart';
+import 'metadata/metadata_writer.dart';
+import 'scrape/image_cache.dart';
+import 'scrape/image_downloader.dart';
+import 'scrape/recipe_learner.dart';
+import 'scrape/scrape_service.dart';
 
 /// What kind of work a [OrganizerTask] is doing.
 enum TaskKind {
@@ -16,6 +23,12 @@ enum TaskKind {
 
   /// The user-confirmed plan is being moved/renamed on disk.
   apply,
+
+  /// A product page is being fetched and parsed into metadata.
+  scrape,
+
+  /// The reviewed metadata is being written (NFO + artwork downloads).
+  scrapeCommit,
 }
 
 enum TaskStatus { running, done, failed, stopped }
@@ -50,6 +63,11 @@ class OrganizerTask {
   /// Error message when [status] == failed.
   String? error;
 
+  /// Live 0–1 progress for tasks that have no [ApplyController] to watch —
+  /// currently the scrape commit, whose bar tracks artwork downloads. Null
+  /// means "no meaningful fraction to show".
+  double? progress;
+
   OrganizerTask({
     required this.id,
     required this.kind,
@@ -61,6 +79,7 @@ class OrganizerTask {
     this.finishedAt,
     this.summary,
     this.error,
+    this.progress,
   });
 
   bool get isFinished => status != TaskStatus.running;
@@ -176,6 +195,215 @@ class TaskService extends ChangeNotifier {
     return task;
   }
 
+  /// Fetches and parses one product page under a new task entry.
+  ///
+  /// [onDone] fires only on success, with the reviewable result — the caller
+  /// opens the preview from there. Nothing has touched disk at that point.
+  ///
+  /// When [pastedHtml] is non-empty the page is parsed locally (tier 4) and no
+  /// cancel token is minted: there is no socket to close, and offering a Stop
+  /// button that cannot stop anything would be a lie.
+  OrganizerTask startScrape({
+    required ScrapeService scraper,
+    required String label,
+    required String url,
+    String? pastedHtml,
+    String? targetDir,
+    String? nfoFileName,
+    RecipeLearner? learner,
+    required void Function(ScrapeResult) onDone,
+  }) {
+    final pasted = pastedHtml != null && pastedHtml.trim().isNotEmpty;
+    final task = OrganizerTask(
+      id: newId(),
+      kind: TaskKind.scrape,
+      label: label,
+      startedAt: DateTime.now(),
+      cancelToken: pasted ? null : AiCancelToken(),
+    );
+    _tasks.insert(0, task);
+    notifyListeners();
+
+    unawaited(() async {
+      try {
+        final result = pasted
+            ? await scraper.scrapeHtml(
+                pastedHtml,
+                sourceUrl: url,
+                targetDir: targetDir,
+                nfoFileName: nfoFileName,
+                learner: learner,
+              )
+            : await scraper.scrapeUrl(
+                url,
+                targetDir: targetDir,
+                nfoFileName: nfoFileName,
+                cancelToken: task.cancelToken,
+                learner: learner,
+              );
+        task
+          ..status = TaskStatus.done
+          ..finishedAt = DateTime.now()
+          ..progress = 1
+          ..summary = _scrapeSummary(result);
+        notifyListeners();
+        onDone(result);
+        return;
+      } on AiCancelled {
+        _markStopped(task);
+      } catch (e) {
+        _markFailed(task, e);
+      }
+      notifyListeners();
+    }());
+
+    return task;
+  }
+
+  /// Downloads the selected artwork and writes the NFO. The task's progress bar
+  /// tracks image downloads, which is the only part that takes real time.
+  OrganizerTask startScrapeCommit({
+    required ScrapeService scraper,
+    required String label,
+    required MediaMetadata metadata,
+    required Uri pageUrl,
+    required String targetDir,
+    required String nfoFileName,
+    ScrapeRecipe? recipe,
+    ImageSelection images = const ImageSelection(),
+    String? backupDir,
+    ScrapeImageCache? imageCache,
+    Map<String, String>? imageNames,
+    required void Function(MetadataWriteResult) onDone,
+  }) {
+    final task = OrganizerTask(
+      id: newId(),
+      kind: TaskKind.scrapeCommit,
+      label: label,
+      startedAt: DateTime.now(),
+      cancelToken: AiCancelToken(),
+      progress: 0,
+    );
+    _tasks.insert(0, task);
+    notifyListeners();
+
+    unawaited(() async {
+      try {
+        final result = await scraper.commit(
+          metadata: metadata,
+          pageUrl: pageUrl,
+          targetDir: targetDir,
+          nfoFileName: nfoFileName,
+          recipe: recipe,
+          images: images,
+          backupDir: backupDir,
+          imageCache: imageCache,
+          imageNames: imageNames,
+          cancelToken: task.cancelToken,
+          onImageProgress: (done, total) {
+            task.progress = total == 0 ? 1 : done / total;
+            notifyListeners();
+          },
+        );
+        task
+          ..status = TaskStatus.done
+          ..finishedAt = DateTime.now()
+          ..progress = 1
+          ..summary = _writeSummary(result);
+        notifyListeners();
+        onDone(result);
+        return;
+      } on AiCancelled {
+        _markStopped(task);
+      } catch (e) {
+        _markFailed(task, e);
+      } finally {
+        task.cancelToken?.dispose();
+      }
+      notifyListeners();
+    }());
+
+    return task;
+  }
+
+  /// Refreshes a whole folder's NFOs from the URLs they recorded.
+  ///
+  /// One task for the batch, one progress bar, one summary — the per-host
+  /// queue makes this genuinely serial, and a task per title would suggest
+  /// otherwise.
+  OrganizerTask startBatchScrape({
+    required ScrapeService scraper,
+    required String label,
+    required List<RescrapeTarget> targets,
+    ImageSelection images = ImageSelection.none,
+    String? backupDir,
+    required void Function(BatchScrapeResult) onDone,
+  }) {
+    final task = OrganizerTask(
+      id: newId(),
+      kind: TaskKind.scrapeCommit,
+      label: label,
+      startedAt: DateTime.now(),
+      cancelToken: AiCancelToken(),
+      progress: 0,
+    );
+    _tasks.insert(0, task);
+    notifyListeners();
+
+    unawaited(() async {
+      try {
+        final result = await scraper.rescrapeAll(
+          targets,
+          images: images,
+          backupDir: backupDir,
+          cancelToken: task.cancelToken,
+          onProgress: (done, total) {
+            task.progress = total == 0 ? 1 : done / total;
+            task.summary = '$done/$total';
+            notifyListeners();
+          },
+        );
+        task
+          ..status = TaskStatus.done
+          ..finishedAt = DateTime.now()
+          ..progress = 1
+          ..summary = _batchSummary(result);
+        notifyListeners();
+        onDone(result);
+        return;
+      } on AiCancelled {
+        _markStopped(task);
+      } catch (e) {
+        _markFailed(task, e);
+      } finally {
+        task.cancelToken?.dispose();
+      }
+      notifyListeners();
+    }());
+
+    return task;
+  }
+
+  void _markStopped(OrganizerTask task) {
+    task
+      ..status = TaskStatus.stopped
+      ..finishedAt = DateTime.now();
+  }
+
+  /// A socket closed by [cancel] surfaces as a generic client exception rather
+  /// than [AiCancelled], so an already-cancelled token means "stopped", not
+  /// "failed".
+  void _markFailed(OrganizerTask task, Object error) {
+    if (task.cancelToken?.isCancelled ?? false) {
+      _markStopped(task);
+      return;
+    }
+    task
+      ..status = TaskStatus.failed
+      ..finishedAt = DateTime.now()
+      ..error = error.toString();
+  }
+
   /// Stops a running task: analyze tasks abort their request through the
   /// cancel token, apply tasks fall out of their move loop via the controller.
   /// Either way the task ends up [TaskStatus.stopped] and keeps whatever work
@@ -221,6 +449,28 @@ class TaskService extends ChangeNotifier {
     final tokens = plan.promptTokens + plan.completionTokens;
     return '$n · $tokens tok';
   }
+
+  /// Not localized, matching the other summaries — these are dense status
+  /// lines, and the field/image counts carry the meaning on their own.
+  String _scrapeSummary(ScrapeResult r) {
+    final fields = MetadataField.all.where((f) => !r.scraped.isBlank(f)).length;
+    final images = [
+      if (r.scraped.posterUrl != null) 1,
+      if (r.scraped.fanartUrl != null) 1,
+      ...r.scraped.extraFanartUrls.map((_) => 1),
+    ].length;
+    final code = r.scraped.code ?? r.scraped.title;
+    final counts = '$fields fields · $images images';
+    return code == null ? counts : '$code · $counts';
+  }
+
+  String _batchSummary(BatchScrapeResult r) => r.hasFailures
+      ? '${r.succeeded} ok · ${r.failed} failed'
+      : '${r.succeeded} titles';
+
+  String _writeSummary(MetadataWriteResult r) => r.hasFailures
+      ? '${r.succeeded} ok · ${r.failed} failed'
+      : '${r.succeeded} files';
 
   String _applySummary(ApplyController c) {
     if (c.status == ApplyStatus.stopped) {

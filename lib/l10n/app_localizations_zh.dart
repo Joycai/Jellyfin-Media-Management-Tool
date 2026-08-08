@@ -829,6 +829,22 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String subWritten(Object count) {
+    return '写入 $count';
+  }
+
+  @override
+  String subReplaced(Object count) {
+    return '替换 $count';
+  }
+
+  @override
+  String get historyRowWritten => '新建';
+
+  @override
+  String get historyRowReplaced => '替换';
+
+  @override
   String get undoAction => '撤销';
 
   @override
@@ -1191,4 +1207,528 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tasksDismiss => '移除';
+
+  @override
+  String tasksScrapeLabel(Object target) {
+    return '刮削 · $target';
+  }
+
+  @override
+  String tasksScrapeCommitLabel(Object target) {
+    return '写入元数据 · $target';
+  }
+
+  @override
+  String get menuScrapeMetadata => '刮削元数据';
+
+  @override
+  String get menuRescrapeFolder => '刷新文件夹内的元数据';
+
+  @override
+  String get batchScrapeTitle => '刷新元数据';
+
+  @override
+  String get batchScrapeScanning => '正在查找可刷新的条目…';
+
+  @override
+  String batchScrapeFound(Object count) {
+    return '有 $count 个条目记录了当初的来源页。';
+  }
+
+  @override
+  String get batchScrapeEmpty =>
+      '这里没有可刷新的内容。只有本应用写入的 NFO 才会记录来源页，别处刮削的条目没有可回溯的地址。';
+
+  @override
+  String get batchScrapePolicy =>
+      '每个条目都按安全默认值刷新：补空缺、保留已有值、列表合并。批量刷新不提供逐条确认 —— 需要逐条核对请对单个条目使用「刮削元数据」。';
+
+  @override
+  String get batchScrapeArtwork => '同时重新下载图片';
+
+  @override
+  String get batchScrapeArtworkHint => '默认关闭：图片在首次刮削时已经下载过了。';
+
+  @override
+  String batchScrapeStart(Object count) {
+    return '刷新 $count 个条目';
+  }
+
+  @override
+  String get batchScrapeStarted => '正在刷新元数据 —— 可在「任务」中查看进度';
+
+  @override
+  String batchScrapeDone(Object count) {
+    return '已刷新 $count 个条目';
+  }
+
+  @override
+  String batchScrapePartial(Object count, Object failed) {
+    return '已刷新 $count 个条目 · $failed 个失败';
+  }
+
+  @override
+  String get shortcutScrape => '为当前项刮削元数据';
+
+  @override
+  String get scrapeUrlTitle => '刮削元数据';
+
+  @override
+  String scrapeUrlSubtitle(Object target) {
+    return '元数据将写入 $target 旁边';
+  }
+
+  @override
+  String get scrapeUrlLabel => '作品页地址';
+
+  @override
+  String get scrapeUrlHint => 'https://example.com/product/12345';
+
+  @override
+  String get scrapeUrlInvalid => '请填写完整地址，需包含 http:// 或 https://';
+
+  @override
+  String scrapeDetectedCode(Object code) {
+    return '识别到番号：$code';
+  }
+
+  @override
+  String scrapeSearchOnSite(Object site) {
+    return '在 $site 搜索';
+  }
+
+  @override
+  String get scrapePasteHtml => '改为直接粘贴页面 HTML';
+
+  @override
+  String get scrapePasteHtmlHint => '在此粘贴页面源码';
+
+  @override
+  String get scrapePasteNeedsUrl => '地址仍然必填 —— 粘贴的 HTML 里的相对链接要靠它来解析。';
+
+  @override
+  String get scrapeCookieBuiltIn => '该站点已内置访问 Cookie。';
+
+  @override
+  String get scrapeCookieMissing =>
+      '该站点未配置 Cookie。若抓取失败，可在「设置 → 刮削」里导入 cookies.txt。';
+
+  @override
+  String get scrapeStart => '开始刮削';
+
+  @override
+  String get scrapeStarted => '刮削已开始 —— 可在「任务」中查看进度';
+
+  @override
+  String scrapeFailed(Object error) {
+    return '刮削失败：$error';
+  }
+
+  @override
+  String get scrapeReady => '刮削完成 —— 请查看结果';
+
+  @override
+  String get scrapeReview => '查看';
+
+  @override
+  String get scrapeNoFolder => '请先打开一个文件夹';
+
+  @override
+  String get scrapeNoteSiteWideIgnored => '该站点每个页面都输出同一份 OpenGraph 数据，已忽略。';
+
+  @override
+  String get scrapeNoteNoRecipe => '没有匹配到该站点的配方 —— 只读取了页面自带的结构化数据。';
+
+  @override
+  String get scrapeNoteDegradedEncoding => '无法确定页面编码，部分文字可能是乱码。';
+
+  @override
+  String get scrapeNoteRecipeStale => '配方匹配上了但没抓到任何内容 —— 站点结构多半已经改版。';
+
+  @override
+  String get scrapeNoteRecipeLearned =>
+      '该站点没有现成配方，已由 AI 生成一份。保存前请核对高亮的字段 —— 选择器选错时看起来完全正常，内容却可能被悄悄截断。';
+
+  @override
+  String get scrapeNoteRecipeLearningFailed =>
+      'AI 没能弄清这个页面的结构。可以改用粘贴页面 HTML 再试一次。';
+
+  @override
+  String get scrapeNoteRedirectedAway =>
+      '站点把请求重定向到了别处 —— 通常意味着需要先通过年龄确认或登录。下面显示的是落地页的内容，不是该作品的元数据。';
+
+  @override
+  String scrapeSaveRecipe(Object domain) {
+    return '记住 $domain 的这份配方';
+  }
+
+  @override
+  String scrapeRecipeSaved(Object domain) {
+    return '已保存 $domain 的配方';
+  }
+
+  @override
+  String get scrapePreviewTitle => '确认元数据';
+
+  @override
+  String scrapePreviewSubtitle(Object count, Object images) {
+    return '$count 个字段 · $images 张图';
+  }
+
+  @override
+  String get scrapeSource => '来源';
+
+  @override
+  String get scrapeRecipeName => '配方';
+
+  @override
+  String get scrapeRecipeNone => '无';
+
+  @override
+  String get scrapeColumnField => '字段';
+
+  @override
+  String get scrapeColumnExisting => '磁盘上的值';
+
+  @override
+  String get scrapeColumnScraped => '抓取到的值';
+
+  @override
+  String get scrapeColumnDecision => '处理方式';
+
+  @override
+  String get scrapeDecisionKeep => '保留';
+
+  @override
+  String get scrapeDecisionReplace => '覆盖';
+
+  @override
+  String get scrapeDecisionMerge => '合并';
+
+  @override
+  String get scrapePresetFillEmpty => '只补空缺';
+
+  @override
+  String get scrapePresetReplaceAll => '全部覆盖';
+
+  @override
+  String get scrapePresetKeepAll => '全部保留';
+
+  @override
+  String get scrapeOriginStructured => '页面数据';
+
+  @override
+  String get scrapeOriginRecipe => '配方';
+
+  @override
+  String get scrapeOriginLlm => 'AI 推测';
+
+  @override
+  String get scrapeOriginExisting => '已有 NFO';
+
+  @override
+  String get scrapeOriginManual => '手动修改';
+
+  @override
+  String get scrapeOriginDerived => '推导';
+
+  @override
+  String get scrapeNoChanges => '没有需要改动的内容 —— 磁盘上的 NFO 已经包含这些信息。';
+
+  @override
+  String get scrapeWriteBackup => '记录撤销信息（并备份被替换的 NFO）';
+
+  @override
+  String get scrapeTargetFolder => '目标文件夹';
+
+  @override
+  String get scrapeNfoFileName => 'NFO 文件名';
+
+  @override
+  String get scrapeWrite => '写入';
+
+  @override
+  String scrapeEditValue(Object field) {
+    return '编辑$field';
+  }
+
+  @override
+  String get scrapeImages => '图片';
+
+  @override
+  String get scrapeImagePoster => '封面';
+
+  @override
+  String get scrapeImageFanart => '背景';
+
+  @override
+  String scrapeImageExtra(Object index) {
+    return '样张 $index';
+  }
+
+  @override
+  String scrapeImageCount(Object count, Object total) {
+    return '已选 $count / $total';
+  }
+
+  @override
+  String get scrapeImageNone => '该页面没有提供图片。';
+
+  @override
+  String get scrapeCommitStarted => '正在写入元数据 —— 可在「任务」中查看进度';
+
+  @override
+  String scrapeWriteSucceeded(Object count) {
+    return '已写入 $count 个文件';
+  }
+
+  @override
+  String scrapeWritePartial(Object count, Object failed) {
+    return '已写入 $count 个文件 · $failed 个失败';
+  }
+
+  @override
+  String scrapeWriteFailed(Object error) {
+    return '没有写入任何内容：$error';
+  }
+
+  @override
+  String get fieldTitle => '标题';
+
+  @override
+  String get fieldOriginalTitle => '原始标题';
+
+  @override
+  String get fieldSortTitle => '排序标题';
+
+  @override
+  String get fieldCode => '番号';
+
+  @override
+  String get fieldPlot => '简介';
+
+  @override
+  String get fieldOutline => '短介绍';
+
+  @override
+  String get fieldTagline => '标语';
+
+  @override
+  String get fieldPremiered => '发行日期';
+
+  @override
+  String get fieldRuntime => '时长';
+
+  @override
+  String get fieldStudio => '制作商';
+
+  @override
+  String get fieldSeries => '系列';
+
+  @override
+  String get fieldDirector => '导演';
+
+  @override
+  String get fieldRating => '评分';
+
+  @override
+  String get fieldGenres => '类型';
+
+  @override
+  String get fieldTags => '标签';
+
+  @override
+  String get fieldActors => '演员';
+
+  @override
+  String get fieldPoster => '封面';
+
+  @override
+  String get fieldFanart => '背景图';
+
+  @override
+  String get fieldExtraFanart => '样张';
+
+  @override
+  String get secScraping => '刮削';
+
+  @override
+  String get settingsScrapeCookies => 'Cookie';
+
+  @override
+  String get settingsScrapeCookieWarning =>
+      '从浏览器导出的 cookies.txt 可能包含等同于登录态的会话凭证。Cookie 只保存在内存里，关闭应用即清空；浏览器里退出登录后也会失效，需要重新导入。';
+
+  @override
+  String get settingsScrapeImportCookies => '导入 cookies.txt';
+
+  @override
+  String get settingsScrapeClearCookies => '全部清除';
+
+  @override
+  String get settingsScrapeClearDomain => '清除';
+
+  @override
+  String get settingsScrapeCookieEmpty => '尚未导入 Cookie。';
+
+  @override
+  String settingsScrapeCookieCount(Object count) {
+    return '$count 条 Cookie';
+  }
+
+  @override
+  String settingsScrapeCookieImported(Object count) {
+    return '已导入 $count 条 Cookie';
+  }
+
+  @override
+  String get settingsScrapeCookieImportFailed => '该文件里没有可用的 Cookie';
+
+  @override
+  String get settingsScrapeRecipes => '站点配方';
+
+  @override
+  String get settingsScrapeRecipeBuiltin => '内置';
+
+  @override
+  String get settingsScrapeRecipeLearned => '学习';
+
+  @override
+  String get settingsScrapeRecipeUser => '手编';
+
+  @override
+  String get settingsScrapeRecipeRetired => '已退休';
+
+  @override
+  String get settingsScrapeRecipeDelete => '删除配方';
+
+  @override
+  String settingsScrapeRecipeHealth(Object count, Object failed) {
+    return '成功 $count · 失败 $failed';
+  }
+
+  @override
+  String get settingsScrapeRecipeAnyPath => '任意页面';
+
+  @override
+  String get scrapeNoteLlmExtracted =>
+      '这些值由模型直接从页面读取，而非选择器匹配，没有任何环节核对过它们与原文是否一致。写入前请复核重要字段。';
+
+  @override
+  String get scrapeNoteLlmExtractionFailed => '模型未能从该页面读出可用的元数据。';
+
+  @override
+  String get scrapeAskLlm => '直接询问大模型';
+
+  @override
+  String get scrapeAskLlmHint => '让模型读取已抓取的页面并自行给出字段。会消耗一次请求，且结果来自模型而非页面本身。';
+
+  @override
+  String get scrapeCustomPrompt => '给模型的补充说明（可选）';
+
+  @override
+  String get scrapeCustomPromptHint => '例如“把侧栏的演员名单作为标签”';
+
+  @override
+  String get scrapeBackend => 'AI 后端';
+
+  @override
+  String get scrapeBackendNone => '尚未配置 AI 配置档';
+
+  @override
+  String get scrapeCookiesLabel => '该站点的 Cookie（可选）';
+
+  @override
+  String get scrapeCookiesHint => 'name=value; name2=value2 —— 仅在本次运行期间保存在内存中';
+
+  @override
+  String get scrapeNfoTarget => '对比目标';
+
+  @override
+  String get scrapeNfoBrowse => '浏览…';
+
+  @override
+  String scrapeNfoAutoDetected(Object name) {
+    return '根据 $name 自动识别';
+  }
+
+  @override
+  String get scrapePanelTitle => '刮削元数据';
+
+  @override
+  String get scrapeProcess => '开始处理';
+
+  @override
+  String get scrapeWorking => '处理中…';
+
+  @override
+  String get scrapeBackToSetup => '返回';
+
+  @override
+  String get scrapeRetry => '重试';
+
+  @override
+  String get scrapeAdvanced => '高级选项';
+
+  @override
+  String scrapeImageLoading(Object count) {
+    return '加载中 $count…';
+  }
+
+  @override
+  String get scrapeImageSelectAll => '全选';
+
+  @override
+  String get scrapeImageSelectNone => '全不选';
+
+  @override
+  String scrapeSaveImages(Object count) {
+    return '保存 $count 张图片';
+  }
+
+  @override
+  String get scrapeSaveImagesHint => '立即把勾选的图片写入媒体文件夹，不改动 NFO。';
+
+  @override
+  String scrapeSaveImagesDone(Object count, Object folder) {
+    return '已保存 $count 张图片到 $folder';
+  }
+
+  @override
+  String scrapeSaveImagesPartial(Object count, Object failed) {
+    return '已保存 $count 张 · $failed 张失败';
+  }
+
+  @override
+  String get scrapeImageRole => '保存为';
+
+  @override
+  String get scrapeRoleOriginal => '原始文件名';
+
+  @override
+  String get scrapeRolePoster => '海报 poster';
+
+  @override
+  String get scrapeRoleFanart => '背景图 fanart';
+
+  @override
+  String get scrapeRoleExtraFanart => '附加背景图';
+
+  @override
+  String get scrapeRoleLandscape => '横版图 landscape';
+
+  @override
+  String get scrapeRoleThumb => '缩略图 thumb';
+
+  @override
+  String get scrapeRoleBanner => '横幅 banner';
+
+  @override
+  String get scrapeRoleLogo => '标志 logo';
+
+  @override
+  String get scrapeRoleClearArt => '透明画 clearart';
+
+  @override
+  String get scrapeRoleDisc => '光盘图 disc';
 }

@@ -1550,6 +1550,30 @@ abstract class AppLocalizations {
   /// **'{count} renamed'**
   String subRenames(Object count);
 
+  /// No description provided for @subWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} written'**
+  String subWritten(Object count);
+
+  /// No description provided for @subReplaced.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} replaced'**
+  String subReplaced(Object count);
+
+  /// No description provided for @historyRowWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'written'**
+  String get historyRowWritten;
+
+  /// No description provided for @historyRowReplaced.
+  ///
+  /// In en, this message translates to:
+  /// **'replaced'**
+  String get historyRowReplaced;
+
   /// No description provided for @undoAction.
   ///
   /// In en, this message translates to:
@@ -2227,6 +2251,930 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dismiss'**
   String get tasksDismiss;
+
+  /// No description provided for @tasksScrapeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape · {target}'**
+  String tasksScrapeLabel(Object target);
+
+  /// No description provided for @tasksScrapeCommitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Write metadata · {target}'**
+  String tasksScrapeCommitLabel(Object target);
+
+  /// No description provided for @menuScrapeMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape metadata'**
+  String get menuScrapeMetadata;
+
+  /// No description provided for @menuRescrapeFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh metadata in folder'**
+  String get menuRescrapeFolder;
+
+  /// No description provided for @batchScrapeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh metadata'**
+  String get batchScrapeTitle;
+
+  /// No description provided for @batchScrapeScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for titles to refresh…'**
+  String get batchScrapeScanning;
+
+  /// No description provided for @batchScrapeFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} titles record where they were scraped from.'**
+  String batchScrapeFound(Object count);
+
+  /// No description provided for @batchScrapeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to refresh here. Only NFOs this app wrote record their source page, so titles scraped elsewhere have no URL to go back to.'**
+  String get batchScrapeEmpty;
+
+  /// No description provided for @batchScrapePolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Each title is refreshed with the safe defaults: blanks are filled, existing values are kept, and lists are merged. There is no per-title review — use Scrape metadata on a single title for that.'**
+  String get batchScrapePolicy;
+
+  /// No description provided for @batchScrapeArtwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-download artwork too'**
+  String get batchScrapeArtwork;
+
+  /// No description provided for @batchScrapeArtworkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default: the images were downloaded on the first scrape.'**
+  String get batchScrapeArtworkHint;
+
+  /// No description provided for @batchScrapeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh {count} titles'**
+  String batchScrapeStart(Object count);
+
+  /// No description provided for @batchScrapeStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing metadata — see Tasks for progress'**
+  String get batchScrapeStarted;
+
+  /// No description provided for @batchScrapeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshed {count} titles'**
+  String batchScrapeDone(Object count);
+
+  /// No description provided for @batchScrapePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshed {count} titles · {failed} failed'**
+  String batchScrapePartial(Object count, Object failed);
+
+  /// No description provided for @shortcutScrape.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape metadata for the focused item'**
+  String get shortcutScrape;
+
+  /// No description provided for @scrapeUrlTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape metadata'**
+  String get scrapeUrlTitle;
+
+  /// No description provided for @scrapeUrlSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata will be written next to {target}'**
+  String scrapeUrlSubtitle(Object target);
+
+  /// No description provided for @scrapeUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Product page URL'**
+  String get scrapeUrlLabel;
+
+  /// No description provided for @scrapeUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://example.com/product/12345'**
+  String get scrapeUrlHint;
+
+  /// No description provided for @scrapeUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a full URL, including http:// or https://'**
+  String get scrapeUrlInvalid;
+
+  /// No description provided for @scrapeDetectedCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected code: {code}'**
+  String scrapeDetectedCode(Object code);
+
+  /// No description provided for @scrapeSearchOnSite.
+  ///
+  /// In en, this message translates to:
+  /// **'Search on {site}'**
+  String scrapeSearchOnSite(Object site);
+
+  /// No description provided for @scrapePasteHtml.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the page HTML instead'**
+  String get scrapePasteHtml;
+
+  /// No description provided for @scrapePasteHtmlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the page source here'**
+  String get scrapePasteHtmlHint;
+
+  /// No description provided for @scrapePasteNeedsUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'The URL is still required — relative links in the pasted HTML are resolved against it.'**
+  String get scrapePasteNeedsUrl;
+
+  /// No description provided for @scrapeCookieBuiltIn.
+  ///
+  /// In en, this message translates to:
+  /// **'This site has a built-in access cookie.'**
+  String get scrapeCookieBuiltIn;
+
+  /// No description provided for @scrapeCookieMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No cookies configured for this site. If the fetch fails, import a cookies.txt under Settings → Scraping.'**
+  String get scrapeCookieMissing;
+
+  /// No description provided for @scrapeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape'**
+  String get scrapeStart;
+
+  /// No description provided for @scrapeStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape started — see Tasks for progress'**
+  String get scrapeStarted;
+
+  /// No description provided for @scrapeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape failed: {error}'**
+  String scrapeFailed(Object error);
+
+  /// No description provided for @scrapeReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape finished — review the result'**
+  String get scrapeReady;
+
+  /// No description provided for @scrapeReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get scrapeReview;
+
+  /// No description provided for @scrapeNoFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a folder first'**
+  String get scrapeNoFolder;
+
+  /// No description provided for @scrapeNoteSiteWideIgnored.
+  ///
+  /// In en, this message translates to:
+  /// **'This site serves the same OpenGraph block on every page, so it was ignored.'**
+  String get scrapeNoteSiteWideIgnored;
+
+  /// No description provided for @scrapeNoteNoRecipe.
+  ///
+  /// In en, this message translates to:
+  /// **'No recipe matched this site — only the page\'s own structured data was read.'**
+  String get scrapeNoteNoRecipe;
+
+  /// No description provided for @scrapeNoteDegradedEncoding.
+  ///
+  /// In en, this message translates to:
+  /// **'The page\'s character encoding could not be determined; some text may be garbled.'**
+  String get scrapeNoteDegradedEncoding;
+
+  /// No description provided for @scrapeNoteRecipeStale.
+  ///
+  /// In en, this message translates to:
+  /// **'The recipe matched but extracted nothing — the site has probably changed.'**
+  String get scrapeNoteRecipeStale;
+
+  /// No description provided for @scrapeNoteRecipeLearned.
+  ///
+  /// In en, this message translates to:
+  /// **'No recipe existed for this site, so the AI wrote one. Check the highlighted values before saving it — a wrong selector can look perfectly healthy while quietly truncating text.'**
+  String get scrapeNoteRecipeLearned;
+
+  /// No description provided for @scrapeNoteRecipeLearningFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI could not work out how to read this page. Paste the page HTML to try again.'**
+  String get scrapeNoteRecipeLearningFailed;
+
+  /// No description provided for @scrapeNoteRedirectedAway.
+  ///
+  /// In en, this message translates to:
+  /// **'The site redirected us away from that URL — you probably need to pass its age gate or sign in. What is shown below describes the page we landed on, not the title.'**
+  String get scrapeNoteRedirectedAway;
+
+  /// No description provided for @scrapeSaveRecipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember this recipe for {domain}'**
+  String scrapeSaveRecipe(Object domain);
+
+  /// No description provided for @scrapeRecipeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipe saved for {domain}'**
+  String scrapeRecipeSaved(Object domain);
+
+  /// No description provided for @scrapePreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review metadata'**
+  String get scrapePreviewTitle;
+
+  /// No description provided for @scrapePreviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} fields · {images} images'**
+  String scrapePreviewSubtitle(Object count, Object images);
+
+  /// No description provided for @scrapeSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get scrapeSource;
+
+  /// No description provided for @scrapeRecipeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipe'**
+  String get scrapeRecipeName;
+
+  /// No description provided for @scrapeRecipeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'none'**
+  String get scrapeRecipeNone;
+
+  /// No description provided for @scrapeColumnField.
+  ///
+  /// In en, this message translates to:
+  /// **'Field'**
+  String get scrapeColumnField;
+
+  /// No description provided for @scrapeColumnExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'On disk'**
+  String get scrapeColumnExisting;
+
+  /// No description provided for @scrapeColumnScraped.
+  ///
+  /// In en, this message translates to:
+  /// **'Scraped'**
+  String get scrapeColumnScraped;
+
+  /// No description provided for @scrapeColumnDecision.
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get scrapeColumnDecision;
+
+  /// No description provided for @scrapeDecisionKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get scrapeDecisionKeep;
+
+  /// No description provided for @scrapeDecisionReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get scrapeDecisionReplace;
+
+  /// No description provided for @scrapeDecisionMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get scrapeDecisionMerge;
+
+  /// No description provided for @scrapePresetFillEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill blanks only'**
+  String get scrapePresetFillEmpty;
+
+  /// No description provided for @scrapePresetReplaceAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace all'**
+  String get scrapePresetReplaceAll;
+
+  /// No description provided for @scrapePresetKeepAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep all'**
+  String get scrapePresetKeepAll;
+
+  /// No description provided for @scrapeOriginStructured.
+  ///
+  /// In en, this message translates to:
+  /// **'Page data'**
+  String get scrapeOriginStructured;
+
+  /// No description provided for @scrapeOriginRecipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipe'**
+  String get scrapeOriginRecipe;
+
+  /// No description provided for @scrapeOriginLlm.
+  ///
+  /// In en, this message translates to:
+  /// **'AI guess'**
+  String get scrapeOriginLlm;
+
+  /// No description provided for @scrapeOriginExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing NFO'**
+  String get scrapeOriginExisting;
+
+  /// No description provided for @scrapeOriginManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get scrapeOriginManual;
+
+  /// No description provided for @scrapeOriginDerived.
+  ///
+  /// In en, this message translates to:
+  /// **'Derived'**
+  String get scrapeOriginDerived;
+
+  /// No description provided for @scrapeNoChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to change — the NFO on disk already says all of this.'**
+  String get scrapeNoChanges;
+
+  /// No description provided for @scrapeWriteBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Record undo information (backs up any NFO this replaces)'**
+  String get scrapeWriteBackup;
+
+  /// No description provided for @scrapeTargetFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Target folder'**
+  String get scrapeTargetFolder;
+
+  /// No description provided for @scrapeNfoFileName.
+  ///
+  /// In en, this message translates to:
+  /// **'NFO file name'**
+  String get scrapeNfoFileName;
+
+  /// No description provided for @scrapeWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Write'**
+  String get scrapeWrite;
+
+  /// No description provided for @scrapeEditValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {field}'**
+  String scrapeEditValue(Object field);
+
+  /// No description provided for @scrapeImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork'**
+  String get scrapeImages;
+
+  /// No description provided for @scrapeImagePoster.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster'**
+  String get scrapeImagePoster;
+
+  /// No description provided for @scrapeImageFanart.
+  ///
+  /// In en, this message translates to:
+  /// **'Backdrop'**
+  String get scrapeImageFanart;
+
+  /// No description provided for @scrapeImageExtra.
+  ///
+  /// In en, this message translates to:
+  /// **'Still {index}'**
+  String scrapeImageExtra(Object index);
+
+  /// No description provided for @scrapeImageCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} selected'**
+  String scrapeImageCount(Object count, Object total);
+
+  /// No description provided for @scrapeImageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'This page offered no artwork.'**
+  String get scrapeImageNone;
+
+  /// No description provided for @scrapeCommitStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing metadata — see Tasks for progress'**
+  String get scrapeCommitStarted;
+
+  /// No description provided for @scrapeWriteSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrote {count} files'**
+  String scrapeWriteSucceeded(Object count);
+
+  /// No description provided for @scrapeWritePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrote {count} files · {failed} failed'**
+  String scrapeWritePartial(Object count, Object failed);
+
+  /// No description provided for @scrapeWriteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was written: {error}'**
+  String scrapeWriteFailed(Object error);
+
+  /// No description provided for @fieldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get fieldTitle;
+
+  /// No description provided for @fieldOriginalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Original title'**
+  String get fieldOriginalTitle;
+
+  /// No description provided for @fieldSortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort title'**
+  String get fieldSortTitle;
+
+  /// No description provided for @fieldCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Code'**
+  String get fieldCode;
+
+  /// No description provided for @fieldPlot.
+  ///
+  /// In en, this message translates to:
+  /// **'Synopsis'**
+  String get fieldPlot;
+
+  /// No description provided for @fieldOutline.
+  ///
+  /// In en, this message translates to:
+  /// **'Blurb'**
+  String get fieldOutline;
+
+  /// No description provided for @fieldTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Tagline'**
+  String get fieldTagline;
+
+  /// No description provided for @fieldPremiered.
+  ///
+  /// In en, this message translates to:
+  /// **'Release date'**
+  String get fieldPremiered;
+
+  /// No description provided for @fieldRuntime.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime'**
+  String get fieldRuntime;
+
+  /// No description provided for @fieldStudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Studio'**
+  String get fieldStudio;
+
+  /// No description provided for @fieldSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get fieldSeries;
+
+  /// No description provided for @fieldDirector.
+  ///
+  /// In en, this message translates to:
+  /// **'Director'**
+  String get fieldDirector;
+
+  /// No description provided for @fieldRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get fieldRating;
+
+  /// No description provided for @fieldGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get fieldGenres;
+
+  /// No description provided for @fieldTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get fieldTags;
+
+  /// No description provided for @fieldActors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast'**
+  String get fieldActors;
+
+  /// No description provided for @fieldPoster.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster'**
+  String get fieldPoster;
+
+  /// No description provided for @fieldFanart.
+  ///
+  /// In en, this message translates to:
+  /// **'Backdrop'**
+  String get fieldFanart;
+
+  /// No description provided for @fieldExtraFanart.
+  ///
+  /// In en, this message translates to:
+  /// **'Stills'**
+  String get fieldExtraFanart;
+
+  /// No description provided for @secScraping.
+  ///
+  /// In en, this message translates to:
+  /// **'Scraping'**
+  String get secScraping;
+
+  /// No description provided for @settingsScrapeCookies.
+  ///
+  /// In en, this message translates to:
+  /// **'Cookies'**
+  String get settingsScrapeCookies;
+
+  /// No description provided for @settingsScrapeCookieWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'A cookies.txt exported from your browser can contain a session identifier equivalent to being signed in. Cookies are held in memory only and are gone when the app closes; they also stop working once you sign out in that browser.'**
+  String get settingsScrapeCookieWarning;
+
+  /// No description provided for @settingsScrapeImportCookies.
+  ///
+  /// In en, this message translates to:
+  /// **'Import cookies.txt'**
+  String get settingsScrapeImportCookies;
+
+  /// No description provided for @settingsScrapeClearCookies.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get settingsScrapeClearCookies;
+
+  /// No description provided for @settingsScrapeClearDomain.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get settingsScrapeClearDomain;
+
+  /// No description provided for @settingsScrapeCookieEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No cookies imported.'**
+  String get settingsScrapeCookieEmpty;
+
+  /// No description provided for @settingsScrapeCookieCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} cookies'**
+  String settingsScrapeCookieCount(Object count);
+
+  /// No description provided for @settingsScrapeCookieImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} cookies'**
+  String settingsScrapeCookieImported(Object count);
+
+  /// No description provided for @settingsScrapeCookieImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That file contained no usable cookies'**
+  String get settingsScrapeCookieImportFailed;
+
+  /// No description provided for @settingsScrapeRecipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Site recipes'**
+  String get settingsScrapeRecipes;
+
+  /// No description provided for @settingsScrapeRecipeBuiltin.
+  ///
+  /// In en, this message translates to:
+  /// **'Built in'**
+  String get settingsScrapeRecipeBuiltin;
+
+  /// No description provided for @settingsScrapeRecipeLearned.
+  ///
+  /// In en, this message translates to:
+  /// **'Learned'**
+  String get settingsScrapeRecipeLearned;
+
+  /// No description provided for @settingsScrapeRecipeUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get settingsScrapeRecipeUser;
+
+  /// No description provided for @settingsScrapeRecipeRetired.
+  ///
+  /// In en, this message translates to:
+  /// **'Retired'**
+  String get settingsScrapeRecipeRetired;
+
+  /// No description provided for @settingsScrapeRecipeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete recipe'**
+  String get settingsScrapeRecipeDelete;
+
+  /// No description provided for @settingsScrapeRecipeHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} ok · {failed} failed'**
+  String settingsScrapeRecipeHealth(Object count, Object failed);
+
+  /// No description provided for @settingsScrapeRecipeAnyPath.
+  ///
+  /// In en, this message translates to:
+  /// **'any page'**
+  String get settingsScrapeRecipeAnyPath;
+
+  /// No description provided for @scrapeNoteLlmExtracted.
+  ///
+  /// In en, this message translates to:
+  /// **'These values were read off the page by the model, not matched by a selector — nothing verified them against the document. Check anything that matters before writing.'**
+  String get scrapeNoteLlmExtracted;
+
+  /// No description provided for @scrapeNoteLlmExtractionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The model could not read usable metadata off this page.'**
+  String get scrapeNoteLlmExtractionFailed;
+
+  /// No description provided for @scrapeAskLlm.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask the LLM directly'**
+  String get scrapeAskLlm;
+
+  /// No description provided for @scrapeAskLlmHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reads the page you already fetched and reports the fields itself. Costs a request, and the values are the model’s rather than the page’s.'**
+  String get scrapeAskLlmHint;
+
+  /// No description provided for @scrapeCustomPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra instructions for the model (optional)'**
+  String get scrapeCustomPrompt;
+
+  /// No description provided for @scrapeCustomPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. “use the sidebar credits as tags”'**
+  String get scrapeCustomPromptHint;
+
+  /// No description provided for @scrapeBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'AI backend'**
+  String get scrapeBackend;
+
+  /// No description provided for @scrapeBackendNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No AI profile configured'**
+  String get scrapeBackendNone;
+
+  /// No description provided for @scrapeCookiesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cookies for this site (optional)'**
+  String get scrapeCookiesLabel;
+
+  /// No description provided for @scrapeCookiesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'name=value; name2=value2 — held in memory for this run only'**
+  String get scrapeCookiesHint;
+
+  /// No description provided for @scrapeNfoTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare against'**
+  String get scrapeNfoTarget;
+
+  /// No description provided for @scrapeNfoBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse…'**
+  String get scrapeNfoBrowse;
+
+  /// No description provided for @scrapeNfoAutoDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detected from {name}'**
+  String scrapeNfoAutoDetected(Object name);
+
+  /// No description provided for @scrapePanelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape metadata'**
+  String get scrapePanelTitle;
+
+  /// No description provided for @scrapeProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process'**
+  String get scrapeProcess;
+
+  /// No description provided for @scrapeWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get scrapeWorking;
+
+  /// No description provided for @scrapeBackToSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get scrapeBackToSetup;
+
+  /// No description provided for @scrapeRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get scrapeRetry;
+
+  /// No description provided for @scrapeAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get scrapeAdvanced;
+
+  /// No description provided for @scrapeImageLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'loading {count}…'**
+  String scrapeImageLoading(Object count);
+
+  /// No description provided for @scrapeImageSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get scrapeImageSelectAll;
+
+  /// No description provided for @scrapeImageSelectNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get scrapeImageSelectNone;
+
+  /// No description provided for @scrapeSaveImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Save {count} images'**
+  String scrapeSaveImages(Object count);
+
+  /// No description provided for @scrapeSaveImagesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Writes the ticked images into the media folder now. Does not touch the NFO.'**
+  String get scrapeSaveImagesHint;
+
+  /// No description provided for @scrapeSaveImagesDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} images to {folder}'**
+  String scrapeSaveImagesDone(Object count, Object folder);
+
+  /// No description provided for @scrapeSaveImagesPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} images · {failed} failed'**
+  String scrapeSaveImagesPartial(Object count, Object failed);
+
+  /// No description provided for @scrapeImageRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as'**
+  String get scrapeImageRole;
+
+  /// No description provided for @scrapeRoleOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original name'**
+  String get scrapeRoleOriginal;
+
+  /// No description provided for @scrapeRolePoster.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster'**
+  String get scrapeRolePoster;
+
+  /// No description provided for @scrapeRoleFanart.
+  ///
+  /// In en, this message translates to:
+  /// **'Backdrop (fanart)'**
+  String get scrapeRoleFanart;
+
+  /// No description provided for @scrapeRoleExtraFanart.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra backdrop'**
+  String get scrapeRoleExtraFanart;
+
+  /// No description provided for @scrapeRoleLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape'**
+  String get scrapeRoleLandscape;
+
+  /// No description provided for @scrapeRoleThumb.
+  ///
+  /// In en, this message translates to:
+  /// **'Thumb'**
+  String get scrapeRoleThumb;
+
+  /// No description provided for @scrapeRoleBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Banner'**
+  String get scrapeRoleBanner;
+
+  /// No description provided for @scrapeRoleLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo'**
+  String get scrapeRoleLogo;
+
+  /// No description provided for @scrapeRoleClearArt.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear art'**
+  String get scrapeRoleClearArt;
+
+  /// No description provided for @scrapeRoleDisc.
+  ///
+  /// In en, this message translates to:
+  /// **'Disc'**
+  String get scrapeRoleDisc;
 }
 
 class _AppLocalizationsDelegate

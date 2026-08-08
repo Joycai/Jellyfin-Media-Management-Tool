@@ -167,12 +167,12 @@ class _TaskCard extends StatelessWidget {
 
   Widget _buildCard(BuildContext context, ColorScheme scheme) {
     final l10n = AppLocalizations.of(context)!;
-    final isAnalyze = task.kind == TaskKind.analyze;
     final controller = task.controller;
 
-    final progress = controller != null
-        ? controller.fraction
-        : (task.status == TaskStatus.done ? 1.0 : null);
+    final progress =
+        controller?.fraction ??
+        task.progress ??
+        (task.status == TaskStatus.done ? 1.0 : null);
 
     final (icon, accent) = switch ((task.kind, task.status)) {
       (TaskKind.analyze, TaskStatus.running) => (
@@ -184,6 +184,21 @@ class _TaskCard extends StatelessWidget {
         Icons.drive_file_move_outlined,
         const Color(0xFF22C9A9),
       ),
+      (TaskKind.scrape, _) => (
+        Icons.travel_explore_outlined,
+        const Color(0xFF3B82F6),
+      ),
+      (TaskKind.scrapeCommit, _) => (
+        Icons.sim_card_download_outlined,
+        const Color(0xFF3B82F6),
+      ),
+    };
+
+    final title = switch (task.kind) {
+      TaskKind.analyze => l10n.tasksAnalyzeLabel(task.label),
+      TaskKind.apply => l10n.tasksApplyLabel(task.label),
+      TaskKind.scrape => l10n.tasksScrapeLabel(task.label),
+      TaskKind.scrapeCommit => l10n.tasksScrapeCommitLabel(task.label),
     };
 
     return Container(
@@ -214,9 +229,7 @@ class _TaskCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isAnalyze
-                          ? l10n.tasksAnalyzeLabel(task.label)
-                          : l10n.tasksApplyLabel(task.label),
+                      title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -335,6 +348,8 @@ class _TaskCard extends StatelessWidget {
     if (c != null && task.status == TaskStatus.running) {
       return '${c.done}/${c.total}';
     }
+    if (task.status == TaskStatus.failed) return l10n.tasksFailed;
+    if (task.status == TaskStatus.stopped) return l10n.statusStopped;
     if (task.summary != null) return task.summary!;
     return '';
   }

@@ -13,6 +13,8 @@ import 'services/ai_service.dart';
 import 'services/file_browser_service.dart';
 import 'services/font_service.dart';
 import 'services/history_service.dart';
+import 'services/scrape/recipe_store.dart';
+import 'services/scrape/scrape_service.dart';
 import 'services/settings_service.dart';
 import 'services/task_service.dart';
 import 'theme/app_theme.dart';
@@ -54,6 +56,16 @@ void main() async {
   // Best-effort initial load; UI is fine before this completes.
   unawaited(historyService.refresh());
 
+  // Also best-effort: until scrapers.json is read, `forUrl` falls back to the
+  // built-in recipes, so nothing has to wait on this. Deliberately last —
+  // scraping is independent of the AiProfiles-before-Settings ordering above,
+  // and inserting anything between those two would break the migration.
+  final recipeStore = RecipeStore();
+  unawaited(recipeStore.init());
+  // One store instance for both: the settings page edits the same recipes the
+  // scraper selects from.
+  final scrapeService = ScrapeService(recipes: recipeStore);
+
   runApp(
     MultiProvider(
       providers: [
@@ -62,6 +74,8 @@ void main() async {
         ChangeNotifierProvider.value(value: aiProfilesService),
         ChangeNotifierProvider.value(value: aiService),
         ChangeNotifierProvider.value(value: historyService),
+        ChangeNotifierProvider.value(value: recipeStore),
+        ChangeNotifierProvider.value(value: scrapeService),
         ChangeNotifierProvider(create: (_) => TaskService()),
         ChangeNotifierProvider(create: (_) => FileBrowserService()),
       ],

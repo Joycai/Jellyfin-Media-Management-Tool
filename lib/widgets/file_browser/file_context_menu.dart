@@ -12,8 +12,17 @@ import '../../services/file_label_service.dart';
 import '../../utils/format.dart';
 import '../dialogs/input_dialog.dart';
 import '../dialogs/preview_dialog.dart';
+import '../scrape/scrape_flow.dart';
 
-enum _MenuAction { preview, rename, delete, properties, reveal }
+enum _MenuAction {
+  preview,
+  scrape,
+  rescrapeFolder,
+  rename,
+  delete,
+  properties,
+  reveal,
+}
 
 /// Right-click / long-press context menu for a file-table row.
 ///
@@ -51,6 +60,23 @@ Future<void> showFileContextMenu(
     items: [
       if (PreviewDialog.canPreview(entry))
         _item(_MenuAction.preview, Icons.visibility_outlined, l10n.menuPreview),
+      // Single-entry only for now: batch scraping is a later phase, and the
+      // per-host rate limit means a folder of 300 titles is a queue, not a
+      // click.
+      if (canScrape(entry))
+        _item(
+          _MenuAction.scrape,
+          Icons.travel_explore_outlined,
+          l10n.menuScrapeMetadata,
+        ),
+      // Folders only: the batch refresh re-reads the URL each NFO recorded,
+      // so it needs a tree to walk.
+      if (entry.isDirectory)
+        _item(
+          _MenuAction.rescrapeFolder,
+          Icons.refresh_rounded,
+          l10n.menuRescrapeFolder,
+        ),
       _item(_MenuAction.rename, Icons.drive_file_rename_outline, l10n.rename),
       _item(
         _MenuAction.reveal,
@@ -76,6 +102,14 @@ Future<void> showFileContextMenu(
   switch (action) {
     case _MenuAction.preview:
       await PreviewDialog.show(context, entry);
+    case _MenuAction.scrape:
+      await startScrapeFlow(
+        context,
+        target: entry,
+        baseDir: browser.currentDirectory ?? p.dirname(entry.path),
+      );
+    case _MenuAction.rescrapeFolder:
+      await startBatchScrapeFlow(context, dir: entry.path);
     case _MenuAction.rename:
       await renameEntry(context, entry);
     case _MenuAction.delete:

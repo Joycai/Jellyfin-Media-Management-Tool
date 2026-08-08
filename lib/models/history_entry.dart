@@ -1,8 +1,8 @@
 import 'package:path/path.dart' as p;
 
-/// Coarse kind for visual styling and grouping in the history list. The current
-/// app only emits [aiOrganize] entries; other kinds are placeholders that
-/// downstream features will populate.
+/// Coarse kind for visual styling and grouping in the history list.
+/// [aiOrganize] comes from the organize pipeline and [metadataRefresh] from a
+/// scrape commit; the remaining two are placeholders.
 enum HistoryKind {
   aiOrganize,
   manualRename,
@@ -38,10 +38,31 @@ class HistoryEntry {
   final int moveCount;
   final int renameCount;
   final int totalBytes;
+
+  /// `{'from': …, 'to': …}` per relocated file. Undo renames back.
   final List<Map<String, String>> moves;
 
-  /// Whether undo is still possible — i.e. the manifest has moves to reverse.
-  bool get canUndo => moves.isNotEmpty;
+  /// Files this operation brought into existence (a written NFO, a downloaded
+  /// poster). Undo deletes exactly these — nothing else in the folder.
+  final List<String> created;
+
+  /// Files this operation overwrote, mapped to the copy of the original. Undo
+  /// copies the backup back over the current content.
+  ///
+  /// This is the half of undo that moves alone cannot express: replacing an
+  /// NFO's *content* is not reversible by relocating a file, which is why
+  /// `MetadataWriter.backup` genuinely copies where the organize pipeline's
+  /// `backup` flag only gates whether a manifest is written at all.
+  final Map<String, String> restored;
+
+  /// Directory holding the copies named in [restored]. Removed together with
+  /// the manifest so backups can't outlive the entry that explains them.
+  final String? backupDir;
+
+  /// Whether undo is still possible — i.e. the manifest still describes work
+  /// that can be reversed.
+  bool get canUndo =>
+      moves.isNotEmpty || created.isNotEmpty || restored.isNotEmpty;
 
   const HistoryEntry({
     required this.manifestPath,
@@ -53,22 +74,32 @@ class HistoryEntry {
     required this.renameCount,
     required this.totalBytes,
     required this.moves,
+    this.created = const [],
+    this.restored = const {},
+    this.backupDir,
   });
 
-  /// Returns a copy with [moves] replaced (counts left untouched — callers
-  /// rendering the card should treat them as the original op size).
-  HistoryEntry copyWithMoves(List<Map<String, String>> newMoves) =>
-      HistoryEntry(
-        manifestPath: manifestPath,
-        kind: kind,
-        createdAt: createdAt,
-        baseDir: baseDir,
-        itemCount: itemCount,
-        moveCount: moveCount,
-        renameCount: renameCount,
-        totalBytes: totalBytes,
-        moves: newMoves,
-      );
+  /// Returns a copy with the reversible work replaced by whatever is left after
+  /// a partial undo. Counts are left untouched — callers rendering the card
+  /// should treat them as the original op size.
+  HistoryEntry copyWithRemaining({
+    List<Map<String, String>>? moves,
+    List<String>? created,
+    Map<String, String>? restored,
+  }) => HistoryEntry(
+    manifestPath: manifestPath,
+    kind: kind,
+    createdAt: createdAt,
+    baseDir: baseDir,
+    itemCount: itemCount,
+    moveCount: moveCount,
+    renameCount: renameCount,
+    totalBytes: totalBytes,
+    moves: moves ?? this.moves,
+    created: created ?? this.created,
+    restored: restored ?? this.restored,
+    backupDir: backupDir,
+  );
 
   factory HistoryEntry.fromJson(String path, Map<String, dynamic> json) {
     final movesRaw = (json['moves'] as List?) ?? const [];
@@ -102,9 +133,24 @@ class HistoryEntry {
       renameCount: (json['renameCount'] as num?)?.toInt() ?? renamesFromMoves,
       totalBytes: (json['totalBytes'] as num?)?.toInt() ?? 0,
       moves: moves,
+      created: [
+        for (final c in (json['created'] as List?) ?? const [])
+          if (c is String && c.isNotEmpty) c,
+      ],
+      restored: {
+        for (final e in ((json['restored'] as Map?) ?? const {}).entries)
+          if (e.value is String && (e.value as String).isNotEmpty)
+            e.key.toString(): e.value as String,
+      },
+      backupDir: (json['backupDir'] as String?)?.trim(),
     );
   }
 
+  /// Builds the on-disk manifest.
+  ///
+  /// The scrape-only keys are omitted when empty so an organize manifest is
+  /// byte-for-byte what it always was — a reader on an older build sees the
+  /// same document it expects.
   static Map<String, dynamic> buildManifest({
     required HistoryKind kind,
     required DateTime createdAt,
@@ -114,6 +160,9 @@ class HistoryEntry {
     required int renameCount,
     required int totalBytes,
     required List<Map<String, String>> moves,
+    List<String> created = const [],
+    Map<String, String> restored = const {},
+    String? backupDir,
   }) => {
     'kind': kind.id,
     'createdAt': createdAt.toIso8601String(),
@@ -123,21 +172,44 @@ class HistoryEntry {
     'renameCount': renameCount,
     'totalBytes': totalBytes,
     'moves': moves,
+    if (created.isNotEmpty) 'created': created,
+    if (restored.isNotEmpty) 'restored': restored,
+    if (backupDir != null && backupDir.isNotEmpty) 'backupDir': backupDir,
   };
 }
 
-/// Outcome of reversing a recorded operation. [remaining] is the subset of
-/// [HistoryEntry.moves] that weren't reversed (either because they failed or
-/// because they were skipped); the caller can rewrite the manifest with this
-/// list so the next undo retries only the still-broken moves.
+/// Outcome of reversing a recorded operation.
+///
+/// The three `remaining*` lists are the work that was *not* undone (it failed,
+/// or it was refused); the service rewrites the manifest with exactly them, so
+/// a retry picks up where this left off instead of replaying what already
+/// worked.
 class UndoResult {
   final int succeeded;
   final List<String> failures;
+
+  /// Moves still to reverse — the subset of [HistoryEntry.moves].
   final List<Map<String, String>> remaining;
+
+  /// Created files still to delete.
+  final List<String> remainingCreated;
+
+  /// Overwritten files still to restore from their backup.
+  final Map<String, String> remainingRestored;
+
   const UndoResult({
     required this.succeeded,
     required this.failures,
     required this.remaining,
+    this.remainingCreated = const [],
+    this.remainingRestored = const {},
   });
+
   bool get hasFailures => failures.isNotEmpty;
+
+  /// True when there is nothing left to reverse, so the manifest can go.
+  bool get isComplete =>
+      remaining.isEmpty &&
+      remainingCreated.isEmpty &&
+      remainingRestored.isEmpty;
 }

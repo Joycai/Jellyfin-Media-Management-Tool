@@ -116,7 +116,182 @@ void main() {
     });
   });
 
+  group('HistoryService.recordScrape', () {
+    test('does not record an entry when nothing is reversible', () async {
+      final entry = await svc.recordScrape(
+        baseDir: baseDir,
+        created: const [],
+        restored: const {},
+      );
+
+      expect(entry, isNull);
+      expect(svc.entries, isEmpty);
+    });
+
+    test('deletes created files and restores replaced ones', () async {
+      seedFile(fs, '/work/SPSF-43.nfo', contents: '<movie>new</movie>');
+      seedFile(fs, '/work/poster.jpg', contents: 'jpeg');
+      seedFile(fs, '/work/extrafanart/backdrop-1.jpg', contents: 'jpeg');
+      seedFile(fs, '$undoDir/blobs/op-1/a.nfo', contents: '<movie>old</movie>');
+      seedFile(fs, '/work/a.nfo', contents: '<movie>replaced</movie>');
+
+      final entry = (await svc.recordScrape(
+        baseDir: baseDir,
+        created: const [
+          '/work/SPSF-43.nfo',
+          '/work/poster.jpg',
+          '/work/extrafanart/backdrop-1.jpg',
+        ],
+        restored: const {'/work/a.nfo': '$undoDir/blobs/op-1/a.nfo'},
+        backupDir: '$undoDir/blobs/op-1',
+      ))!;
+      expect(entry.canUndo, isTrue);
+
+      final result = await svc.undo(entry);
+
+      expect(result.failures, isEmpty);
+      expect(result.succeeded, 4);
+      expect(fs.file('/work/SPSF-43.nfo').existsSync(), isFalse);
+      expect(fs.file('/work/poster.jpg').existsSync(), isFalse);
+      expect(fs.file('/work/extrafanart/backdrop-1.jpg').existsSync(), isFalse);
+      // The replaced file is back to its pre-scrape content.
+      expect(fs.file('/work/a.nfo').readAsStringSync(), '<movie>old</movie>');
+      // Manifest and its backups are both gone.
+      expect(fs.file(entry.manifestPath).existsSync(), isFalse);
+      expect(fs.directory('$undoDir/blobs/op-1').existsSync(), isFalse);
+      expect(svc.entries, isEmpty);
+    });
+
+    test('a created file the user already deleted counts as undone', () async {
+      final entry = (await svc.recordScrape(
+        baseDir: baseDir,
+        created: const ['/work/gone.nfo'],
+        restored: const {},
+      ))!;
+
+      final result = await svc.undo(entry);
+
+      expect(result.succeeded, 1);
+      expect(result.failures, isEmpty);
+      expect(svc.entries, isEmpty);
+    });
+
+    test('a missing backup is reported and kept for a retry', () async {
+      seedFile(fs, '/work/a.nfo', contents: 'current');
+      final entry = (await svc.recordScrape(
+        baseDir: baseDir,
+        created: const [],
+        restored: const {'/work/a.nfo': '$undoDir/blobs/op-2/a.nfo'},
+      ))!;
+
+      final result = await svc.undo(entry);
+
+      expect(result.succeeded, 0);
+      expect(result.failures.single, contains('missing backup'));
+      expect(result.remainingRestored, hasLength(1));
+      // Entry survives so the user can retry once the backup is back.
+      expect(svc.entries, hasLength(1));
+      expect(fs.file('/work/a.nfo').readAsStringSync(), 'current');
+    });
+  });
+
+  group('HistoryService.refresh — round trip', () {
+    test('re-reads a manifest it wrote, scrape keys included', () async {
+      await svc.recordScrape(
+        baseDir: baseDir,
+        created: const ['/work/a.nfo'],
+        restored: const {'/work/b.nfo': '$undoDir/blobs/op-1/b.nfo'},
+        backupDir: '$undoDir/blobs/op-1',
+      );
+
+      // A second service reads from disk with nothing in memory, which is what
+      // a fresh app launch does.
+      final reopened = HistoryService(fs: fs, undoDir: undoDir);
+      await reopened.refresh();
+
+      expect(reopened.entries, hasLength(1));
+      final entry = reopened.entries.single;
+      expect(entry.kind, HistoryKind.metadataRefresh);
+      expect(entry.created, ['/work/a.nfo']);
+      expect(entry.restored, {'/work/b.nfo': '$undoDir/blobs/op-1/b.nfo'});
+      expect(entry.backupDir, '$undoDir/blobs/op-1');
+      expect(entry.canUndo, isTrue);
+    });
+
+    test('an organize manifest still round-trips unchanged', () async {
+      final written = await seedManifest([
+        ['/work/a.mkv', '/work/Movies/A/a.mkv'],
+      ]);
+
+      final reopened = HistoryService(fs: fs, undoDir: undoDir);
+      await reopened.refresh();
+
+      expect(reopened.entries, hasLength(1));
+      expect(reopened.entries.single.moves, written.moves);
+      // The scrape-only keys are omitted when empty, so an older reader sees
+      // exactly the document it always did.
+      final raw =
+          jsonDecode(fs.file(written.manifestPath).readAsStringSync())
+              as Map<String, dynamic>;
+      expect(raw.containsKey('created'), isFalse);
+      expect(raw.containsKey('restored'), isFalse);
+      expect(raw.containsKey('backupDir'), isFalse);
+    });
+  });
+
+  group('HistoryService.refresh — retention', () {
+    test('prunes backup folders past the window, keeps fresh ones', () async {
+      final old = seedFile(fs, '$undoDir/blobs/op-old/a.nfo', contents: 'x');
+      seedFile(fs, '$undoDir/blobs/op-new/a.nfo', contents: 'x');
+      old.setLastModifiedSync(
+        DateTime.now().subtract(
+          const Duration(days: HistoryService.retentionDays + 1),
+        ),
+      );
+
+      await svc.refresh();
+
+      // Otherwise the 7-day promise would hold for manifests while the copies
+      // they reference grew without bound.
+      expect(fs.directory('$undoDir/blobs/op-old').existsSync(), isFalse);
+      expect(fs.directory('$undoDir/blobs/op-new').existsSync(), isTrue);
+    });
+  });
+
   group('HistoryService.undo — defense in depth', () {
+    test('refuses to delete a created file outside baseDir', () async {
+      seedFile(fs, '/etc/passwd', contents: 'root');
+      final entry = (await svc.recordScrape(
+        baseDir: baseDir,
+        created: const ['/etc/passwd'],
+        restored: const {},
+      ))!;
+
+      final result = await svc.undo(entry);
+
+      expect(result.succeeded, 0);
+      expect(result.failures.single, contains('escapes'));
+      expect(fs.file('/etc/passwd').existsSync(), isTrue);
+    });
+
+    test('refuses a backup sourced from outside the undo directory', () async {
+      // A tampered manifest naming an arbitrary file as the "backup" would
+      // otherwise copy its contents straight into the user's library.
+      seedFile(fs, '/elsewhere/evil', contents: 'payload');
+      seedFile(fs, '/work/a.nfo', contents: 'current');
+      final entry = (await svc.recordScrape(
+        baseDir: baseDir,
+        created: const [],
+        restored: const {'/work/a.nfo': '/elsewhere/evil'},
+      ))!;
+
+      final result = await svc.undo(entry);
+
+      expect(result.succeeded, 0);
+      expect(result.failures.single, contains('escapes'));
+      expect(fs.file('/work/a.nfo').readAsStringSync(), 'current');
+    });
+
     test('refuses to reverse a move whose paths escape baseDir', () async {
       final entry = await seedManifest([
         ['/etc/passwd', '/work/Movies/A/a.mkv'],

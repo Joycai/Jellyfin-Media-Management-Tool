@@ -16,6 +16,7 @@ import '../widgets/file_browser/file_context_menu.dart';
 import '../widgets/file_browser/media_table.dart';
 import '../widgets/ai/organize_history_screen.dart';
 import '../widgets/glass/glass_panel.dart';
+import '../widgets/scrape/scrape_flow.dart';
 import '../widgets/settings/settings_screen.dart';
 import '../widgets/sidebar/app_sidebar.dart';
 import '../widgets/tasks/tasks_screen.dart';
@@ -105,6 +106,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Scrapes metadata for the focused row, or for the whole folder when
+  /// nothing is focused. Deliberately single-target — see [startScrapeFlow].
+  Future<void> _scrape() async {
+    if (!_onFiles) return;
+    final browser = context.read<FileBrowserService>();
+    final dir = browser.currentDirectory;
+    if (dir == null) {
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.scrapeNoFolder)));
+      return;
+    }
+    await startScrapeFlow(context, target: browser.selectedFile, baseDir: dir);
+  }
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   // Bindings and their descriptions live in lib/shortcuts/app_shortcuts.dart;
   // this only supplies the callbacks. Ids with no entry here stay unbound.
@@ -170,6 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
       AppShortcutId.rename: _renameFocused,
       AppShortcutId.delete: _deleteSelection,
       AppShortcutId.organize: _organize,
+      AppShortcutId.scrape: _scrape,
       AppShortcutId.toggleFavorite: _toggleFavorite,
       AppShortcutId.history: () => OrganizeHistoryScreen.show(context),
       AppShortcutId.settings: () => SettingsScreen.show(context),

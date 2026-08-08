@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Flutter **desktop** app for Windows/macOS/Linux. `android/`/`ios/` are not present; the `web/` directory is a `flutter create` artifact and is not a supported target.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `0.12.0+6`.
+- Dart SDK `^3.10.4`. Current app version: `0.14.0+8`.
 
 ## Common commands
 
@@ -34,7 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Services
 
-Seven `ChangeNotifier`s are registered in `lib/main.dart`:
+Nine `ChangeNotifier`s are registered in `lib/main.dart`:
 
 | Service | Owns |
 |---|---|
@@ -45,6 +45,8 @@ Seven `ChangeNotifier`s are registered in `lib/main.dart`:
 | [task_service.dart](lib/services/task_service.dart) | The Tasks-tab list of running/finished analyze + apply tasks |
 | [history_service.dart](lib/services/history_service.dart) | Undo manifests under `undo/op-*.json`, 7-day retention |
 | [font_service.dart](lib/services/font_service.dart) | Optional downloadable CJK UI fonts (HarmonyOS Sans SC, MiSans) |
+| [recipe_store.dart](lib/services/scrape/recipe_store.dart) | Learned / user-edited scrape recipes → `scrapers.json`, plus per-recipe health counters |
+| [scrape_service.dart](lib/services/scrape/scrape_service.dart) | One scrape at a time: fetch → extract → merge plan → commit |
 
 [apply_controller.dart](lib/services/apply_controller.dart) is also a `ChangeNotifier` but is **not** registered — one instance is created per apply and owned by its `OrganizerTask`.
 
@@ -86,7 +88,74 @@ It takes a `FileSystem` (package `file`) so tests can run against an in-memory F
 
 ### Undo
 
-[history_service.dart](lib/services/history_service.dart) writes one JSON manifest per operation to `<appSupport>/undo/op-<millis>.json`. `undo()` reverses moves **in reverse order** (so child folders empty before parents), re-checks `PathSafety` against the manifest's `baseDir` as defense against tampering, and treats an already-present source as success. Full success deletes the manifest; **partial success rewrites it with only the unrecovered moves** so a retry makes progress. `refresh()` prunes manifests older than `retentionDays = 7` — that pruning is the entire implementation of the UI's 7-day promise. Note it does not remove directories the apply created.
+[history_service.dart](lib/services/history_service.dart) writes one JSON manifest per operation to `<appSupport>/undo/op-<millis>.json`. A manifest describes three kinds of reversible work, and `undo()` handles all three:
+
+- `moves` — reversed **in reverse order** (so child folders empty before parents); an already-present source counts as success.
+- `created` — files the operation brought into existence, deleted on undo. This and the next are what a scrape commit records.
+- `restored` — files it overwrote, mapped to a real copy of the original under `<appSupport>/undo/blobs/<opId>/`, copied back on undo.
+
+Every path is re-checked with `PathSafety` as defense against a tampered manifest: move and `created` paths against the manifest's `baseDir`, and a `restored` **source against the undo directory** — without that last one a hand-edited manifest could name any file on disk as a "backup" and have its contents copied into the library.
+
+Full success deletes the manifest *and* its blob directory; **partial success rewrites it with only the unrecovered work** so a retry makes progress. `refresh()` prunes manifests older than `retentionDays = 7` and blob directories by their newest contained file — that pruning is the entire implementation of the UI's 7-day promise, and the blob half of it is what stops backups growing without bound. Note undo does not remove directories the operation created.
+
+The service does all path work through `_fs.path` and passes `context:` to `PathSafety`, so an injected in-memory POSIX filesystem isn't parsed with Windows rules — the same obligation `applyOrganizeAction` and `MetadataWriter` carry.
+
+### Metadata scraping
+
+A second pipeline, parallel to organize and sharing only `AiProvider`. Point it at a product-page URL; it extracts title / code / synopsis / cast / artwork, shows a reviewable diff against any NFO already on disk, and only then writes. Design notes and the verified GIGA analysis are in [docs/spec/scrape-module-spec.md](docs/spec/scrape-module-spec.md) and [docs/spec/scrape-giga-recipe.md](docs/spec/scrape-giga-recipe.md).
+
+**It is deliberately not routed through `OrganizePlan`.** Only one plan exists app-wide and a second `analyzeFolder` nulls it, so a stray Organize click would discard metadata the user had not committed yet.
+
+Extraction is a four-tier ladder, cheapest first:
+
+1. `structured_data.dart` — JSON-LD / OpenGraph. Free, and **always validated by `isSiteWideTemplate` first**: plenty of sites emit one static OpenGraph block for the whole domain, and trusting it gives every title in a library identical metadata. A recipe can disable the tier outright with `skipStructuredData`.
+2. `recipe_applier.dart` — a declarative `ScrapeRecipe` (built-in, learned, or hand-edited). Free.
+3. `recipe_learner.dart` — the LLM writes a recipe. Only reached when tier 2 had no recipe to run and the caller passed a `RecipeLearner`, so a site with a working recipe never costs a token. `html_cleaner.dart` strips the page to a selector-only skeleton first (scripts, styling and most text gone; ~200 KB → 20–30 KB), and `scrape_prompt.dart` asks for **selectors, not content**, using the built-in GIGA recipe as its worked example so the few-shot can never drift from the schema the parser accepts. Every attempt is self-checked by running the new recipe against the same page; a shortfall is fed back for one retry, then it gives up.
+4. The user pastes page HTML (`ScrapeService.scrapeHtml`) — same pipeline from there on.
+
+**A learned recipe is never saved automatically.** `ScrapeService` returns it on `ScrapeResult.learnedRecipe` and only the preview dialog's confirmation puts it in `RecipeStore`. The reason is in [scrape-giga-recipe.md](docs/spec/scrape-giga-recipe.md) §2.3: GIGA's synopsis exists twice, folded and expanded, and a model that grabs the folded copy yields a recipe that runs, returns non-empty values and looks entirely healthy while storing truncated text for every title on the site. The self-check can only catch *empty* fields, never short ones — which is exactly why the decision has to be a human's. Everything the learned recipe extracted is stamped `FieldOrigin.llm` so the preview flags it in amber.
+
+`ScrapeRecipe` supports two extraction shapes. `fields` is one CSS selector per field; `keyValue` walks a `dl/dt/dd` table and maps the *label text* to a field. **Prefer `keyValue` where a page has one** — a label like `作品番号` survives a redesign that renames every CSS class. Selector lists are priority-ordered fallbacks, which is how "prefer the expanded synopsis over the truncated one" is expressed as data.
+
+`page_fetcher.dart` is the only code that talks to a scraped site: it owns encoding detection (`http`'s latin1 default mangles Japanese pages — see `html_decoding.dart`), the cookie header, `Referer`, redirects, and a per-host request queue with a minimum interval.
+
+**It follows redirects itself rather than letting `http` do it**, for three reasons that all bit at once on GIGA: a followed response drops the `Set-Cookie` headers sent on the way (which is exactly where an age gate puts the cookie that matters), it reports the *original* request as its own so `FetchedPage.url` would name the URL we asked for rather than the one we landed on, and a silent bounce would be indistinguishable from a real page. `FetchedPage.wasRedirected` is what makes that last case visible, and it raises `ScrapeNote.redirectedAway` so the user is told the page was the wrong one instead of just seeing empty fields.
+
+Cookies come from three places, in increasing precedence: the static string in a recipe, a session this fetcher established itself, and a user-imported Netscape `cookies.txt` — an imported signed-in session must outrank an anonymous one we minted. `CookieStore` stays pure and in-memory; a browser export can contain a session ID equivalent to being logged in, so persisting it is an explicit decision for the owning service, guarded like `ai_profiles.json`. The self-established session jar is likewise memory-only and per host.
+
+**A static age-gate cookie is usually not enough.** Sites record "this visitor confirmed their age" against the *session*, not in the cookie, so replaying `old_check=yes` returns the gate again — with a 200, which is what makes it so confusing. A recipe names a `sessionUrl` (GIGA: `/cookie_set.php`) that is walked once per host before the first page, and re-walked once if a page later bounces, since sessions expire. A recipe pointing `sessionUrl` at another host is refused: recipes are user-editable data and must not be able to aim our cookies elsewhere.
+
+`Referer` defaults to the site root on every page fetch, not just image downloads. GIGA answers a product request that carries no referer with a 302 to `/top.php`; any same-origin value is accepted. A recipe can override it or set it empty to opt out.
+
+**`MetadataWriter` is the second filesystem chokepoint**, alongside `applyOrganizeAction`. It carries the same obligations (`PathSafety.isWithin` with `context:`, `path` package only, one failure never aborts the batch) but not the same contract — `applyOrganizeAction` relocates an existing file and refuses to clobber, this writes new content and sometimes must overwrite. **`backup` here really copies**, unlike everywhere else in the app: overwriting an NFO is not reversible by moving a file back.
+
+`NfoWriter` only replaces the elements in `managedElements`; anything else in an existing NFO (another scraper's tags, watch state, hand corrections) is copied through verbatim. `NfoMerge` produces the per-field keep/replace/merge plan, defaulting to **fill blanks automatically, keep conflicts** — adding information is safe, replacing it is a judgement call — and never lets an LLM-sourced value overwrite an existing one.
+
+The UI flow lives in [scrape_flow.dart](lib/widgets/scrape/scrape_flow.dart), shared by the context menu and the `Ctrl/⌘+M` shortcut the way `renameEntry` is: [`ScrapePanel`](lib/widgets/scrape/scrape_panel.dart) → `ScrapePreviewDialog` → `TaskService.startScrapeCommit`. **Only the commit task writes anything**; cancelling either surface leaves the disk untouched, exactly as in the organize pipeline.
+
+A single scrape is **not** a background task, though the commit and the batch refresh still are. It used to be: URL dialog → task → SnackBar → "Review" → preview. That bought nothing — the user opened the dialog seconds ago and is waiting for the answer — while costing two extra surfaces and a stale-`BuildContext` crash at the hand-off. The panel runs the scrape in front of them and opens the preview directly. Walking away is worth supporting for a three-hundred-title refresh, not for one page.
+
+The panel carries the whole setup: URL, the per-scrape **AI backend** (chosen from `AiProfilesService` without changing the app-wide active profile — hence `AiService.providerFor`), free-text instructions for the model, the auto-detected NFO target with a Browse override, and behind an *Advanced* disclosure the per-site cookie box and the HTML paste fallback. Cookies typed here go into the fetcher's in-memory store for the run only; persisting one is a Settings decision, for the reasons in `CookieStore`. When no URL has been typed and a code was detected in the filename, it offers the Settings-curated search sites — knowing the catalogue number is not knowing the URL.
+
+Two buttons, both landing in the same review: **Process** walks the free ladder, and **Ask the LLM directly** ([direct_extractor.dart](lib/services/scrape/direct_extractor.dart)) hands the page to the model. The second only appears when a backend is configured, since a button that can only produce an error is worse than no button. Direct extraction is the *override*, not a fifth tier: it costs a request per title, the values are the model's rather than the page's, and nothing checks them against the document — so every field is stamped `FieldOrigin.llm` and a folder refresh never uses it. [page_digest.dart](lib/services/scrape/page_digest.dart) is `HtmlCleaner`'s mirror image for it: text kept, structure discarded, plus the page's image URLs as a numbered list the model must **choose** from, because a hallucinated poster URL is indistinguishable from a real one until it 404s — by which point it is in the NFO.
+
+The panel has three stages — setup, working, review — and the window widens for the third. [scrape_review_pane.dart](lib/widgets/scrape/scrape_review_pane.dart) is that third stage (it was its own dialog until the panel absorbed it, hence its callbacks: nothing in it pops a route). It puts the field diff on the left and the artwork grid on the right, because which synopsis to keep and which stills to save are independent decisions and stacking them meant scrolling past a long table to reach the pictures. Note the field table still carries `poster`/`fanart` rows: those choose **which URL wins the merge**, while the grid chooses **which images get written** — related but not the same question.
+
+[image_gallery.dart](lib/widgets/scrape/image_gallery.dart) shows a real thumbnail per candidate image. That reverses an earlier decision to show URLs only, whose reasoning — pre-fetching thirty stills to draw a grid defeats the per-host interval — was sound but lost to the fact that you cannot pick artwork you cannot see. [image_cache.dart](lib/services/scrape/image_cache.dart) is what makes the reversal affordable: fetches still go through `PageFetcher` (so the politeness floor holds and tiles fill in progressively, serially, one host at a time), **and every byte is kept**. `ImageDownloader` takes that cache and reads from it, so choosing three stills out of thirty costs the thirty fetches the grid already made rather than thirty-three. Tiles are static placeholders rather than spinners: the header reports what is outstanding, and thirty animating indicators both look frantic and stop the grid ever settling.
+
+**Jellyfin identifies artwork by file name**, not by anything in the NFO, so `poster.jpg` *is* the poster. That is why right-clicking a tile assigns an [ImageRole](lib/services/scrape/image_role.dart) — the role is the file name, not a label. Anything unmarked keeps the name the server used, because an image the user simply wants to keep should not be forced into a slot it does not fill. Single-slot roles are taken away from whoever held them when reassigned; two files called `poster.jpg` means one silently overwriting the other. `ImageNaming.plan` is pure and owns the rules: extension from the bytes' magic number (a CDN serving PNG from a `.jpg` path would otherwise produce a mislabelled `poster.jpg`), ` (2)` suffixes on collision, and a sanitised stem — `..%2f..%2fevil.jpg` decodes to `../../evil`, and neutralising only the slashes would still leave a dotfile.
+
+**Saving images is its own operation**, the grid's Save button → `ScrapeService.saveImages`, which writes pictures and touches no NFO at all. Writing metadata and putting images in a folder are different jobs with different risks, and wanting the second without the first is ordinary. It still goes through `MetadataWriter`, so every path is validated against the target folder. Write also honours the same roles: `ScrapeCommitDecision.imageNames` carries the `url -> file name` map and `commit` prefers it over `ImageSelection`, which cannot express "keep the server's name". The batch refresh has no panel and so still uses the flags.
+
+A **folder refresh** is the batch form, on a directory's context menu. It is deliberately *not* "scrape this whole folder from scratch": `NfoWriter` leaves a `<!-- scraped from … -->` comment and `NfoReader` reads it back, so a refresh re-fetches exactly the pages the app already knows about. An NFO from another tool has no such comment and is not a candidate — there is nothing to guess from, and inventing a per-site search would be a different feature.
+
+The batch applies each title's **default** merge plan (blanks filled, conflicts kept, lists merged) with no per-title diff: three hundred dialogs is a fatigue test, not review. The gate is the confirmation dialog, which states that policy, lists what will be touched, and lets rows be deselected. Artwork is off by default — the images landed on the first scrape. One manifest covers the whole batch, since that is the operation the user thinks they performed. `rescrapeAll` is serial on purpose: `PageFetcher` enforces a per-host interval anyway, so concurrency would only queue inside the fetcher while making the progress bar lie.
+
+`test/fixtures/giga_product_7743.html` is real (trimmed) markup and pins the two traps that page contains — duplicated `id` attributes, and folded/expanded copies of the same text where picking the wrong one yields a plausible but silently truncated result.
+
+The preview's backup checkbox gates both halves of undo: the real copies into `<appSupport>/undo/blobs/scrape-<millis>/` and the `HistoryService.recordScrape` manifest that says what to reverse. Unchecked means neither, so the write is not undoable — which is what the label says.
+
+Not done yet: the Library section (still the `_ComingSoon` placeholder), recipe import/export, and feeding a scraped title/year into `AiPrompt` as an organize hint.
 
 ### Persistence
 
@@ -95,6 +164,7 @@ Everything lives in the `path_provider` application-support directory, hand-roll
 - `config.json` — settings (debounced 250ms, flushed on dispose)
 - `ai_profiles.json` — AI profiles and API keys, deliberately separate so a slider drag never rewrites keys
 - `sites.json` — custom search sites
+- `scrapers.json` — learned / user-edited scrape recipes (built-ins live in code)
 - `undo/op-*.json` — undo manifests
 - `thumbnails/*.jpg` — the thumbnail cache
 - `fonts/<id>/*.ttf` — downloaded UI fonts
@@ -139,6 +209,7 @@ Three persisted settings toggles — `autoConnectAi`, `alwaysShowPreview`, `lowC
 - New keyboard shortcuts go in `lib/shortcuts/app_shortcuts.dart` — do not add a bare `SingleActivator` in a widget.
 - Failures are reported via `ScaffoldMessenger`; batch operations report counts, not just the first error.
 - UI is Material 3; respect light/dark themes, the accent seed, and `GlassTheme`.
+- `xml` is pinned to `^6`, not `^7`: it was already in the lock file transitively via `msix` at 6.6.1, and a `^7` caret fails version solving the same way `intl: ^0.20.3` does.
 - No `freezed` / `json_serializable` / `build_runner` in this project — JSON is hand-rolled in the services. Don't introduce codegen without a reason.
 
 ## Platform-specific notes
