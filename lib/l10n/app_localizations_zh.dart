@@ -1680,4 +1680,55 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapeImageSelectNone => '全不选';
+
+  @override
+  String scrapeSaveImages(Object count) {
+    return '保存 $count 张图片';
+  }
+
+  @override
+  String get scrapeSaveImagesHint => '立即把勾选的图片写入媒体文件夹，不改动 NFO。';
+
+  @override
+  String scrapeSaveImagesDone(Object count, Object folder) {
+    return '已保存 $count 张图片到 $folder';
+  }
+
+  @override
+  String scrapeSaveImagesPartial(Object count, Object failed) {
+    return '已保存 $count 张 · $failed 张失败';
+  }
+
+  @override
+  String get scrapeImageRole => '保存为';
+
+  @override
+  String get scrapeRoleOriginal => '原始文件名';
+
+  @override
+  String get scrapeRolePoster => '海报 poster';
+
+  @override
+  String get scrapeRoleFanart => '背景图 fanart';
+
+  @override
+  String get scrapeRoleExtraFanart => '附加背景图';
+
+  @override
+  String get scrapeRoleLandscape => '横版图 landscape';
+
+  @override
+  String get scrapeRoleThumb => '缩略图 thumb';
+
+  @override
+  String get scrapeRoleBanner => '横幅 banner';
+
+  @override
+  String get scrapeRoleLogo => '标志 logo';
+
+  @override
+  String get scrapeRoleClearArt => '透明画 clearart';
+
+  @override
+  String get scrapeRoleDisc => '光盘图 disc';
 }

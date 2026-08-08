@@ -496,5 +496,20 @@
   "scrapeAdvanced": "高级选项",
   "scrapeImageLoading": "加载中 {count}…",
   "scrapeImageSelectAll": "全选",
-  "scrapeImageSelectNone": "全不选"
+  "scrapeImageSelectNone": "全不选",
+  "scrapeSaveImages": "保存 {count} 张图片",
+  "scrapeSaveImagesHint": "立即把勾选的图片写入媒体文件夹，不改动 NFO。",
+  "scrapeSaveImagesDone": "已保存 {count} 张图片到 {folder}",
+  "scrapeSaveImagesPartial": "已保存 {count} 张 · {failed} 张失败",
+  "scrapeImageRole": "保存为",
+  "scrapeRoleOriginal": "原始文件名",
+  "scrapeRolePoster": "海报 poster",
+  "scrapeRoleFanart": "背景图 fanart",
+  "scrapeRoleExtraFanart": "附加背景图",
+  "scrapeRoleLandscape": "横版图 landscape",
+  "scrapeRoleThumb": "缩略图 thumb",
+  "scrapeRoleBanner": "横幅 banner",
+  "scrapeRoleLogo": "标志 logo",
+  "scrapeRoleClearArt": "透明画 clearart",
+  "scrapeRoleDisc": "光盘图 disc"
 }

@@ -1714,4 +1714,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapeImageSelectNone => 'None';
+
+  @override
+  String scrapeSaveImages(Object count) {
+    return 'Save $count images';
+  }
+
+  @override
+  String get scrapeSaveImagesHint =>
+      'Writes the ticked images into the media folder now. Does not touch the NFO.';
+
+  @override
+  String scrapeSaveImagesDone(Object count, Object folder) {
+    return 'Saved $count images to $folder';
+  }
+
+  @override
+  String scrapeSaveImagesPartial(Object count, Object failed) {
+    return 'Saved $count images · $failed failed';
+  }
+
+  @override
+  String get scrapeImageRole => 'Save as';
+
+  @override
+  String get scrapeRoleOriginal => 'Original name';
+
+  @override
+  String get scrapeRolePoster => 'Poster';
+
+  @override
+  String get scrapeRoleFanart => 'Backdrop (fanart)';
+
+  @override
+  String get scrapeRoleExtraFanart => 'Extra backdrop';
+
+  @override
+  String get scrapeRoleLandscape => 'Landscape';
+
+  @override
+  String get scrapeRoleThumb => 'Thumb';
+
+  @override
+  String get scrapeRoleBanner => 'Banner';
+
+  @override
+  String get scrapeRoleLogo => 'Logo';
+
+  @override
+  String get scrapeRoleClearArt => 'Clear art';
+
+  @override
+  String get scrapeRoleDisc => 'Disc';
 }

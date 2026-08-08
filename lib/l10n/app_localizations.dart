@@ -3085,6 +3085,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'None'**
   String get scrapeImageSelectNone;
+
+  /// No description provided for @scrapeSaveImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Save {count} images'**
+  String scrapeSaveImages(Object count);
+
+  /// No description provided for @scrapeSaveImagesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Writes the ticked images into the media folder now. Does not touch the NFO.'**
+  String get scrapeSaveImagesHint;
+
+  /// No description provided for @scrapeSaveImagesDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} images to {folder}'**
+  String scrapeSaveImagesDone(Object count, Object folder);
+
+  /// No description provided for @scrapeSaveImagesPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} images · {failed} failed'**
+  String scrapeSaveImagesPartial(Object count, Object failed);
+
+  /// No description provided for @scrapeImageRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as'**
+  String get scrapeImageRole;
+
+  /// No description provided for @scrapeRoleOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original name'**
+  String get scrapeRoleOriginal;
+
+  /// No description provided for @scrapeRolePoster.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster'**
+  String get scrapeRolePoster;
+
+  /// No description provided for @scrapeRoleFanart.
+  ///
+  /// In en, this message translates to:
+  /// **'Backdrop (fanart)'**
+  String get scrapeRoleFanart;
+
+  /// No description provided for @scrapeRoleExtraFanart.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra backdrop'**
+  String get scrapeRoleExtraFanart;
+
+  /// No description provided for @scrapeRoleLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape'**
+  String get scrapeRoleLandscape;
+
+  /// No description provided for @scrapeRoleThumb.
+  ///
+  /// In en, this message translates to:
+  /// **'Thumb'**
+  String get scrapeRoleThumb;
+
+  /// No description provided for @scrapeRoleBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Banner'**
+  String get scrapeRoleBanner;
+
+  /// No description provided for @scrapeRoleLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo'**
+  String get scrapeRoleLogo;
+
+  /// No description provided for @scrapeRoleClearArt.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear art'**
+  String get scrapeRoleClearArt;
+
+  /// No description provided for @scrapeRoleDisc.
+  ///
+  /// In en, this message translates to:
+  /// **'Disc'**
+  String get scrapeRoleDisc;
 }
 
 class _AppLocalizationsDelegate

@@ -416,16 +416,29 @@ class ScrapeService extends ChangeNotifier {
     AiCancelToken? cancelToken,
     ImageProgress? onImageProgress,
     ScrapeImageCache? imageCache,
+    Map<String, String>? imageNames,
   }) async {
-    final assets = await ImageDownloader(fetcher).download(
-      metadata,
-      referer: pageUrl,
-      recipe: recipe,
-      selection: images,
-      cancelToken: cancelToken,
-      onProgress: onImageProgress,
-      cache: imageCache,
-    );
+    // `imageNames` wins when the panel supplied one: the user assigned roles
+    // per image there, which `ImageSelection`'s poster/fanart/extra flags
+    // cannot express. The batch refresh has no panel and still uses the flags.
+    final assets = imageNames != null
+        ? await ImageDownloader(fetcher).downloadNamed(
+            imageNames,
+            referer: pageUrl,
+            recipe: recipe,
+            cancelToken: cancelToken,
+            onProgress: onImageProgress,
+            cache: imageCache,
+          )
+        : await ImageDownloader(fetcher).download(
+            metadata,
+            referer: pageUrl,
+            recipe: recipe,
+            selection: images,
+            cancelToken: cancelToken,
+            onProgress: onImageProgress,
+            cache: imageCache,
+          );
 
     // The NFO's <art> block must name the files we are about to write, so the
     // options are derived from what actually downloaded.
@@ -449,6 +462,38 @@ class ScrapeService extends ChangeNotifier {
       nfoXml: xml,
       images: assets,
       backupDir: backupDir,
+    );
+  }
+
+  /// Writes images and nothing else.
+  ///
+  /// The Save operation behind the panel's artwork grid: no NFO is read,
+  /// written or backed up, so pressing it can neither lose metadata nor commit
+  /// any. Goes through `MetadataWriter` like every other write in this module,
+  /// so each path is still validated against [targetDir].
+  Future<MetadataWriteResult> saveImages({
+    required Map<String, String> imageNames,
+    required String targetDir,
+    required Uri referer,
+    ScrapeRecipe? recipe,
+    ScrapeImageCache? imageCache,
+    AiCancelToken? cancelToken,
+    ImageProgress? onProgress,
+  }) async {
+    final assets = await ImageDownloader(fetcher).downloadNamed(
+      imageNames,
+      referer: referer,
+      recipe: recipe,
+      cancelToken: cancelToken,
+      onProgress: onProgress,
+      cache: imageCache,
+    );
+    return writer.write(
+      baseDir: targetDir,
+      // No NFO: this operation is about pictures. `MetadataWriter` skips the
+      // document entirely when it is null.
+      nfoFileName: '',
+      images: assets,
     );
   }
 

@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/media_metadata.dart';
 import '../../services/metadata/nfo_merge.dart';
 import '../../services/scrape/image_cache.dart';
+import '../../services/scrape/image_role.dart';
 import '../../services/scrape/image_downloader.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../theme/app_theme.dart';
@@ -19,6 +20,11 @@ class ScrapeCommitDecision {
   final MediaMetadata metadata;
   final ImageSelection images;
 
+  /// url -> the file name each selected image will be written under, as
+  /// decided by its role. Richer than [images], which cannot express "keep the
+  /// server's own name"; the commit prefers this when present.
+  final Map<String, String> imageNames;
+
   /// Back up an NFO that is about to be replaced, and record an undo manifest.
   final bool backup;
   final String nfoFileName;
@@ -32,6 +38,7 @@ class ScrapeCommitDecision {
   const ScrapeCommitDecision({
     required this.metadata,
     required this.images,
+    this.imageNames = const {},
     required this.backup,
     required this.nfoFileName,
     required this.targetDir,
@@ -72,6 +79,10 @@ class ScrapeReviewPane extends StatefulWidget {
   /// intentions, and making the second one two clicks was a dead end.
   final VoidCallback onCancel;
 
+  /// Write the ticked images to the folder now, without touching the NFO.
+  /// Takes the same `url -> file name` map the commit would use.
+  final Future<void> Function(Map<String, String> imageNames) onSaveImages;
+
   const ScrapeReviewPane({
     super.key,
     required this.result,
@@ -81,6 +92,7 @@ class ScrapeReviewPane extends StatefulWidget {
     required this.onSubmit,
     required this.onBack,
     required this.onCancel,
+    required this.onSaveImages,
     this.loadingImages,
   });
 
@@ -117,6 +129,13 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
   /// lengthen `extraFanartUrls` (merge puts the existing entries first), and an
   /// index captured before that would silently select a different picture.
   late Set<String> _stills = _defaultStills();
+
+  /// url -> what the file becomes. Seeded from what the scrape already worked
+  /// out; everything else keeps the server's name until the user says
+  /// otherwise.
+  late final Map<String, ImageRole> _roles = ImageNaming.defaultsFor(_merged);
+
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -177,10 +196,12 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
   }
 
   void _commit() {
-    final urls = _merged.extraFanartUrls;
+    final merged = _merged;
+    final urls = merged.extraFanartUrls;
     widget.onSubmit(
       ScrapeCommitDecision(
-        metadata: _merged,
+        metadata: merged,
+        imageNames: _plannedNames(merged),
         images: ImageSelection(
           poster: _poster,
           fanart: _fanart,
@@ -426,17 +447,9 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
     final merged = _merged;
     final images = <GalleryImage>[
       if (merged.posterUrl != null)
-        GalleryImage(
-          url: merged.posterUrl!,
-          label: l10n.scrapeImagePoster,
-          primary: true,
-        ),
+        GalleryImage(url: merged.posterUrl!, label: l10n.scrapeImagePoster),
       if (merged.fanartUrl != null && merged.fanartUrl != merged.posterUrl)
-        GalleryImage(
-          url: merged.fanartUrl!,
-          label: l10n.scrapeImageFanart,
-          primary: true,
-        ),
+        GalleryImage(url: merged.fanartUrl!, label: l10n.scrapeImageFanart),
       for (var i = 0; i < merged.extraFanartUrls.length; i++)
         if (merged.extraFanartUrls[i] != merged.posterUrl &&
             merged.extraFanartUrls[i] != merged.fanartUrl)
@@ -451,6 +464,10 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
       cache: widget.cache,
       loadingRemaining: widget.loadingImages,
       selected: _selectedUrls(merged),
+      roles: _roles,
+      plannedNames: _plannedNames(merged),
+      onSave: _saving ? null : _saveImages,
+      onRole: _assignRole,
       onToggle: (url, on) => setState(() => _toggleImage(merged, url, on)),
       onSelectAll: () => setState(() {
         _poster = merged.posterUrl != null;
@@ -463,6 +480,64 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
         _stills = {};
       }),
     );
+  }
+
+  /// The file each ticked image would be written to, recomputed on every
+  /// build so a role change is visible on the tile immediately.
+  Map<String, String> _plannedNames(MediaMetadata merged) => ImageNaming.plan(
+    order: _imageOrder(merged),
+    selected: _selectedUrls(merged),
+    roles: _roles,
+    // The real extension comes from the bytes; before they arrive the URL's
+    // own suffix is the best guess, and the caption corrects itself on load.
+    extensionOf: (url) {
+      final bytes = widget.cache.peek(url);
+      if (bytes != null) return ImageDownloader.extensionFor(bytes);
+      final last = Uri.tryParse(url)?.pathSegments.lastOrNull ?? '';
+      final dot = last.lastIndexOf('.');
+      return dot > 0 ? last.substring(dot + 1).toLowerCase() : 'jpg';
+    },
+  );
+
+  /// Poster, then backdrop, then stills — the order the grid shows and the
+  /// order `extrafanart` numbering follows.
+  List<String> _imageOrder(MediaMetadata merged) => [
+    if (merged.posterUrl != null) merged.posterUrl!,
+    if (merged.fanartUrl != null && merged.fanartUrl != merged.posterUrl)
+      merged.fanartUrl!,
+    for (final url in merged.extraFanartUrls)
+      if (url != merged.posterUrl && url != merged.fanartUrl) url,
+  ];
+
+  /// A single-slot role can only belong to one image, so assigning it takes it
+  /// away from whoever had it. Two files both called `poster.jpg` would mean
+  /// one silently overwriting the other.
+  void _assignRole(String url, ImageRole role) {
+    setState(() {
+      if (role.isSingleSlot) {
+        _roles.removeWhere((_, existing) => existing == role);
+      }
+      if (role == ImageRole.original) {
+        _roles.remove(url);
+      } else {
+        _roles[url] = role;
+      }
+      // Marking an image is a statement of intent about it; ticking it too is
+      // what the user meant, and leaving it unticked would make the caption a
+      // promise the Save button does not keep.
+      if (role != ImageRole.original) _toggleImage(_merged, url, true);
+    });
+  }
+
+  Future<void> _saveImages() async {
+    final names = _plannedNames(_merged);
+    if (names.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      await widget.onSaveImages(names);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Set<String> _selectedUrls(MediaMetadata merged) => {

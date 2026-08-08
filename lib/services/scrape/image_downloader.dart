@@ -123,6 +123,44 @@ class ImageDownloader {
     return assets;
   }
 
+  /// Downloads exactly the images in [urlToName], writing each to the relative
+  /// path it is mapped to.
+  ///
+  /// The counterpart to [download]: that one derives Jellyfin's names from a
+  /// selection, this one is told them. It exists because the panel lets the
+  /// user assign a role per image — including "keep the server's name" — and
+  /// that decision cannot be expressed as poster/fanart/extra flags.
+  Future<List<ImageAsset>> downloadNamed(
+    Map<String, String> urlToName, {
+    required Uri referer,
+    ScrapeRecipe? recipe,
+    AiCancelToken? cancelToken,
+    ImageProgress? onProgress,
+    ScrapeImageCache? cache,
+  }) async {
+    final assets = <ImageAsset>[];
+    var done = 0;
+    for (final entry in urlToName.entries) {
+      cancelToken?.throwIfCancelled();
+      final uri = Uri.tryParse(entry.key);
+      if (uri != null && uri.hasScheme) {
+        final bytes =
+            cache?.peek(entry.key) ??
+            await fetcher.fetchBytes(
+              uri,
+              referer: referer,
+              recipe: recipe,
+              cancelToken: cancelToken,
+            );
+        if (bytes != null) {
+          assets.add(ImageAsset(relativePath: entry.value, bytes: bytes));
+        }
+      }
+      onProgress?.call(++done, urlToName.length);
+    }
+    return assets;
+  }
+
   /// Picks the file extension from the bytes' magic number rather than from
   /// the URL: plenty of CDNs serve a PNG from a `.jpg` path, and Jellyfin
   /// matches artwork by name, so writing `poster.jpg` containing PNG data is a

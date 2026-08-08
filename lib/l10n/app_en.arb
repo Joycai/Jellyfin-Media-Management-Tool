@@ -496,5 +496,20 @@
   "scrapeAdvanced": "Advanced",
   "scrapeImageLoading": "loading {count}…",
   "scrapeImageSelectAll": "Select all",
-  "scrapeImageSelectNone": "None"
+  "scrapeImageSelectNone": "None",
+  "scrapeSaveImages": "Save {count} images",
+  "scrapeSaveImagesHint": "Writes the ticked images into the media folder now. Does not touch the NFO.",
+  "scrapeSaveImagesDone": "Saved {count} images to {folder}",
+  "scrapeSaveImagesPartial": "Saved {count} images · {failed} failed",
+  "scrapeImageRole": "Save as",
+  "scrapeRoleOriginal": "Original name",
+  "scrapeRolePoster": "Poster",
+  "scrapeRoleFanart": "Backdrop (fanart)",
+  "scrapeRoleExtraFanart": "Extra backdrop",
+  "scrapeRoleLandscape": "Landscape",
+  "scrapeRoleThumb": "Thumb",
+  "scrapeRoleBanner": "Banner",
+  "scrapeRoleLogo": "Logo",
+  "scrapeRoleClearArt": "Clear art",
+  "scrapeRoleDisc": "Disc"
 }

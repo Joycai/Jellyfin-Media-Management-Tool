@@ -159,6 +159,7 @@ Future<void> _commit(
     nfoFileName: decision.nfoFileName,
     recipe: result.recipe,
     images: decision.images,
+    imageNames: decision.imageNames,
     backupDir: backupDir,
     // The grid already downloaded these to draw thumbnails.
     imageCache: panel.cache,

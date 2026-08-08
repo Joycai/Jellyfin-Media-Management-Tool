@@ -33,11 +33,13 @@ ScrapeResult _result() {
 
 /// Opens the dialog and hands back a getter for whatever it returned. Null
 /// means the user cancelled — and therefore that nothing should be written.
-Future<ScrapeCommitDecision? Function()> _open(WidgetTester tester) async {
+Future<(ScrapeCommitDecision? Function(), Map<String, String>? Function())>
+_open(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(const Size(1280, 860));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   ScrapeCommitDecision? decision;
+  Map<String, String>? saved;
   await tester.pumpWidget(
     MaterialApp(
       localizationsDelegates: const [
@@ -61,18 +63,19 @@ Future<ScrapeCommitDecision? Function()> _open(WidgetTester tester) async {
           ),
           onBack: () {},
           onCancel: () {},
+          onSaveImages: (names) async => saved = names,
           onSubmit: (d) => decision = d,
         ),
       ),
     ),
   );
   await tester.pumpAndSettle();
-  return () => decision;
+  return (() => decision, () => saved);
 }
 
 void main() {
   testWidgets('shows both sides of every field that differs', (tester) async {
-    await _open(tester);
+    final (_, _) = await _open(tester);
 
     // Twice: once in the row's "on disk" cell, once in the header, which shows
     // the title as it currently stands after the merge plan.
@@ -87,7 +90,7 @@ void main() {
     // The pane never writes and never decides on its own: only Write hands a
     // decision up. Back returns to the panel's setup stage with the disk
     // untouched.
-    final decision = await _open(tester);
+    final (decision, saved) = await _open(tester);
 
     await tester.tap(find.widgetWithText(TextButton, 'Back'));
     await tester.pumpAndSettle();
@@ -99,7 +102,7 @@ void main() {
     // A chip listed a URL and left you to guess whether it was the cover or a
     // banner ad. The tile is the whole point of the grid, even before its
     // bytes arrive.
-    await _open(tester);
+    final (_, _) = await _open(tester);
 
     expect(find.byType(ImageGallery), findsOneWidget);
     // Scoped to the grid: the field table also carries a "Poster" row, which
@@ -119,7 +122,7 @@ void main() {
   testWidgets('select-none clears the artwork, and Write agrees', (
     tester,
   ) async {
-    final decision = await _open(tester);
+    final (decision, saved) = await _open(tester);
 
     await tester.tap(find.widgetWithText(TextButton, 'None'));
     await tester.pumpAndSettle();
@@ -134,7 +137,7 @@ void main() {
   testWidgets('the defaults keep a conflict and take a new field', (
     tester,
   ) async {
-    final decision = await _open(tester);
+    final (decision, saved) = await _open(tester);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Write'));
     await tester.pumpAndSettle();
@@ -148,7 +151,7 @@ void main() {
   });
 
   testWidgets('the replace-all preset overrides the conflict', (tester) async {
-    final decision = await _open(tester);
+    final (decision, saved) = await _open(tester);
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Replace all'));
     await tester.pump();
@@ -160,7 +163,7 @@ void main() {
   });
 
   testWidgets('a per-field decision beats the default', (tester) async {
-    final decision = await _open(tester);
+    final (decision, saved) = await _open(tester);
 
     // The `title` row's Replace segment — the first "Replace" on screen, since
     // rows follow MetadataField.all order and title is first.
@@ -177,7 +180,7 @@ void main() {
   testWidgets('artwork is selected by default so a poster gets written', (
     tester,
   ) async {
-    final decision = await _open(tester);
+    final (decision, saved) = await _open(tester);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Write'));
     await tester.pumpAndSettle();

@@ -273,6 +273,7 @@ class TaskService extends ChangeNotifier {
     ImageSelection images = const ImageSelection(),
     String? backupDir,
     ScrapeImageCache? imageCache,
+    Map<String, String>? imageNames,
     required void Function(MetadataWriteResult) onDone,
   }) {
     final task = OrganizerTask(
@@ -297,6 +298,7 @@ class TaskService extends ChangeNotifier {
           images: images,
           backupDir: backupDir,
           imageCache: imageCache,
+          imageNames: imageNames,
           cancelToken: task.cancelToken,
           onImageProgress: (done, total) {
             task.progress = total == 0 ? 1 : done / total;

@@ -278,6 +278,44 @@ class _ScrapePanelState extends State<ScrapePanel> {
   /// Knowing the catalogue number is not the same as knowing the URL, and the
   /// panel cannot ask for one the user does not have yet. Uses the same site
   /// list they curate in Settings — there is no second table.
+  /// Writes the ticked images to the folder, now, without touching the NFO.
+  ///
+  /// Reports a count rather than the first error, like every other batch in
+  /// the app, and stays on the review stage — saving pictures is not finishing
+  /// with the panel.
+  Future<void> _saveImages(Map<String, String> imageNames) async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final scraper = context.read<ScrapeService>();
+    final result = _result!;
+
+    try {
+      final written = await scraper.saveImages(
+        imageNames: imageNames,
+        targetDir: _targetDir,
+        referer: result.pageUrl,
+        recipe: result.recipe,
+        imageCache: _cache,
+      );
+      if (!messenger.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            written.hasFailures
+                ? l10n.scrapeSaveImagesPartial(
+                    written.succeeded,
+                    written.failed,
+                  )
+                : l10n.scrapeSaveImagesDone(written.succeeded, _targetDir),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!messenger.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   /// Starts fetching every image the result offers, so the grid has something
   /// to draw.
   ///
@@ -397,6 +435,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
     loadingImages: _imagesPending,
     onBack: () => setState(() => _stage = _Stage.setup),
     onCancel: () => Navigator.pop(context),
+    onSaveImages: _saveImages,
     onSubmit: (decision) => Navigator.pop(
       context,
       ScrapePanelResult(result: _result!, decision: decision, cache: _cache!),

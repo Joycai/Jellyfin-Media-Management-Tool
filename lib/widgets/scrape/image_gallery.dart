@@ -14,25 +14,18 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/scrape/image_cache.dart';
+import '../../services/scrape/image_role.dart';
 import '../../theme/app_theme.dart';
 
 /// One image on offer.
 class GalleryImage {
   final String url;
 
-  /// "Poster", "Backdrop", "Still 3" — what this image would become.
+  /// Where the page offered it — "Poster", "Still 3". Describes the source,
+  /// not the destination; the destination is the role.
   final String label;
 
-  /// Poster and backdrop are single-slot: ticking one unticks nothing, but
-  /// they are shown first and at a larger size because they are the two that
-  /// matter most.
-  final bool primary;
-
-  const GalleryImage({
-    required this.url,
-    required this.label,
-    this.primary = false,
-  });
+  const GalleryImage({required this.url, required this.label});
 }
 
 class ImageGallery extends StatelessWidget {
@@ -40,21 +33,35 @@ class ImageGallery extends StatelessWidget {
   final Set<String> selected;
   final ScrapeImageCache cache;
 
+  /// url -> what the file will be called. Right-click assigns it.
+  final Map<String, ImageRole> roles;
+
+  /// url -> the exact file name that would be written, for the tile caption.
+  final Map<String, String> plannedNames;
+
   /// Null while the initial sweep is still running, so the header can say so.
   final int? loadingRemaining;
 
   final void Function(String url, bool selected) onToggle;
+  final void Function(String url, ImageRole role) onRole;
   final VoidCallback onSelectAll;
   final VoidCallback onSelectNone;
+
+  /// Null while a save is running, which disables the button.
+  final VoidCallback? onSave;
 
   const ImageGallery({
     super.key,
     required this.images,
     required this.selected,
     required this.cache,
+    required this.roles,
+    required this.plannedNames,
     required this.onToggle,
+    required this.onRole,
     required this.onSelectAll,
     required this.onSelectNone,
+    this.onSave,
     this.loadingRemaining,
   });
 
@@ -87,13 +94,45 @@ class ImageGallery extends StatelessWidget {
                 image: image,
                 cache: cache,
                 selected: selected.contains(image.url),
+                role: roles[image.url] ?? ImageRole.original,
+                plannedName: plannedNames[image.url],
                 onTap: () => onToggle(image.url, !selected.contains(image.url)),
+                onRole: (role) => onRole(image.url, role),
               ),
           ],
         ),
+        const SizedBox(height: 14),
+        _saveRow(l10n, scheme),
       ],
     );
   }
+
+  /// Saving is its own operation, deliberately not folded into Write.
+  ///
+  /// Writing the NFO and putting pictures in a folder are different jobs with
+  /// different risks — one rewrites a metadata file, the other only adds image
+  /// files — and wanting the second without the first is an ordinary thing to
+  /// want.
+  Widget _saveRow(AppLocalizations l10n, ColorScheme scheme) => Row(
+    children: [
+      FilledButton.tonalIcon(
+        onPressed: selected.isEmpty ? null : onSave,
+        icon: const Icon(Icons.download_rounded, size: 17),
+        label: Text(l10n.scrapeSaveImages(selected.length)),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          l10n.scrapeSaveImagesHint,
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.3,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    ],
+  );
 
   /// The label side is [Expanded] and every text in it can ellipsize: this
   /// header sits in a column whose width the user does not control, and a
@@ -164,13 +203,19 @@ class _Tile extends StatelessWidget {
   final GalleryImage image;
   final ScrapeImageCache cache;
   final bool selected;
+  final ImageRole role;
+  final String? plannedName;
   final VoidCallback onTap;
+  final ValueChanged<ImageRole> onRole;
 
   const _Tile({
     required this.image,
     required this.cache,
     required this.selected,
+    required this.role,
+    required this.plannedName,
     required this.onTap,
+    required this.onRole,
   });
 
   static const _width = 132.0;
@@ -186,6 +231,10 @@ class _Tile extends StatelessWidget {
       waitDuration: const Duration(milliseconds: 600),
       child: InkWell(
         onTap: onTap,
+        onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
+        // Long-press mirrors right-click, the way the file table's own context
+        // menu does.
+        onLongPress: () => _menu(context, null),
         borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
@@ -229,20 +278,89 @@ class _Tile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11.5,
-                        fontWeight: image.primary
-                            ? FontWeight.w600
-                            : FontWeight.w400,
+                        fontWeight: role == ImageRole.original
+                            ? FontWeight.w400
+                            : FontWeight.w600,
                         color: selected ? scheme.primary : null,
                       ),
                     ),
                   ),
                 ],
               ),
+              // The name it will be written under. This is the whole point of
+              // a role — Jellyfin identifies artwork by file name — so it is
+              // shown rather than left to be inferred from a menu tick.
+              if (selected)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    plannedName ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                      color: role == ImageRole.original
+                          ? scheme.onSurfaceVariant
+                          : scheme.primary,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Right-click: assign the Jellyfin name this image should take.
+  Future<void> _menu(BuildContext context, Offset? at) async {
+    final l10n = AppLocalizations.of(context)!;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final origin =
+        at ??
+        (context.findRenderObject() as RenderBox).localToGlobal(Offset.zero);
+
+    final picked = await showMenu<ImageRole>(
+      context: context,
+      position: RelativeRect.fromRect(
+        origin & Size.zero,
+        Offset.zero & overlay.size,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      constraints: const BoxConstraints(minWidth: 210),
+      items: [
+        PopupMenuItem<ImageRole>(
+          enabled: false,
+          height: 32,
+          child: Text(
+            l10n.scrapeImageRole,
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+          ),
+        ),
+        for (final option in ImageRole.values)
+          PopupMenuItem<ImageRole>(
+            value: option,
+            height: 38,
+            child: Row(
+              children: [
+                Icon(
+                  option == role
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 15,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  imageRoleLabel(l10n, option),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (picked != null) onRole(picked);
   }
 
   /// The tile never blocks on the network: whatever the cache has right now is
@@ -283,3 +401,18 @@ class _Tile extends StatelessWidget {
     ),
   );
 }
+
+/// Menu label for a role. Lives here rather than on the enum so the enum stays
+/// free of `BuildContext`, like every other model in this module.
+String imageRoleLabel(AppLocalizations l10n, ImageRole role) => switch (role) {
+  ImageRole.original => l10n.scrapeRoleOriginal,
+  ImageRole.poster => l10n.scrapeRolePoster,
+  ImageRole.fanart => l10n.scrapeRoleFanart,
+  ImageRole.extraFanart => l10n.scrapeRoleExtraFanart,
+  ImageRole.landscape => l10n.scrapeRoleLandscape,
+  ImageRole.thumb => l10n.scrapeRoleThumb,
+  ImageRole.banner => l10n.scrapeRoleBanner,
+  ImageRole.logo => l10n.scrapeRoleLogo,
+  ImageRole.clearArt => l10n.scrapeRoleClearArt,
+  ImageRole.disc => l10n.scrapeRoleDisc,
+};
