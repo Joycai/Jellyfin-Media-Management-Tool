@@ -45,6 +45,7 @@ Future<void> startScrapeFlow(
 }) async {
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
+  final deferred = _deferredContext(context);
   final tasks = context.read<TaskService>();
   final scraper = context.read<ScrapeService>();
   final ai = context.read<AiService>();
@@ -78,7 +79,7 @@ Future<void> startScrapeFlow(
           persist: false,
           action: SnackBarAction(
             label: l10n.scrapeReview,
-            onPressed: () => _review(messenger.context, result, where),
+            onPressed: () => _review(deferred, result, where),
           ),
         ),
       );
@@ -155,6 +156,25 @@ Future<void> startBatchScrapeFlow(
 
   messenger.showSnackBar(SnackBar(content: Text(l10n.batchScrapeStarted)));
 }
+
+/// A [BuildContext] that is still usable once the scrape task finishes.
+///
+/// The widget that started the flow — a context-menu row, say — may be long
+/// gone by then, so the deferred "Review" action cannot capture its context.
+/// The obvious substitute, `ScaffoldMessenger.of(context).context`, is
+/// **wrong**: that is the `ScaffoldMessenger` element itself, and both
+/// `ScaffoldMessenger.of` and `Navigator.of` look *upwards* from the context
+/// they are given — past the messenger's own scope and past the navigator it
+/// wraps, since `MaterialApp` builds `ScaffoldMessenger` as an ancestor of
+/// `WidgetsApp`'s `Navigator`. The lookups then fail with a confusing "no
+/// ScaffoldMessenger ancestor" whose offending widget *is* a ScaffoldMessenger.
+///
+/// The root navigator's own context sits below the messenger scope and above
+/// every route, so it resolves the messenger, the localizations and the
+/// providers; `Navigator.of` special-cases being handed a navigator element, so
+/// `showDialog` works too. It also lives as long as the app does.
+BuildContext _deferredContext(BuildContext context) =>
+    Navigator.of(context, rootNavigator: true).context;
 
 /// Opens the preview and, if confirmed, starts the write task.
 Future<void> _review(
