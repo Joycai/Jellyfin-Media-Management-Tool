@@ -10,13 +10,14 @@ import '../../models/media_metadata.dart';
 import '../../models/scrape_recipe.dart';
 import '../ai/ai_cancel_token.dart';
 import '../metadata/metadata_writer.dart';
+import 'image_cache.dart';
 import 'page_fetcher.dart';
 
 /// Which of the available images the user actually wants.
 ///
-/// A product page can carry 30+ sample stills; downloading all of them by
-/// default would bloat every library folder, so the preview picks a handful
-/// and the user opts into more.
+/// A product page can carry 30+ sample stills; writing all of them by default
+/// would bloat every library folder, so the preview picks a handful and the
+/// user opts into more from the artwork grid.
 class ImageSelection {
   final bool poster;
   final bool fanart;
@@ -73,6 +74,7 @@ class ImageDownloader {
     ImageSelection selection = const ImageSelection(),
     AiCancelToken? cancelToken,
     ImageProgress? onProgress,
+    ScrapeImageCache? cache,
   }) async {
     final jobs = <(String, String)>[]; // (relative path stem, url)
 
@@ -96,12 +98,17 @@ class ImageDownloader {
       cancelToken?.throwIfCancelled();
       final uri = Uri.tryParse(url);
       if (uri != null && uri.hasScheme) {
-        final bytes = await fetcher.fetchBytes(
-          uri,
-          referer: referer,
-          recipe: recipe,
-          cancelToken: cancelToken,
-        );
+        // The preview grid has usually already fetched this exact image to
+        // draw a thumbnail. Re-downloading it would double the traffic for
+        // every scrape and slow the write behind the per-host interval.
+        final bytes =
+            cache?.peek(url) ??
+            await fetcher.fetchBytes(
+              uri,
+              referer: referer,
+              recipe: recipe,
+              cancelToken: cancelToken,
+            );
         if (bytes != null) {
           assets.add(
             ImageAsset(

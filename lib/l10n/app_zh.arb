@@ -493,5 +493,8 @@
   "scrapeWorking": "处理中…",
   "scrapeBackToSetup": "返回",
   "scrapeRetry": "重试",
-  "scrapeAdvanced": "高级选项"
+  "scrapeAdvanced": "高级选项",
+  "scrapeImageLoading": "加载中 {count}…",
+  "scrapeImageSelectAll": "全选",
+  "scrapeImageSelectNone": "全不选"
 }

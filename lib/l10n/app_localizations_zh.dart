@@ -1669,4 +1669,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapeAdvanced => '高级选项';
+
+  @override
+  String scrapeImageLoading(Object count) {
+    return '加载中 $count…';
+  }
+
+  @override
+  String get scrapeImageSelectAll => '全选';
+
+  @override
+  String get scrapeImageSelectNone => '全不选';
 }

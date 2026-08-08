@@ -22,7 +22,6 @@ import '../../services/scrape/scrape_service.dart';
 import '../../services/task_service.dart';
 import 'batch_scrape_dialog.dart';
 import 'scrape_panel.dart';
-import 'scrape_preview_dialog.dart';
 
 /// Whether the scrape action makes sense for [entry]: a video, or a folder that
 /// might hold one. Extension classification goes through [FileLabelService] so
@@ -56,7 +55,7 @@ Future<void> startScrapeFlow(
   );
   if (panel == null || !context.mounted) return;
 
-  await _review(context, panel, where.label);
+  await _commit(context, panel, where.label);
 }
 
 /// Refreshes every title under [dir] whose NFO records where it came from.
@@ -117,8 +116,12 @@ Future<void> startBatchScrapeFlow(
   messenger.showSnackBar(SnackBar(content: Text(l10n.batchScrapeStarted)));
 }
 
-/// Opens the preview and, if confirmed, starts the write task.
-Future<void> _review(
+/// Starts the write task for a scrape the user confirmed in the panel.
+///
+/// Everything up to here happened in memory; this is the first thing that can
+/// touch disk. Closing the panel instead of pressing Write means none of it
+/// runs — including saving a recipe the model just invented.
+Future<void> _commit(
   BuildContext context,
   ScrapePanelResult panel,
   String label,
@@ -130,16 +133,7 @@ Future<void> _review(
   final history = context.read<HistoryService>();
   final recipes = context.read<RecipeStore>();
   final result = panel.result;
-
-  final decision = await showScrapePreviewDialog(
-    context,
-    result: result,
-    defaultTargetDir: panel.targetDir,
-    defaultNfoFileName: panel.nfoFileName,
-  );
-  // Cancelled: not one byte has been written, and none will be — and a recipe
-  // the model just invented is discarded with it.
-  if (decision == null) return;
+  final decision = panel.decision;
 
   // The only path from tier 3 into scrapers.json, and it runs after a human
   // looked at what the recipe extracted.
@@ -166,6 +160,8 @@ Future<void> _review(
     recipe: result.recipe,
     images: decision.images,
     backupDir: backupDir,
+    // The grid already downloaded these to draw thumbnails.
+    imageCache: panel.cache,
     onDone: (written) {
       if (decision.backup) {
         // Best-effort and off the critical path: the files are already on disk

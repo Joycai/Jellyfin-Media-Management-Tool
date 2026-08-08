@@ -493,5 +493,8 @@
   "scrapeWorking": "Working…",
   "scrapeBackToSetup": "Back",
   "scrapeRetry": "Try again",
-  "scrapeAdvanced": "Advanced"
+  "scrapeAdvanced": "Advanced",
+  "scrapeImageLoading": "loading {count}…",
+  "scrapeImageSelectAll": "Select all",
+  "scrapeImageSelectNone": "None"
 }

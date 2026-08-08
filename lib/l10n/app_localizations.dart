@@ -3067,6 +3067,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Advanced'**
   String get scrapeAdvanced;
+
+  /// No description provided for @scrapeImageLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'loading {count}…'**
+  String scrapeImageLoading(Object count);
+
+  /// No description provided for @scrapeImageSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get scrapeImageSelectAll;
+
+  /// No description provided for @scrapeImageSelectNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get scrapeImageSelectNone;
 }
 
 class _AppLocalizationsDelegate

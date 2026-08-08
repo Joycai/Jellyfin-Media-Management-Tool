@@ -30,6 +30,7 @@ import '../metadata/nfo_merge.dart';
 import '../metadata/nfo_reader.dart';
 import '../metadata/nfo_writer.dart';
 import 'direct_extractor.dart';
+import 'image_cache.dart';
 import 'image_downloader.dart';
 import 'page_fetcher.dart';
 import 'recipe_applier.dart';
@@ -414,6 +415,7 @@ class ScrapeService extends ChangeNotifier {
     NfoKind kind = NfoKind.movie,
     AiCancelToken? cancelToken,
     ImageProgress? onImageProgress,
+    ScrapeImageCache? imageCache,
   }) async {
     final assets = await ImageDownloader(fetcher).download(
       metadata,
@@ -422,6 +424,7 @@ class ScrapeService extends ChangeNotifier {
       selection: images,
       cancelToken: cancelToken,
       onProgress: onImageProgress,
+      cache: imageCache,
     );
 
     // The NFO's <art> block must name the files we are about to write, so the

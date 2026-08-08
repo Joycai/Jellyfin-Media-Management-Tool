@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/media_metadata.dart';
 import '../../services/metadata/nfo_merge.dart';
+import '../../services/scrape/image_cache.dart';
 import '../../services/scrape/image_downloader.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../theme/app_theme.dart';
 import '../dialogs/input_dialog.dart';
+import 'image_gallery.dart';
 import 'metadata_field_labels.dart';
 
 /// Everything the caller needs to run `ScrapeService.commit`, as confirmed by
@@ -37,42 +39,56 @@ class ScrapeCommitDecision {
   });
 }
 
-/// Reviewable diff between the NFO on disk and a fresh scrape.
+/// Reviewable diff between the NFO on disk and a fresh scrape, plus the
+/// artwork picker.
 ///
 /// This is the module's only gate, the same role `OrganizePreviewDialog` plays
 /// for the organize pipeline: every edit here happens in memory and the single
 /// disk write is whatever the caller does with the returned decision.
-Future<ScrapeCommitDecision?> showScrapePreviewDialog(
-  BuildContext context, {
-  required ScrapeResult result,
-  required String defaultTargetDir,
-  required String defaultNfoFileName,
-}) => showDialog<ScrapeCommitDecision>(
-  context: context,
-  builder: (_) => ScrapePreviewDialog(
-    result: result,
-    defaultTargetDir: defaultTargetDir,
-    defaultNfoFileName: defaultNfoFileName,
-  ),
-);
-
-class ScrapePreviewDialog extends StatefulWidget {
+///
+/// A pane rather than a dialog. It used to be its own route, reached from a
+/// SnackBar; it is now the third stage of [ScrapePanel], so that setting a
+/// scrape up, running it and reviewing it are one window instead of three.
+/// Hence the callbacks — nothing here pops a route.
+class ScrapeReviewPane extends StatefulWidget {
   final ScrapeResult result;
   final String defaultTargetDir;
   final String defaultNfoFileName;
 
-  const ScrapePreviewDialog({
+  /// Shared with the panel so a thumbnail already fetched is not fetched again
+  /// when the write runs.
+  final ScrapeImageCache cache;
+
+  /// Rebuilt by the panel as cached images arrive; null once the sweep is done.
+  final int? loadingImages;
+
+  final ValueChanged<ScrapeCommitDecision> onSubmit;
+
+  /// Return to the setup stage, keeping the scrape.
+  final VoidCallback onBack;
+
+  /// Abandon the whole panel. Separate from [onBack] because "this result is
+  /// wrong, let me change the URL" and "I am done here" are different
+  /// intentions, and making the second one two clicks was a dead end.
+  final VoidCallback onCancel;
+
+  const ScrapeReviewPane({
     super.key,
     required this.result,
     required this.defaultTargetDir,
     required this.defaultNfoFileName,
+    required this.cache,
+    required this.onSubmit,
+    required this.onBack,
+    required this.onCancel,
+    this.loadingImages,
   });
 
   @override
-  State<ScrapePreviewDialog> createState() => _ScrapePreviewDialogState();
+  State<ScrapeReviewPane> createState() => _ScrapeReviewPaneState();
 }
 
-class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
+class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
   late NfoMergePlan _plan = widget.result.mergePlan;
 
   /// Edited in place, exactly like `OrganizeAction.target` is in the organize
@@ -162,8 +178,7 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
 
   void _commit() {
     final urls = _merged.extraFanartUrls;
-    Navigator.pop(
-      context,
+    widget.onSubmit(
       ScrapeCommitDecision(
         metadata: _merged,
         images: ImageSelection(
@@ -191,29 +206,14 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
-    return Dialog(
-      insetPadding: const EdgeInsets.all(28),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1040, maxHeight: 760),
-        child: Column(
-          children: [
-            _header(l10n, scheme),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-            _toolbar(l10n),
-            Expanded(child: _body(l10n, scheme)),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-            _footer(l10n, scheme),
-          ],
-        ),
-      ),
+    return Column(
+      children: [
+        _header(l10n, scheme),
+        Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+        Expanded(child: _body(l10n, scheme)),
+        Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+        _footer(l10n, scheme),
+      ],
     );
   }
 
@@ -327,20 +327,23 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
 
   // ── Preset toolbar ────────────────────────────────────────────────────────
 
+  /// Wraps rather than sits in a Row: this lives in a column whose width the
+  /// window decides, and three buttons whose labels differ per locale do not
+  /// reliably fit on one line.
   Widget _toolbar(AppLocalizations l10n) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
-    child: Row(
+    padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+    child: Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
         OutlinedButton(
           onPressed: () => _applyPreset(MergePreset.fillEmptyOnly),
           child: Text(l10n.scrapePresetFillEmpty),
         ),
-        const SizedBox(width: 8),
         OutlinedButton(
           onPressed: () => _applyPreset(MergePreset.replaceAll),
           child: Text(l10n.scrapePresetReplaceAll),
         ),
-        const SizedBox(width: 8),
         OutlinedButton(
           onPressed: () => _applyPreset(MergePreset.keepAll),
           child: Text(l10n.scrapePresetKeepAll),
@@ -351,112 +354,136 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
 
   // ── Body ──────────────────────────────────────────────────────────────────
 
-  Widget _body(AppLocalizations l10n, ColorScheme scheme) {
+  /// Fields on the left, artwork on the right.
+  ///
+  /// They are independent decisions — which synopsis to keep has nothing to do
+  /// with which stills to save — and stacking them meant scrolling past a long
+  /// field table to reach the pictures. Side by side, both are visible at once
+  /// and each scrolls on its own.
+  Widget _body(AppLocalizations l10n, ColorScheme scheme) => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Expanded(flex: 6, child: _fields(l10n, scheme)),
+      VerticalDivider(
+        width: 1,
+        color: scheme.outlineVariant.withValues(alpha: 0.4),
+      ),
+      Expanded(
+        flex: 4,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
+          child: _artwork(l10n, scheme),
+        ),
+      ),
+    ],
+  );
+
+  Widget _fields(AppLocalizations l10n, ColorScheme scheme) {
     final rows = _rows;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (rows.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 28),
-            child: Center(
-              child: Text(
-                l10n.scrapeNoChanges,
-                style: TextStyle(color: scheme.onSurfaceVariant),
-              ),
-            ),
-          )
-        else ...[
-          _ColumnHeader(l10n: l10n),
-          for (final field in rows)
-            _FieldRow(
-              field: field,
-              existing: widget.result.existing,
-              scraped: _scraped,
-              decision: _plan.decisionFor(field),
-              onDecision: (d) => _setDecision(field, d),
-              onEdit: isFieldEditable(field) ? () => _edit(field) : null,
-            ),
-        ],
-        const SizedBox(height: 22),
-        _artwork(l10n, scheme),
+        _toolbar(l10n),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+            children: [
+              if (rows.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  child: Center(
+                    child: Text(
+                      l10n.scrapeNoChanges,
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                )
+              else ...[
+                _ColumnHeader(l10n: l10n),
+                for (final field in rows)
+                  _FieldRow(
+                    field: field,
+                    existing: widget.result.existing,
+                    scraped: _scraped,
+                    decision: _plan.decisionFor(field),
+                    onDecision: (d) => _setDecision(field, d),
+                    onEdit: isFieldEditable(field) ? () => _edit(field) : null,
+                  ),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
 
+  /// Every image the page offered, as a thumbnail.
+  ///
+  /// Selection is by URL rather than index throughout: a merge decision can
+  /// reorder or lengthen `extraFanartUrls`, and an index captured before that
+  /// would quietly select a different picture.
   Widget _artwork(AppLocalizations l10n, ColorScheme scheme) {
     final merged = _merged;
-    final stills = merged.extraFanartUrls;
-    final total =
-        (merged.posterUrl != null ? 1 : 0) +
-        (merged.fanartUrl != null ? 1 : 0) +
-        stills.length;
-    if (total == 0) {
-      return Text(
-        l10n.scrapeImageNone,
-        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-      );
-    }
-    final selected =
-        (merged.posterUrl != null && _poster ? 1 : 0) +
-        (merged.fanartUrl != null && _fanart ? 1 : 0) +
-        stills.where(_stills.contains).length;
+    final images = <GalleryImage>[
+      if (merged.posterUrl != null)
+        GalleryImage(
+          url: merged.posterUrl!,
+          label: l10n.scrapeImagePoster,
+          primary: true,
+        ),
+      if (merged.fanartUrl != null && merged.fanartUrl != merged.posterUrl)
+        GalleryImage(
+          url: merged.fanartUrl!,
+          label: l10n.scrapeImageFanart,
+          primary: true,
+        ),
+      for (var i = 0; i < merged.extraFanartUrls.length; i++)
+        if (merged.extraFanartUrls[i] != merged.posterUrl &&
+            merged.extraFanartUrls[i] != merged.fanartUrl)
+          GalleryImage(
+            url: merged.extraFanartUrls[i],
+            label: l10n.scrapeImageExtra(i + 1),
+          ),
+    ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              l10n.scrapeImages,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              l10n.scrapeImageCount(selected, total),
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        // URLs only, no thumbnails: a product page can offer 30+ stills and
-        // pre-fetching them all to draw a grid would defeat the per-host rate
-        // limit the fetcher exists to enforce.
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (merged.posterUrl != null)
-              _ImageChip(
-                label: l10n.scrapeImagePoster,
-                url: merged.posterUrl!,
-                selected: _poster,
-                onChanged: (v) => setState(() => _poster = v),
-              ),
-            if (merged.fanartUrl != null)
-              _ImageChip(
-                label: l10n.scrapeImageFanart,
-                url: merged.fanartUrl!,
-                selected: _fanart,
-                onChanged: (v) => setState(() => _fanart = v),
-              ),
-            for (var i = 0; i < stills.length; i++)
-              _ImageChip(
-                label: l10n.scrapeImageExtra(i + 1),
-                url: stills[i],
-                selected: _stills.contains(stills[i]),
-                onChanged: (v) => setState(() {
-                  if (v) {
-                    _stills.add(stills[i]);
-                  } else {
-                    _stills.remove(stills[i]);
-                  }
-                }),
-              ),
-          ],
-        ),
-      ],
+    return ImageGallery(
+      images: images,
+      cache: widget.cache,
+      loadingRemaining: widget.loadingImages,
+      selected: _selectedUrls(merged),
+      onToggle: (url, on) => setState(() => _toggleImage(merged, url, on)),
+      onSelectAll: () => setState(() {
+        _poster = merged.posterUrl != null;
+        _fanart = merged.fanartUrl != null;
+        _stills = {...merged.extraFanartUrls};
+      }),
+      onSelectNone: () => setState(() {
+        _poster = false;
+        _fanart = false;
+        _stills = {};
+      }),
     );
+  }
+
+  Set<String> _selectedUrls(MediaMetadata merged) => {
+    if (_poster && merged.posterUrl != null) merged.posterUrl!,
+    if (_fanart && merged.fanartUrl != null) merged.fanartUrl!,
+    ..._stills.where(merged.extraFanartUrls.contains),
+  };
+
+  void _toggleImage(MediaMetadata merged, String url, bool on) {
+    // One URL can hold more than one job — a page with a single image lists it
+    // as both poster and backdrop — so every slot it fills is toggled together
+    // rather than leaving the tile half-selected and the checkbox lying.
+    if (url == merged.posterUrl) _poster = on;
+    if (url == merged.fanartUrl) _fanart = on;
+    if (merged.extraFanartUrls.contains(url)) {
+      if (on) {
+        _stills.add(url);
+      } else {
+        _stills.remove(url);
+      }
+    }
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
@@ -529,9 +556,11 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
             ),
             const Spacer(),
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10n.cancel),
+              onPressed: widget.onBack,
+              child: Text(l10n.scrapeBackToSetup),
             ),
+            const SizedBox(width: 4),
+            TextButton(onPressed: widget.onCancel, child: Text(l10n.cancel)),
             const SizedBox(width: 10),
             FilledButton.icon(
               onPressed: _commit,
@@ -656,7 +685,10 @@ class _FieldRow extends StatelessWidget {
                 Expanded(child: _Value(text: scrapedText)),
                 if (origin != null) ...[
                   const SizedBox(width: 6),
-                  _OriginBadge(origin: origin),
+                  // Flexible because the label is a word ("Existing NFO") whose
+                  // intrinsic width does not fit this column on every locale,
+                  // and a badge is the first thing that should give way.
+                  Flexible(child: _OriginBadge(origin: origin)),
                 ],
                 if (onEdit != null)
                   IconButton(
@@ -739,6 +771,8 @@ class _OriginBadge extends StatelessWidget {
       ),
       child: Text(
         fieldOriginLabel(l10n, origin),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
@@ -818,37 +852,6 @@ class _DecisionPicker extends StatelessWidget {
 }
 
 // ── Artwork + notes ─────────────────────────────────────────────────────────
-
-class _ImageChip extends StatelessWidget {
-  final String label;
-  final String url;
-  final bool selected;
-  final ValueChanged<bool> onChanged;
-
-  const _ImageChip({
-    required this.label,
-    required this.url,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: url,
-      waitDuration: const Duration(milliseconds: 400),
-      child: FilterChip(
-        selected: selected,
-        onSelected: onChanged,
-        showCheckmark: true,
-        label: Text(label, style: const TextStyle(fontSize: 12)),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-      ),
-    );
-  }
-}
-
 class _NoteBanner extends StatelessWidget {
   final String text;
   const _NoteBanner({required this.text});

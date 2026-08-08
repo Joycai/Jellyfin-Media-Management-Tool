@@ -1703,4 +1703,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapeAdvanced => 'Advanced';
+
+  @override
+  String scrapeImageLoading(Object count) {
+    return 'loading $count…';
+  }
+
+  @override
+  String get scrapeImageSelectAll => 'Select all';
+
+  @override
+  String get scrapeImageSelectNone => 'None';
 }

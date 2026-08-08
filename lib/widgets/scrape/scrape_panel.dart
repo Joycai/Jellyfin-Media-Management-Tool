@@ -20,6 +20,8 @@
 /// which produced the metadata.
 library;
 
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -34,22 +36,30 @@ import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/scrape/cookie_store.dart';
 import '../../services/scrape/direct_extractor.dart';
+import '../../services/scrape/image_cache.dart';
 import '../../services/scrape/recipe_learner.dart';
 import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
+import 'scrape_review_pane.dart';
 
-/// A finished scrape plus where the user wants it compared.
+/// A scrape the user reviewed and confirmed.
+///
+/// Returned only when they press Write; closing the panel at any stage returns
+/// null and nothing has touched disk.
 class ScrapePanelResult {
   final ScrapeResult result;
-  final String targetDir;
-  final String nfoFileName;
+  final ScrapeCommitDecision decision;
+
+  /// Bytes already fetched to draw the artwork grid, handed on so the commit
+  /// writes them instead of downloading the same images a second time.
+  final ScrapeImageCache cache;
 
   const ScrapePanelResult({
     required this.result,
-    required this.targetDir,
-    required this.nfoFileName,
+    required this.decision,
+    required this.cache,
   });
 }
 
@@ -88,7 +98,7 @@ class ScrapePanel extends StatefulWidget {
   State<ScrapePanel> createState() => _ScrapePanelState();
 }
 
-enum _Stage { setup, working }
+enum _Stage { setup, working, results }
 
 class _ScrapePanelState extends State<ScrapePanel> {
   final _url = TextEditingController();
@@ -114,6 +124,16 @@ class _ScrapePanelState extends State<ScrapePanel> {
   /// Set while a direct extraction is running, so the progress line can say
   /// which of the two buttons is being honoured.
   bool _askingLlm = false;
+
+  ScrapeResult? _result;
+  ScrapeImageCache? _cache;
+
+  /// Images still to fetch for the grid. Drives the header's progress line.
+  int _imagesPending = 0;
+
+  /// Bumped for each new result so the review pane rebuilds from scratch when
+  /// "Ask the LLM directly" replaces what it was showing.
+  int _resultGeneration = 0;
 
   @override
   void initState() {
@@ -232,14 +252,12 @@ class _ScrapePanelState extends State<ScrapePanel> {
       }
 
       if (!mounted) return;
-      Navigator.pop(
-        context,
-        ScrapePanelResult(
-          result: result,
-          targetDir: _targetDir,
-          nfoFileName: _nfoFileName,
-        ),
-      );
+      setState(() {
+        _result = result;
+        _resultGeneration++;
+        _stage = _Stage.results;
+      });
+      _primeImages(scraper, result);
     } on AiCancelled {
       if (mounted) setState(() => _stage = _Stage.setup);
     } catch (e) {
@@ -260,6 +278,43 @@ class _ScrapePanelState extends State<ScrapePanel> {
   /// Knowing the catalogue number is not the same as knowing the URL, and the
   /// panel cannot ask for one the user does not have yet. Uses the same site
   /// list they curate in Settings — there is no second table.
+  /// Starts fetching every image the result offers, so the grid has something
+  /// to draw.
+  ///
+  /// Progressive and serial: `PageFetcher` holds a per-host interval, so the
+  /// tiles fill in one by one rather than all at once. That is slower than a
+  /// burst would be and it is the point — the alternative is hammering a site
+  /// thirty times to render a preview. Nothing here blocks the user; the
+  /// fields are reviewable while the pictures arrive.
+  void _primeImages(ScrapeService scraper, ScrapeResult result) {
+    final merged = result.merged;
+    final urls = <String>{
+      if (merged.posterUrl != null) merged.posterUrl!,
+      if (merged.fanartUrl != null) merged.fanartUrl!,
+      ...merged.extraFanartUrls,
+    }.toList();
+
+    final cache = ScrapeImageCache(
+      fetcher: scraper.fetcher,
+      referer: result.pageUrl,
+      recipe: result.recipe,
+    );
+    setState(() {
+      _cache = cache;
+      _imagesPending = urls.length;
+    });
+
+    unawaited(
+      cache.loadAll(
+        urls,
+        isCancelled: () => !mounted,
+        onProgress: () {
+          if (mounted) setState(() => _imagesPending--);
+        },
+      ),
+    );
+  }
+
   Future<void> _search(SearchSite site, String keyword) async {
     final lang = Localizations.localeOf(context).languageCode;
     final uri = Uri.tryParse(
@@ -294,29 +349,59 @@ class _ScrapePanelState extends State<ScrapePanel> {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
+    final reviewing = _stage == _Stage.results;
+
     return Dialog(
+      insetPadding: const EdgeInsets.all(28),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 760),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _header(l10n, scheme),
-            const Divider(height: 1),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                child: _stage == _Stage.working
-                    ? _working(l10n, scheme)
-                    : _setup(l10n, scheme),
-              ),
-            ),
-            const Divider(height: 1),
-            _footer(l10n, scheme),
-          ],
+        // Setting a scrape up is a short form; reviewing one is a table beside
+        // a picture grid. The window grows to match rather than making the
+        // form sprawl or the review cramped.
+        constraints: BoxConstraints(
+          maxWidth: reviewing ? 1180 : 720,
+          maxHeight: reviewing ? 800 : 760,
         ),
+        child: reviewing
+            ? _review()
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _header(l10n, scheme),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                      child: _stage == _Stage.working
+                          ? _working(l10n, scheme)
+                          : _setup(l10n, scheme),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  _footer(l10n, scheme),
+                ],
+              ),
       ),
     );
   }
+
+  /// The review stage owns its own header and footer, so the panel hands it
+  /// the whole window rather than wrapping it in a second set of chrome.
+  Widget _review() => ScrapeReviewPane(
+    key: ValueKey(_resultGeneration),
+    result: _result!,
+    defaultTargetDir: _targetDir,
+    defaultNfoFileName: _nfoFileName,
+    cache: _cache!,
+    loadingImages: _imagesPending,
+    onBack: () => setState(() => _stage = _Stage.setup),
+    onCancel: () => Navigator.pop(context),
+    onSubmit: (decision) => Navigator.pop(
+      context,
+      ScrapePanelResult(result: _result!, decision: decision, cache: _cache!),
+    ),
+  );
 
   Widget _header(AppLocalizations l10n, ColorScheme scheme) => Padding(
     padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),

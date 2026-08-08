@@ -11,6 +11,7 @@ import 'ai/ai_cancel_token.dart';
 import 'ai_service.dart';
 import 'apply_controller.dart';
 import 'metadata/metadata_writer.dart';
+import 'scrape/image_cache.dart';
 import 'scrape/image_downloader.dart';
 import 'scrape/recipe_learner.dart';
 import 'scrape/scrape_service.dart';
@@ -271,6 +272,7 @@ class TaskService extends ChangeNotifier {
     ScrapeRecipe? recipe,
     ImageSelection images = const ImageSelection(),
     String? backupDir,
+    ScrapeImageCache? imageCache,
     required void Function(MetadataWriteResult) onDone,
   }) {
     final task = OrganizerTask(
@@ -294,6 +296,7 @@ class TaskService extends ChangeNotifier {
           recipe: recipe,
           images: images,
           backupDir: backupDir,
+          imageCache: imageCache,
           cancelToken: task.cancelToken,
           onImageProgress: (done, total) {
             task.progress = total == 0 ? 1 : done / total;

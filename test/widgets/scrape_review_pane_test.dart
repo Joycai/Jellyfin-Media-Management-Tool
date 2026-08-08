@@ -6,7 +6,10 @@ import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_merge.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/scrape_service.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
-import 'package:jellyfin_media_management_tool/widgets/scrape/scrape_preview_dialog.dart';
+import 'package:jellyfin_media_management_tool/services/scrape/image_cache.dart';
+import 'package:jellyfin_media_management_tool/services/scrape/page_fetcher.dart';
+import 'package:jellyfin_media_management_tool/widgets/scrape/image_gallery.dart';
+import 'package:jellyfin_media_management_tool/widgets/scrape/scrape_review_pane.dart';
 
 /// A scrape that conflicts with the NFO on disk on `title`, adds `code`, and
 /// brings a list field — one instance of each merge default.
@@ -45,26 +48,24 @@ Future<ScrapeCommitDecision? Function()> _open(WidgetTester tester) async {
       ],
       supportedLocales: const [Locale('en')],
       theme: AppTheme.light(),
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: ElevatedButton(
-              onPressed: () async {
-                decision = await showScrapePreviewDialog(
-                  context,
-                  result: _result(),
-                  defaultTargetDir: '/work',
-                  defaultNfoFileName: 'SPSF-43.nfo',
-                );
-              },
-              child: const Text('open'),
-            ),
+      home: Scaffold(
+        body: ScrapeReviewPane(
+          result: _result(),
+          defaultTargetDir: '/work',
+          defaultNfoFileName: 'SPSF-43.nfo',
+          // No network in a widget test: every tile stays a placeholder, which
+          // is exactly what an unreachable image host would also produce.
+          cache: ScrapeImageCache(
+            fetcher: PageFetcher(minIntervalMs: 0),
+            referer: Uri.parse('https://e.test/product/1'),
           ),
+          onBack: () {},
+          onCancel: () {},
+          onSubmit: (d) => decision = d,
         ),
       ),
     ),
   );
-  await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
   return () => decision;
 }
@@ -82,13 +83,52 @@ void main() {
     expect(find.textContaining('No recipe matched'), findsOneWidget);
   });
 
-  testWidgets('cancel returns nothing at all', (tester) async {
+  testWidgets('going back submits nothing at all', (tester) async {
+    // The pane never writes and never decides on its own: only Write hands a
+    // decision up. Back returns to the panel's setup stage with the disk
+    // untouched.
     final decision = await _open(tester);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.tap(find.widgetWithText(TextButton, 'Back'));
     await tester.pumpAndSettle();
 
     expect(decision(), isNull);
+  });
+
+  testWidgets('every image the page offered gets a tile', (tester) async {
+    // A chip listed a URL and left you to guess whether it was the cover or a
+    // banner ad. The tile is the whole point of the grid, even before its
+    // bytes arrive.
+    await _open(tester);
+
+    expect(find.byType(ImageGallery), findsOneWidget);
+    // Scoped to the grid: the field table also carries a "Poster" row, which
+    // answers a different question — which URL goes in the NFO, rather than
+    // whether to download it.
+    expect(
+      find.descendant(
+        of: find.byType(ImageGallery),
+        matching: find.text('Poster'),
+      ),
+      findsOneWidget,
+    );
+    // No network in a widget test, so each tile shows its placeholder.
+    expect(find.byIcon(Icons.image_outlined), findsWidgets);
+  });
+
+  testWidgets('select-none clears the artwork, and Write agrees', (
+    tester,
+  ) async {
+    final decision = await _open(tester);
+
+    await tester.tap(find.widgetWithText(TextButton, 'None'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Write'));
+    await tester.pumpAndSettle();
+
+    expect(decision()!.images.poster, isFalse);
+    expect(decision()!.images.fanart, isFalse);
+    expect(decision()!.images.extraFanart, isEmpty);
   });
 
   testWidgets('the defaults keep a conflict and take a new field', (
