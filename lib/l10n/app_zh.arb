@@ -492,5 +492,6 @@
   "scrapeProcess": "开始处理",
   "scrapeWorking": "处理中…",
   "scrapeBackToSetup": "返回",
-  "scrapeRetry": "重试"
+  "scrapeRetry": "重试",
+  "scrapeAdvanced": "高级选项"
 }

@@ -3061,6 +3061,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again'**
   String get scrapeRetry;
+
+  /// No description provided for @scrapeAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get scrapeAdvanced;
 }
 
 class _AppLocalizationsDelegate

@@ -492,5 +492,6 @@
   "scrapeProcess": "Process",
   "scrapeWorking": "Working…",
   "scrapeBackToSetup": "Back",
-  "scrapeRetry": "Try again"
+  "scrapeRetry": "Try again",
+  "scrapeAdvanced": "Advanced"
 }

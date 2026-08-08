@@ -1,8 +1,8 @@
 /// The scrape entry point, shared by the context menu and the shortcut.
 ///
 /// Lives outside `HomeScreen` for the same reason `renameEntry` does: two call
-/// sites, one behaviour. The flow is URL dialog → background task → review →
-/// commit task, and **only the commit task writes anything**.
+/// sites, one behaviour. The flow is panel → review → commit task, and **only
+/// the commit task writes anything**.
 library;
 
 import 'dart:async';
@@ -13,18 +13,16 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
-import '../../services/ai_service.dart';
 import '../../services/file_label_service.dart';
 import '../../services/history_service.dart';
 import '../../services/metadata/metadata_writer.dart';
 import '../../services/scrape/media_code.dart';
-import '../../services/scrape/recipe_learner.dart';
 import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/task_service.dart';
 import 'batch_scrape_dialog.dart';
+import 'scrape_panel.dart';
 import 'scrape_preview_dialog.dart';
-import 'scrape_url_dialog.dart';
 
 /// Whether the scrape action makes sense for [entry]: a video, or a folder that
 /// might hold one. Extension classification goes through [FileLabelService] so
@@ -35,68 +33,30 @@ bool canScrape(FileEntry entry) =>
 /// Runs the whole scrape flow for [target] (or for [baseDir] when there is no
 /// focused entry).
 ///
-/// [onShowTasks], when given, adds a "go to Tasks" action to the started
-/// notice; the context menu has no way to switch sections, so it passes null.
+/// Two modal steps, and nothing in between: set the scrape up and watch it run
+/// in [ScrapePanel], then review what came back. The scrape used to be a
+/// background task that announced itself with a SnackBar the user had to catch
+/// and click; that bought nothing — they opened the dialog seconds ago and are
+/// waiting for it — while costing a stale-context crash and two extra
+/// surfaces. The batch refresh is still a task, because *that* one is worth
+/// walking away from.
 Future<void> startScrapeFlow(
   BuildContext context, {
   FileEntry? target,
   required String baseDir,
-  VoidCallback? onShowTasks,
 }) async {
-  final l10n = AppLocalizations.of(context)!;
-  final messenger = ScaffoldMessenger.of(context);
-  final deferred = _deferredContext(context);
-  final tasks = context.read<TaskService>();
-  final scraper = context.read<ScrapeService>();
-  final ai = context.read<AiService>();
-
   final where = _resolveTarget(target, baseDir);
 
-  final input = await showScrapeUrlDialog(
+  final panel = await showScrapePanel(
     context,
-    targetLabel: where.label,
-    suggestedKeyword: detectMediaCode(where.label),
-  );
-  if (input == null) return;
-
-  tasks.startScrape(
-    scraper: scraper,
-    label: where.label,
-    url: input.url,
-    pastedHtml: input.pastedHtml,
     targetDir: where.targetDir,
     nfoFileName: where.nfoFileName,
-    // Tier 3 is only offered when there is an endpoint to ask. Without one the
-    // ladder simply stops at tier 2 and the user falls back to pasting HTML.
-    learner: ai.isConfigured ? RecipeLearner(ai.buildProvider()) : null,
-    onDone: (result) {
-      // Fire-and-forget work: by now the user may be anywhere in the app, so
-      // this offers the review rather than stealing focus with a dialog.
-      if (!messenger.mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.scrapeReady),
-          persist: false,
-          action: SnackBarAction(
-            label: l10n.scrapeReview,
-            onPressed: () => _review(deferred, result, where),
-          ),
-        ),
-      );
-    },
+    label: where.label,
+    suggestedKeyword: detectMediaCode(where.label),
   );
+  if (panel == null || !context.mounted) return;
 
-  messenger.showSnackBar(
-    SnackBar(
-      content: Text(l10n.scrapeStarted),
-      // A SnackBar with an action defaults to persist:true; this is a notice,
-      // not a question, so opt back into auto-dismiss.
-      persist: false,
-      action: onShowTasks == null
-          ? null
-          : SnackBarAction(label: l10n.tabTasks, onPressed: onShowTasks),
-    ),
-  );
+  await _review(context, panel, where.label);
 }
 
 /// Refreshes every title under [dir] whose NFO records where it came from.
@@ -157,30 +117,11 @@ Future<void> startBatchScrapeFlow(
   messenger.showSnackBar(SnackBar(content: Text(l10n.batchScrapeStarted)));
 }
 
-/// A [BuildContext] that is still usable once the scrape task finishes.
-///
-/// The widget that started the flow — a context-menu row, say — may be long
-/// gone by then, so the deferred "Review" action cannot capture its context.
-/// The obvious substitute, `ScaffoldMessenger.of(context).context`, is
-/// **wrong**: that is the `ScaffoldMessenger` element itself, and both
-/// `ScaffoldMessenger.of` and `Navigator.of` look *upwards* from the context
-/// they are given — past the messenger's own scope and past the navigator it
-/// wraps, since `MaterialApp` builds `ScaffoldMessenger` as an ancestor of
-/// `WidgetsApp`'s `Navigator`. The lookups then fail with a confusing "no
-/// ScaffoldMessenger ancestor" whose offending widget *is* a ScaffoldMessenger.
-///
-/// The root navigator's own context sits below the messenger scope and above
-/// every route, so it resolves the messenger, the localizations and the
-/// providers; `Navigator.of` special-cases being handed a navigator element, so
-/// `showDialog` works too. It also lives as long as the app does.
-BuildContext _deferredContext(BuildContext context) =>
-    Navigator.of(context, rootNavigator: true).context;
-
 /// Opens the preview and, if confirmed, starts the write task.
 Future<void> _review(
   BuildContext context,
-  ScrapeResult result,
-  _ScrapeTarget where,
+  ScrapePanelResult panel,
+  String label,
 ) async {
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
@@ -188,12 +129,13 @@ Future<void> _review(
   final scraper = context.read<ScrapeService>();
   final history = context.read<HistoryService>();
   final recipes = context.read<RecipeStore>();
+  final result = panel.result;
 
   final decision = await showScrapePreviewDialog(
     context,
     result: result,
-    defaultTargetDir: where.targetDir,
-    defaultNfoFileName: where.nfoFileName,
+    defaultTargetDir: panel.targetDir,
+    defaultNfoFileName: panel.nfoFileName,
   );
   // Cancelled: not one byte has been written, and none will be — and a recipe
   // the model just invented is discarded with it.
@@ -216,7 +158,7 @@ Future<void> _review(
 
   tasks.startScrapeCommit(
     scraper: scraper,
-    label: where.label,
+    label: label,
     metadata: decision.metadata,
     pageUrl: result.pageUrl,
     targetDir: decision.targetDir,

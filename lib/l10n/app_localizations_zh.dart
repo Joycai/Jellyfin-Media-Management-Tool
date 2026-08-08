@@ -1666,4 +1666,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapeRetry => '重试';
+
+  @override
+  String get scrapeAdvanced => '高级选项';
 }

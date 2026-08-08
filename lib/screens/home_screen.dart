@@ -119,12 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ).showSnackBar(SnackBar(content: Text(l10n.scrapeNoFolder)));
       return;
     }
-    await startScrapeFlow(
-      context,
-      target: browser.selectedFile,
-      baseDir: dir,
-      onShowTasks: () => setState(() => _section = _Section.tasks),
-    );
+    await startScrapeFlow(context, target: browser.selectedFile, baseDir: dir);
   }
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────

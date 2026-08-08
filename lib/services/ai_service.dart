@@ -59,9 +59,16 @@ class AiService extends ChangeNotifier {
   ///
   /// Public because the scrape module's recipe learner needs one too, and
   /// duplicating the provider/transport choice there would let the two drift.
-  AiProvider buildProvider() => switch (_config.provider) {
-    AiProviderType.googleGenAi => GoogleGenAiProvider(_config),
-    AiProviderType.openAi => OpenAiProvider(_config),
+  AiProvider buildProvider() => providerFor(_config);
+
+  /// Builds a provider for an arbitrary config.
+  ///
+  /// Static because the scrape panel lets the user pick a backend for one
+  /// scrape without making it the app-wide active profile — so it needs a
+  /// provider for a config this service is not holding.
+  static AiProvider providerFor(AiConfig config) => switch (config.provider) {
+    AiProviderType.googleGenAi => GoogleGenAiProvider(config),
+    AiProviderType.openAi => OpenAiProvider(config),
   };
 
   /// Syncs config from settings. Resets the connection status when the target

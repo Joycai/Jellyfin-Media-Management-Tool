@@ -1700,4 +1700,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapeRetry => 'Try again';
+
+  @override
+  String get scrapeAdvanced => 'Advanced';
 }
