@@ -1766,4 +1766,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapeRoleDisc => 'Disc';
+
+  @override
+  String get colResetWidths => 'Drag to resize · double-click to reset';
 }

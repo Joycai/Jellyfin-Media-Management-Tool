@@ -511,5 +511,6 @@
   "scrapeRoleBanner": "横幅 banner",
   "scrapeRoleLogo": "标志 logo",
   "scrapeRoleClearArt": "透明画 clearart",
-  "scrapeRoleDisc": "光盘图 disc"
+  "scrapeRoleDisc": "光盘图 disc",
+  "colResetWidths": "拖动调整列宽 · 双击恢复默认"
 }

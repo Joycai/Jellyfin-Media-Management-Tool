@@ -3175,6 +3175,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disc'**
   String get scrapeRoleDisc;
+
+  /// No description provided for @colResetWidths.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to resize · double-click to reset'**
+  String get colResetWidths;
 }
 
 class _AppLocalizationsDelegate

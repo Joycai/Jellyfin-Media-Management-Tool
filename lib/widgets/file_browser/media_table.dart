@@ -15,6 +15,7 @@ import '../dialogs/preview_dialog.dart';
 import '../glass/glass_panel.dart';
 import 'file_context_menu.dart';
 import 'file_thumbnail.dart';
+import 'media_columns.dart';
 
 /// Center pane: breadcrumb + actions, the file table with AI-suggestion and
 /// confidence columns, and a status footer.
@@ -43,6 +44,12 @@ class MediaTable extends StatelessWidget {
         .where((f) => p.basename(f.path).toLowerCase().contains(query))
         .toList();
   }
+
+  /// Distance from the panel edge to the first column, for the header and for
+  /// a row alike. Rows reach it as ListView padding 12 + row margin 8 + row
+  /// padding 14; the header applies it directly. They have to agree or the
+  /// column edges the user drags stop lining up with the cells below them.
+  static const contentInset = 34.0;
 
   static String localizedType(AppLocalizations l10n, String label, bool isDir) {
     if (isDir) return l10n.typeFolder;
@@ -89,8 +96,56 @@ class MediaTable extends StatelessWidget {
       (s) => s.showVideoThumbnails,
     );
 
+    final settings = context.watch<SettingsService>();
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // One measurement for the whole table. Resolving widths per row would let
+    // the header and the rows disagree by a rounding error, which is exactly
+    // the misalignment column dragging makes obvious.
+    return LayoutBuilder(
+      builder: (context, box) {
+        final available =
+            box.maxWidth -
+            contentInset * 2 -
+            MediaColumnLayout.gutter -
+            MediaColumnLayout.dividerHitWidth * (MediaColumn.values.length - 1);
+        final widths = MediaColumnLayout.resolve(
+          available,
+          settings.columnWeights,
+        );
+        return _table(
+          context,
+          l10n: l10n,
+          browser: browser,
+          files: files,
+          actionBySource: actionBySource,
+          base: base,
+          showThumbnails: showThumbnails,
+          settings: settings,
+          scheme: scheme,
+          isDark: isDark,
+          widths: widths,
+          available: available,
+        );
+      },
+    );
+  }
+
+  Widget _table(
+    BuildContext context, {
+    required AppLocalizations l10n,
+    required FileBrowserService browser,
+    required List<FileEntry> files,
+    required Map<String, OrganizeAction> actionBySource,
+    required String? base,
+    required bool showThumbnails,
+    required SettingsService settings,
+    required ColorScheme scheme,
+    required bool isDark,
+    required Map<MediaColumn, double> widths,
+    required double available,
+  }) {
     return GlassPanel(
       radius: 24,
       elevated: true,
@@ -113,8 +168,25 @@ class MediaTable extends StatelessWidget {
           _TopBar(onOrganize: onOrganize, onPickFolder: onPickFolder),
           const _Divider(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
-            child: _HeaderRow(l10n: l10n),
+            padding: const EdgeInsets.fromLTRB(
+              MediaTable.contentInset,
+              12,
+              MediaTable.contentInset,
+              6,
+            ),
+            child: _HeaderRow(
+              l10n: l10n,
+              widths: widths,
+              onResize: (column, dx) => settings.setColumnWeights(
+                MediaColumnLayout.resize(
+                  weights: settings.columnWeights,
+                  column: column,
+                  dx: dx,
+                  available: available,
+                ),
+              ),
+              onReset: settings.resetColumnWeights,
+            ),
           ),
           Expanded(
             child: files.isEmpty
@@ -137,6 +209,7 @@ class MediaTable extends StatelessWidget {
                       return _FileRow(
                         key: ValueKey(file.path),
                         entry: file,
+                        widths: widths,
                         showThumbnail: showThumbnails,
                         action: rel != null ? actionBySource[rel] : null,
                         selected: browser.selectedFile?.path == file.path,
@@ -319,7 +392,24 @@ class _Breadcrumb extends StatelessWidget {
 
 class _HeaderRow extends StatelessWidget {
   final AppLocalizations l10n;
-  const _HeaderRow({required this.l10n});
+  final Map<MediaColumn, double> widths;
+  final void Function(MediaColumn column, double dx) onResize;
+  final VoidCallback onReset;
+
+  const _HeaderRow({
+    required this.l10n,
+    required this.widths,
+    required this.onResize,
+    required this.onReset,
+  });
+
+  String _label(MediaColumn column) => switch (column) {
+    MediaColumn.name => l10n.colName,
+    MediaColumn.type => l10n.colType,
+    MediaColumn.size => l10n.colSize,
+    MediaColumn.suggestion => l10n.colAiSuggestion,
+    MediaColumn.confidence => l10n.colConfidence,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -328,41 +418,109 @@ class _HeaderRow extends StatelessWidget {
       fontWeight: FontWeight.w600,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
+    final columns = MediaColumn.values;
+
     return Row(
       children: [
         // Aligns with the row checkbox column.
-        const SizedBox(width: 30),
-        Expanded(
-          flex: 32,
-          child: Text(l10n.colName.toUpperCase(), style: style),
-        ),
-        Expanded(
-          flex: 10,
-          child: Text(l10n.colType.toUpperCase(), style: style),
-        ),
-        Expanded(
-          flex: 10,
-          child: Text(l10n.colSize.toUpperCase(), style: style),
-        ),
-        Expanded(
-          flex: 26,
-          child: Text(l10n.colAiSuggestion.toUpperCase(), style: style),
-        ),
-        Expanded(
-          flex: 16,
-          child: Text(
-            l10n.colConfidence.toUpperCase(),
-            style: style,
-            textAlign: TextAlign.right,
+        const SizedBox(width: MediaColumnLayout.gutter),
+        for (var i = 0; i < columns.length; i++) ...[
+          SizedBox(
+            width: widths[columns[i]],
+            child: Text(
+              _label(columns[i]).toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+              textAlign: columns[i] == MediaColumn.confidence
+                  ? TextAlign.right
+                  : TextAlign.start,
+            ),
+          ),
+          // No divider after the last column: there is nothing on its right to
+          // trade width with.
+          if (i < columns.length - 1)
+            _ColumnDivider(
+              onDrag: (dx) => onResize(columns[i], dx),
+              onReset: onReset,
+              tooltip: l10n.colResetWidths,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The draggable edge between two columns.
+///
+/// Drawn as a hairline but grabbed over [MediaColumnLayout.dividerHitWidth],
+/// because a one-pixel target is a test of aim rather than a control. Double
+/// click restores the defaults, which is the usual escape hatch once someone
+/// has dragged a column down to nothing.
+class _ColumnDivider extends StatefulWidget {
+  final ValueChanged<double> onDrag;
+  final VoidCallback onReset;
+  final String tooltip;
+
+  const _ColumnDivider({
+    required this.onDrag,
+    required this.onReset,
+    required this.tooltip,
+  });
+
+  @override
+  State<_ColumnDivider> createState() => _ColumnDividerState();
+}
+
+class _ColumnDividerState extends State<_ColumnDivider> {
+  bool _hovered = false;
+  bool _dragging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final active = _hovered || _dragging;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragStart: (_) => setState(() => _dragging = true),
+        onHorizontalDragEnd: (_) => setState(() => _dragging = false),
+        onHorizontalDragCancel: () => setState(() => _dragging = false),
+        onHorizontalDragUpdate: (d) => widget.onDrag(d.delta.dx),
+        onDoubleTap: widget.onReset,
+        child: Tooltip(
+          message: widget.tooltip,
+          waitDuration: const Duration(milliseconds: 900),
+          child: SizedBox(
+            width: MediaColumnLayout.dividerHitWidth,
+            height: 18,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                width: active ? 2 : 1,
+                height: active ? 16 : 10,
+                decoration: BoxDecoration(
+                  color: active
+                      ? scheme.primary
+                      : scheme.outlineVariant.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
 class _FileRow extends StatefulWidget {
   final FileEntry entry;
+  final Map<MediaColumn, double> widths;
   final OrganizeAction? action;
   final bool selected;
   final bool checked;
@@ -374,6 +532,7 @@ class _FileRow extends StatefulWidget {
   const _FileRow({
     super.key,
     required this.entry,
+    required this.widths,
     required this.action,
     required this.selected,
     required this.checked,
@@ -483,7 +642,7 @@ class _FileRowState extends State<_FileRow> {
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 30,
+                      width: MediaColumnLayout.gutter,
                       child: showCheckbox
                           ? Checkbox(
                               value: widget.checked,
@@ -495,8 +654,8 @@ class _FileRowState extends State<_FileRow> {
                             )
                           : null,
                     ),
-                    Expanded(
-                      flex: 32,
+                    SizedBox(
+                      width: widget.widths[MediaColumn.name],
                       child: Row(
                         children: [
                           FileThumbnail(
@@ -553,28 +712,44 @@ class _FileRowState extends State<_FileRow> {
                         ],
                       ),
                     ),
-                    Expanded(
-                      flex: 10,
+                    // Each cell mirrors the header's gap so the two stay in
+                    // step; the gap is where the header's drag handle sits.
+                    const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                    SizedBox(
+                      width: widget.widths[MediaColumn.type],
                       child: Text(
                         MediaTable.localizedType(l10n, label, isDir),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 13,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                    Expanded(
-                      flex: 10,
+                    const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                    SizedBox(
+                      width: widget.widths[MediaColumn.size],
                       child: Text(
                         size,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 13,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                    Expanded(flex: 26, child: _SuggestionCell(action: action)),
-                    Expanded(flex: 16, child: _ConfidenceCell(action: action)),
+                    const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                    SizedBox(
+                      width: widget.widths[MediaColumn.suggestion],
+                      child: _SuggestionCell(action: action),
+                    ),
+                    const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                    SizedBox(
+                      width: widget.widths[MediaColumn.confidence],
+                      child: _ConfidenceCell(action: action),
+                    ),
                   ],
                 ),
               ),

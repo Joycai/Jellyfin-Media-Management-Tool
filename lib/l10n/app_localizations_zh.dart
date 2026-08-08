@@ -1731,4 +1731,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapeRoleDisc => '光盘图 disc';
+
+  @override
+  String get colResetWidths => '拖动调整列宽 · 双击恢复默认';
 }

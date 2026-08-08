@@ -511,5 +511,6 @@
   "scrapeRoleBanner": "Banner",
   "scrapeRoleLogo": "Logo",
   "scrapeRoleClearArt": "Clear art",
-  "scrapeRoleDisc": "Disc"
+  "scrapeRoleDisc": "Disc",
+  "colResetWidths": "Drag to resize · double-click to reset"
 }

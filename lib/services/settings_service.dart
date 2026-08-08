@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/file_browser/media_columns.dart';
+
 class SearchSite {
   String name;
   String url;
@@ -137,6 +139,14 @@ class SettingsService extends ChangeNotifier {
           if (data['recent'] is List) {
             _recent = List<String>.from(data['recent']);
           }
+          if (data['column_weights'] is Map) {
+            final raw = data['column_weights'] as Map;
+            _columnWeights = {
+              for (final column in MediaColumn.values)
+                if (raw[column.name] is num)
+                  column: (raw[column.name] as num).toDouble(),
+            };
+          }
         }
       }
 
@@ -189,6 +199,9 @@ class SettingsService extends ChangeNotifier {
         'font_choice': _fontChoice,
         'favorites': _favorites,
         'recent': _recent,
+        'column_weights': {
+          for (final e in _columnWeights.entries) e.key.name: e.value,
+        },
       };
       await file.writeAsString(jsonEncode(data));
     } catch (e) {
@@ -237,6 +250,26 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setGlassIntensity(double v) async {
     _glassIntensity = v.clamp(0, 100);
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  /// File-table column widths, as weights. See [MediaColumnLayout] for why
+  /// weights rather than pixels.
+  Map<MediaColumn, double> _columnWeights = {};
+  Map<MediaColumn, double> get columnWeights =>
+      MediaColumnLayout.sanitize(_columnWeights);
+
+  /// Called on every drag frame, so it leans on the same 250ms debounce as the
+  /// glass slider rather than writing the file per pixel.
+  void setColumnWeights(Map<MediaColumn, double> weights) {
+    _columnWeights = Map.of(weights);
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  void resetColumnWeights() {
+    _columnWeights = {};
     _scheduleSave();
     notifyListeners();
   }
