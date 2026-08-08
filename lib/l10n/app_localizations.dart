@@ -2953,6 +2953,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'any page'**
   String get settingsScrapeRecipeAnyPath;
+
+  /// No description provided for @scrapeNoteLlmExtracted.
+  ///
+  /// In en, this message translates to:
+  /// **'These values were read off the page by the model, not matched by a selector — nothing verified them against the document. Check anything that matters before writing.'**
+  String get scrapeNoteLlmExtracted;
+
+  /// No description provided for @scrapeNoteLlmExtractionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The model could not read usable metadata off this page.'**
+  String get scrapeNoteLlmExtractionFailed;
+
+  /// No description provided for @scrapeAskLlm.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask the LLM directly'**
+  String get scrapeAskLlm;
+
+  /// No description provided for @scrapeAskLlmHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reads the page you already fetched and reports the fields itself. Costs a request, and the values are the model’s rather than the page’s.'**
+  String get scrapeAskLlmHint;
+
+  /// No description provided for @scrapeCustomPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra instructions for the model (optional)'**
+  String get scrapeCustomPrompt;
+
+  /// No description provided for @scrapeCustomPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. “use the sidebar credits as tags”'**
+  String get scrapeCustomPromptHint;
+
+  /// No description provided for @scrapeBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'AI backend'**
+  String get scrapeBackend;
+
+  /// No description provided for @scrapeBackendNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No AI profile configured'**
+  String get scrapeBackendNone;
+
+  /// No description provided for @scrapeCookiesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cookies for this site (optional)'**
+  String get scrapeCookiesLabel;
+
+  /// No description provided for @scrapeCookiesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'name=value; name2=value2 — held in memory for this run only'**
+  String get scrapeCookiesHint;
+
+  /// No description provided for @scrapeNfoTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare against'**
+  String get scrapeNfoTarget;
+
+  /// No description provided for @scrapeNfoBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse…'**
+  String get scrapeNfoBrowse;
+
+  /// No description provided for @scrapeNfoAutoDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detected from {name}'**
+  String scrapeNfoAutoDetected(Object name);
+
+  /// No description provided for @scrapePanelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape metadata'**
+  String get scrapePanelTitle;
+
+  /// No description provided for @scrapeProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process'**
+  String get scrapeProcess;
+
+  /// No description provided for @scrapeWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get scrapeWorking;
+
+  /// No description provided for @scrapeBackToSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get scrapeBackToSetup;
+
+  /// No description provided for @scrapeRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get scrapeRetry;
 }
 
 class _AppLocalizationsDelegate

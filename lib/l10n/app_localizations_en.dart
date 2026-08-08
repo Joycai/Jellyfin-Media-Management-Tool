@@ -1639,4 +1639,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsScrapeRecipeAnyPath => 'any page';
+
+  @override
+  String get scrapeNoteLlmExtracted =>
+      'These values were read off the page by the model, not matched by a selector — nothing verified them against the document. Check anything that matters before writing.';
+
+  @override
+  String get scrapeNoteLlmExtractionFailed =>
+      'The model could not read usable metadata off this page.';
+
+  @override
+  String get scrapeAskLlm => 'Ask the LLM directly';
+
+  @override
+  String get scrapeAskLlmHint =>
+      'Reads the page you already fetched and reports the fields itself. Costs a request, and the values are the model’s rather than the page’s.';
+
+  @override
+  String get scrapeCustomPrompt =>
+      'Extra instructions for the model (optional)';
+
+  @override
+  String get scrapeCustomPromptHint => 'e.g. “use the sidebar credits as tags”';
+
+  @override
+  String get scrapeBackend => 'AI backend';
+
+  @override
+  String get scrapeBackendNone => 'No AI profile configured';
+
+  @override
+  String get scrapeCookiesLabel => 'Cookies for this site (optional)';
+
+  @override
+  String get scrapeCookiesHint =>
+      'name=value; name2=value2 — held in memory for this run only';
+
+  @override
+  String get scrapeNfoTarget => 'Compare against';
+
+  @override
+  String get scrapeNfoBrowse => 'Browse…';
+
+  @override
+  String scrapeNfoAutoDetected(Object name) {
+    return 'Auto-detected from $name';
+  }
+
+  @override
+  String get scrapePanelTitle => 'Scrape metadata';
+
+  @override
+  String get scrapeProcess => 'Process';
+
+  @override
+  String get scrapeWorking => 'Working…';
+
+  @override
+  String get scrapeBackToSetup => 'Back';
+
+  @override
+  String get scrapeRetry => 'Try again';
 }

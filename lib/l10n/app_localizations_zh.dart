@@ -1609,4 +1609,61 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsScrapeRecipeAnyPath => '任意页面';
+
+  @override
+  String get scrapeNoteLlmExtracted =>
+      '这些值由模型直接从页面读取，而非选择器匹配，没有任何环节核对过它们与原文是否一致。写入前请复核重要字段。';
+
+  @override
+  String get scrapeNoteLlmExtractionFailed => '模型未能从该页面读出可用的元数据。';
+
+  @override
+  String get scrapeAskLlm => '直接询问大模型';
+
+  @override
+  String get scrapeAskLlmHint => '让模型读取已抓取的页面并自行给出字段。会消耗一次请求，且结果来自模型而非页面本身。';
+
+  @override
+  String get scrapeCustomPrompt => '给模型的补充说明（可选）';
+
+  @override
+  String get scrapeCustomPromptHint => '例如“把侧栏的演员名单作为标签”';
+
+  @override
+  String get scrapeBackend => 'AI 后端';
+
+  @override
+  String get scrapeBackendNone => '尚未配置 AI 配置档';
+
+  @override
+  String get scrapeCookiesLabel => '该站点的 Cookie（可选）';
+
+  @override
+  String get scrapeCookiesHint => 'name=value; name2=value2 —— 仅在本次运行期间保存在内存中';
+
+  @override
+  String get scrapeNfoTarget => '对比目标';
+
+  @override
+  String get scrapeNfoBrowse => '浏览…';
+
+  @override
+  String scrapeNfoAutoDetected(Object name) {
+    return '根据 $name 自动识别';
+  }
+
+  @override
+  String get scrapePanelTitle => '刮削元数据';
+
+  @override
+  String get scrapeProcess => '开始处理';
+
+  @override
+  String get scrapeWorking => '处理中…';
+
+  @override
+  String get scrapeBackToSetup => '返回';
+
+  @override
+  String get scrapeRetry => '重试';
 }

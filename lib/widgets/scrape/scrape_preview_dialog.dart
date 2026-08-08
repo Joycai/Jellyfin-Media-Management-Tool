@@ -321,6 +321,8 @@ class _ScrapePreviewDialogState extends State<ScrapePreviewDialog> {
         ScrapeNote.recipeLearned => l10n.scrapeNoteRecipeLearned,
         ScrapeNote.recipeLearningFailed => l10n.scrapeNoteRecipeLearningFailed,
         ScrapeNote.redirectedAway => l10n.scrapeNoteRedirectedAway,
+        ScrapeNote.llmExtracted => l10n.scrapeNoteLlmExtracted,
+        ScrapeNote.llmExtractionFailed => l10n.scrapeNoteLlmExtractionFailed,
       };
 
   // ── Preset toolbar ────────────────────────────────────────────────────────

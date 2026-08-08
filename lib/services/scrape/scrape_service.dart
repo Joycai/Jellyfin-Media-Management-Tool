@@ -29,6 +29,7 @@ import '../metadata/metadata_writer.dart';
 import '../metadata/nfo_merge.dart';
 import '../metadata/nfo_reader.dart';
 import '../metadata/nfo_writer.dart';
+import 'direct_extractor.dart';
 import 'image_downloader.dart';
 import 'page_fetcher.dart';
 import 'recipe_applier.dart';
@@ -60,6 +61,13 @@ enum ScrapeNote {
   /// page. Whatever was extracted describes that page, not the title, so this
   /// is the note to show before any other.
   redirectedAway,
+
+  /// These values came from the model reading the page, not from a selector.
+  /// Nothing checked them against the document.
+  llmExtracted,
+
+  /// The model was asked to read the page and returned nothing usable.
+  llmExtractionFailed,
 }
 
 /// Everything the preview dialog needs.
@@ -85,6 +93,10 @@ class ScrapeResult {
   /// confirmation puts it there.
   final ScrapeRecipe? learnedRecipe;
 
+  /// The page this was extracted from, kept so the "ask the LLM directly"
+  /// override can re-read it without fetching the site a second time.
+  final String html;
+
   const ScrapeResult({
     required this.scraped,
     required this.existing,
@@ -93,7 +105,23 @@ class ScrapeResult {
     required this.recipe,
     required this.notes,
     this.learnedRecipe,
+    this.html = '',
   });
+
+  /// A copy of this result carrying [scraped] instead, with the merge plan
+  /// recomputed against the same NFO. Used when the user replaces the ladder's
+  /// answer with the model's.
+  ScrapeResult withScraped(MediaMetadata scraped, {List<ScrapeNote>? notes}) =>
+      ScrapeResult(
+        scraped: scraped,
+        existing: existing,
+        mergePlan: NfoMerge.suggest(existing, scraped),
+        pageUrl: pageUrl,
+        recipe: recipe,
+        notes: notes ?? this.notes,
+        learnedRecipe: learnedRecipe,
+        html: html,
+      );
 
   /// Metadata as it would be written if the user changed nothing.
   MediaMetadata get merged => NfoMerge.resolve(existing, scraped, mergePlan);
@@ -321,7 +349,53 @@ class ScrapeService extends ChangeNotifier {
       recipe: recipe ?? learned,
       notes: notes,
       learnedRecipe: learned,
+      html: html,
     );
+  }
+
+  /// The manual override: hand the page to the model and use what it reads.
+  ///
+  /// Takes an existing [result] rather than a URL because it is always a second
+  /// look at a page already fetched — re-requesting the site to ask a different
+  /// question of the same bytes would be rude and slow. Returns the result
+  /// unchanged, plus a note, when the model produces nothing usable.
+  Future<ScrapeResult> askLlm({
+    required ScrapeResult result,
+    required DirectExtractor extractor,
+    String? instructions,
+    AiCancelToken? cancelToken,
+  }) async {
+    if (result.html.isEmpty) return result;
+    _isScraping = true;
+    notifyListeners();
+    try {
+      final extraction = await extractor.extract(
+        document: html_parser.parse(result.html),
+        pageUrl: result.pageUrl,
+        instructions: instructions,
+        cancelToken: cancelToken,
+      );
+      if (extraction == null) {
+        return result.withScraped(
+          result.scraped,
+          notes: [
+            ...result.notes.where((n) => n != ScrapeNote.llmExtracted),
+            ScrapeNote.llmExtractionFailed,
+          ],
+        );
+      }
+      return result.withScraped(
+        extraction.metadata,
+        notes: [
+          ...result.notes.where((n) => n != ScrapeNote.llmExtractionFailed),
+          ScrapeNote.llmExtracted,
+        ],
+      );
+    } finally {
+      cancelToken?.dispose();
+      _isScraping = false;
+      notifyListeners();
+    }
   }
 
   /// Downloads the selected artwork and writes the NFO plus images.
