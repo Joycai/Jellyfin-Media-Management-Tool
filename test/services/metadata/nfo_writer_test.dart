@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
+import 'package:jellyfin_media_management_tool/services/metadata/nfo_merge.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_reader.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_writer.dart';
 
@@ -32,7 +33,7 @@ void main() {
         xml,
         contains('<originaltitle>美少女戦士セーラーディオーレ 絶望の餌食</originaltitle>'),
       );
-      expect(xml, contains('<sorttitle>SPSF-43</sorttitle>'));
+      expect(xml, contains('<sorttitle>SPSF43</sorttitle>'));
       expect(xml, contains('<premiered>2026-08-14</premiered>'));
       expect(xml, contains('<year>2026</year>'));
       expect(xml, contains('<runtime>85</runtime>'));
@@ -47,29 +48,61 @@ void main() {
       );
     });
 
-    test('prefixes the display title with the code but keeps the original', () {
+    test('builds the display title as code, name, year', () {
+      // Calibrated against a real Jellyfin-written NFO: the code loses its
+      // separator (so SPSF9 / SPSF10 / SPSF43 sort correctly) and the year is
+      // appended. The catalogue number survives verbatim in <uniqueid>.
       final xml = NfoWriter.write(_sample());
-      expect(xml, contains('<title>SPSF-43 美少女戦士セーラーディオーレ 絶望の餌食</title>'));
+      expect(
+        xml,
+        contains('<title>SPSF43 美少女戦士セーラーディオーレ 絶望の餌食 (2026)</title>'),
+      );
       expect(
         xml,
         contains('<originaltitle>美少女戦士セーラーディオーレ 絶望の餌食</originaltitle>'),
       );
+      expect(xml, contains('>SPSF-43</uniqueid>'));
     });
 
-    test('does not double up a title that already starts with the code', () {
+    test('does not double up a code the title already carries', () {
+      // Matched with separators ignored, so the hyphenated form on the page is
+      // recognised as the compact form we would have added.
       final m = _sample()..title = 'SPSF-43 Already Prefixed';
       expect(
         NfoWriter.write(m),
-        contains('<title>SPSF-43 Already Prefixed</title>'),
+        contains('<title>SPSF-43 Already Prefixed (2026)</title>'),
+      );
+    });
+
+    test('does not double up a year the title already carries', () {
+      final m = _sample()..title = '美少女戦士 (2026)';
+      expect(
+        NfoWriter.write(m),
+        contains('<title>SPSF43 美少女戦士 (2026)</title>'),
       );
     });
 
     test('prefixing can be turned off', () {
       final xml = NfoWriter.write(
         _sample(),
-        options: const NfoOptions(prefixTitleWithCode: false),
+        options: const NfoOptions(
+          prefixTitleWithCode: false,
+          titleIncludesYear: false,
+        ),
       );
       expect(xml, contains('<title>美少女戦士セーラーディオーレ 絶望の餌食</title>'));
+    });
+
+    test('the hyphenated code can be kept', () {
+      final xml = NfoWriter.write(
+        _sample(),
+        options: const NfoOptions(compactCodeInTitles: false),
+      );
+      expect(xml, contains('<sorttitle>SPSF-43</sorttitle>'));
+      expect(
+        xml,
+        contains('<title>SPSF-43 美少女戦士セーラーディオーレ 絶望の餌食 (2026)</title>'),
+      );
     });
 
     test('omits empty elements entirely', () {
@@ -146,6 +179,81 @@ void main() {
       final xml = NfoWriter.write(_sample(), existingXml: 'not xml at all <<<');
       expect(xml, contains('<movie>'));
       expect(xml, contains('SPSF-43'));
+    });
+  });
+
+  group('a real Jellyfin-written NFO', () {
+    // Verbatim from a library, trimmed only where it repeats. This is the
+    // shape our output has to survive contact with: Jellyfin's own bookkeeping
+    // (lockdata, dateadded), probed stream details, and a curated set of
+    // genres and tags that took someone effort to get right.
+    const jellyfin = '''
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<movie>
+  <plot>セーラーディオーレは…[BAD END]</plot>
+  <lockdata>false</lockdata>
+  <dateadded>2026-07-31 00:00:00</dateadded>
+  <title>SPSF43 美少女戦士セーラーディオーレ 絶望の餌食 (2026)</title>
+  <originaltitle>美少女戦士セーラーディオーレ 絶望の餌食</originaltitle>
+  <director>坂田徹</director>
+  <year>2026</year>
+  <sorttitle>SPSF43</sorttitle>
+  <premiered>2026-08-14</premiered>
+  <releasedate>2026-08-14</releasedate>
+  <runtime>28</runtime>
+  <genre>セーラーディオーレ</genre>
+  <studio>ＧＩＧＡ（ギガ）</studio>
+  <tag>リボンレオタード</tag>
+  <art>
+    <poster>/media/GIGA/SPSF43 …/folder.jpg</poster>
+  </art>
+  <actor>
+    <name>西元めいさ</name>
+    <role>セーラーディオーレ</role>
+    <type>Actor</type>
+  </actor>
+  <fileinfo>
+    <streamdetails>
+      <video><codec>h264</codec><width>1000</width><durationinseconds>1696</durationinseconds></video>
+      <audio><codec>aac</codec><channels>2</channels></audio>
+    </streamdetails>
+  </fileinfo>
+</movie>
+''';
+
+    test('keeps Jellyfin\'s own bookkeeping and probed stream details', () {
+      final xml = NfoWriter.write(_sample(), existingXml: jellyfin);
+
+      expect(xml, contains('<lockdata>false</lockdata>'));
+      expect(xml, contains('<dateadded>2026-07-31 00:00:00</dateadded>'));
+      expect(xml, contains('<durationinseconds>1696</durationinseconds>'));
+      expect(xml, contains('<channels>2</channels>'));
+    });
+
+    test('re-writing it produces the same title it already had', () {
+      // The strongest signal that the format is calibrated: scraping a file
+      // Jellyfin already wrote should not churn the field it cares most about.
+      final xml = NfoWriter.write(_sample(), existingXml: jellyfin);
+      expect(
+        xml,
+        contains('<title>SPSF43 美少女戦士セーラーディオーレ 絶望の餌食 (2026)</title>'),
+      );
+      expect(xml, contains('<sorttitle>SPSF43</sorttitle>'));
+      expect('<title>'.allMatches(xml), hasLength(1));
+    });
+
+    test('the runtime the user has is not replaced by the page\'s', () {
+      // Their file is a 28-minute cut; the product page advertises 85. A
+      // conflict defaults to keep, so the truth about the file on disk wins.
+      final existing = NfoReader.read(jellyfin)!;
+      final plan = NfoMerge.suggest(existing, _sample());
+      final merged = NfoMerge.resolve(existing, _sample(), plan);
+
+      expect(
+        plan.decisionFor(MetadataField.runtimeMinutes),
+        MergeDecision.keep,
+      );
+      expect(merged.runtimeMinutes, 28);
     });
   });
 

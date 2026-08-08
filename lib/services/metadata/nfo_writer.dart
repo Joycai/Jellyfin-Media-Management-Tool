@@ -36,6 +36,21 @@ class NfoOptions {
   /// lost when this is on.
   final bool prefixTitleWithCode;
 
+  /// Append the release year to `<title>`, as `… (2026)`.
+  ///
+  /// Matches what Jellyfin itself writes back, and disambiguates remakes in a
+  /// library list. `<originaltitle>` and `<year>` are unaffected.
+  final bool titleIncludesYear;
+
+  /// Drop separators from the code where it appears in `<title>` and
+  /// `<sorttitle>` (`SPSF-43` → `SPSF43`), leaving `<uniqueid>` on the real
+  /// catalogue number.
+  ///
+  /// This is what a Jellyfin-managed library looks like in practice: the
+  /// compact form sorts correctly next to `SPSF9` and `SPSF10`, which the
+  /// hyphenated form does not.
+  final bool compactCodeInTitles;
+
   /// Value of the `type` attribute on `<uniqueid>`.
   final String uniqueIdType;
 
@@ -46,6 +61,8 @@ class NfoOptions {
 
   const NfoOptions({
     this.prefixTitleWithCode = true,
+    this.titleIncludesYear = true,
+    this.compactCodeInTitles = true,
     this.uniqueIdType = 'custom',
     this.posterFileName = 'poster.jpg',
     this.fanartFileName = 'fanart.jpg',
@@ -128,7 +145,7 @@ class NfoWriter {
       nest: () {
         _text(b, 'title', _displayTitle(m, options));
         _text(b, 'originaltitle', m.originalTitle ?? m.title);
-        _text(b, 'sorttitle', m.sortTitle ?? m.code);
+        _text(b, 'sorttitle', m.sortTitle ?? titleCode(m.code, options));
         _text(b, 'plot', m.plot);
         _text(b, 'outline', m.outline);
         _text(b, 'tagline', m.tagline);
@@ -196,18 +213,41 @@ class NfoWriter {
     return b.buildDocument();
   }
 
-  /// `SPSF-43 美少女戦士…` when a code is present and the title does not
-  /// already start with it.
+  /// `SPSF43 美少女戦士… (2026)` — code prefix, then the year, each only when
+  /// there is one and it is not already there.
   static String? _displayTitle(MediaMetadata m, NfoOptions options) {
-    final title = m.title;
-    final code = m.code;
-    if (title == null || title.isEmpty) return code;
-    if (!options.prefixTitleWithCode || code == null || code.isEmpty) {
-      return title;
+    final code = titleCode(m.code, options);
+    var title = m.title;
+
+    if (title == null || title.isEmpty) {
+      title = code;
+    } else if (options.prefixTitleWithCode && code != null && code.isNotEmpty) {
+      // Compared with separators removed on both sides, so a title already
+      // reading "SPSF-43 …" is not prefixed again with the compact form.
+      if (!_compact(
+        title,
+      ).toLowerCase().startsWith(_compact(code).toLowerCase())) {
+        title = '$code $title';
+      }
     }
-    if (title.toLowerCase().startsWith(code.toLowerCase())) return title;
-    return '$code $title';
+    if (title == null || title.isEmpty) return title;
+
+    final year = m.year;
+    if (options.titleIncludesYear &&
+        year != null &&
+        !title.endsWith('($year)')) {
+      title = '$title ($year)';
+    }
+    return title;
   }
+
+  /// The code as it should appear in `<title>` and `<sorttitle>`.
+  static String? titleCode(String? code, NfoOptions options) {
+    if (code == null || code.isEmpty) return code;
+    return options.compactCodeInTitles ? _compact(code) : code;
+  }
+
+  static String _compact(String s) => s.replaceAll(RegExp(r'[-_\s]'), '');
 
   /// Writes `<name>value</name>`, skipping blanks so the NFO has no empty
   /// elements (Jellyfin treats an empty `<plot/>` as a real empty synopsis and

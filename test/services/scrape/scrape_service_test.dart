@@ -388,7 +388,10 @@ void main() {
 
       expect(written.hasFailures, isFalse);
       final nfo = fs.file('/work/SPSF-43.nfo').readAsStringSync();
-      expect(nfo, contains('<title>SPSF-43 美少女戦士セーラーディオーレ 絶望の餌食</title>'));
+      expect(
+        nfo,
+        contains('<title>SPSF43 美少女戦士セーラーディオーレ 絶望の餌食 (2026)</title>'),
+      );
       expect(nfo, contains('<runtime>85</runtime>'));
       expect(nfo, contains('<studio>GIGA</studio>'));
       expect(nfo, contains('<poster>poster.jpg</poster>'));
