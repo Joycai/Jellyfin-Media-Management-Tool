@@ -696,7 +696,9 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                 onChanged: (v) => setState(() => _backup = v ?? true),
               ),
               const SizedBox(width: 2),
-              Flexible(
+              // Expanded, not Flexible + Spacer — the same trailing-gap trap
+              // the organize preview footer had; see its comment.
+              Expanded(
                 child: Text(
                   l10n.scrapeWriteBackup,
                   style: TextStyle(
@@ -705,7 +707,6 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                   ),
                 ),
               ),
-              const Spacer(),
               TextButton(
                 onPressed: widget.onBack,
                 child: Text(l10n.scrapeBackToSetup),

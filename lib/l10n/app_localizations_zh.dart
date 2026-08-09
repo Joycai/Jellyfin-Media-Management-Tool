@@ -1794,4 +1794,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get previewFilterEmpty => '当前筛选没有条目';
+
+  @override
+  String get previewAdjustRules => '调整规则';
+
+  @override
+  String get ruleEditorTitle => '命名规则 · 电影';
+
+  @override
+  String get ruleEditorRecommended => 'Jellyfin 推荐';
+
+  @override
+  String get ruleEditorFolderTemplate => '文件夹路径模板';
+
+  @override
+  String get ruleEditorFileTemplate => '文件名模板';
+
+  @override
+  String get ruleEditorVariables => '可用变量';
+
+  @override
+  String get ruleEditorAiFill => 'AI 智能填充';
+
+  @override
+  String get ruleEditorAiFillHint => '当文件名无法解析时，自动调用 AI 推断标题、年份与语言。';
+
+  @override
+  String get ruleEditorPreview => '实时预览';
+
+  @override
+  String get ruleEditorInput => '输入';
+
+  @override
+  String get ruleEditorOutput => '输出';
+
+  @override
+  String get ruleEditorOutputAi => '输出 · AI 推断';
+
+  @override
+  String get ruleEditorReset => '重置';
+
+  @override
+  String get ruleEditorComingSoon => '规则编辑暂未生效 —— 当前展示的是内置的 Jellyfin 命名约定。';
 }

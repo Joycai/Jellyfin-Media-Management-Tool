@@ -3283,6 +3283,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing matches this filter'**
   String get previewFilterEmpty;
+
+  /// No description provided for @previewAdjustRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust rules'**
+  String get previewAdjustRules;
+
+  /// No description provided for @ruleEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Naming rule · Movies'**
+  String get ruleEditorTitle;
+
+  /// No description provided for @ruleEditorRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin preset'**
+  String get ruleEditorRecommended;
+
+  /// No description provided for @ruleEditorFolderTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder path template'**
+  String get ruleEditorFolderTemplate;
+
+  /// No description provided for @ruleEditorFileTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'File name template'**
+  String get ruleEditorFileTemplate;
+
+  /// No description provided for @ruleEditorVariables.
+  ///
+  /// In en, this message translates to:
+  /// **'Available variables'**
+  String get ruleEditorVariables;
+
+  /// No description provided for @ruleEditorAiFill.
+  ///
+  /// In en, this message translates to:
+  /// **'AI smart fill'**
+  String get ruleEditorAiFill;
+
+  /// No description provided for @ruleEditorAiFillHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When a file name cannot be parsed, ask the AI to infer the title, year and language.'**
+  String get ruleEditorAiFillHint;
+
+  /// No description provided for @ruleEditorPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Live preview'**
+  String get ruleEditorPreview;
+
+  /// No description provided for @ruleEditorInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get ruleEditorInput;
+
+  /// No description provided for @ruleEditorOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get ruleEditorOutput;
+
+  /// No description provided for @ruleEditorOutputAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Output · AI inferred'**
+  String get ruleEditorOutputAi;
+
+  /// No description provided for @ruleEditorReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get ruleEditorReset;
+
+  /// No description provided for @ruleEditorComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention.'**
+  String get ruleEditorComingSoon;
 }
 
 class _AppLocalizationsDelegate

@@ -1831,4 +1831,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get previewFilterEmpty => 'Nothing matches this filter';
+
+  @override
+  String get previewAdjustRules => 'Adjust rules';
+
+  @override
+  String get ruleEditorTitle => 'Naming rule · Movies';
+
+  @override
+  String get ruleEditorRecommended => 'Jellyfin preset';
+
+  @override
+  String get ruleEditorFolderTemplate => 'Folder path template';
+
+  @override
+  String get ruleEditorFileTemplate => 'File name template';
+
+  @override
+  String get ruleEditorVariables => 'Available variables';
+
+  @override
+  String get ruleEditorAiFill => 'AI smart fill';
+
+  @override
+  String get ruleEditorAiFillHint =>
+      'When a file name cannot be parsed, ask the AI to infer the title, year and language.';
+
+  @override
+  String get ruleEditorPreview => 'Live preview';
+
+  @override
+  String get ruleEditorInput => 'Input';
+
+  @override
+  String get ruleEditorOutput => 'Output';
+
+  @override
+  String get ruleEditorOutputAi => 'Output · AI inferred';
+
+  @override
+  String get ruleEditorReset => 'Reset';
+
+  @override
+  String get ruleEditorComingSoon =>
+      'Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention.';
 }
