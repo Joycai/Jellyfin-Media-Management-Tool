@@ -527,5 +527,7 @@
   "scrapeImageRoleHint": "Right-click to mark as Jellyfin artwork · others keep their original file name",
   "scrapeImageUnmarked": "Unmarked",
   "scrapeImageDeselect": "Deselect",
-  "scrapeWriteCounts": "Write {fields} fields + {images} images"
+  "scrapeWriteCounts": "Write {fields} fields + {images} images",
+  "previewDryRun": "Preview · no files are moved yet",
+  "previewFilterEmpty": "Nothing matches this filter"
 }

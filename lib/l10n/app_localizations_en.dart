@@ -1825,4 +1825,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String scrapeWriteCounts(Object fields, Object images) {
     return 'Write $fields fields + $images images';
   }
+
+  @override
+  String get previewDryRun => 'Preview · no files are moved yet';
+
+  @override
+  String get previewFilterEmpty => 'Nothing matches this filter';
 }

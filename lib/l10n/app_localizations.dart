@@ -3271,6 +3271,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Write {fields} fields + {images} images'**
   String scrapeWriteCounts(Object fields, Object images);
+
+  /// No description provided for @previewDryRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview · no files are moved yet'**
+  String get previewDryRun;
+
+  /// No description provided for @previewFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches this filter'**
+  String get previewFilterEmpty;
 }
 
 class _AppLocalizationsDelegate

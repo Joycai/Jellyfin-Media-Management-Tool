@@ -1788,4 +1788,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String scrapeWriteCounts(Object fields, Object images) {
     return '写入 $fields 字段 + $images 图片';
   }
+
+  @override
+  String get previewDryRun => '预演 · 不会真实移动文件';
+
+  @override
+  String get previewFilterEmpty => '当前筛选没有条目';
 }

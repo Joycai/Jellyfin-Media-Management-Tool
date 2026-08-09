@@ -527,5 +527,7 @@
   "scrapeImageRoleHint": "右键可标记为 Jellyfin 专用图片 · 其余按原文件名保存",
   "scrapeImageUnmarked": "未标记",
   "scrapeImageDeselect": "取消选择",
-  "scrapeWriteCounts": "写入 {fields} 字段 + {images} 图片"
+  "scrapeWriteCounts": "写入 {fields} 字段 + {images} 图片",
+  "previewDryRun": "预演 · 不会真实移动文件",
+  "previewFilterEmpty": "当前筛选没有条目"
 }
