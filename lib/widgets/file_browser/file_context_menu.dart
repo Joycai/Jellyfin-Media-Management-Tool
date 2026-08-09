@@ -9,9 +9,12 @@ import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/file_label_service.dart';
+import '../../shortcuts/app_shortcuts.dart';
 import '../../utils/format.dart';
 import '../dialogs/input_dialog.dart';
 import '../dialogs/preview_dialog.dart';
+import '../glass/glass_dialog.dart';
+import '../glass/glass_menu.dart';
 import '../scrape/scrape_flow.dart';
 
 enum _MenuAction {
@@ -46,54 +49,71 @@ Future<void> showFileContextMenu(
       browser.isSelected(entry.path) && browser.selectionCount > 1;
   final deleteCount = multiDelete ? browser.selectionCount : 1;
 
-  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-  final action = await showMenu<_MenuAction>(
-    context: context,
-    position: RelativeRect.fromRect(
-      globalPosition & Size.zero,
-      Offset.zero & overlay.size,
-    ),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    color: scheme.surface,
-    elevation: 10,
-    constraints: const BoxConstraints(minWidth: 220),
+  final action = await showGlassMenu<_MenuAction>(
+    context,
+    globalPosition: globalPosition,
     items: [
       if (PreviewDialog.canPreview(entry))
-        _item(_MenuAction.preview, Icons.visibility_outlined, l10n.menuPreview),
+        glassMenuItem(
+          context,
+          value: _MenuAction.preview,
+          icon: Icons.visibility_outlined,
+          label: l10n.menuPreview,
+        ),
       // Single-entry only for now: batch scraping is a later phase, and the
       // per-host rate limit means a folder of 300 titles is a queue, not a
       // click.
       if (canScrape(entry))
-        _item(
-          _MenuAction.scrape,
-          Icons.travel_explore_outlined,
-          l10n.menuScrapeMetadata,
+        glassMenuItem(
+          context,
+          value: _MenuAction.scrape,
+          icon: Icons.travel_explore_outlined,
+          iconColor: scheme.primary,
+          label: l10n.menuScrapeMetadata,
+          trailing: shortcutLabel(AppShortcutId.scrape),
         ),
       // Folders only: the batch refresh re-reads the URL each NFO recorded,
       // so it needs a tree to walk.
       if (entry.isDirectory)
-        _item(
-          _MenuAction.rescrapeFolder,
-          Icons.refresh_rounded,
-          l10n.menuRescrapeFolder,
+        glassMenuItem(
+          context,
+          value: _MenuAction.rescrapeFolder,
+          icon: Icons.refresh_rounded,
+          label: l10n.menuRescrapeFolder,
         ),
-      _item(_MenuAction.rename, Icons.drive_file_rename_outline, l10n.rename),
-      _item(
-        _MenuAction.reveal,
-        Icons.folder_open_outlined,
-        l10n.menuRevealInFileManager,
+      const PopupMenuDivider(),
+      glassMenuItem(
+        context,
+        value: _MenuAction.rename,
+        icon: Icons.drive_file_rename_outline,
+        label: l10n.rename,
+        trailing: shortcutLabel(AppShortcutId.rename),
       ),
-      _item(
-        _MenuAction.properties,
-        Icons.info_outline_rounded,
-        l10n.menuProperties,
+      glassMenuItem(
+        context,
+        value: _MenuAction.reveal,
+        icon: Icons.folder_outlined,
+        // The design codes this row by its subject: the amber of a folder
+        // icon, the same hue the file table uses for folders.
+        iconColor: const Color(0xFFE0A030),
+        label: l10n.menuRevealInFileManager,
+      ),
+      glassMenuItem(
+        context,
+        value: _MenuAction.properties,
+        icon: Icons.info_outline_rounded,
+        label: l10n.menuProperties,
       ),
       const PopupMenuDivider(),
-      _item(
-        _MenuAction.delete,
-        Icons.delete_outline_rounded,
-        multiDelete ? l10n.deleteSelectedCount(deleteCount) : l10n.delete,
+      glassMenuItem(
+        context,
+        value: _MenuAction.delete,
+        icon: Icons.delete_outline_rounded,
+        label: multiDelete
+            ? l10n.deleteSelectedCount(deleteCount)
+            : l10n.delete,
         color: scheme.error,
+        trailing: shortcutLabel(AppShortcutId.delete),
       ),
     ],
   );
@@ -122,25 +142,6 @@ Future<void> showFileContextMenu(
     case _MenuAction.reveal:
       await _revealInFileManager(context, entry);
   }
-}
-
-PopupMenuItem<_MenuAction> _item(
-  _MenuAction value,
-  IconData icon,
-  String label, {
-  Color? color,
-}) {
-  return PopupMenuItem<_MenuAction>(
-    value: value,
-    height: 42,
-    child: Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 12),
-        Text(label, style: TextStyle(fontSize: 13.5, color: color)),
-      ],
-    ),
-  );
 }
 
 /// Prompts for a new name and renames [entry] in place. Shared by the context
@@ -196,7 +197,7 @@ Future<void> deleteEntries(
 
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => GlassAlertDialog(
       title: Text(l10n.delete),
       content: Text(
         entries.length == 1
@@ -273,7 +274,7 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
       );
       Text value(String s) => Text(s, style: const TextStyle(fontSize: 13.5));
 
-      return AlertDialog(
+      return GlassAlertDialog(
         title: Row(
           children: [
             Icon(

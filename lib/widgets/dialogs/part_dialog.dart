@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
+import '../glass/glass_dialog.dart';
 
 class PartDialog extends StatefulWidget {
   const PartDialog({super.key});
@@ -22,7 +23,8 @@ class _PartDialogState extends State<PartDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return AlertDialog(
+    return GlassAlertDialog(
+      maxWidth: 420,
       title: Text(l10n.selectPart),
       content: Column(
         mainAxisSize: MainAxisSize.min,

@@ -372,9 +372,19 @@ class _Header extends StatelessWidget {
                     focusNode: searchFocus,
                     controller: searchController,
                     onChanged: onSearch,
+                    // A deliberate 36px compact variant of the themed field:
+                    // the header row is shallower than the standard 44, so it
+                    // opts out of the theme's borders and icon box explicitly
+                    // (the theme's enabled/focused borders would otherwise
+                    // override its borderless look).
                     decoration: InputDecoration(
                       isDense: true,
                       prefixIcon: const Icon(Icons.search, size: 18),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 38,
+                        minHeight: 36,
+                        maxHeight: 36,
+                      ),
                       hintText: l10n.searchHint,
                       filled: true,
                       fillColor: scheme.surface.withValues(alpha: 0.35),
@@ -382,6 +392,16 @@ class _Header extends StatelessWidget {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: scheme.primary.withValues(alpha: 0.5),
+                        ),
                       ),
                       suffixIcon: Padding(
                         padding: const EdgeInsets.only(right: 10),

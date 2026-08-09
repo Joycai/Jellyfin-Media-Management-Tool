@@ -9,6 +9,7 @@ import '../../services/ai/openai_provider.dart';
 import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../theme/app_theme.dart';
+import '../glass/glass_dialog.dart';
 
 /// Header-less two-pane AI services manager (list + detail). Designed for
 /// embedding inside the Settings shell.
@@ -405,7 +406,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     final profiles = context.read<AiProfilesService>();
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => GlassAlertDialog(
         title: Text(l10n.deleteServiceTitle),
         content: Text(l10n.deleteServiceConfirm(widget.profile.name)),
         actions: [

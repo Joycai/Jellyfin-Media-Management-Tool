@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
+import '../glass/glass_dialog.dart';
 
 class TVShowDialog extends StatefulWidget {
   final int initialSeason;
@@ -32,7 +33,8 @@ class _TVShowDialogState extends State<TVShowDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return AlertDialog(
+    return GlassAlertDialog(
+      maxWidth: 420,
       title: Text(l10n.tvShowDialogTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,

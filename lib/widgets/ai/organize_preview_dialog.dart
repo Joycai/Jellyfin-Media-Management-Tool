@@ -7,6 +7,7 @@ import '../../services/file_label_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/path_tree.dart';
+import '../glass/glass_dialog.dart';
 import 'edit_action_dialog.dart';
 
 /// What the user chose in the preview dialog.
@@ -97,27 +98,31 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
+    // The glass surface, not Material's tinted slab — see GlassDialogSurface.
     return Dialog(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       insetPadding: const EdgeInsets.all(28),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1120, maxHeight: 760),
-        child: Column(
-          children: [
-            _header(context, l10n),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-            _toolbar(context, l10n),
-            Expanded(child: _body(context, l10n)),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-            _footer(context, l10n),
-          ],
+        child: GlassDialogSurface(
+          child: Column(
+            children: [
+              _header(context, l10n),
+              Divider(
+                height: 1,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              _toolbar(context, l10n),
+              Expanded(child: _body(context, l10n)),
+              Divider(
+                height: 1,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              _footer(context, l10n),
+            ],
+          ),
         ),
       ),
     );
@@ -169,6 +174,41 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                   style: TextStyle(
                     fontSize: 13.5,
                     color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // The dialog's core promise, stated where the eye lands first:
+          // nothing here touches disk until Apply.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: scheme.secondary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: scheme.secondary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: scheme.secondary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  l10n.previewDryRun,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.secondary,
                   ),
                 ),
               ],
@@ -270,24 +310,38 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
       case _View.poster:
         return _ComingSoon(label: l10n.viewPoster);
       case _View.list:
+        if (_filteredActions.isEmpty) return _emptyFilter(context, l10n);
         return _ListDiff(
           actions: _filteredActions,
           onEdit: _editAction,
           onResolve: _resolveAction,
         );
       case _View.tree:
+        final pending = _filter == _Filter.conflicts
+            ? const <OrganizeAction>[]
+            : _pending;
+        // A blank pair of panes reads as a rendering bug, not as "the filter
+        // matched nothing" — say so instead.
+        if (pending.isEmpty && _conflicts.isEmpty) {
+          return _emptyFilter(context, l10n);
+        }
         return _TreeCompare(
           baseDir: widget.baseDir,
-          pending: _filter == _Filter.conflicts ? const [] : _pending,
-          conflicts:
-              _filter == _Filter.changes ||
-                  _filter == _Filter.all ||
-                  _filter == _Filter.conflicts
-              ? _conflicts
-              : const [],
+          pending: pending,
+          conflicts: _conflicts,
         );
     }
   }
+
+  Widget _emptyFilter(BuildContext context, AppLocalizations l10n) => Center(
+    child: Text(
+      l10n.previewFilterEmpty,
+      style: TextStyle(
+        fontSize: 13.5,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 
   List<OrganizeAction> get _filteredActions => switch (_filter) {
     _Filter.conflicts => _conflicts,
@@ -510,7 +564,14 @@ class _TreePane extends StatelessWidget {
   Widget _row(BuildContext context, TreeLine line) {
     final scheme = Theme.of(context).colorScheme;
     final isLeaf = !line.isDir;
-    final bg = isLeaf ? accent.withValues(alpha: 0.12) : Colors.transparent;
+    // The design highlights the *created* structure, not just its contents:
+    // on the after side a top-level folder row gets the tint too, so the new
+    // Jellyfin layout reads at a glance.
+    final bg = isLeaf
+        ? accent.withValues(alpha: 0.12)
+        : (isAfter && line.depth <= 1)
+        ? accent.withValues(alpha: 0.10)
+        : Colors.transparent;
     return Container(
       margin: EdgeInsets.only(left: line.depth * 18.0, bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),

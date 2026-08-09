@@ -16,6 +16,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/scrape/image_cache.dart';
 import '../../services/scrape/image_role.dart';
 import '../../theme/app_theme.dart';
+import '../glass/glass_menu.dart';
 
 /// One image on offer.
 class GalleryImage {
@@ -84,10 +85,23 @@ class ImageGallery extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _header(l10n, scheme),
+        const SizedBox(height: 4),
+        Text(
+          l10n.scrapeImageRoleHint,
+          style: TextStyle(
+            fontSize: 10.5,
+            height: 1.3,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.05,
           children: [
             for (final image in images)
               _Tile(
@@ -97,6 +111,7 @@ class ImageGallery extends StatelessWidget {
                 role: roles[image.url] ?? ImageRole.original,
                 plannedName: plannedNames[image.url],
                 onTap: () => onToggle(image.url, !selected.contains(image.url)),
+                onDeselect: () => onToggle(image.url, false),
                 onRole: (role) => onRole(image.url, role),
               ),
           ],
@@ -148,16 +163,23 @@ class ImageGallery extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              l10n.scrapeImageCount(selected.length, images.length),
-              maxLines: 1,
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            Flexible(
+              child: Text(
+                l10n.scrapeImageCount(selected.length, images.length),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
             ),
             if ((loadingRemaining ?? 0) > 0) ...[
               const SizedBox(width: 8),
@@ -199,6 +221,21 @@ class ImageGallery extends StatelessWidget {
   );
 }
 
+/// The menu can hand back either a role or "deselect this tile", so its value
+/// type carries both.
+sealed class _MenuChoice {
+  const _MenuChoice();
+}
+
+class _AssignRole extends _MenuChoice {
+  final ImageRole role;
+  const _AssignRole(this.role);
+}
+
+class _Deselect extends _MenuChoice {
+  const _Deselect();
+}
+
 class _Tile extends StatelessWidget {
   final GalleryImage image;
   final ScrapeImageCache cache;
@@ -206,6 +243,7 @@ class _Tile extends StatelessWidget {
   final ImageRole role;
   final String? plannedName;
   final VoidCallback onTap;
+  final VoidCallback onDeselect;
   final ValueChanged<ImageRole> onRole;
 
   const _Tile({
@@ -215,16 +253,21 @@ class _Tile extends StatelessWidget {
     required this.role,
     required this.plannedName,
     required this.onTap,
+    required this.onDeselect,
     required this.onRole,
   });
 
-  static const _width = 132.0;
-  static const _height = 100.0;
+  /// The server's own file name, for the caption of an unselected tile and the
+  /// "keep original name" menu entry.
+  String get _serverName =>
+      Uri.tryParse(image.url)?.pathSegments.lastOrNull ?? image.url;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final glass = Theme.of(context).extension<GlassTheme>()!;
+    final marked = selected && role != ImageRole.original;
 
     return Tooltip(
       message: image.url,
@@ -235,77 +278,101 @@ class _Tile extends StatelessWidget {
         // Long-press mirrors right-click, the way the file table's own context
         // menu does.
         onLongPress: () => _menu(context, null),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          width: _width,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: glass.panelFill,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: selected ? scheme.primary : glass.panelStroke,
-              width: selected ? 2 : 1,
+              color: selected
+                  ? scheme.tertiary.withValues(alpha: 0.7)
+                  : glass.panelStroke,
+              width: selected ? 1.5 : 1,
             ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: scheme.tertiary.withValues(alpha: 0.18),
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
           ),
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              SizedBox(
-                height: _height,
-                width: double.infinity,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(7),
-                  child: _preview(scheme),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(
-                    selected
-                        ? Icons.check_circle_rounded
-                        : Icons.circle_outlined,
-                    size: 15,
-                    color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              _preview(scheme),
+              // Bottom scrim: what the tile is (role or unmarked) and the file
+              // name it lands under — Jellyfin identifies artwork by name, so
+              // the name is the point, not a detail.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 16, 8, 6),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0xE6111420)],
+                    ),
                   ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      image.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: role == ImageRole.original
-                            ? FontWeight.w400
-                            : FontWeight.w600,
-                        color: selected ? scheme.primary : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            selected
+                                ? Icons.check_rounded
+                                : Icons.circle_outlined,
+                            size: 11,
+                            color: selected
+                                ? scheme.tertiary
+                                : Colors.white.withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              marked
+                                  ? imageRoleLabel(l10n, role)
+                                  : selected
+                                  ? image.label
+                                  : l10n.scrapeImageUnmarked,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: selected
+                                    ? (marked
+                                          ? scheme.tertiary
+                                          : Colors.white.withValues(alpha: 0.9))
+                                    : Colors.white.withValues(alpha: 0.65),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              // The name it will be written under. This is the whole point of
-              // a role — Jellyfin identifies artwork by file name — so it is
-              // shown rather than left to be inferred from a menu tick.
-              if (selected)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    plannedName ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontFamily: 'monospace',
-                      color: role == ImageRole.original
-                          ? scheme.onSurfaceVariant
-                          : scheme.primary,
-                    ),
+                      const SizedBox(height: 1),
+                      Text(
+                        selected ? (plannedName ?? '') : _serverName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontFamily: 'monospace',
+                          color: Colors.white.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
             ],
           ),
         ),
@@ -316,52 +383,63 @@ class _Tile extends StatelessWidget {
   /// Right-click: assign the Jellyfin name this image should take.
   Future<void> _menu(BuildContext context, Offset? at) async {
     final l10n = AppLocalizations.of(context)!;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final origin =
         at ??
         (context.findRenderObject() as RenderBox).localToGlobal(Offset.zero);
 
-    final picked = await showMenu<ImageRole>(
-      context: context,
-      position: RelativeRect.fromRect(
-        origin & Size.zero,
-        Offset.zero & overlay.size,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      constraints: const BoxConstraints(minWidth: 210),
+    final picked = await showGlassMenu<_MenuChoice>(
+      context,
+      globalPosition: origin,
       items: [
-        PopupMenuItem<ImageRole>(
-          enabled: false,
-          height: 32,
-          child: Text(
-            l10n.scrapeImageRole,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-          ),
-        ),
+        glassMenuHeader(context, l10n.scrapeImageRole),
         for (final option in ImageRole.values)
-          PopupMenuItem<ImageRole>(
-            value: option,
-            height: 38,
-            child: Row(
-              children: [
-                Icon(
-                  option == role
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  size: 15,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  imageRoleLabel(l10n, option),
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ],
+          if (option != ImageRole.original)
+            glassMenuItem(
+              context,
+              value: _AssignRole(option),
+              icon: imageRoleIcon(option),
+              iconColor: _roleIconColor(option, Theme.of(context).colorScheme),
+              label: imageRoleLabel(l10n, option),
+              trailing: option.stem,
+              selected: option == role,
             ),
+        const PopupMenuDivider(),
+        glassMenuItem(
+          context,
+          value: const _AssignRole(ImageRole.original),
+          icon: Icons.check_rounded,
+          label: l10n.scrapeRoleOriginal,
+          trailing: _serverName,
+          selected: role == ImageRole.original,
+        ),
+        if (selected)
+          glassMenuItem(
+            context,
+            value: const _Deselect(),
+            icon: Icons.remove_rounded,
+            label: l10n.scrapeImageDeselect,
           ),
       ],
     );
-    if (picked != null) onRole(picked);
+    switch (picked) {
+      case _AssignRole(:final role):
+        onRole(role);
+      case _Deselect():
+        onDeselect();
+      case null:
+        break;
+    }
   }
+
+  /// The design tints the two headline roles by what they are — the poster in
+  /// the accent color, the backdrop in the amber the origin badges use — and
+  /// leaves the long tail muted. Null falls through to the menu's default.
+  static Color? _roleIconColor(ImageRole role, ColorScheme scheme) =>
+      switch (role) {
+        ImageRole.poster => scheme.primary,
+        ImageRole.fanart => const Color(0xFFE0852C),
+        _ => null,
+      };
 
   /// The tile never blocks on the network: whatever the cache has right now is
   /// what gets painted, and the parent rebuilds as bytes arrive.
@@ -373,8 +451,6 @@ class _Tile extends StatelessWidget {
         // fallback for an injected fake.
         bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
         fit: BoxFit.cover,
-        width: double.infinity,
-        height: _height,
         // A file that downloaded but will not decode is still a dead end for
         // the user, so it looks the same as one that failed to arrive.
         errorBuilder: (_, _, _) =>
@@ -401,6 +477,22 @@ class _Tile extends StatelessWidget {
     ),
   );
 }
+
+/// Menu icon for a role — the design pairs each slot with a small pictogram.
+/// Lives beside [imageRoleLabel] for the same reason it does: the enum stays
+/// free of Flutter imports.
+IconData imageRoleIcon(ImageRole role) => switch (role) {
+  ImageRole.original => Icons.check_rounded,
+  ImageRole.poster => Icons.image_outlined,
+  ImageRole.fanart => Icons.landscape_outlined,
+  ImageRole.extraFanart => Icons.burst_mode_outlined,
+  ImageRole.landscape => Icons.crop_16_9_rounded,
+  ImageRole.thumb => Icons.grid_view_rounded,
+  ImageRole.banner => Icons.view_day_outlined,
+  ImageRole.logo => Icons.label_outline_rounded,
+  ImageRole.clearArt => Icons.auto_awesome_outlined,
+  ImageRole.disc => Icons.album_outlined,
+};
 
 /// Menu label for a role. Lives here rather than on the enum so the enum stays
 /// free of `BuildContext`, like every other model in this module.

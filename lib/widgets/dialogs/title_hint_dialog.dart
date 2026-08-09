@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../glass/glass_dialog.dart';
 
 /// What the user tells us this folder contains. The model treats `movie` /
 /// `series` as a hard hint and skips its own media-type guess. `auto` means
@@ -65,7 +66,7 @@ class _TitleHintDialogState extends State<_TitleHintDialog> {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
-    return AlertDialog(
+    return GlassAlertDialog(
       title: Text(l10n.aiHintTitle),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),

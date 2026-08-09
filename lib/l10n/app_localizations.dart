@@ -2549,7 +2549,7 @@ abstract class AppLocalizations {
   /// No description provided for @scrapeColumnExisting.
   ///
   /// In en, this message translates to:
-  /// **'On disk'**
+  /// **'Local NFO'**
   String get scrapeColumnExisting;
 
   /// No description provided for @scrapeColumnScraped.
@@ -3113,13 +3113,13 @@ abstract class AppLocalizations {
   /// No description provided for @scrapeImageRole.
   ///
   /// In en, this message translates to:
-  /// **'Save as'**
+  /// **'Mark as Jellyfin artwork'**
   String get scrapeImageRole;
 
   /// No description provided for @scrapeRoleOriginal.
   ///
   /// In en, this message translates to:
-  /// **'Original name'**
+  /// **'Keep original name'**
   String get scrapeRoleOriginal;
 
   /// No description provided for @scrapeRolePoster.
@@ -3181,6 +3181,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Drag to resize · double-click to reset'**
   String get colResetWidths;
+
+  /// No description provided for @scrapeSourceUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Product page URL'**
+  String get scrapeSourceUrl;
+
+  /// No description provided for @scrapeSourceSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search sites by filename'**
+  String get scrapeSourceSearch;
+
+  /// No description provided for @scrapeSearchKeyword.
+  ///
+  /// In en, this message translates to:
+  /// **'Search keyword'**
+  String get scrapeSearchKeyword;
+
+  /// No description provided for @scrapeSearchNoSites.
+  ///
+  /// In en, this message translates to:
+  /// **'No search sites configured — add some in Settings.'**
+  String get scrapeSearchNoSites;
+
+  /// No description provided for @scrapeNfoAutoMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-matched {name} in the same folder'**
+  String scrapeNfoAutoMatched(Object name);
+
+  /// No description provided for @scrapeStepFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch page'**
+  String get scrapeStepFetch;
+
+  /// No description provided for @scrapeStepExtract.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract fields'**
+  String get scrapeStepExtract;
+
+  /// No description provided for @scrapeStepCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Build field comparison'**
+  String get scrapeStepCompare;
+
+  /// No description provided for @scrapeElapsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Elapsed {time}'**
+  String scrapeElapsed(Object time);
+
+  /// No description provided for @scrapeWillWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} will be written'**
+  String scrapeWillWrite(Object count);
+
+  /// No description provided for @scrapeConflictLegend.
+  ///
+  /// In en, this message translates to:
+  /// **'Local value exists and differs from the scrape'**
+  String get scrapeConflictLegend;
+
+  /// No description provided for @scrapeImageRoleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Right-click to mark as Jellyfin artwork · others keep their original file name'**
+  String get scrapeImageRoleHint;
+
+  /// No description provided for @scrapeImageUnmarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmarked'**
+  String get scrapeImageUnmarked;
+
+  /// No description provided for @scrapeImageDeselect.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect'**
+  String get scrapeImageDeselect;
+
+  /// No description provided for @scrapeWriteCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Write {fields} fields + {images} images'**
+  String scrapeWriteCounts(Object fields, Object images);
+
+  /// No description provided for @previewDryRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview · no files are moved yet'**
+  String get previewDryRun;
+
+  /// No description provided for @previewFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches this filter'**
+  String get previewFilterEmpty;
 }
 
 class _AppLocalizationsDelegate

@@ -21,6 +21,7 @@ import '../../services/thumbnail_service.dart';
 import '../../shortcuts/app_shortcuts.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../glass/glass_dialog.dart';
 import 'ai_services_screen.dart';
 
 enum _Section {
@@ -53,7 +54,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   _Section _section = _Section.appearance;
 
-  static const String _appVersion = '0.14.0';
+  static const String _appVersion = '0.15.0';
 
   @override
   Widget build(BuildContext context) {
@@ -1991,7 +1992,7 @@ class _FontOption extends StatelessWidget {
     final name = _label(l10n);
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => GlassAlertDialog(
         title: Text(l10n.fontDownloadTitle),
         content: Text(l10n.fontDownloadConfirm(name)),
         actions: [
@@ -2061,7 +2062,7 @@ class _FontDownloadDialogState extends State<_FontDownloadDialog> {
     final received = fonts.receivedBytes;
     final total = fonts.totalBytes;
 
-    return AlertDialog(
+    return GlassAlertDialog(
       title: Text(l10n.fontDownloading(widget.name)),
       content: Column(
         mainAxisSize: MainAxisSize.min,

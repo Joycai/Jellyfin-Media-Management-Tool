@@ -1415,7 +1415,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrapeColumnField => 'Field';
 
   @override
-  String get scrapeColumnExisting => 'On disk';
+  String get scrapeColumnExisting => 'Local NFO';
 
   @override
   String get scrapeColumnScraped => 'Scraped';
@@ -1735,10 +1735,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get scrapeImageRole => 'Save as';
+  String get scrapeImageRole => 'Mark as Jellyfin artwork';
 
   @override
-  String get scrapeRoleOriginal => 'Original name';
+  String get scrapeRoleOriginal => 'Keep original name';
 
   @override
   String get scrapeRolePoster => 'Poster';
@@ -1769,4 +1769,66 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get colResetWidths => 'Drag to resize · double-click to reset';
+
+  @override
+  String get scrapeSourceUrl => 'Product page URL';
+
+  @override
+  String get scrapeSourceSearch => 'Search sites by filename';
+
+  @override
+  String get scrapeSearchKeyword => 'Search keyword';
+
+  @override
+  String get scrapeSearchNoSites =>
+      'No search sites configured — add some in Settings.';
+
+  @override
+  String scrapeNfoAutoMatched(Object name) {
+    return 'Auto-matched $name in the same folder';
+  }
+
+  @override
+  String get scrapeStepFetch => 'Fetch page';
+
+  @override
+  String get scrapeStepExtract => 'Extract fields';
+
+  @override
+  String get scrapeStepCompare => 'Build field comparison';
+
+  @override
+  String scrapeElapsed(Object time) {
+    return 'Elapsed $time';
+  }
+
+  @override
+  String scrapeWillWrite(Object count) {
+    return '$count will be written';
+  }
+
+  @override
+  String get scrapeConflictLegend =>
+      'Local value exists and differs from the scrape';
+
+  @override
+  String get scrapeImageRoleHint =>
+      'Right-click to mark as Jellyfin artwork · others keep their original file name';
+
+  @override
+  String get scrapeImageUnmarked => 'Unmarked';
+
+  @override
+  String get scrapeImageDeselect => 'Deselect';
+
+  @override
+  String scrapeWriteCounts(Object fields, Object images) {
+    return 'Write $fields fields + $images images';
+  }
+
+  @override
+  String get previewDryRun => 'Preview · no files are moved yet';
+
+  @override
+  String get previewFilterEmpty => 'Nothing matches this filter';
 }

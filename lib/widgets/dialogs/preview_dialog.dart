@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_label_service.dart';
 import '../../utils/format.dart';
+import '../glass/glass_dialog.dart';
 
 /// Quick-look style preview for image and video files, opened by
 /// double-clicking a row in the file table. Esc / the close button dismiss it.
@@ -67,23 +68,21 @@ class _PreviewDialogState extends State<PreviewDialog> {
     final size = MediaQuery.sizeOf(context);
     return Dialog(
       backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       insetPadding: const EdgeInsets.all(32),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: size.width * 0.8,
           maxHeight: size.height * 0.85,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            color: const Color(0xFF17181C),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _TitleBar(entry: widget.entry),
-                Flexible(child: _isVideo ? _video() : _image(context)),
-              ],
-            ),
+        child: GlassDialogSurface(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _TitleBar(entry: widget.entry),
+              Flexible(child: _isVideo ? _video() : _image(context)),
+            ],
           ),
         ),
       ),

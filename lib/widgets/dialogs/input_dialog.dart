@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
+import '../glass/glass_dialog.dart';
 
 class InputDialog extends StatefulWidget {
   final String title;
@@ -43,7 +44,8 @@ class _InputDialogState extends State<InputDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return AlertDialog(
+    return GlassAlertDialog(
+      maxWidth: 568,
       title: Text(widget.title),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),

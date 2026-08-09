@@ -109,6 +109,10 @@ Future<void> _pasteAndScrape(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// The Write button's label now carries the field/image counts, so the stable
+/// landmark is its save icon rather than a fixed string.
+final _writeButton = find.widgetWithIcon(FilledButton, Icons.save_outlined);
+
 void main() {
   testWidgets('Process shows the result without a detour', (tester) async {
     // The whole point of the panel. The old flow put a background task and a
@@ -121,7 +125,8 @@ void main() {
     expect(tester.takeException(), isNull);
     // The preview header shows the scraped title, so the Write button is the
     // stable landmark. Its being a route also proves a Navigator resolved.
-    expect(find.widgetWithText(FilledButton, 'Write'), findsOneWidget);
+    // The label carries live counts, so the anchor is its save icon.
+    expect(_writeButton, findsOneWidget);
     expect(find.textContaining('Pasted Title'), findsWidgets);
   });
 
@@ -144,7 +149,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(FilledButton, 'Write'), findsNothing);
+    expect(_writeButton, findsNothing);
     expect(find.widgetWithText(FilledButton, 'Process'), findsNothing);
   });
 
@@ -160,7 +165,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(FilledButton, 'Process'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Write'), findsNothing);
+    expect(_writeButton, findsNothing);
   });
 
   testWidgets('the NFO target is auto-detected and shown', (tester) async {
@@ -168,7 +173,8 @@ void main() {
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('movie.nfo'), findsOneWidget);
+    // Twice: once in the path row, once in the auto-matched caption.
+    expect(find.textContaining('movie.nfo'), findsWidgets);
     expect(find.text('Browse…'), findsOneWidget);
   });
 

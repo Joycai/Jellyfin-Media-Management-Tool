@@ -11,6 +11,7 @@ import '../../services/rename_service.dart';
 import '../dialogs/part_dialog.dart';
 import '../dialogs/subtitle_dialog.dart';
 import '../dialogs/tv_show_dialog.dart';
+import '../glass/glass_dialog.dart';
 
 /// Corrects one planned action's target path before anything is written.
 ///
@@ -147,7 +148,8 @@ class _EditActionDialogState extends State<EditActionDialog> {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
-    return AlertDialog(
+    return GlassAlertDialog(
+      maxWidth: 608,
       title: Text(l10n.editTargetTitle),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),

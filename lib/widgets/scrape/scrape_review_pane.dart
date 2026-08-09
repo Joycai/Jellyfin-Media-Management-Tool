@@ -119,6 +119,10 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
   bool _poster = true;
   bool _fanart = true;
 
+  /// Which preset chip lit last. Cosmetic only — a per-row change clears it,
+  /// because the plan no longer matches any preset.
+  MergePreset? _activePreset;
+
   /// Pre-ticked, because this dialog *is* the human review the learned-recipe
   /// rule asks for: the values are on screen with their LLM badges, and the
   /// user is about to accept them. Unticking keeps the metadata and throws the
@@ -165,11 +169,19 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
       if (_plan.decisions.containsKey(f)) f,
   ];
 
-  void _setDecision(String field, MergeDecision decision) =>
-      setState(() => _plan = _plan.withDecision(field, decision));
+  /// How many rows will actually change the NFO — the footer button's count.
+  int get _writeCount =>
+      _plan.decisions.values.where((d) => d != MergeDecision.keep).length;
 
-  void _applyPreset(MergePreset preset) =>
-      setState(() => _plan = _plan.withPreset(preset));
+  void _setDecision(String field, MergeDecision decision) => setState(() {
+    _plan = _plan.withDecision(field, decision);
+    _activePreset = null;
+  });
+
+  void _applyPreset(MergePreset preset) => setState(() {
+    _plan = _plan.withPreset(preset);
+    _activePreset = preset;
+  });
 
   Future<void> _edit(String field) async {
     final l10n = AppLocalizations.of(context)!;
@@ -191,6 +203,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
       _scraped.set(field, value, FieldOrigin.manual);
       // They just typed what they want written, so "keep" would throw it away.
       _plan = _plan.withDecision(field, MergeDecision.replace);
+      _activePreset = null;
       _stills = _defaultStills();
     });
   }
@@ -245,27 +258,28 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
         (_merged.posterUrl != null ? 1 : 0) +
         (_merged.fanartUrl != null ? 1 : 0) +
         _merged.extraFanartUrls.length;
+    final recipe = widget.result.recipe;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
+      padding: const EdgeInsets.fromLTRB(24, 16, 16, 13),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [scheme.primary, scheme.tertiary],
+                    colors: [scheme.tertiary, scheme.primary],
                   ),
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.travel_explore_outlined,
                   color: Colors.white,
-                  size: 21,
+                  size: 19,
                 ),
               ),
               const SizedBox(width: 14),
@@ -278,25 +292,56 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      l10n.scrapePreviewSubtitle(_rows.length, imageCount),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: scheme.onSurfaceVariant,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          l10n.scrapePreviewSubtitle(_rows.length, imageCount),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        _dot(scheme),
+                        Flexible(
+                          child: Tooltip(
+                            message: widget.result.pageUrl.toString(),
+                            child: Text(
+                              widget.result.pageUrl.toString(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontFamily: 'monospace',
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (recipe != null) ...[
+                          const SizedBox(width: 10),
+                          _RecipeChip(
+                            text: '${l10n.scrapeRecipeName} · ${recipe.domain}',
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: widget.onCancel,
+                icon: const Icon(Icons.close_rounded, size: 18),
+                visualDensity: VisualDensity.compact,
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          _provenance(l10n, scheme),
           for (final note in widget.result.notes) ...[
             const SizedBox(height: 8),
             _NoteBanner(text: _noteText(l10n, note)),
@@ -306,31 +351,13 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
     );
   }
 
-  Widget _provenance(AppLocalizations l10n, ColorScheme scheme) {
-    final recipe = widget.result.recipe;
-    final style = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
-    return Row(
-      children: [
-        Text('${l10n.scrapeSource}: ', style: style),
-        Flexible(
-          child: Tooltip(
-            message: widget.result.pageUrl.toString(),
-            child: Text(
-              widget.result.pageUrl.toString(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: style.copyWith(fontFamily: 'monospace'),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Text(
-          '${l10n.scrapeRecipeName}: ${recipe?.domain ?? l10n.scrapeRecipeNone}',
-          style: style,
-        ),
-      ],
-    );
-  }
+  Widget _dot(ColorScheme scheme) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8),
+    child: Text(
+      '·',
+      style: TextStyle(color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+    ),
+  );
 
   static String _noteText(AppLocalizations l10n, ScrapeNote note) =>
       switch (note) {
@@ -346,33 +373,6 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
         ScrapeNote.llmExtractionFailed => l10n.scrapeNoteLlmExtractionFailed,
       };
 
-  // ── Preset toolbar ────────────────────────────────────────────────────────
-
-  /// Wraps rather than sits in a Row: this lives in a column whose width the
-  /// window decides, and three buttons whose labels differ per locale do not
-  /// reliably fit on one line.
-  Widget _toolbar(AppLocalizations l10n) => Padding(
-    padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        OutlinedButton(
-          onPressed: () => _applyPreset(MergePreset.fillEmptyOnly),
-          child: Text(l10n.scrapePresetFillEmpty),
-        ),
-        OutlinedButton(
-          onPressed: () => _applyPreset(MergePreset.replaceAll),
-          child: Text(l10n.scrapePresetReplaceAll),
-        ),
-        OutlinedButton(
-          onPressed: () => _applyPreset(MergePreset.keepAll),
-          child: Text(l10n.scrapePresetKeepAll),
-        ),
-      ],
-    ),
-  );
-
   // ── Body ──────────────────────────────────────────────────────────────────
 
   /// Fields on the left, artwork on the right.
@@ -384,13 +384,13 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
   Widget _body(AppLocalizations l10n, ColorScheme scheme) => Row(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Expanded(flex: 6, child: _fields(l10n, scheme)),
+      Expanded(child: _fields(l10n, scheme)),
       VerticalDivider(
         width: 1,
         color: scheme.outlineVariant.withValues(alpha: 0.4),
       ),
-      Expanded(
-        flex: 4,
+      SizedBox(
+        width: 440,
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
           child: _artwork(l10n, scheme),
@@ -399,15 +399,52 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
     ],
   );
 
+  /// The one-click starting points, plus the count the footer button repeats.
+  Widget _toolbar(AppLocalizations l10n, ColorScheme scheme) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+    child: Row(
+      children: [
+        Expanded(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _PresetChip(
+                label: l10n.scrapePresetFillEmpty,
+                selected: _activePreset == MergePreset.fillEmptyOnly,
+                onTap: () => _applyPreset(MergePreset.fillEmptyOnly),
+              ),
+              _PresetChip(
+                label: l10n.scrapePresetReplaceAll,
+                selected: _activePreset == MergePreset.replaceAll,
+                onTap: () => _applyPreset(MergePreset.replaceAll),
+              ),
+              _PresetChip(
+                label: l10n.scrapePresetKeepAll,
+                selected: _activePreset == MergePreset.keepAll,
+                onTap: () => _applyPreset(MergePreset.keepAll),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          l10n.scrapeWillWrite(_writeCount),
+          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+        ),
+      ],
+    ),
+  );
+
   Widget _fields(AppLocalizations l10n, ColorScheme scheme) {
     final rows = _rows;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _toolbar(l10n),
+        _toolbar(l10n, scheme),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             children: [
               if (rows.isEmpty)
                 Padding(
@@ -426,6 +463,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                     field: field,
                     existing: widget.result.existing,
                     scraped: _scraped,
+                    conflict: _plan.conflictFields.contains(field),
                     decision: _plan.decisionFor(field),
                     onDecision: (d) => _setDecision(field, d),
                     onEdit: isFieldEditable(field) ? () => _edit(field) : null,
@@ -434,9 +472,36 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
             ],
           ),
         ),
+        if (rows.isNotEmpty) _legend(l10n, scheme),
       ],
     );
   }
+
+  /// What the amber dot on a row means.
+  Widget _legend(AppLocalizations l10n, ColorScheme scheme) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+    child: Row(
+      children: [
+        Container(
+          width: 5,
+          height: 5,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: _conflictColor,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            l10n.scrapeConflictLegend,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    ),
+  );
 
   /// Every image the page offered, as a thumbnail.
   ///
@@ -563,105 +628,119 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
 
   // ── Footer ────────────────────────────────────────────────────────────────
 
-  Widget _footer(AppLocalizations l10n, ColorScheme scheme) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
-    child: Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: TextField(
-                controller: _targetDir,
-                style: const TextStyle(fontSize: 13),
-                decoration: InputDecoration(
-                  isDense: true,
-                  labelText: l10n.scrapeTargetFolder,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: TextField(
-                controller: _nfoName,
-                style: const TextStyle(fontSize: 13),
-                decoration: InputDecoration(
-                  isDense: true,
-                  labelText: l10n.scrapeNfoFileName,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (widget.result.learnedRecipe != null)
+  Widget _footer(AppLocalizations l10n, ColorScheme scheme) {
+    final imageCount = _selectedUrls(_merged).length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 14),
+      child: Column(
+        children: [
           Row(
             children: [
-              Checkbox(
-                value: _saveRecipe,
-                onChanged: (v) => setState(() => _saveRecipe = v ?? true),
+              Expanded(
+                flex: 3,
+                child: TextField(
+                  controller: _targetDir,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    labelText: l10n.scrapeTargetFolder,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
               ),
-              const SizedBox(width: 2),
-              Flexible(
-                child: Text(
-                  l10n.scrapeSaveRecipe(widget.result.learnedRecipe!.domain),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: scheme.onSurfaceVariant,
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _nfoName,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    labelText: l10n.scrapeNfoFileName,
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               ),
             ],
           ),
-        Row(
-          children: [
-            Checkbox(
-              value: _backup,
-              onChanged: (v) => setState(() => _backup = v ?? true),
+          const SizedBox(height: 10),
+          if (widget.result.learnedRecipe != null)
+            Row(
+              children: [
+                Checkbox(
+                  value: _saveRecipe,
+                  onChanged: (v) => setState(() => _saveRecipe = v ?? true),
+                ),
+                const SizedBox(width: 2),
+                Flexible(
+                  child: Text(
+                    l10n.scrapeSaveRecipe(widget.result.learnedRecipe!.domain),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 2),
-            Flexible(
-              child: Text(
-                l10n.scrapeWriteBackup,
-                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+          Row(
+            children: [
+              Checkbox(
+                value: _backup,
+                onChanged: (v) => setState(() => _backup = v ?? true),
               ),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: widget.onBack,
-              child: Text(l10n.scrapeBackToSetup),
-            ),
-            const SizedBox(width: 4),
-            TextButton(onPressed: widget.onCancel, child: Text(l10n.cancel)),
-            const SizedBox(width: 10),
-            FilledButton.icon(
-              onPressed: _commit,
-              icon: const Icon(Icons.save_outlined, size: 17),
-              label: Text(l10n.scrapeWrite),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 16,
+              const SizedBox(width: 2),
+              Flexible(
+                child: Text(
+                  l10n.scrapeWriteBackup,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+              const Spacer(),
+              TextButton(
+                onPressed: widget.onBack,
+                child: Text(l10n.scrapeBackToSetup),
+              ),
+              const SizedBox(width: 4),
+              TextButton(onPressed: widget.onCancel, child: Text(l10n.cancel)),
+              const SizedBox(width: 10),
+              FilledButton.icon(
+                onPressed: _commit,
+                icon: const Icon(Icons.save_outlined, size: 17),
+                label: Text(l10n.scrapeWriteCounts(_writeCount, imageCount)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: scheme.tertiary,
+                  foregroundColor: scheme.onTertiary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Field table ─────────────────────────────────────────────────────────────
 
-const double _labelWidth = 118;
+const double _labelWidth = 104;
 
 /// Wide enough for the three-segment picker (Keep · Replace · Merge) in both
 /// locales. Fixed rather than intrinsic so every row's picker lines up.
-const double _decisionWidth = 280;
+const double _decisionWidth = 200;
+
+/// Local value present and different from the scrape — the rows worth a real
+/// look. Same amber as the LLM origin badge.
+const Color _conflictColor = Color(0xFFE0B23C);
 
 class _ColumnHeader extends StatelessWidget {
   final AppLocalizations l10n;
@@ -671,12 +750,20 @@ class _ColumnHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final style = TextStyle(
-      fontSize: 11.5,
+      fontSize: 10.5,
       fontWeight: FontWeight.w600,
+      letterSpacing: 0.5,
       color: scheme.onSurfaceVariant,
     );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+    return Container(
+      padding: const EdgeInsets.only(top: 8, bottom: 7),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
       child: Row(
         children: [
           SizedBox(
@@ -706,6 +793,11 @@ class _FieldRow extends StatelessWidget {
   final String field;
   final MediaMetadata? existing;
   final MediaMetadata scraped;
+
+  /// Both sides have a value and they differ — flagged with the amber dot the
+  /// legend explains.
+  final bool conflict;
+
   final MergeDecision decision;
   final ValueChanged<MergeDecision> onDecision;
 
@@ -716,6 +808,7 @@ class _FieldRow extends StatelessWidget {
     required this.field,
     required this.existing,
     required this.scraped,
+    required this.conflict,
     required this.decision,
     required this.onDecision,
     this.onEdit,
@@ -729,21 +822,47 @@ class _FieldRow extends StatelessWidget {
     final existingText = metadataValueText(existing, field);
     final scrapedText = metadataValueText(scraped, field);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
+          ),
+        ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: _labelWidth,
             child: Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: Text(
-                metadataFieldLabel(l10n, field),
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  if (conflict) ...[
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _conflictColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Flexible(
+                    child: Text(
+                      metadataFieldLabel(l10n, field),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -801,7 +920,7 @@ class _Value extends StatelessWidget {
       return Text(
         '—',
         style: TextStyle(
-          fontSize: 12.5,
+          fontSize: 12,
           color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
         ),
       );
@@ -815,14 +934,15 @@ class _Value extends StatelessWidget {
         // without letting one field push the rest of the table off screen.
         maxLines: 3,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontSize: 12.5, height: 1.35, color: color),
+        style: TextStyle(fontSize: 12, height: 1.4, color: color),
       ),
     );
   }
 }
 
-/// Where the scraped value came from. LLM-sourced values get a warning color:
-/// those are the ones a human has to actually look at.
+/// Where the scraped value came from, tinted per source: recipe purple,
+/// derived teal, LLM amber — the amber ones are the values a human has to
+/// actually look at.
 class _OriginBadge extends StatelessWidget {
   final FieldOrigin origin;
   const _OriginBadge({required this.origin});
@@ -831,11 +951,13 @@ class _OriginBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final color = origin == FieldOrigin.llm
-        ? const Color(0xFFE0852C)
-        : origin == FieldOrigin.manual
-        ? scheme.primary
-        : scheme.onSurfaceVariant;
+    final color = switch (origin) {
+      FieldOrigin.llm => const Color(0xFFE0852C),
+      FieldOrigin.recipe => const Color(0xFF8E6FE8),
+      FieldOrigin.derived => const Color(0xFF3AA885),
+      FieldOrigin.manual => scheme.primary,
+      _ => scheme.onSurfaceVariant,
+    };
 
     return Container(
       margin: const EdgeInsets.only(top: 2),
@@ -858,7 +980,55 @@ class _OriginBadge extends StatelessWidget {
   }
 }
 
-/// Keep / Replace, plus Merge on list fields.
+/// One of the three merge starting points, styled as a pill that stays lit
+/// until a per-row change makes the plan bespoke.
+class _PresetChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PresetChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final glass = Theme.of(context).extension<GlassTheme>()!;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? scheme.primary.withValues(alpha: 0.14)
+              : glass.panelFill,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? scheme.primary.withValues(alpha: 0.4)
+                : glass.panelStroke,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? scheme.primary : scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Keep / Replace, plus Merge on list fields. The chosen segment fills with
+/// the primary color when it takes the scraped value, and stays neutral when
+/// it keeps the disk's — so a glance down the column shows what will change.
 class _DecisionPicker extends StatelessWidget {
   final String field;
   final MergeDecision value;
@@ -884,37 +1054,44 @@ class _DecisionPicker extends StatelessWidget {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: glass.panelFill,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: glass.panelStroke),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           for (final (decision, label) in options)
-            Material(
-              color: decision == value ? scheme.surface : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              child: InkWell(
+            Expanded(
+              child: Material(
+                color: decision != value
+                    ? Colors.transparent
+                    : decision == MergeDecision.keep
+                    ? scheme.surfaceContainerHighest
+                    : scheme.primary,
                 borderRadius: BorderRadius.circular(6),
-                onTap: () => onChanged(decision),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: decision == value
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: decision == value
-                          ? scheme.onSurface
-                          : scheme.onSurfaceVariant,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => onChanged(decision),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: decision == value
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: decision != value
+                            ? scheme.onSurfaceVariant
+                            : decision == MergeDecision.keep
+                            ? scheme.onSurface
+                            : scheme.onPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -926,7 +1103,35 @@ class _DecisionPicker extends StatelessWidget {
   }
 }
 
-// ── Artwork + notes ─────────────────────────────────────────────────────────
+// ── Notes ───────────────────────────────────────────────────────────────────
+
+class _RecipeChip extends StatelessWidget {
+  final String text;
+  const _RecipeChip({required this.text});
+
+  static const _purple = Color(0xFF8E6FE8);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: BoxDecoration(
+      color: _purple.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(5),
+      border: Border.all(color: _purple.withValues(alpha: 0.3)),
+    ),
+    child: Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: _purple,
+      ),
+    ),
+  );
+}
+
 class _NoteBanner extends StatelessWidget {
   final String text;
   const _NoteBanner({required this.text});

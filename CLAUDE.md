@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Flutter **desktop** app for Windows/macOS/Linux. `android/`/`ios/` are not present; the `web/` directory is a `flutter create` artifact and is not a supported target.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `0.14.0+8`.
+- Dart SDK `^3.10.4`. Current app version: `0.15.0+9`.
 
 ## Common commands
 
@@ -189,6 +189,17 @@ Platform quirks that shaped the code: Windows ignores the `height` argument (squ
 
 [app_theme.dart](lib/theme/app_theme.dart) builds Material 3 light/dark themes from an optional user accent seed, and carries a `GlassTheme` `ThemeExtension` (backdrop gradient, sidebar fill, blur intensity) that the frosted panels read. Read glass values through `Theme.of(context).extension<GlassTheme>()!`, never by hardcoding colors.
 
+**Control metrics live in the theme, not in widgets.** `AppTheme` defines one sizing system app-wide — 44px glass-filled inputs (`inputDecorationTheme`, including the prefix-icon constraint override that stops Material's 48px icon minimum from making two fields in one row disagree), 38px radius-10 buttons (`filledButtonTheme` / `elevatedButtonTheme` / `outlinedButtonTheme`), 34px text buttons. A widget writes **no size or border styling** on standard controls; `InputDecoration` carries only content (hint, label, icons, error). An explicit size override marks a deliberate compact variant (the 36px header search field in `home_screen.dart`, the 30px Browse button and 28px search-site chips in the scrape panel) and must opt out of the theme borders explicitly, as the search field does.
+
+**The glass surface family** (`lib/widgets/glass/`) is the only sanctioned chrome for floating surfaces:
+
+- `GlassPanel` — page-level panes and cards (blur + translucent fill + hairline stroke).
+- `GlassDialogSurface` — the modal surface: backdrop blur under a near-opaque wash of `scheme.surface`, hairline stroke, deep shadow. Near-opaque on purpose — a dialog's job is to be read; the ~8% translucency is what keeps it glass.
+- `GlassAlertDialog` — drop-in `AlertDialog` replacement (same `icon`/`title`/`content`/`actions` shape, plus `maxWidth`).
+- `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` — context menus; items are icon + label + optional monospace trailing hint, with a primary-tinted pill (not a radio) marking the current state.
+
+`dialogTheme` / `popupMenuTheme` in `AppTheme` are fallbacks in the same palette so an unmigrated surface degrades to matching colors — they cannot add the backdrop blur, so they are a safety net, not an alternative.
+
 ### Localization
 
 ARB files at `lib/l10n/app_en.arb` and `lib/l10n/app_zh.arb`. `flutter: generate: true` in `pubspec.yaml` drives codegen via `l10n.yaml`. Generated `app_localizations*.dart` files live under `lib/l10n/` — **do not hand-edit them**.
@@ -209,6 +220,8 @@ Three persisted settings toggles — `autoConnectAi`, `alwaysShowPreview`, `lowC
 - New keyboard shortcuts go in `lib/shortcuts/app_shortcuts.dart` — do not add a bare `SingleActivator` in a widget.
 - Failures are reported via `ScaffoldMessenger`; batch operations report counts, not just the first error.
 - UI is Material 3; respect light/dark themes, the accent seed, and `GlassTheme`.
+- Dialogs use `GlassAlertDialog` (or `GlassDialogSurface` inside a transparent `Dialog` for large/custom ones); context menus use `showGlassMenu` with `glassMenuItem`/`glassMenuHeader`. Never a bare `AlertDialog` or `showMenu` — the Material surfaces don't match the liquid-glass style (see Theming).
+- Standard controls (inputs, dropdowns, buttons, sliders) take their size from the theme — do not restate heights, paddings or border shapes per widget. An explicit size is a deliberate compact variant and must opt out of the theme borders explicitly (see Theming).
 - `xml` is pinned to `^6`, not `^7`: it was already in the lock file transitively via `msix` at 6.6.1, and a `^7` caret fails version solving the same way `intl: ^0.20.3` does.
 - No `freezed` / `json_serializable` / `build_runner` in this project — JSON is hand-rolled in the services. Don't introduce codegen without a reason.
 
