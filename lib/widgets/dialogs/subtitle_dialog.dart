@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../../l10n/app_localizations.dart';
+import '../glass/glass_dialog.dart';
 
 class SubtitleDialog extends StatefulWidget {
   final List<File> videoFiles;
@@ -48,7 +49,8 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return AlertDialog(
+    return GlassAlertDialog(
+      maxWidth: 420,
       title: Text(l10n.jellyfinSubtitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,

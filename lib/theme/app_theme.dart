@@ -131,11 +131,113 @@ class AppTheme {
             blurSigma: (glassIntensity / 70 * 24).clamp(0.0, 48.0),
           );
 
+    // One control-metrics system for the whole app: 44px fields, 38px
+    // buttons, radius 10. Defined here rather than per widget so a dialog, a
+    // settings page and a panel cannot drift apart — a widget only overrides
+    // these for a deliberate compact variant, never to restate the default.
+    OutlineInputBorder fieldBorder(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: color, width: width),
+        );
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    );
+    // ButtonStyle.textStyle REPLACES the label's style rather than merging
+    // into it, so a bare TextStyle here silently drops the user-selected UI
+    // font on every button in the app. Carry the family and the CJK fallback
+    // explicitly.
+    TextStyle buttonText(double size, FontWeight weight) => TextStyle(
+      fontSize: size,
+      fontWeight: weight,
+      fontFamily: fontFamily,
+      fontFamilyFallback: _cjkFontFallback,
+    );
+
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.transparent,
+      // The glass field: faint fill, hairline border, primary ring on focus.
+      // 12px vertical padding + a dense one-line input lands on 44px; the
+      // prefix-icon override keeps Material's 48px icon minimum from breaking
+      // that (it is why two fields sharing a row used to disagree in height).
+      inputDecorationTheme: InputDecorationTheme(
+        isDense: true,
+        filled: true,
+        fillColor: scaledGlass.panelFill,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 42,
+          minHeight: 40,
+          maxHeight: 40,
+        ),
+        enabledBorder: fieldBorder(scaledGlass.panelStroke),
+        focusedBorder: fieldBorder(scheme.primary, 1.6),
+        errorBorder: fieldBorder(scheme.error),
+        focusedErrorBorder: fieldBorder(scheme.error, 1.6),
+        disabledBorder: fieldBorder(
+          scaledGlass.panelStroke.withValues(alpha: 0.5),
+        ),
+        border: fieldBorder(scaledGlass.panelStroke),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(64, 38),
+          shape: buttonShape,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          textStyle: buttonText(13, FontWeight.w600),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(64, 38),
+          shape: buttonShape,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          textStyle: buttonText(13, FontWeight.w600),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(64, 38),
+          shape: buttonShape,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          textStyle: buttonText(13, FontWeight.w500),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 34),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          textStyle: buttonText(13, FontWeight.w500),
+        ),
+      ),
+      sliderTheme: const SliderThemeData(trackHeight: 4),
+      // Fallbacks in the glass palette for surfaces not yet routed through a
+      // Glass* widget, so a stray dialog or context menu still matches the
+      // app instead of surfacing Material's seed-tinted slab. Dialogs should
+      // prefer GlassAlertDialog / GlassDialogSurface, which add the backdrop
+      // blur these static themes cannot.
+      dialogTheme: DialogThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 12,
+        shadowColor: Colors.black.withValues(alpha: isDark ? 0.5 : 0.25),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: scaledGlass.panelStroke),
+        ),
+      ),
       // User-selected UI font (HarmonyOS Sans / MiSans); null = OS default.
       fontFamily: fontFamily,
       // Latin glyphs keep the crisp OS default; CJK glyphs (missing from that

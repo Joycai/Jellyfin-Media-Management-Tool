@@ -7,6 +7,7 @@ import '../../models/history_entry.dart';
 import '../../services/history_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../glass/glass_dialog.dart';
 
 /// Operation history: a vertical list of recorded operations with undo +
 /// "view list" affordances, plus a 7-day retention notice.
@@ -436,80 +437,89 @@ class _MovesDialog extends StatelessWidget {
     final rows = _rows(l10n);
 
     return Dialog(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720, maxHeight: 560),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 12, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    l10n.movesListTitle(rows.length),
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+        child: GlassDialogSurface(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 12, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      l10n.movesListTitle(rows.length),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: rows.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    color: scheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
-                  itemBuilder: (_, i) => Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 4,
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          rows[i].caption,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            color: scheme.onSurfaceVariant,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: rows.length,
+                    separatorBuilder: (_, _) => Divider(
+                      height: 1,
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                    itemBuilder: (_, i) => Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 4,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rows[i].caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(rows[i].icon, size: 14, color: scheme.primary),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                rows[i].detail,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontSize: 13,
-                                  color: scheme.onSurface,
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                rows[i].icon,
+                                size: 14,
+                                color: scheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  rows[i].detail,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 13,
+                                    color: scheme.onSurface,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

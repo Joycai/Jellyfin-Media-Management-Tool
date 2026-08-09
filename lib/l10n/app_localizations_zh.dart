@@ -1388,28 +1388,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeColumnField => '字段';
 
   @override
-  String get scrapeColumnExisting => '磁盘上的值';
+  String get scrapeColumnExisting => '本地 NFO';
 
   @override
-  String get scrapeColumnScraped => '抓取到的值';
+  String get scrapeColumnScraped => '抓取结果';
 
   @override
-  String get scrapeColumnDecision => '处理方式';
+  String get scrapeColumnDecision => '操作';
 
   @override
   String get scrapeDecisionKeep => '保留';
 
   @override
-  String get scrapeDecisionReplace => '覆盖';
+  String get scrapeDecisionReplace => '替换';
 
   @override
   String get scrapeDecisionMerge => '合并';
 
   @override
-  String get scrapePresetFillEmpty => '只补空缺';
+  String get scrapePresetFillEmpty => '仅填补空白';
 
   @override
-  String get scrapePresetReplaceAll => '全部覆盖';
+  String get scrapePresetReplaceAll => '全部替换';
 
   @override
   String get scrapePresetKeepAll => '全部保留';
@@ -1618,16 +1618,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeNoteLlmExtractionFailed => '模型未能从该页面读出可用的元数据。';
 
   @override
-  String get scrapeAskLlm => '直接询问大模型';
+  String get scrapeAskLlm => '直接询问模型';
 
   @override
-  String get scrapeAskLlmHint => '让模型读取已抓取的页面并自行给出字段。会消耗一次请求，且结果来自模型而非页面本身。';
+  String get scrapeAskLlmHint =>
+      '由模型直接读取已抓取的页面并输出各字段。消耗一次请求，字段值以模型判断为准，而非页面原文。';
 
   @override
-  String get scrapeCustomPrompt => '给模型的补充说明（可选）';
+  String get scrapeCustomPrompt => '附加要求（可选）';
 
   @override
-  String get scrapeCustomPromptHint => '例如“把侧栏的演员名单作为标签”';
+  String get scrapeCustomPromptHint => '给模型的额外要求，例如“简介保留日文”…';
 
   @override
   String get scrapeBackend => 'AI 后端';
@@ -1642,7 +1643,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeCookiesHint => 'name=value; name2=value2 —— 仅在本次运行期间保存在内存中';
 
   @override
-  String get scrapeNfoTarget => '对比目标';
+  String get scrapeNfoTarget => '对比 NFO';
 
   @override
   String get scrapeNfoBrowse => '浏览…';
@@ -1668,7 +1669,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeRetry => '重试';
 
   @override
-  String get scrapeAdvanced => '高级选项';
+  String get scrapeAdvanced => '高级';
 
   @override
   String scrapeImageLoading(Object count) {
@@ -1700,10 +1701,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get scrapeImageRole => '保存为';
+  String get scrapeImageRole => '标记为 Jellyfin 图片';
 
   @override
-  String get scrapeRoleOriginal => '原始文件名';
+  String get scrapeRoleOriginal => '按原名保存';
 
   @override
   String get scrapeRolePoster => '海报 poster';
@@ -1734,4 +1735,57 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get colResetWidths => '拖动调整列宽 · 双击恢复默认';
+
+  @override
+  String get scrapeSourceUrl => '产品页 URL';
+
+  @override
+  String get scrapeSourceSearch => '按文件名搜索站点';
+
+  @override
+  String get scrapeSearchKeyword => '搜索关键词';
+
+  @override
+  String get scrapeSearchNoSites => '尚未配置搜索站点 —— 可在「设置」中添加。';
+
+  @override
+  String scrapeNfoAutoMatched(Object name) {
+    return '已自动匹配同目录的 $name';
+  }
+
+  @override
+  String get scrapeStepFetch => '获取页面';
+
+  @override
+  String get scrapeStepExtract => '解析字段';
+
+  @override
+  String get scrapeStepCompare => '生成字段对比';
+
+  @override
+  String scrapeElapsed(Object time) {
+    return '已用 $time';
+  }
+
+  @override
+  String scrapeWillWrite(Object count) {
+    return '$count 项将写入';
+  }
+
+  @override
+  String get scrapeConflictLegend => '本地已有值且与抓取结果不同';
+
+  @override
+  String get scrapeImageRoleHint => '右键可标记为 Jellyfin 专用图片 · 其余按原文件名保存';
+
+  @override
+  String get scrapeImageUnmarked => '未标记';
+
+  @override
+  String get scrapeImageDeselect => '取消选择';
+
+  @override
+  String scrapeWriteCounts(Object fields, Object images) {
+    return '写入 $fields 字段 + $images 图片';
+  }
 }

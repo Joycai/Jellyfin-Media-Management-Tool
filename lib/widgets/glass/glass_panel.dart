@@ -30,6 +30,12 @@ class GlassPanel extends StatelessWidget {
   /// it to skip the expensive blur pass.
   final bool blur;
 
+  /// The hairline border eats layout space on every side: a child that fills
+  /// the panel gets the panel's width minus twice this. Anything measuring
+  /// itself against the panel's outer constraints must subtract it, or its
+  /// content is exactly `2 * borderWidth` too wide.
+  static const borderWidth = 1.0;
+
   const GlassPanel({
     super.key,
     required this.child,
@@ -56,7 +62,7 @@ class GlassPanel extends StatelessWidget {
             : (fill ?? (sidebar ? glass.sidebarFill : glass.panelFill)),
         gradient: gradient,
         borderRadius: borderRadius,
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.panelStroke, width: borderWidth),
       ),
       child: child,
     );

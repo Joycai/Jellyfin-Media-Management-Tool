@@ -7,6 +7,7 @@ import '../../services/file_label_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/path_tree.dart';
+import '../glass/glass_dialog.dart';
 import 'edit_action_dialog.dart';
 
 /// What the user chose in the preview dialog.
@@ -97,27 +98,31 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
+    // The glass surface, not Material's tinted slab — see GlassDialogSurface.
     return Dialog(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       insetPadding: const EdgeInsets.all(28),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1120, maxHeight: 760),
-        child: Column(
-          children: [
-            _header(context, l10n),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-            _toolbar(context, l10n),
-            Expanded(child: _body(context, l10n)),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-            _footer(context, l10n),
-          ],
+        child: GlassDialogSurface(
+          child: Column(
+            children: [
+              _header(context, l10n),
+              Divider(
+                height: 1,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              _toolbar(context, l10n),
+              Expanded(child: _body(context, l10n)),
+              Divider(
+                height: 1,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              _footer(context, l10n),
+            ],
+          ),
         ),
       ),
     );

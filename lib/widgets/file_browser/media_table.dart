@@ -107,6 +107,10 @@ class MediaTable extends StatelessWidget {
       builder: (context, box) {
         final available =
             box.maxWidth -
+            // The measurement happens outside the GlassPanel, whose hairline
+            // border shrinks the space its child actually gets — skip it and
+            // the header overflows by exactly that much.
+            GlassPanel.borderWidth * 2 -
             contentInset * 2 -
             MediaColumnLayout.gutter -
             MediaColumnLayout.dividerHitWidth * (MediaColumn.values.length - 1);
@@ -820,15 +824,20 @@ class _ConfidenceCell extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        SizedBox(
-          width: 56,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: v,
-              minHeight: 5,
-              backgroundColor: color.withValues(alpha: 0.18),
-              valueColor: AlwaysStoppedAnimation(color),
+        // Flexible so the bar gives way first: the cell's fixed parts alone
+        // (spacing + percentage) already approach the column's minimum width,
+        // and a rigid bar overflows as soon as the column is dragged narrow.
+        Flexible(
+          child: SizedBox(
+            width: 56,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: v,
+                minHeight: 5,
+                backgroundColor: color.withValues(alpha: 0.18),
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
             ),
           ),
         ),

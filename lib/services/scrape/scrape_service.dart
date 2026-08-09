@@ -38,6 +38,13 @@ import 'recipe_learner.dart';
 import 'recipe_store.dart';
 import 'structured_data.dart';
 
+/// Coarse progress of one scrape, reported to the panel's step list.
+///
+/// Deliberately three stages and no percentages: fetch and extract are the only
+/// waits long enough to see, and a step that flashes past honestly reports
+/// itself as instant.
+enum ScrapeStage { fetching, extracting, comparing }
+
 /// Something the user should know about a scrape that still succeeded.
 enum ScrapeNote {
   /// The page's OpenGraph block described the whole site, so it was ignored.
@@ -201,6 +208,7 @@ class ScrapeService extends ChangeNotifier {
     String? nfoFileName,
     AiCancelToken? cancelToken,
     RecipeLearner? learner,
+    void Function(ScrapeStage stage)? onStage,
   }) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
@@ -210,6 +218,7 @@ class ScrapeService extends ChangeNotifier {
     notifyListeners();
     try {
       final recipe = recipes.forUrl(uri);
+      onStage?.call(ScrapeStage.fetching);
       final page = await fetcher.fetch(
         uri,
         recipe: recipe,
@@ -225,6 +234,7 @@ class ScrapeService extends ChangeNotifier {
         nfoFileName: nfoFileName,
         learner: learner,
         cancelToken: cancelToken,
+        onStage: onStage,
       );
     } finally {
       cancelToken?.dispose();
@@ -243,6 +253,7 @@ class ScrapeService extends ChangeNotifier {
     String? nfoFileName,
     RecipeLearner? learner,
     AiCancelToken? cancelToken,
+    void Function(ScrapeStage stage)? onStage,
   }) async {
     final uri = Uri.tryParse(sourceUrl.trim());
     if (uri == null || !uri.hasScheme) {
@@ -260,6 +271,7 @@ class ScrapeService extends ChangeNotifier {
       nfoFileName: nfoFileName,
       learner: learner,
       cancelToken: cancelToken,
+      onStage: onStage,
     );
   }
 
@@ -273,7 +285,9 @@ class ScrapeService extends ChangeNotifier {
     String? nfoFileName,
     RecipeLearner? learner,
     AiCancelToken? cancelToken,
+    void Function(ScrapeStage stage)? onStage,
   }) async {
+    onStage?.call(ScrapeStage.extracting);
     final document = html_parser.parse(html);
     final notes = <ScrapeNote>[];
     // First, because it explains every other disappointing thing about the
@@ -336,6 +350,7 @@ class ScrapeService extends ChangeNotifier {
       );
     }
 
+    onStage?.call(ScrapeStage.comparing);
     MediaMetadata? existing;
     if (targetDir != null && nfoFileName != null) {
       final xml = await writer.readExisting(targetDir, nfoFileName);

@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/scrape/image_downloader.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../theme/app_theme.dart';
+import '../glass/glass_dialog.dart';
 
 /// What the user confirmed for a folder-wide refresh.
 class BatchScrapeDecision {
@@ -57,7 +58,8 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
     final glass = Theme.of(context).extension<GlassTheme>()!;
     final empty = widget.targets.isEmpty;
 
-    return AlertDialog(
+    return GlassAlertDialog(
+      maxWidth: 668,
       icon: Icon(Icons.refresh_rounded, color: scheme.primary),
       title: Text(l10n.batchScrapeTitle),
       content: ConstrainedBox(

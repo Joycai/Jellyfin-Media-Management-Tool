@@ -42,6 +42,7 @@ import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
+import '../glass/glass_dialog.dart';
 import 'scrape_review_pane.dart';
 
 /// A scrape the user reviewed and confirmed.
@@ -100,11 +101,19 @@ class ScrapePanel extends StatefulWidget {
 
 enum _Stage { setup, working, results }
 
+/// Where the metadata comes from: a URL the user already has, or a web search
+/// to go and find one. The second mode exists because knowing the catalogue
+/// number is not the same as knowing the URL.
+enum _SourceMode { url, search }
+
 class _ScrapePanelState extends State<ScrapePanel> {
   final _url = TextEditingController();
   final _html = TextEditingController();
   final _cookies = TextEditingController();
   final _instructions = TextEditingController();
+  late final _search = TextEditingController(
+    text: widget.suggestedKeyword ?? '',
+  );
 
   late String _targetDir = widget.targetDir;
   late String _nfoFileName = widget.nfoFileName;
@@ -116,19 +125,28 @@ class _ScrapePanelState extends State<ScrapePanel> {
   String? _backendId;
   bool _showPaste = false;
   bool _showAdvanced = false;
+  _SourceMode _sourceMode = _SourceMode.url;
 
   _Stage _stage = _Stage.setup;
   String? _error;
   AiCancelToken? _cancel;
 
-  /// Set while a direct extraction is running, so the progress line can say
-  /// which of the two buttons is being honoured.
+  /// Set while a direct extraction is running, so the step list can say which
+  /// of the two buttons is being honoured.
   bool _askingLlm = false;
+
+  /// Where the running scrape currently is, for the step list. Null before the
+  /// first callback fires.
+  ScrapeStage? _scrapeStage;
+
+  /// Wall-clock for the working stage's footer.
+  final _elapsed = Stopwatch();
+  Timer? _ticker;
 
   ScrapeResult? _result;
   ScrapeImageCache? _cache;
 
-  /// Images still to fetch for the grid. Drives the header's progress line.
+  /// Images still to fetch for the grid. Drives the gallery's progress line.
   int _imagesPending = 0;
 
   /// Bumped for each new result so the review pane rebuilds from scratch when
@@ -147,7 +165,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
     _html.dispose();
     _cookies.dispose();
     _instructions.dispose();
+    _search.dispose();
     _cancel?.dispose();
+    _ticker?.cancel();
     super.dispose();
   }
 
@@ -202,7 +222,12 @@ class _ScrapePanelState extends State<ScrapePanel> {
     final l10n = AppLocalizations.of(context)!;
     final url = _parsedUrl();
     if (url == null) {
-      setState(() => _error = l10n.scrapeUrlInvalid);
+      // A URL is required either way; if the user was on the search tab, the
+      // field they must fill is on the other one.
+      setState(() {
+        _sourceMode = _SourceMode.url;
+        _error = l10n.scrapeUrlInvalid;
+      });
       return;
     }
     final provider = _provider();
@@ -215,12 +240,25 @@ class _ScrapePanelState extends State<ScrapePanel> {
     _applyCookies(scraper, url);
     final token = AiCancelToken();
 
+    _elapsed
+      ..reset()
+      ..start();
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+
     setState(() {
       _stage = _Stage.working;
       _askingLlm = askLlm;
+      _scrapeStage = null;
       _error = null;
       _cancel = token;
     });
+
+    void onStage(ScrapeStage stage) {
+      if (mounted) setState(() => _scrapeStage = stage);
+    }
 
     try {
       final pasted = _html.text.trim();
@@ -234,6 +272,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
               nfoFileName: _nfoFileName,
               cancelToken: token,
               learner: askLlm ? null : learner,
+              onStage: onStage,
             )
           : await scraper.scrapeHtml(
               pasted,
@@ -241,9 +280,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
               targetDir: _targetDir,
               nfoFileName: _nfoFileName,
               learner: askLlm ? null : learner,
+              onStage: onStage,
             );
 
       if (askLlm) {
+        // The model re-reads the fetched page, so the step list goes back to
+        // "extract" — that is genuinely where the time is spent.
+        if (mounted) setState(() => _scrapeStage = ScrapeStage.extracting);
         result = await scraper.askLlm(
           result: result,
           extractor: DirectExtractor(provider!),
@@ -268,16 +311,14 @@ class _ScrapePanelState extends State<ScrapePanel> {
         });
       }
     } finally {
+      _elapsed.stop();
+      _ticker?.cancel();
+      _ticker = null;
       token.dispose();
       if (mounted) _cancel = null;
     }
   }
 
-  /// Opens a search for the detected code in the browser.
-  ///
-  /// Knowing the catalogue number is not the same as knowing the URL, and the
-  /// panel cannot ask for one the user does not have yet. Uses the same site
-  /// list they curate in Settings — there is no second table.
   /// Writes the ticked images to the folder, now, without touching the NFO.
   ///
   /// Reports a count rather than the first error, like every other batch in
@@ -353,7 +394,12 @@ class _ScrapePanelState extends State<ScrapePanel> {
     );
   }
 
-  Future<void> _search(SearchSite site, String keyword) async {
+  /// Opens a search for the keyword in the browser.
+  ///
+  /// Knowing the catalogue number is not the same as knowing the URL, and the
+  /// panel cannot ask for one the user does not have yet. Uses the same site
+  /// list they curate in Settings — there is no second table.
+  Future<void> _openSearch(SearchSite site, String keyword) async {
     final lang = Localizations.localeOf(context).languageCode;
     final uri = Uri.tryParse(
       site.url
@@ -382,44 +428,55 @@ class _ScrapePanelState extends State<ScrapePanel> {
 
   // ── Layout ────────────────────────────────────────────────────────────────
 
+  // Field and button metrics come from the app theme (`inputDecorationTheme`,
+  // the button themes in AppTheme) — nothing here restates them, so this
+  // dialog cannot drift from the rest of the app.
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
     final reviewing = _stage == _Stage.results;
+    final working = _stage == _Stage.working;
 
+    // Not Material's dialog surface: that paints a seed-tinted opaque slab
+    // that matches nothing else in the app. The glass surface blurs what is
+    // behind and lets the backdrop breathe through, like every other panel.
     return Dialog(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       insetPadding: const EdgeInsets.all(28),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
-        // Setting a scrape up is a short form; reviewing one is a table beside
-        // a picture grid. The window grows to match rather than making the
-        // form sprawl or the review cramped.
+        // Setting a scrape up is a short form, running one is a card of steps,
+        // and reviewing one is a table beside a picture grid. The window grows
+        // to match rather than making the form sprawl or the review cramped.
         constraints: BoxConstraints(
-          maxWidth: reviewing ? 1180 : 720,
-          maxHeight: reviewing ? 800 : 760,
+          maxWidth: reviewing ? 1280 : (working ? 580 : 700),
+          maxHeight: reviewing ? 860 : 760,
         ),
-        child: reviewing
-            ? _review()
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _header(l10n, scheme),
-                  const Divider(height: 1),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                      child: _stage == _Stage.working
-                          ? _working(l10n, scheme)
-                          : _setup(l10n, scheme),
+        child: GlassDialogSurface(
+          child: reviewing
+              ? _review()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _header(l10n, scheme),
+                    const Divider(height: 1),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
+                        child: working
+                            ? _working(l10n, scheme)
+                            : _setup(l10n, scheme),
+                      ),
                     ),
-                  ),
-                  const Divider(height: 1),
-                  _footer(l10n, scheme),
-                ],
-              ),
+                    const Divider(height: 1),
+                    _footer(l10n, scheme),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -443,10 +500,22 @@ class _ScrapePanelState extends State<ScrapePanel> {
   );
 
   Widget _header(AppLocalizations l10n, ColorScheme scheme) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+    padding: const EdgeInsets.fromLTRB(22, 18, 16, 14),
     child: Row(
       children: [
-        Icon(Icons.travel_explore_outlined, color: scheme.primary),
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [scheme.tertiary, scheme.primary]),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.travel_explore_outlined,
+            color: Colors.white,
+            size: 19,
+          ),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -455,7 +524,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
               Text(
                 l10n.scrapePanelTitle,
                 style: const TextStyle(
-                  fontSize: 17,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -465,49 +534,122 @@ class _ScrapePanelState extends State<ScrapePanel> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 11.5,
+                  fontFamily: 'monospace',
                   color: scheme.onSurfaceVariant,
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(width: 8),
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.close_rounded, size: 18),
+          visualDensity: VisualDensity.compact,
+          tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+        ),
       ],
     ),
   );
 
-  Widget _working(AppLocalizations l10n, ColorScheme scheme) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 40),
-    child: Column(
+  // ── Working stage ─────────────────────────────────────────────────────────
+
+  Widget _working(AppLocalizations l10n, ColorScheme scheme) {
+    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final stageIndex = switch (_scrapeStage) {
+      null => 0,
+      ScrapeStage.fetching => 0,
+      ScrapeStage.extracting => 1,
+      ScrapeStage.comparing => 2,
+    };
+
+    _StepState stateFor(int step) => step < stageIndex
+        ? _StepState.done
+        : step == stageIndex
+        ? _StepState.active
+        : _StepState.pending;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: scheme.tertiary,
+            ),
+          ),
+          const SizedBox(height: 22),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+              color: glass.panelFill,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: glass.panelStroke),
+            ),
+            child: Column(
+              children: [
+                _StepRow(label: l10n.scrapeStepFetch, state: stateFor(0)),
+                const SizedBox(height: 11),
+                _StepRow(
+                  label: _askingLlm
+                      ? l10n.scrapeAskLlm
+                      : l10n.scrapeStepExtract,
+                  state: stateFor(1),
+                ),
+                const SizedBox(height: 11),
+                _StepRow(label: l10n.scrapeStepCompare, state: stateFor(2)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            _url.text.trim(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontFamily: 'monospace',
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Setup stage ───────────────────────────────────────────────────────────
+
+  Widget _setup(AppLocalizations l10n, ColorScheme scheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(
-          width: 34,
-          height: 34,
-          child: CircularProgressIndicator(strokeWidth: 3),
-        ),
+        _source(l10n, scheme),
         const SizedBox(height: 18),
-        Text(
-          _askingLlm ? l10n.scrapeAskLlm : l10n.scrapeWorking,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
+        _nfoSection(l10n, scheme),
+        const SizedBox(height: 18),
+        _backendRow(l10n, scheme),
         const SizedBox(height: 6),
         Text(
-          _url.text.trim(),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          l10n.scrapeAskLlmHint,
           style: TextStyle(
             fontSize: 11.5,
-            fontFamily: 'monospace',
+            height: 1.4,
             color: scheme.onSurfaceVariant,
           ),
         ),
+        const SizedBox(height: 14),
+        _advanced(l10n, scheme),
       ],
-    ),
-  );
+    );
+  }
 
-  Widget _setup(AppLocalizations l10n, ColorScheme scheme) {
+  Widget _source(AppLocalizations l10n, ColorScheme scheme) {
     final glass = Theme.of(context).extension<GlassTheme>()!;
-    final profiles = context.watch<AiProfilesService>().services;
     final sites = context.watch<SettingsService>().searchSites;
     final keyword = widget.suggestedKeyword;
     final recipe = _parsedUrl() == null
@@ -517,86 +659,187 @@ class _ScrapePanelState extends State<ScrapePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: _url,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: l10n.scrapeUrlLabel,
-            hintText: 'https://…',
-            prefixIcon: const Icon(Icons.link_rounded, size: 20),
-            border: const OutlineInputBorder(),
-            errorText: _error,
-          ),
-          onChanged: (_) => setState(() => _error = null),
-          onSubmitted: (_) => _run(askLlm: false),
-        ),
-        if (recipe != null) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.verified_outlined, size: 15, color: scheme.primary),
-              const SizedBox(width: 6),
-              Text(
-                '${l10n.scrapeRecipeName}: ${recipe.domain}',
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ],
-        if (_url.text.trim().isEmpty &&
-            keyword != null &&
-            sites.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            decoration: BoxDecoration(
-              color: glass.panelFill,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: glass.panelStroke),
+        Row(
+          children: [
+            _SectionLabel(l10n.scrapeSource),
+            const SizedBox(width: 12),
+            _Segmented(
+              options: [l10n.scrapeSourceUrl, l10n.scrapeSourceSearch],
+              icons: const [Icons.link_rounded, Icons.search_rounded],
+              selected: _sourceMode.index,
+              onChanged: (i) =>
+                  setState(() => _sourceMode = _SourceMode.values[i]),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_sourceMode == _SourceMode.url) ...[
+          TextField(
+            controller: _url,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: 'https://…',
+              prefixIcon: const Icon(Icons.link_rounded, size: 18),
+              errorText: _error,
+            ),
+            style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+            onChanged: (_) => setState(() => _error = null),
+            onSubmitted: (_) => _run(askLlm: false),
+          ),
+          if (recipe != null) ...[
+            const SizedBox(height: 8),
+            Row(
               children: [
+                Icon(Icons.verified_outlined, size: 15, color: scheme.primary),
+                const SizedBox(width: 6),
                 Text(
-                  l10n.scrapeDetectedCode(keyword),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  '${l10n.scrapeRecipeName}: ${recipe.domain}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    for (final site in sites)
-                      OutlinedButton.icon(
-                        onPressed: () => _search(site, keyword),
-                        icon: const Icon(Icons.open_in_new, size: 14),
-                        label: Text(site.name),
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          foregroundColor: scheme.primary,
-                          textStyle: const TextStyle(fontSize: 12.5),
-                        ),
-                      ),
-                  ],
                 ),
               ],
             ),
+          ],
+          // The strip gives way once a URL is typed: the user has the page,
+          // so a shortcut for finding it is noise.
+          if (_url.text.trim().isEmpty &&
+              keyword != null &&
+              sites.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _detectedCode(l10n, scheme, keyword, sites),
+          ],
+        ] else ...[
+          TextField(
+            controller: _search,
+            decoration: InputDecoration(
+              hintText: l10n.scrapeSearchKeyword,
+              prefixIcon: const Icon(Icons.search_rounded, size: 18),
+            ),
+            style: const TextStyle(fontSize: 13),
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 10),
+          if (sites.isEmpty)
+            Text(
+              l10n.scrapeSearchNoSites,
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: BoxDecoration(
+                color: glass.panelFill,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: glass.panelStroke),
+              ),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  for (final site in sites)
+                    _siteButton(
+                      scheme,
+                      site.name,
+                      _search.text.trim().isEmpty
+                          ? null
+                          : () => _openSearch(site, _search.text.trim()),
+                    ),
+                ],
+              ),
+            ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: TextStyle(fontSize: 12, color: scheme.error)),
+          ],
         ],
-        const SizedBox(height: 16),
+      ],
+    );
+  }
 
-        // Where it lands. Auto-detected from what was right-clicked, because
-        // that is right almost every time, but never a dead end.
-        Text(
-          l10n.scrapeNfoTarget,
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+  /// "识别到番号 SPSF-31" plus one button per curated search site — the code
+  /// was read out of the filename, so a search is one click even before any
+  /// URL exists.
+  Widget _detectedCode(
+    AppLocalizations l10n,
+    ColorScheme scheme,
+    String keyword,
+    List<SearchSite> sites,
+  ) => Container(
+    width: double.infinity,
+    // 8 + 28-px buttons + 8 lands the strip on the same 44 as the URL field
+    // above it, so the two read as one column of controls.
+    padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+    decoration: BoxDecoration(
+      color: scheme.primary.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
+    ),
+    child: Row(
+      children: [
+        Flexible(
+          child: Text(
+            l10n.scrapeDetectedCode(keyword),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final site in sites)
+                  _siteButton(scheme, site.name, () {
+                    _openSearch(site, keyword);
+                  }),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  /// One search-site link, sized to sit inside a 44px strip.
+  Widget _siteButton(ColorScheme scheme, String name, VoidCallback? onTap) =>
+      OutlinedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.open_in_new, size: 12),
+        label: Text(name),
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          foregroundColor: scheme.primary,
+          minimumSize: const Size(0, 28),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          // Derived, not written fresh: a bare TextStyle in ButtonStyle
+          // replaces the theme's and silently drops the user's UI font.
+          textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+
+  /// Where it lands. Auto-detected from what was right-clicked, because that
+  /// is right almost every time, but never a dead end.
+  Widget _nfoSection(AppLocalizations l10n, ColorScheme scheme) {
+    final glass = Theme.of(context).extension<GlassTheme>()!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionLabel(l10n.scrapeNfoTarget),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+          // 6 + 30-px button + 6 = the same 44 every field in the panel uses.
+          padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
           decoration: BoxDecoration(
             color: glass.panelFill,
             borderRadius: BorderRadius.circular(10),
@@ -604,145 +847,252 @@ class _ScrapePanelState extends State<ScrapePanel> {
           ),
           child: Row(
             children: [
+              Icon(
+                Icons.data_object_rounded,
+                size: 16,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      p.join(_targetDir, _nfoFileName),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                    if (!_nfoChosen) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        l10n.scrapeNfoAutoDetected(widget.label),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  p.join(_targetDir, _nfoFileName),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton(
+              FilledButton.tonal(
                 onPressed: _browseForNfo,
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  minimumSize: const Size(0, 30),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 child: Text(l10n.scrapeNfoBrowse),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-
-        DropdownButtonFormField<String>(
-          initialValue: _backend?.id,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: l10n.scrapeBackend,
-            prefixIcon: const Icon(Icons.smart_toy_outlined, size: 20),
-            border: const OutlineInputBorder(),
-            helperText: profiles.isEmpty ? l10n.scrapeBackendNone : null,
+        if (!_nfoChosen) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.check_rounded, size: 14, color: scheme.tertiary),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  l10n.scrapeNfoAutoMatched(_nfoFileName),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.5, color: scheme.tertiary),
+                ),
+              ),
+            ],
           ),
-          items: [
-            for (final s in profiles)
-              DropdownMenuItem(value: s.id, child: Text(s.name)),
-          ],
-          onChanged: profiles.isEmpty
-              ? null
-              : (v) => setState(() => _backendId = v),
-        ),
-        const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
 
-        TextField(
-          controller: _instructions,
-          maxLines: 2,
-          decoration: InputDecoration(
-            labelText: l10n.scrapeCustomPrompt,
-            hintText: l10n.scrapeCustomPromptHint,
-            border: const OutlineInputBorder(),
+  Widget _backendRow(AppLocalizations l10n, ColorScheme scheme) {
+    final profiles = context.watch<AiProfilesService>().services;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 230,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SectionLabel(l10n.scrapeBackend),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _backend?.id,
+                isExpanded: true,
+                isDense: true,
+                borderRadius: BorderRadius.circular(10),
+                decoration: InputDecoration(
+                  helperText: profiles.isEmpty ? l10n.scrapeBackendNone : null,
+                ),
+                items: [
+                  for (final s in profiles)
+                    DropdownMenuItem(
+                      value: s.id,
+                      child: Row(
+                        children: [
+                          _BackendAvatar(name: s.name),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              s.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          if (s.toAiConfig().isComplete) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: scheme.tertiary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: profiles.isEmpty
+                    ? null
+                    : (v) => setState(() => _backendId = v),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.scrapeAskLlmHint,
-          style: TextStyle(
-            fontSize: 11.5,
-            height: 1.35,
-            color: scheme.onSurfaceVariant,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SectionLabel(l10n.scrapeCustomPrompt),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _instructions,
+                decoration: InputDecoration(
+                  hintText: l10n.scrapeCustomPromptHint,
+                ),
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ],
           ),
         ),
-
-        const SizedBox(height: 8),
-        _advanced(l10n, scheme),
       ],
     );
   }
 
   /// Cookies and the HTML paste fallback: both are escape hatches, and putting
   /// them behind a disclosure keeps the common path to three fields.
-  Widget _advanced(AppLocalizations l10n, ColorScheme scheme) => Theme(
-    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-    child: ExpansionTile(
-      initiallyExpanded: _showAdvanced,
-      onExpansionChanged: (v) => _showAdvanced = v,
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(bottom: 8),
-      title: Text(
-        l10n.scrapeAdvanced,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+  Widget _advanced(AppLocalizations l10n, ColorScheme scheme) {
+    final glass = Theme.of(context).extension<GlassTheme>()!;
+    return Container(
+      decoration: BoxDecoration(
+        color: glass.panelFill,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: glass.panelStroke),
       ),
-      children: [
-        TextField(
-          controller: _cookies,
-          decoration: InputDecoration(
-            labelText: l10n.scrapeCookiesLabel,
-            hintText: l10n.scrapeCookiesHint,
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (!_showPaste)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => setState(() => _showPaste = true),
-              icon: const Icon(Icons.content_paste_rounded, size: 17),
-              label: Text(l10n.scrapePasteHtml),
-            ),
-          )
-        else
-          TextField(
-            controller: _html,
-            maxLines: 5,
-            style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-            decoration: InputDecoration(
-              labelText: l10n.scrapePasteHtml,
-              helperText: l10n.scrapePasteHtmlHint,
-              border: const OutlineInputBorder(),
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+              child: Row(
+                children: [
+                  Text(
+                    l10n.scrapeAdvanced,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _showAdvanced
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                ],
+              ),
             ),
           ),
-      ],
-    ),
-  );
+          if (_showAdvanced)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _cookies,
+                    decoration: InputDecoration(
+                      hintText: l10n.scrapeCookiesLabel,
+                      helperText: l10n.scrapeCookiesHint,
+                      prefixIcon: const Icon(Icons.cookie_outlined, size: 16),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (!_showPaste)
+                    TextButton.icon(
+                      onPressed: () => setState(() => _showPaste = true),
+                      icon: const Icon(Icons.content_paste_rounded, size: 15),
+                      label: Text(l10n.scrapePasteHtml),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        textStyle: Theme.of(
+                          context,
+                        ).textTheme.labelLarge?.copyWith(fontSize: 12.5),
+                      ),
+                    )
+                  else
+                    TextField(
+                      controller: _html,
+                      maxLines: 5,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
+                      decoration: InputDecoration(
+                        labelText: l10n.scrapePasteHtml,
+                        helperText: l10n.scrapePasteHtmlHint,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _footer(AppLocalizations l10n, ColorScheme scheme) {
     final working = _stage == _Stage.working;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 14),
       child: Row(
         children: [
-          if (!working && _provider() != null)
+          if (working)
+            Text(
+              l10n.scrapeElapsed(_format(_elapsed.elapsed)),
+              style: TextStyle(
+                fontSize: 11.5,
+                fontFamily: 'monospace',
+                color: scheme.onSurfaceVariant,
+              ),
+            )
+          else if (_provider() != null)
             OutlinedButton.icon(
               onPressed: () => _run(askLlm: true),
-              icon: const Icon(Icons.psychology_outlined, size: 18),
+              icon: const Icon(Icons.auto_awesome_outlined, size: 15),
               label: Text(l10n.scrapeAskLlm),
             ),
           const Spacer(),
@@ -756,12 +1106,210 @@ class _ScrapePanelState extends State<ScrapePanel> {
             },
             child: Text(l10n.cancel),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           FilledButton.icon(
             onPressed: working ? null : () => _run(askLlm: false),
-            icon: const Icon(Icons.play_arrow_rounded, size: 18),
-            label: Text(l10n.scrapeProcess),
+            icon: const Icon(Icons.play_arrow_rounded, size: 16),
+            label: Text(working ? l10n.scrapeWorking : l10n.scrapeProcess),
           ),
+        ],
+      ),
+    );
+  }
+
+  static String _format(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+// ── Small pieces ────────────────────────────────────────────────────────────
+
+/// The design's small section captions — quieter than a field label, so the
+/// values carry the visual weight.
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
+  );
+}
+
+/// A two-option pill toggle, per the design's source switch.
+class _Segmented extends StatelessWidget {
+  final List<String> options;
+  final List<IconData> icons;
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  const _Segmented({
+    required this.options,
+    required this.icons,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final glass = Theme.of(context).extension<GlassTheme>()!;
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: glass.panelFill,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: glass.panelStroke),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < options.length; i++)
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => onChanged(i),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: i == selected
+                      ? scheme.primary.withValues(alpha: 0.16)
+                      : null,
+                  borderRadius: BorderRadius.circular(6),
+                  border: i == selected
+                      ? Border.all(
+                          color: scheme.primary.withValues(alpha: 0.35),
+                        )
+                      : Border.all(color: Colors.transparent),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icons[i],
+                      size: 13,
+                      color: i == selected
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      options[i],
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: i == selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: i == selected
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two-letter monogram for an AI profile, standing in for a provider logo.
+class _BackendAvatar extends StatelessWidget {
+  final String name;
+  const _BackendAvatar({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final initials = name.trim().isEmpty
+        ? '?'
+        : name.trim().substring(0, name.trim().length >= 2 ? 2 : 1);
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initials.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+enum _StepState { done, active, pending }
+
+/// One row of the working card: ✓ done, ● active, ○ pending.
+class _StepRow extends StatelessWidget {
+  final String label;
+  final _StepState state;
+
+  const _StepRow({required this.label, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (icon, color) = switch (state) {
+      _StepState.done => (Icons.check_rounded, scheme.tertiary),
+      _StepState.active => (Icons.circle, scheme.primary),
+      _StepState.pending => (
+        Icons.circle_outlined,
+        scheme.onSurfaceVariant.withValues(alpha: 0.5),
+      ),
+    };
+
+    return Opacity(
+      opacity: state == _StepState.pending ? 0.5 : 1,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 16,
+            child: Icon(
+              icon,
+              size: state == _StepState.active ? 9 : 15,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: state == _StepState.active
+                  ? FontWeight.w600
+                  : FontWeight.w400,
+            ),
+          ),
+          if (state == _StepState.active) ...[
+            const Spacer(),
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: scheme.primary,
+              ),
+            ),
+          ],
         ],
       ),
     );

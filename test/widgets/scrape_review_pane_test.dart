@@ -73,6 +73,10 @@ _open(WidgetTester tester) async {
   return (() => decision, () => saved);
 }
 
+/// The Write button's label now carries the field/image counts, so the stable
+/// landmark is its save icon rather than a fixed string.
+final _writeButton = find.widgetWithIcon(FilledButton, Icons.save_outlined);
+
 void main() {
   testWidgets('shows both sides of every field that differs', (tester) async {
     final (_, _) = await _open(tester);
@@ -126,7 +130,7 @@ void main() {
 
     await tester.tap(find.widgetWithText(TextButton, 'None'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Write'));
+    await tester.tap(_writeButton);
     await tester.pumpAndSettle();
 
     expect(decision()!.images.poster, isFalse);
@@ -139,7 +143,7 @@ void main() {
   ) async {
     final (decision, saved) = await _open(tester);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Write'));
+    await tester.tap(_writeButton);
     await tester.pumpAndSettle();
 
     final written = decision()!.metadata;
@@ -153,9 +157,10 @@ void main() {
   testWidgets('the replace-all preset overrides the conflict', (tester) async {
     final (decision, saved) = await _open(tester);
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Replace all'));
+    // The presets are pill chips now, not OutlinedButtons.
+    await tester.tap(find.text('Replace all'));
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Write'));
+    await tester.tap(_writeButton);
     await tester.pumpAndSettle();
 
     expect(decision()!.metadata.title, 'New Title');
@@ -169,7 +174,7 @@ void main() {
     // rows follow MetadataField.all order and title is first.
     await tester.tap(find.text('Replace').first);
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Write'));
+    await tester.tap(_writeButton);
     await tester.pumpAndSettle();
 
     expect(decision()!.metadata.title, 'New Title');
@@ -182,7 +187,7 @@ void main() {
   ) async {
     final (decision, saved) = await _open(tester);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Write'));
+    await tester.tap(_writeButton);
     await tester.pumpAndSettle();
 
     expect(decision()!.images.poster, isTrue);
