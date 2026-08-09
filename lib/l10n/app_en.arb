@@ -529,5 +529,19 @@
   "scrapeImageDeselect": "Deselect",
   "scrapeWriteCounts": "Write {fields} fields + {images} images",
   "previewDryRun": "Preview · no files are moved yet",
-  "previewFilterEmpty": "Nothing matches this filter"
+  "previewFilterEmpty": "Nothing matches this filter",
+  "previewAdjustRules": "Adjust rules",
+  "ruleEditorTitle": "Naming rule · Movies",
+  "ruleEditorRecommended": "Jellyfin preset",
+  "ruleEditorFolderTemplate": "Folder path template",
+  "ruleEditorFileTemplate": "File name template",
+  "ruleEditorVariables": "Available variables",
+  "ruleEditorAiFill": "AI smart fill",
+  "ruleEditorAiFillHint": "When a file name cannot be parsed, ask the AI to infer the title, year and language.",
+  "ruleEditorPreview": "Live preview",
+  "ruleEditorInput": "Input",
+  "ruleEditorOutput": "Output",
+  "ruleEditorOutputAi": "Output · AI inferred",
+  "ruleEditorReset": "Reset",
+  "ruleEditorComingSoon": "Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention."
 }

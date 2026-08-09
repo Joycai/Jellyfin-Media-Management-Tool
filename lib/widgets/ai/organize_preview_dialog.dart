@@ -9,6 +9,7 @@ import '../../utils/format.dart';
 import '../../utils/path_tree.dart';
 import '../glass/glass_dialog.dart';
 import 'edit_action_dialog.dart';
+import 'rename_rule_dialog.dart';
 
 /// What the user chose in the preview dialog.
 typedef PreviewResult = ({bool apply, bool backup});
@@ -226,39 +227,51 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
       child: Row(
         children: [
-          _Segmented<_View>(
-            value: _view,
-            onChanged: (v) => setState(() => _view = v),
-            items: [
-              (_View.tree, l10n.viewTree),
-              (_View.list, l10n.viewList),
-              (_View.poster, l10n.viewPoster),
-            ],
+          // Flexible + Wrap rather than a rigid row: with the English strings
+          // this cluster is wider than the dialog at its narrow end, and a
+          // toolbar that overflows breaks the whole dialog's layout pass.
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _Segmented<_View>(
+                  value: _view,
+                  onChanged: (v) => setState(() => _view = v),
+                  items: [
+                    (_View.tree, l10n.viewTree),
+                    (_View.list, l10n.viewList),
+                    (_View.poster, l10n.viewPoster),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  '${l10n.showOnly}:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                _FilterChip(
+                  label: l10n.filterChanges,
+                  selected: _filter == _Filter.changes,
+                  onTap: () => setState(() => _filter = _Filter.changes),
+                ),
+                _FilterChip(
+                  label: l10n.filterAll,
+                  selected: _filter == _Filter.all,
+                  onTap: () => setState(() => _filter = _Filter.all),
+                ),
+                _FilterChip(
+                  label: l10n.filterConflicts(_conflicts.length),
+                  selected: _filter == _Filter.conflicts,
+                  onTap: () => setState(() => _filter = _Filter.conflicts),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 20),
-          Text(
-            '${l10n.showOnly}:',
-            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            label: l10n.filterChanges,
-            selected: _filter == _Filter.changes,
-            onTap: () => setState(() => _filter = _Filter.changes),
-          ),
-          const SizedBox(width: 6),
-          _FilterChip(
-            label: l10n.filterAll,
-            selected: _filter == _Filter.all,
-            onTap: () => setState(() => _filter = _Filter.all),
-          ),
-          const SizedBox(width: 6),
-          _FilterChip(
-            label: l10n.filterConflicts(_conflicts.length),
-            selected: _filter == _Filter.conflicts,
-            onTap: () => setState(() => _filter = _Filter.conflicts),
-          ),
-          const Spacer(),
+          const SizedBox(width: 16),
           _count(context, Icons.add, scheme.primary, l10n.countMoves(_moves)),
           const SizedBox(width: 14),
           _count(
@@ -393,16 +406,26 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
             onChanged: (v) => setState(() => _backup = v ?? true),
           ),
           const SizedBox(width: 2),
-          Flexible(
+          // Expanded, not Flexible + Spacer: two flex children split the free
+          // space between them, and the share a loose Flexible doesn't use is
+          // forfeited — it piles up after the last child, so the buttons float
+          // ~150px off the right edge. One Expanded label owns all the slack
+          // and the buttons stay flush.
+          Expanded(
             child: Text(
               l10n.recordUndoHistory,
               style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
             ),
           ),
-          const Spacer(),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(l10n.cancel),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton.icon(
+            onPressed: () => RenameRuleDialog.show(context),
+            icon: const Icon(Icons.edit_outlined, size: 15),
+            label: Text(l10n.previewAdjustRules),
           ),
           const SizedBox(width: 10),
           FilledButton.icon(
@@ -410,9 +433,6 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                 Navigator.pop(context, (apply: true, backup: _backup)),
             icon: const Icon(Icons.auto_awesome, size: 17),
             label: Text(l10n.applyOrganizeCount(_pending.length)),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-            ),
           ),
         ],
       ),
@@ -451,8 +471,18 @@ class _TreeCompare extends StatelessWidget {
             isAfter: false,
           ),
         ),
-        SizedBox(
+        Container(
           width: 84,
+          // The design separates the three zones with hairlines either side
+          // of the arrow strip — without them the two trees read as one
+          // continuous surface.
+          decoration: BoxDecoration(
+            border: Border.symmetric(
+              vertical: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.35),
+              ),
+            ),
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
