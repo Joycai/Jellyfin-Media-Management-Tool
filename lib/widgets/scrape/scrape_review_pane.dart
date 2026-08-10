@@ -254,10 +254,11 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
   // ── Header ────────────────────────────────────────────────────────────────
 
   Widget _header(AppLocalizations l10n, ColorScheme scheme) {
-    final imageCount =
-        (_merged.posterUrl != null ? 1 : 0) +
-        (_merged.fanartUrl != null ? 1 : 0) +
-        _merged.extraFanartUrls.length;
+    // Same de-duplication as `_artwork`'s tile list and the gallery's own
+    // count: a page can list one image as both poster and backdrop, and a
+    // raw sum of the three fields would then disagree with what the grid
+    // actually shows.
+    final imageCount = _imageOrder(_merged).length;
     final recipe = widget.result.recipe;
 
     return Padding(
