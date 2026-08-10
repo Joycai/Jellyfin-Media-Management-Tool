@@ -838,8 +838,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
         _SectionLabel(l10n.scrapeNfoTarget),
         const SizedBox(height: 8),
         Container(
-          // 6 + 30-px button + 6 = the same 44 every field in the panel uses.
-          padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+          // 7 + 30-px button + 7 = the same 44 every field in the panel uses.
+          padding: const EdgeInsets.fromLTRB(12, 7, 7, 7),
           decoration: BoxDecoration(
             color: glass.panelFill,
             borderRadius: BorderRadius.circular(10),
