@@ -43,6 +43,7 @@ String fieldOriginLabel(AppLocalizations l10n, FieldOrigin origin) =>
       FieldOrigin.existingNfo => l10n.scrapeOriginExisting,
       FieldOrigin.manual => l10n.scrapeOriginManual,
       FieldOrigin.derived => l10n.scrapeOriginDerived,
+      FieldOrigin.merged => l10n.scrapeOriginMerged,
     };
 
 /// One-line rendering of a field's value; empty string when there is none.

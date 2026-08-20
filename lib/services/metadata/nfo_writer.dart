@@ -206,7 +206,7 @@ class NfoWriter {
 
         final source = m.sourceUrl;
         if (source != null && source.isNotEmpty) {
-          b.comment(' scraped from $source ');
+          b.comment(' scraped from ${source.replaceAll('-->', '')} ');
         }
       },
     );

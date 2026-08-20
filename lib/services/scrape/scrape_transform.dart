@@ -1,3 +1,7 @@
+library;
+
+import 'dart:convert';
+
 /// The tiny transform language recipes use to turn page text into typed values.
 ///
 /// Deliberately small and total: every transform either produces a value or
@@ -19,7 +23,6 @@
 /// `date` is pattern-free on purpose: one implementation handles `2026/08/14`,
 /// `2026-08-14` and `2026年8月14日` alike, which is strictly more robust than
 /// asking an LLM to name the right format string.
-library;
 
 class ScrapeTransform {
   /// Any run of non-digits between the three date components. Anchored to a
@@ -99,5 +102,20 @@ class ScrapeTransform {
     final g = m.groupCount >= 1 ? m[1] : m[0];
     final t = g?.trim();
     return (t == null || t.isEmpty) ? null : t;
+  }
+}
+
+/// Extracts the first JSON object from [raw] (tolerant of markdown fences and
+/// surrounding prose). Returns null when no valid object is found.
+Map<String, dynamic>? extractJsonMap(String raw) {
+  final start = raw.indexOf('{');
+  final end = raw.lastIndexOf('}');
+  if (start == -1 || end <= start) return null;
+  try {
+    final decoded = jsonDecode(raw.substring(start, end + 1));
+    if (decoded is! Map) return null;
+    return Map<String, dynamic>.from(decoded);
+  } on FormatException {
+    return null;
   }
 }

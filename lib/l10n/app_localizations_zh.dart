@@ -1433,6 +1433,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeOriginDerived => '推导';
 
   @override
+  String get scrapeOriginMerged => '合并';
+
+  @override
   String get scrapeNoChanges => '没有需要改动的内容 —— 磁盘上的 NFO 已经包含这些信息。';
 
   @override

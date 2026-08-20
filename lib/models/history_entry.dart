@@ -126,7 +126,7 @@ class HistoryEntry {
       kind: HistoryKind.fromId(json['kind'] as String?),
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.now(),
+          DateTime.fromMillisecondsSinceEpoch(0),
       baseDir: (json['baseDir'] as String?) ?? '',
       itemCount: (json['itemCount'] as num?)?.toInt() ?? moves.length,
       moveCount: (json['moveCount'] as num?)?.toInt() ?? movesFromMoves,

@@ -1460,6 +1460,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrapeOriginDerived => 'Derived';
 
   @override
+  String get scrapeOriginMerged => 'Merged';
+
+  @override
   String get scrapeNoChanges =>
       'Nothing to change — the NFO on disk already says all of this.';
 

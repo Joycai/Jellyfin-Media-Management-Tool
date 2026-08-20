@@ -100,7 +100,14 @@ class SettingsService extends ChangeNotifier {
             _themeMode = ThemeMode.values[data['theme_mode']];
           }
           if (data['locale'] is String) {
-            _locale = Locale(data['locale']);
+            final tag = data['locale'] as String;
+            final parts = tag.split('-');
+            _locale = parts.length > 1
+                ? Locale.fromSubtags(
+                    languageCode: parts[0],
+                    countryCode: parts[1],
+                  )
+                : Locale(parts[0]);
           }
           if (data['last_search_site_index'] is int) {
             _lastSearchSiteIndex = data['last_search_site_index'];
@@ -187,7 +194,7 @@ class SettingsService extends ChangeNotifier {
       final file = await _configFile;
       final Map<String, dynamic> data = {
         'theme_mode': _themeMode.index,
-        'locale': _locale?.languageCode,
+        'locale': _locale?.toLanguageTag(),
         'last_search_site_index': _lastSearchSiteIndex,
         'glass_intensity': _glassIntensity,
         'accent_color': _accentColor,

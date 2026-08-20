@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import 'media_table.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_browser_service.dart';
@@ -306,7 +308,7 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
                 value(
                   entry.isDirectory
                       ? l10n.typeFolder
-                      : '${_localizedType(l10n, label)} (${entry.extension})',
+                      : '${MediaTable.localizedType(l10n, label, false)} (${entry.extension})',
                 ),
               ),
               row(
@@ -334,16 +336,6 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
     },
   );
 }
-
-String _localizedType(AppLocalizations l10n, String label) => switch (label) {
-  'Video' => l10n.typeVideo,
-  'Subtitle' => l10n.typeSubtitle,
-  'Image' => l10n.typeImage,
-  'Metadata' => l10n.typeMetadata,
-  'Audio' => l10n.typeAudio,
-  'Text' => l10n.typeText,
-  _ => l10n.typeOther,
-};
 
 /// Reveals [entry] in the OS file manager (selected in its parent folder).
 Future<void> _revealInFileManager(BuildContext context, FileEntry entry) async {

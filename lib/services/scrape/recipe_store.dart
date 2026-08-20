@@ -96,6 +96,7 @@ class RecipeStore extends ChangeNotifier {
     if (recipe.failCount == 0) return;
     recipe.failCount = 0;
     if (recipe.origin != RecipeOrigin.builtin) await _flush();
+    notifyListeners();
   }
 
   /// Records a parse that produced nothing usable. Two in a row retire the
@@ -106,7 +107,14 @@ class RecipeStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _flush() async {
+  Future<void>? _saveChain;
+
+  Future<void> _flush() {
+    _saveChain = (_saveChain ?? Future<void>.value()).then((_) => _doFlush());
+    return _saveChain!;
+  }
+
+  Future<void> _doFlush() async {
     try {
       final file = await _file;
       await file.writeAsString(

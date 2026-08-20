@@ -49,13 +49,15 @@ class HistoryService extends ChangeNotifier {
     final loaded = <HistoryEntry>[];
     final stale = <File>[];
 
-    for (final f in dir.listSync().whereType<File>()) {
-      if (!f.path.endsWith('.json')) continue;
+    await for (final entity in dir.list()) {
+      if (entity is! File) continue;
+      if (!entity.path.endsWith('.json')) continue;
       try {
-        final json = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
-        final entry = HistoryEntry.fromJson(f.path, json);
+        final json =
+            jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
+        final entry = HistoryEntry.fromJson(entity.path, json);
         if (entry.createdAt.isBefore(cutoff)) {
-          stale.add(f);
+          stale.add(entity);
         } else {
           loaded.add(entry);
         }
@@ -87,9 +89,12 @@ class HistoryService extends ChangeNotifier {
   Future<void> _pruneBlobs(Directory undoDir, DateTime cutoff) async {
     final blobs = _fs.directory(_fs.path.join(undoDir.path, blobsDirName));
     if (!await blobs.exists()) return;
-    for (final d in blobs.listSync().whereType<Directory>()) {
+    await for (final entity in blobs.list()) {
+      if (entity is! Directory) continue;
       try {
-        if (_newestWrite(d).isBefore(cutoff)) await d.delete(recursive: true);
+        if ((await _newestWrite(entity)).isBefore(cutoff)) {
+          await entity.delete(recursive: true);
+        }
       } catch (_) {}
     }
   }
@@ -101,13 +106,14 @@ class HistoryService extends ChangeNotifier {
   /// timestamps are the first thing a sync client or an archive extraction
   /// rewrites, and an aged-out folder that looks fresh would never be pruned.
   /// Falls back to the directory's own stat when it holds no files.
-  DateTime _newestWrite(Directory dir) {
+  Future<DateTime> _newestWrite(Directory dir) async {
     DateTime? newest;
-    for (final f in dir.listSync(recursive: true).whereType<File>()) {
-      final modified = f.statSync().modified;
+    await for (final entity in dir.list(recursive: true)) {
+      if (entity is! File) continue;
+      final modified = (await entity.stat()).modified;
       if (newest == null || modified.isAfter(newest)) newest = modified;
     }
-    return newest ?? dir.statSync().modified;
+    return newest ?? (await dir.stat()).modified;
   }
 
   /// Writes a new manifest. Returns the resulting [HistoryEntry].

@@ -422,6 +422,7 @@
   "scrapeOriginExisting": "Existing NFO",
   "scrapeOriginManual": "Edited",
   "scrapeOriginDerived": "Derived",
+  "scrapeOriginMerged": "Merged",
   "scrapeNoChanges": "Nothing to change — the NFO on disk already says all of this.",
   "scrapeWriteBackup": "Record undo information (backs up any NFO this replaces)",
   "scrapeTargetFolder": "Target folder",

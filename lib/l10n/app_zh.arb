@@ -422,6 +422,7 @@
   "scrapeOriginExisting": "已有 NFO",
   "scrapeOriginManual": "手动修改",
   "scrapeOriginDerived": "推导",
+  "scrapeOriginMerged": "合并",
   "scrapeNoChanges": "没有需要改动的内容 —— 磁盘上的 NFO 已经包含这些信息。",
   "scrapeWriteBackup": "记录撤销信息（并备份被替换的 NFO）",
   "scrapeTargetFolder": "目标文件夹",

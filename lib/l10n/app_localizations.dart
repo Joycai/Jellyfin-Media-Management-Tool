@@ -2636,6 +2636,12 @@ abstract class AppLocalizations {
   /// **'Derived'**
   String get scrapeOriginDerived;
 
+  /// No description provided for @scrapeOriginMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged'**
+  String get scrapeOriginMerged;
+
   /// No description provided for @scrapeNoChanges.
   ///
   /// In en, this message translates to:
