@@ -148,8 +148,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
     super.dispose();
   }
 
-  MediaMetadata get _merged =>
-      NfoMerge.resolve(widget.result.existing, _scraped, _plan);
+  late MediaMetadata _merged;
 
   Set<String> _defaultStills() {
     final urls = _merged.extraFanartUrls;
@@ -237,6 +236,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
 
   @override
   Widget build(BuildContext context) {
+    _merged = NfoMerge.resolve(widget.result.existing, _scraped, _plan);
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
@@ -999,10 +999,14 @@ class _PresetChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final glass = Theme.of(context).extension<GlassTheme>()!;
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: Container(
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: label,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: selected
@@ -1024,6 +1028,7 @@ class _PresetChip extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

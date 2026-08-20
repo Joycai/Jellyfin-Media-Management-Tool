@@ -95,26 +95,34 @@ class ImageGallery extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-          childAspectRatio: 1.05,
-          children: [
-            for (final image in images)
-              _Tile(
-                image: image,
-                cache: cache,
-                selected: selected.contains(image.url),
-                role: roles[image.url] ?? ImageRole.original,
-                plannedName: plannedNames[image.url],
-                onTap: () => onToggle(image.url, !selected.contains(image.url)),
-                onDeselect: () => onToggle(image.url, false),
-                onRole: (role) => onRole(image.url, role),
-              ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final tileWidth =
+                (constraints.maxWidth - 20) / 3;
+            final tileHeight = tileWidth / 1.05;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final image in images)
+                  SizedBox(
+                    width: tileWidth,
+                    height: tileHeight,
+                    child: _Tile(
+                      image: image,
+                      cache: cache,
+                      selected: selected.contains(image.url),
+                      role: roles[image.url] ?? ImageRole.original,
+                      plannedName: plannedNames[image.url],
+                      onTap: () =>
+                          onToggle(image.url, !selected.contains(image.url)),
+                      onDeselect: () => onToggle(image.url, false),
+                      onRole: (role) => onRole(image.url, role),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 14),
         _saveRow(l10n, scheme),

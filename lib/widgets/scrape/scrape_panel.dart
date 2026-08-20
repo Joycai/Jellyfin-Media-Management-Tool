@@ -43,6 +43,7 @@ import '../../services/scrape/scrape_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
 import '../glass/glass_dialog.dart';
+import '../glass/glass_segmented.dart';
 import 'scrape_review_pane.dart';
 
 /// A scrape the user reviewed and confirmed.
@@ -141,7 +142,6 @@ class _ScrapePanelState extends State<ScrapePanel> {
 
   /// Wall-clock for the working stage's footer.
   final _elapsed = Stopwatch();
-  Timer? _ticker;
 
   ScrapeResult? _result;
   ScrapeImageCache? _cache;
@@ -167,7 +167,6 @@ class _ScrapePanelState extends State<ScrapePanel> {
     _instructions.dispose();
     _search.dispose();
     _cancel?.dispose();
-    _ticker?.cancel();
     super.dispose();
   }
 
@@ -243,10 +242,6 @@ class _ScrapePanelState extends State<ScrapePanel> {
     _elapsed
       ..reset()
       ..start();
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
 
     setState(() {
       _stage = _Stage.working;
@@ -312,8 +307,6 @@ class _ScrapePanelState extends State<ScrapePanel> {
       }
     } finally {
       _elapsed.stop();
-      _ticker?.cancel();
-      _ticker = null;
       token.dispose();
       if (mounted) _cancel = null;
     }
@@ -663,12 +656,21 @@ class _ScrapePanelState extends State<ScrapePanel> {
           children: [
             _SectionLabel(l10n.scrapeSource),
             const SizedBox(width: 12),
-            _Segmented(
-              options: [l10n.scrapeSourceUrl, l10n.scrapeSourceSearch],
-              icons: const [Icons.link_rounded, Icons.search_rounded],
-              selected: _sourceMode.index,
-              onChanged: (i) =>
-                  setState(() => _sourceMode = _SourceMode.values[i]),
+            GlassSegmented<_SourceMode>(
+              value: _sourceMode,
+              onChanged: (m) => setState(() => _sourceMode = m),
+              items: [
+                GlassSegmentedItem(
+                  value: _SourceMode.url,
+                  label: l10n.scrapeSourceUrl,
+                  icon: Icons.link_rounded,
+                ),
+                GlassSegmentedItem(
+                  value: _SourceMode.search,
+                  label: l10n.scrapeSourceSearch,
+                  icon: Icons.search_rounded,
+                ),
+              ],
             ),
           ],
         ),
@@ -1081,14 +1083,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
       child: Row(
         children: [
           if (working)
-            Text(
-              l10n.scrapeElapsed(_format(_elapsed.elapsed)),
-              style: TextStyle(
-                fontSize: 11.5,
-                fontFamily: 'monospace',
-                color: scheme.onSurfaceVariant,
-              ),
-            )
+            _ElapsedLabel(elapsed: _elapsed, format: _format)
           else if (_provider() != null)
             OutlinedButton.icon(
               onPressed: () => _run(askLlm: true),
@@ -1126,6 +1121,47 @@ class _ScrapePanelState extends State<ScrapePanel> {
 
 // ── Small pieces ────────────────────────────────────────────────────────────
 
+class _ElapsedLabel extends StatefulWidget {
+  final Stopwatch elapsed;
+  final String Function(Duration) format;
+  const _ElapsedLabel({required this.elapsed, required this.format});
+
+  @override
+  State<_ElapsedLabel> createState() => _ElapsedLabelState();
+}
+
+class _ElapsedLabelState extends State<_ElapsedLabel> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    return Text(
+      l10n.scrapeElapsed(widget.format(widget.elapsed.elapsed)),
+      style: TextStyle(
+        fontSize: 11.5,
+        fontFamily: 'monospace',
+        color: scheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
 /// The design's small section captions — quieter than a field label, so the
 /// values carry the visual weight.
 class _SectionLabel extends StatelessWidget {
@@ -1142,87 +1178,6 @@ class _SectionLabel extends StatelessWidget {
       color: Theme.of(context).colorScheme.onSurfaceVariant,
     ),
   );
-}
-
-/// A two-option pill toggle, per the design's source switch.
-class _Segmented extends StatelessWidget {
-  final List<String> options;
-  final List<IconData> icons;
-  final int selected;
-  final ValueChanged<int> onChanged;
-
-  const _Segmented({
-    required this.options,
-    required this.icons,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: glass.panelStroke),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < options.length; i++)
-            InkWell(
-              borderRadius: BorderRadius.circular(6),
-              onTap: () => onChanged(i),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: i == selected
-                      ? scheme.primary.withValues(alpha: 0.16)
-                      : null,
-                  borderRadius: BorderRadius.circular(6),
-                  border: i == selected
-                      ? Border.all(
-                          color: scheme.primary.withValues(alpha: 0.35),
-                        )
-                      : Border.all(color: Colors.transparent),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      icons[i],
-                      size: 13,
-                      color: i == selected
-                          ? scheme.primary
-                          : scheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      options[i],
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: i == selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: i == selected
-                            ? scheme.primary
-                            : scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Two-letter monogram for an AI profile, standing in for a provider logo.
