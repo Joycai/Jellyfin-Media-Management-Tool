@@ -25,6 +25,9 @@ enum FieldOrigin {
 
   /// Computed from another field (e.g. series from a product code prefix).
   derived,
+
+  /// Combined from existing and scraped values during a merge decision.
+  merged,
 }
 
 /// Canonical field keys. Used for [MediaMetadata.origins], for recipe

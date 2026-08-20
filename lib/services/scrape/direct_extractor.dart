@@ -18,7 +18,7 @@
 /// costs a call per title, so a folder refresh never uses it.
 library;
 
-import 'dart:convert';
+import 'scrape_transform.dart';
 
 import 'package:html/dom.dart';
 
@@ -149,18 +149,8 @@ Rules:
   /// poster URL is indistinguishable from a real one until it 404s at download
   /// time — by which point it is in the NFO.
   static MediaMetadata? parseFields(String raw, List<String> allowedImages) {
-    final start = raw.indexOf('{');
-    final end = raw.lastIndexOf('}');
-    if (start == -1 || end <= start) return null;
-
-    Map<String, dynamic> json;
-    try {
-      final decoded = jsonDecode(raw.substring(start, end + 1));
-      if (decoded is! Map) return null;
-      json = Map<String, dynamic>.from(decoded);
-    } on FormatException {
-      return null;
-    }
+    final json = extractJsonMap(raw);
+    if (json == null) return null;
 
     final allowed = allowedImages.toSet();
     final out = MediaMetadata();

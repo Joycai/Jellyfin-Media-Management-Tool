@@ -4,10 +4,10 @@ import 'package:path/path.dart' as p;
 import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
 import '../../services/file_label_service.dart';
-import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/path_tree.dart';
 import '../glass/glass_dialog.dart';
+import '../glass/glass_segmented.dart';
 import 'edit_action_dialog.dart';
 import 'rename_rule_dialog.dart';
 
@@ -236,13 +236,13 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _Segmented<_View>(
+                GlassSegmented<_View>(
                   value: _view,
                   onChanged: (v) => setState(() => _view = v),
                   items: [
-                    (_View.tree, l10n.viewTree),
-                    (_View.list, l10n.viewList),
-                    (_View.poster, l10n.viewPoster),
+                    GlassSegmentedItem(value: _View.tree, label: l10n.viewTree),
+                    GlassSegmentedItem(value: _View.list, label: l10n.viewList),
+                    GlassSegmentedItem(value: _View.poster, label: l10n.viewPoster),
                   ],
                 ),
                 const SizedBox(width: 14),
@@ -834,65 +834,6 @@ class _Badge extends StatelessWidget {
       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
     ),
   );
-}
-
-// ── Shared bits ───────────────────────────────────────────────────────────────
-
-class _Segmented<T> extends StatelessWidget {
-  final T value;
-  final ValueChanged<T> onChanged;
-  final List<(T, String)> items;
-  const _Segmented({
-    required this.value,
-    required this.onChanged,
-    required this.items,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: glass.panelStroke),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (v, label) in items)
-            Material(
-              color: v == value ? scheme.surface : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () => onChanged(v),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: v == value
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                      color: v == value
-                          ? scheme.onSurface
-                          : scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 class _FilterChip extends StatelessWidget {

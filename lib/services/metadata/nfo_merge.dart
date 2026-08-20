@@ -146,7 +146,10 @@ class NfoMerge {
       final value = decision == MergeDecision.merge
           ? _union(out.get(field), scraped.get(field))
           : scraped.get(field);
-      out.set(field, value, scraped.origins[field] ?? FieldOrigin.recipe);
+      final origin = decision == MergeDecision.merge
+          ? FieldOrigin.merged
+          : (scraped.origins[field] ?? FieldOrigin.recipe);
+      out.set(field, value, origin);
     }
     // The source URL always reflects the most recent scrape, whatever the
     // field decisions were — it is provenance, not content.

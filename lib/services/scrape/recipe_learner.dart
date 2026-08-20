@@ -11,7 +11,7 @@
 /// a human has to be the one who commits it.
 library;
 
-import 'dart:convert';
+import 'scrape_transform.dart';
 
 import 'package:html/dom.dart';
 
@@ -124,18 +124,8 @@ class RecipeLearner {
   /// model that writes someone else's domain would produce a recipe that
   /// silently applies to the wrong site.
   static ScrapeRecipe? parseRecipe(String raw, Uri pageUrl) {
-    final start = raw.indexOf('{');
-    final end = raw.lastIndexOf('}');
-    if (start == -1 || end <= start) return null;
-
-    Map<String, dynamic> json;
-    try {
-      final decoded = jsonDecode(raw.substring(start, end + 1));
-      if (decoded is! Map) return null;
-      json = Map<String, dynamic>.from(decoded);
-    } on FormatException {
-      return null;
-    }
+    final json = extractJsonMap(raw);
+    if (json == null) return null;
 
     json['domain'] = pageUrl.host;
     json['origin'] = RecipeOrigin.llm.name;
