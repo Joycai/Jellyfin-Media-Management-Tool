@@ -28,9 +28,6 @@ class RenameRuleDialog extends StatefulWidget {
 }
 
 class _RenameRuleDialogState extends State<RenameRuleDialog> {
-  /// Visual only — the AI-fill behaviour is not configurable yet.
-  bool _aiFill = true;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -178,49 +175,6 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
                     l10n.ruleEditorComingSoon,
                     style: const TextStyle(fontSize: 12, height: 1.4),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            decoration: BoxDecoration(
-              color: glass.panelFill,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: glass.panelStroke),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.auto_awesome, size: 18, color: scheme.tertiary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.ruleEditorAiFill,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        l10n.ruleEditorAiFillHint,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          height: 1.35,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Switch(
-                  value: _aiFill,
-                  onChanged: (v) => setState(() => _aiFill = v),
                 ),
               ],
             ),

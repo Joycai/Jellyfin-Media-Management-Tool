@@ -120,8 +120,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  String _breadcrumb(AppLocalizations l10n) =>
-      '${l10n.secAppearance} / ${l10n.secLanguage} / ${l10n.breadcrumbPaths}';
+  String _breadcrumb(AppLocalizations l10n) => switch (_section) {
+    _Section.appearance => l10n.secAppearance,
+    _Section.language => l10n.secLanguage,
+    _Section.paths => l10n.secPaths,
+    _Section.aiServices => l10n.secAiServices,
+    _Section.scraping => l10n.secScraping,
+    _Section.privacy => l10n.secPrivacy,
+    _Section.shortcuts => l10n.secShortcuts,
+    _Section.about => l10n.secAbout,
+  };
 
   Widget _detail() => switch (_section) {
     _Section.appearance => const _AppearanceSection(),
@@ -1247,15 +1255,27 @@ class _PathsSection extends StatelessWidget {
 
 // ── AI services section (embeds the existing manager) ───────────────────────
 
-class _AiServicesSection extends StatelessWidget {
+class _AiServicesSection extends StatefulWidget {
   const _AiServicesSection();
 
   @override
+  State<_AiServicesSection> createState() => _AiServicesSectionState();
+}
+
+class _AiServicesSectionState extends State<_AiServicesSection> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final profiles = context.read<AiProfilesService>();
+      context.read<AiService>().updateConfig(profiles.aiConfig);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Re-sync AiService with the active profile whenever this section rebuilds
-    // (cheap and idempotent; `updateConfig` no-ops when nothing changes).
-    final profiles = context.watch<AiProfilesService>();
-    context.read<AiService>().updateConfig(profiles.aiConfig);
+    context.watch<AiProfilesService>();
     return const AiServicesView();
   }
 }

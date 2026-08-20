@@ -253,7 +253,7 @@ class MediaTable extends StatelessWidget {
                   ),
           ),
           const _Divider(),
-          _FooterBar(fileCount: browser.files.length),
+          _FooterBar(fileCount: files.length),
         ],
       ),
     );
