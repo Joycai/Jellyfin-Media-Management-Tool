@@ -186,6 +186,11 @@ class PageFetcher {
           throw PageFetchException('Too many redirects fetching $url');
         }
         current = current.resolve(location.trim());
+        if (!const {'http', 'https'}.contains(current.scheme)) {
+          throw PageFetchException(
+            'Redirect to unsupported scheme: ${current.scheme}',
+          );
+        }
         continue;
       }
 

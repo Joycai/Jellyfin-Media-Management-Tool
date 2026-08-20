@@ -211,7 +211,9 @@ class ScrapeService extends ChangeNotifier {
     void Function(ScrapeStage stage)? onStage,
   }) async {
     final uri = Uri.tryParse(url.trim());
-    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+    if (uri == null ||
+        !const {'http', 'https'}.contains(uri.scheme) ||
+        uri.host.isEmpty) {
       throw const PageFetchException('Not a valid URL');
     }
     _isScraping = true;
@@ -256,23 +258,32 @@ class ScrapeService extends ChangeNotifier {
     void Function(ScrapeStage stage)? onStage,
   }) async {
     final uri = Uri.tryParse(sourceUrl.trim());
-    if (uri == null || !uri.hasScheme) {
+    if (uri == null ||
+        !const {'http', 'https'}.contains(uri.scheme) ||
+        uri.host.isEmpty) {
       throw const PageFetchException(
         'A source URL is required to resolve '
         'relative links in pasted HTML',
       );
     }
-    return _extract(
-      html: rawHtml,
-      pageUrl: uri,
-      recipe: recipes.forUrl(uri),
-      degradedEncoding: false,
-      targetDir: targetDir,
-      nfoFileName: nfoFileName,
-      learner: learner,
-      cancelToken: cancelToken,
-      onStage: onStage,
-    );
+    _isScraping = true;
+    notifyListeners();
+    try {
+      return await _extract(
+        html: rawHtml,
+        pageUrl: uri,
+        recipe: recipes.forUrl(uri),
+        degradedEncoding: false,
+        targetDir: targetDir,
+        nfoFileName: nfoFileName,
+        learner: learner,
+        cancelToken: cancelToken,
+        onStage: onStage,
+      );
+    } finally {
+      _isScraping = false;
+      notifyListeners();
+    }
   }
 
   Future<ScrapeResult> _extract({
