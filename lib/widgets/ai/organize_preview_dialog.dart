@@ -242,7 +242,10 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                   items: [
                     GlassSegmentedItem(value: _View.tree, label: l10n.viewTree),
                     GlassSegmentedItem(value: _View.list, label: l10n.viewList),
-                    GlassSegmentedItem(value: _View.poster, label: l10n.viewPoster),
+                    GlassSegmentedItem(
+                      value: _View.poster,
+                      label: l10n.viewPoster,
+                    ),
                   ],
                 ),
                 const SizedBox(width: 14),

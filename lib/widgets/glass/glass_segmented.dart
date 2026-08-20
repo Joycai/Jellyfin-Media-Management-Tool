@@ -41,8 +41,10 @@ class GlassSegmented<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
                 onTap: () => onChanged(item.value),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: item.value == value
                         ? scheme.primary.withValues(alpha: 0.16)

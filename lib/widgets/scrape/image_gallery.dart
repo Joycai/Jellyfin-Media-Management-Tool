@@ -97,8 +97,7 @@ class ImageGallery extends StatelessWidget {
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            final tileWidth =
-                (constraints.maxWidth - 20) / 3;
+            final tileWidth = (constraints.maxWidth - 20) / 3;
             final tileHeight = tileWidth / 1.05;
             return Wrap(
               spacing: 10,

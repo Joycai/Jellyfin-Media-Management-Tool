@@ -1007,28 +1007,28 @@ class _PresetChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? scheme.primary.withValues(alpha: 0.14)
-              : glass.panelFill,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
             color: selected
-                ? scheme.primary.withValues(alpha: 0.4)
-                : glass.panelStroke,
+                ? scheme.primary.withValues(alpha: 0.14)
+                : glass.panelFill,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected
+                  ? scheme.primary.withValues(alpha: 0.4)
+                  : glass.panelStroke,
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? scheme.primary : scheme.onSurfaceVariant,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              color: selected ? scheme.primary : scheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }

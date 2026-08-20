@@ -157,8 +157,10 @@ class MetadataWriter {
     try {
       final dir = fs.directory(rootDir);
       if (!await dir.exists()) return out;
-      await for (final entity
-          in dir.list(recursive: true, followLinks: false)) {
+      await for (final entity in dir.list(
+        recursive: true,
+        followLinks: false,
+      )) {
         if (out.length >= limit) break;
         if (entity is! File) continue;
         if (!fs.path.basename(entity.path).toLowerCase().endsWith('.nfo')) {
