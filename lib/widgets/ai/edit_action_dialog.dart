@@ -41,7 +41,7 @@ class EditActionDialog extends StatefulWidget {
     required OrganizeAction action,
     required String baseDir,
     required List<String> videoTargets,
-  }) => showDialog<String>(
+  }) => showGlassDialog<String>(
     context: context,
     builder: (_) => EditActionDialog(
       action: action,
@@ -101,13 +101,13 @@ class _EditActionDialogState extends State<EditActionDialog> {
   Future<void> _applyRule(RenameRule rule) async {
     String? extra;
     if (rule == RenameRule.part) {
-      extra = await showDialog<String>(
+      extra = await showGlassDialog<String>(
         context: context,
         builder: (_) => const PartDialog(),
       );
       if (extra == null) return;
     } else if (rule == RenameRule.tvShow) {
-      final r = await showDialog<Map<String, dynamic>>(
+      final r = await showGlassDialog<Map<String, dynamic>>(
         context: context,
         builder: (_) => const TVShowDialog(initialSeason: 1, initialEpisode: 1),
       );
@@ -116,7 +116,7 @@ class _EditActionDialogState extends State<EditActionDialog> {
     } else if (rule == RenameRule.subtitle) {
       // SubtitleDialog only reads the basename off these, so synthetic File
       // handles over the planned targets are enough — none of them exist yet.
-      final r = await showDialog<Map<String, dynamic>>(
+      final r = await showGlassDialog<Map<String, dynamic>>(
         context: context,
         builder: (_) => SubtitleDialog(
           videoFiles: widget.videoTargets.map(File.new).toList(),

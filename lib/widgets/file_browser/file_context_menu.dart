@@ -153,7 +153,7 @@ Future<void> renameEntry(BuildContext context, FileEntry entry) async {
   final messenger = ScaffoldMessenger.of(context);
   final browser = context.read<FileBrowserService>();
 
-  final newName = await showDialog<String>(
+  final newName = await showGlassDialog<String>(
     context: context,
     builder: (_) => InputDialog(
       title: l10n.renameFile,
@@ -197,7 +197,7 @@ Future<void> deleteEntries(
   final browser = context.read<FileBrowserService>();
   final scheme = Theme.of(context).colorScheme;
 
-  final confirmed = await showDialog<bool>(
+  final confirmed = await showGlassDialog<bool>(
     context: context,
     builder: (ctx) => GlassAlertDialog(
       title: Text(l10n.delete),
@@ -254,7 +254,7 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
   final locale = Localizations.localeOf(context).toString();
   final modified = DateFormat.yMMMd(locale).add_Hm().format(entry.modified);
 
-  await showDialog<void>(
+  await showGlassDialog<void>(
     context: context,
     builder: (ctx) {
       final scheme = Theme.of(ctx).colorScheme;

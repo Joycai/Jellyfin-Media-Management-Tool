@@ -156,3 +156,35 @@ class GlassDialogSurface extends StatelessWidget {
     );
   }
 }
+
+/// 全应用模态对话框的唯一入口,与 [showGlassMenu] 对称:统一入场动画
+/// (fade + 0.96→1 缩放),调用点不再各自决定转场。
+Future<T?> showGlassDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool barrierDismissible = true,
+  Color? barrierColor,
+}) {
+  return showGeneralDialog<T>(
+    context: context,
+    barrierDismissible: barrierDismissible,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    barrierColor: barrierColor ?? Colors.black54,
+    transitionDuration: const Duration(milliseconds: 220),
+    pageBuilder: (ctx, animation, secondaryAnimation) => builder(ctx),
+    transitionBuilder: (ctx, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeOutCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}

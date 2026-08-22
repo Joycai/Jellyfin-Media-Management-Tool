@@ -28,7 +28,7 @@ class BatchScrapeDecision {
 Future<BatchScrapeDecision?> showBatchScrapeDialog(
   BuildContext context, {
   required List<RescrapeTarget> targets,
-}) => showDialog<BatchScrapeDecision>(
+}) => showGlassDialog<BatchScrapeDecision>(
   context: context,
   builder: (_) => _BatchScrapeDialog(targets: targets),
 );

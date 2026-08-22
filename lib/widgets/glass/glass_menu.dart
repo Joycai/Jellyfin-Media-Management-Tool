@@ -23,6 +23,11 @@ Future<T?> showGlassMenu<T>(
 
   return showMenu<T>(
     context: context,
+    popUpAnimationStyle: const AnimationStyle(
+      duration: Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      reverseDuration: Duration(milliseconds: 120),
+    ),
     position: RelativeRect.fromRect(
       globalPosition & Size.zero,
       Offset.zero & overlay.size,
