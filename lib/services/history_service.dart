@@ -55,7 +55,14 @@ class HistoryService extends ChangeNotifier {
       try {
         final json =
             jsonDecode(await entity.readAsString()) as Map<String, dynamic>;
-        final entry = HistoryEntry.fromJson(entity.path, json);
+        // The file's mtime backs up a corrupt/missing date, so a manifest
+        // with a mangled createdAt ages out on its real age instead of being
+        // deleted on the next refresh — deleting it destroys the undo.
+        final entry = HistoryEntry.fromJson(
+          entity.path,
+          json,
+          fallbackCreatedAt: (await entity.stat()).modified,
+        );
         if (entry.createdAt.isBefore(cutoff)) {
           stale.add(entity);
         } else {

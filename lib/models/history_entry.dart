@@ -101,7 +101,14 @@ class HistoryEntry {
     backupDir: backupDir,
   );
 
-  factory HistoryEntry.fromJson(String path, Map<String, dynamic> json) {
+  /// [fallbackCreatedAt] stands in when the manifest's own date is missing or
+  /// unparseable. Callers that can, pass the file's mtime so the entry ages
+  /// out on its real age; the default (epoch) marks it immediately stale.
+  factory HistoryEntry.fromJson(
+    String path,
+    Map<String, dynamic> json, {
+    DateTime? fallbackCreatedAt,
+  }) {
     final movesRaw = (json['moves'] as List?) ?? const [];
     final moves = movesRaw
         .whereType<Map>()
@@ -126,6 +133,7 @@ class HistoryEntry {
       kind: HistoryKind.fromId(json['kind'] as String?),
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          fallbackCreatedAt ??
           DateTime.fromMillisecondsSinceEpoch(0),
       baseDir: (json['baseDir'] as String?) ?? '',
       itemCount: (json['itemCount'] as num?)?.toInt() ?? moves.length,

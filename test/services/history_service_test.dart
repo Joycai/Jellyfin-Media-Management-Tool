@@ -256,6 +256,44 @@ void main() {
       expect(fs.directory('$undoDir/blobs/op-old').existsSync(), isFalse);
       expect(fs.directory('$undoDir/blobs/op-new').existsSync(), isTrue);
     });
+
+    test('a manifest with a corrupt date survives on its file mtime', () async {
+      final entry = await seedManifest([
+        ['/work/a.mkv', '/work/Movies/A/a.mkv'],
+      ]);
+      final file = fs.file(entry.manifestPath);
+      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      json['createdAt'] = 'not-a-date';
+      file.writeAsStringSync(jsonEncode(json));
+
+      await svc.refresh();
+
+      // A mangled date field alone must not destroy the undo — the file is
+      // fresh, so the entry stays until its real age passes the window.
+      expect(svc.entries, hasLength(1));
+      expect(file.existsSync(), isTrue);
+      expect(svc.entries.single.canUndo, isTrue);
+    });
+
+    test('a corrupt-date manifest still ages out by file mtime', () async {
+      final entry = await seedManifest([
+        ['/work/a.mkv', '/work/Movies/A/a.mkv'],
+      ]);
+      final file = fs.file(entry.manifestPath);
+      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      json['createdAt'] = 'not-a-date';
+      file.writeAsStringSync(jsonEncode(json));
+      file.setLastModifiedSync(
+        DateTime.now().subtract(
+          const Duration(days: HistoryService.retentionDays + 1),
+        ),
+      );
+
+      await svc.refresh();
+
+      expect(svc.entries, isEmpty);
+      expect(file.existsSync(), isFalse);
+    });
   });
 
   group('HistoryService.undo — defense in depth', () {

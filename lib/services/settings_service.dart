@@ -89,6 +89,28 @@ class SettingsService extends ChangeNotifier {
   Future<File> get _sitesFile async =>
       File(p.join((await _configDir).path, 'sites.json'));
 
+  /// Parses a BCP 47 language tag back into a [Locale], telling a 4-letter
+  /// script subtag (`zh-Hant`) apart from a 2-letter/3-digit region (`zh-TW`,
+  /// `es-419`) — splitting on `-` and calling position 1 the country would
+  /// file `Hant` as a country code.
+  static Locale parseLocaleTag(String tag) {
+    final parts = tag.split('-');
+    String? script;
+    String? country;
+    for (final part in parts.skip(1)) {
+      if (part.length == 4) {
+        script ??= part;
+      } else if (part.length == 2 || part.length == 3) {
+        country ??= part;
+      }
+    }
+    return Locale.fromSubtags(
+      languageCode: parts.first,
+      scriptCode: script,
+      countryCode: country,
+    );
+  }
+
   Future<void> init() async {
     try {
       final configFile = await _configFile;
@@ -100,14 +122,7 @@ class SettingsService extends ChangeNotifier {
             _themeMode = ThemeMode.values[data['theme_mode']];
           }
           if (data['locale'] is String) {
-            final tag = data['locale'] as String;
-            final parts = tag.split('-');
-            _locale = parts.length > 1
-                ? Locale.fromSubtags(
-                    languageCode: parts[0],
-                    countryCode: parts[1],
-                  )
-                : Locale(parts[0]);
+            _locale = parseLocaleTag(data['locale'] as String);
           }
           if (data['last_search_site_index'] is int) {
             _lastSearchSiteIndex = data['last_search_site_index'];
