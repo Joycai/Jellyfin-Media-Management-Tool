@@ -2010,7 +2010,7 @@ class _FontOption extends StatelessWidget {
     }
 
     final name = _label(l10n);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGlassDialog<bool>(
       context: context,
       builder: (ctx) => GlassAlertDialog(
         title: Text(l10n.fontDownloadTitle),
@@ -2029,7 +2029,7 @@ class _FontOption extends StatelessWidget {
     );
     if (confirmed != true || !context.mounted) return;
 
-    final ok = await showDialog<bool>(
+    final ok = await showGlassDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _FontDownloadDialog(choice: choice, name: name),

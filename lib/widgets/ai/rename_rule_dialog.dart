@@ -18,7 +18,7 @@ import '../glass/glass_dialog.dart';
 class RenameRuleDialog extends StatefulWidget {
   const RenameRuleDialog({super.key});
 
-  static Future<void> show(BuildContext context) => showDialog<void>(
+  static Future<void> show(BuildContext context) => showGlassDialog<void>(
     context: context,
     builder: (_) => const RenameRuleDialog(),
   );

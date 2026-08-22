@@ -24,7 +24,7 @@ Future<TitleHintResult?> showTitleHintDialog(
   BuildContext context, {
   required String folderName,
 }) {
-  return showDialog<TitleHintResult>(
+  return showGlassDialog<TitleHintResult>(
     context: context,
     builder: (_) => _TitleHintDialog(folderName: folderName),
   );

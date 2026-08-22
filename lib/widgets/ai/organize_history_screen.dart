@@ -283,7 +283,7 @@ class _HistoryCard extends StatelessWidget {
     HistoryEntry entry,
     AppLocalizations l10n,
   ) async {
-    await showDialog<void>(
+    await showGlassDialog<void>(
       context: context,
       builder: (_) => _MovesDialog(entry: entry),
     );

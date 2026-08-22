@@ -71,7 +71,7 @@ Future<ScrapePanelResult?> showScrapePanel(
   required String nfoFileName,
   required String label,
   String? suggestedKeyword,
-}) => showDialog<ScrapePanelResult>(
+}) => showGlassDialog<ScrapePanelResult>(
   context: context,
   barrierDismissible: false,
   builder: (_) => ScrapePanel(
@@ -441,35 +441,66 @@ class _ScrapePanelState extends State<ScrapePanel> {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.all(28),
-      child: ConstrainedBox(
-        // Setting a scrape up is a short form, running one is a card of steps,
-        // and reviewing one is a table beside a picture grid. The window grows
-        // to match rather than making the form sprawl or the review cramped.
-        constraints: BoxConstraints(
-          maxWidth: reviewing ? 1280 : (working ? 580 : 700),
-          maxHeight: reviewing ? 860 : 760,
-        ),
-        child: GlassDialogSurface(
-          child: reviewing
-              ? _review()
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _header(l10n, scheme),
-                    const Divider(height: 1),
-                    Flexible(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
-                        child: working
-                            ? _working(l10n, scheme)
-                            : _setup(l10n, scheme),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    _footer(l10n, scheme),
-                  ],
+      child: LayoutBuilder(
+        builder: (context, available) {
+          // The review table cannot lay out narrower than its final width, so
+          // while the window is still growing it is laid out at that width
+          // (capped to what the screen can give) and revealed by the resize
+          // instead of being squeezed through the intermediate sizes.
+          final reviewSize = available.constrain(const Size(1280, 860));
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOutCubic,
+            // Setting a scrape up is a short form, running one is a card of
+            // steps, and reviewing one is a table beside a picture grid. The
+            // window grows to match rather than making the form sprawl or the
+            // review cramped.
+            constraints: BoxConstraints(
+              maxWidth: reviewing ? 1280 : (working ? 580 : 700),
+              maxHeight: reviewing ? 860 : 760,
+            ),
+            child: GlassDialogSurface(
+              // The content swap is faster than the resize so the incoming
+              // stage is already readable while the window is still settling.
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeOutCubic,
+                child: KeyedSubtree(
+                  key: ValueKey(_stage),
+                  child: reviewing
+                      ? OverflowBox(
+                          maxWidth: reviewSize.width,
+                          maxHeight: reviewSize.height,
+                          child: _review(),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _header(l10n, scheme),
+                            const Divider(height: 1),
+                            Flexible(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  18,
+                                  24,
+                                  18,
+                                ),
+                                child: working
+                                    ? _working(l10n, scheme)
+                                    : _setup(l10n, scheme),
+                              ),
+                            ),
+                            const Divider(height: 1),
+                            _footer(l10n, scheme),
+                          ],
+                        ),
                 ),
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

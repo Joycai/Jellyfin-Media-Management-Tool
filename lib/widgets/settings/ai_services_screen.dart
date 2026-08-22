@@ -404,7 +404,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
   Future<void> _delete() async {
     final l10n = AppLocalizations.of(context)!;
     final profiles = context.read<AiProfilesService>();
-    final confirm = await showDialog<bool>(
+    final confirm = await showGlassDialog<bool>(
       context: context,
       builder: (dialogContext) => GlassAlertDialog(
         title: Text(l10n.deleteServiceTitle),

@@ -9,6 +9,7 @@ import '../../services/scrape/image_downloader.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../theme/app_theme.dart';
 import '../dialogs/input_dialog.dart';
+import '../glass/glass_dialog.dart';
 import 'image_gallery.dart';
 import 'metadata_field_labels.dart';
 
@@ -185,7 +186,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
   Future<void> _edit(String field) async {
     final l10n = AppLocalizations.of(context)!;
     final label = metadataFieldLabel(l10n, field);
-    final edited = await showDialog<String>(
+    final edited = await showGlassDialog<String>(
       context: context,
       builder: (_) => InputDialog(
         title: l10n.scrapeEditValue(label),

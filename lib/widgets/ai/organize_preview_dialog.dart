@@ -42,7 +42,7 @@ class OrganizePreviewDialog extends StatefulWidget {
     required OrganizePlan plan,
     required String baseDir,
     required int totalBytes,
-  }) => showDialog<PreviewResult>(
+  }) => showGlassDialog<PreviewResult>(
     context: context,
     builder: (_) => OrganizePreviewDialog(
       plan: plan,

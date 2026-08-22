@@ -159,6 +159,13 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.transparent,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.windows: _DesktopPageTransitionsBuilder(),
+          TargetPlatform.linux: _DesktopPageTransitionsBuilder(),
+          TargetPlatform.macOS: _DesktopPageTransitionsBuilder(),
+        },
+      ),
       // The glass field: faint fill, hairline border, primary ring on focus.
       // 12px vertical padding + a dense one-line input lands on 44px; the
       // prefix-icon override keeps Material's 48px icon minimum from breaking
@@ -298,4 +305,36 @@ class AppTheme {
     sidebarFill: Color(0xCCFFFFFF),
     blurSigma: 24,
   );
+}
+
+/// 桌面端页面转场:淡入 + 1.5% 上浮。默认的 ZoomPageTransitionsBuilder 是
+/// 安卓系统的放大浮入,在桌面窗口里显得像手机应用;这里换成桌面惯用的
+/// 快速淡入,且不动退场中的旧页面。
+class _DesktopPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _DesktopPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeOutCubic,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.015),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
+    );
+  }
 }

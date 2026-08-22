@@ -28,7 +28,7 @@ class PreviewDialog extends StatefulWidget {
   }
 
   static Future<void> show(BuildContext context, FileEntry entry) {
-    return showDialog<void>(
+    return showGlassDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (_) => PreviewDialog(entry: entry),
