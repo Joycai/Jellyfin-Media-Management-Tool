@@ -647,16 +647,22 @@ class _FileRowState extends State<_FileRow> {
                   children: [
                     SizedBox(
                       width: MediaColumnLayout.gutter,
-                      child: showCheckbox
-                          ? Checkbox(
-                              value: widget.checked,
-                              onChanged: (_) => widget.onCheck(),
-                              visualDensity: VisualDensity.compact,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                            )
-                          : null,
+                      child: AnimatedOpacity(
+                        opacity: showCheckbox ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 100),
+                        curve: Curves.ease,
+                        child: IgnorePointer(
+                          ignoring: !showCheckbox,
+                          child: Checkbox(
+                            value: widget.checked,
+                            onChanged: (_) => widget.onCheck(),
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     SizedBox(
                       width: widget.widths[MediaColumn.name],
@@ -832,11 +838,16 @@ class _ConfidenceCell extends StatelessWidget {
             width: 56,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: v,
-                minHeight: 5,
-                backgroundColor: color.withValues(alpha: 0.18),
-                valueColor: AlwaysStoppedAnimation(color),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(end: v),
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                builder: (context, value, _) => LinearProgressIndicator(
+                  value: value,
+                  minHeight: 5,
+                  backgroundColor: color.withValues(alpha: 0.18),
+                  valueColor: AlwaysStoppedAnimation(color),
+                ),
               ),
             ),
           ),

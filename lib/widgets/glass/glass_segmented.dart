@@ -40,7 +40,9 @@ class GlassSegmented<T> extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(6),
                 onTap: () => onChanged(item.value),
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.ease,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 5,
@@ -48,7 +50,7 @@ class GlassSegmented<T> extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: item.value == value
                         ? scheme.primary.withValues(alpha: 0.16)
-                        : null,
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(6),
                     border: item.value == value
                         ? Border.all(
