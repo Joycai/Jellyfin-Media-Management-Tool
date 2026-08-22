@@ -254,12 +254,19 @@ class _TaskCard extends StatelessWidget {
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: task.status == TaskStatus.failed ? 0 : progress,
-              minHeight: 6,
-              backgroundColor: scheme.outlineVariant.withValues(alpha: 0.4),
-              valueColor: AlwaysStoppedAnimation(
-                task.status == TaskStatus.failed ? scheme.error : accent,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(
+                end: task.status == TaskStatus.failed ? 0 : progress,
+              ),
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                minHeight: 6,
+                backgroundColor: scheme.outlineVariant.withValues(alpha: 0.4),
+                valueColor: AlwaysStoppedAnimation(
+                  task.status == TaskStatus.failed ? scheme.error : accent,
+                ),
               ),
             ),
           ),

@@ -8,6 +8,9 @@
 | [002](002-glass-dialog-entrance.md) | 玻璃对话框统一"缩放+淡入"入场 | HIGH | DONE |
 | [003](003-desktop-page-transitions.md) | 桌面风格页面转场取代安卓 Zoom | MEDIUM | DONE |
 | [004](004-scrape-panel-stage-resize.md) | 刮削面板阶段切换的尺寸瞬移 | MEDIUM | DONE(带偏离,见计划内说明) |
+| [005](005-smooth-progress-bars.md) | 进度条/置信度条数值跳变平滑 | LOW | DONE |
+| [006](006-glass-segmented-transition.md) | GlassSegmented 选中态过渡 | LOW | DONE |
+| [007](007-hover-checkbox-fade.md) | 悬停勾选框淡入淡出 | LOW | DONE |
 
 ## 推荐执行顺序
 
@@ -20,10 +23,7 @@
 
 ## 审计中记录但未立项的低优先级项
 
-- 任务卡与文件表格的 `LinearProgressIndicator`(tasks_screen.dart:257、media_table.dart:835)数值跳变,可用 `TweenAnimationBuilder` 平滑,200ms easeOut。
-- `GlassSegmented`(glass_segmented.dart)选中态瞬变,可给选中格换 `AnimatedContainer` 150ms。
-- 文件行悬停时勾选框瞬间出现/消失(media_table.dart:650),可用 `AnimatedOpacity` 100ms(仅透明度,悬停高频、不做位移)。
-- 全应用未读取 `MediaQuery.disableAnimations`(系统减少动效开关);目前动画均为 300ms 内的轻量过渡,风险低,留作后续。
+- 全应用未读取 `MediaQuery.disableAnimations`(系统减少动效开关);目前动画均为 300ms 内的轻量过渡,风险低,留作后续。(其余三项已分别立项为 005/006/007 并完成。)
 
 ## 审定为"正确、勿动"的现状
 
