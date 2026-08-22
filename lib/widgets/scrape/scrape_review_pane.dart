@@ -203,6 +203,9 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
       // They just typed what they want written, so "keep" would throw it away.
       _plan = _plan.withDecision(field, MergeDecision.replace);
       _activePreset = null;
+      // _merged is only refreshed at the top of build(), so it is one edit
+      // stale here — recompute before deriving the default stills from it.
+      _merged = NfoMerge.resolve(widget.result.existing, _scraped, _plan);
       _stills = _defaultStills();
     });
   }
