@@ -19,7 +19,7 @@ import 'media_columns.dart';
 
 /// Center pane: breadcrumb + actions, the file table with AI-suggestion and
 /// confidence columns, and a status footer.
-class MediaTable extends StatelessWidget {
+class MediaTable extends StatefulWidget {
   final String searchQuery;
   final VoidCallback onOrganize;
   final VoidCallback onPickFolder;
@@ -65,25 +65,87 @@ class MediaTable extends StatelessWidget {
   }
 
   @override
+  State<MediaTable> createState() => _MediaTableState();
+}
+
+class _MediaTableState extends State<MediaTable> {
+  /// Column weights while a divider is being dragged, or null when no drag is
+  /// in flight and the persisted weights apply.
+  ///
+  /// A drag used to write straight through [SettingsService] on every pointer
+  /// move. That notified every listener in the app — both themes rebuilt in
+  /// `MyApp`, the sidebar, the AI panel — and re-armed the `config.json` save
+  /// debounce, all to move one divider one pixel. Held here the drag rebuilds
+  /// this table and nothing else, and the width is committed once, on release.
+  final ValueNotifier<Map<MediaColumn, double>?> _dragWeights = ValueNotifier(
+    null,
+  );
+
+  @override
+  void dispose() {
+    _dragWeights.dispose();
+    super.dispose();
+  }
+
+  void _resize({
+    required MediaColumn column,
+    required double dx,
+    required double available,
+    required Map<MediaColumn, double> stored,
+  }) {
+    _dragWeights.value = MediaColumnLayout.resize(
+      weights: _dragWeights.value ?? stored,
+      column: column,
+      dx: dx,
+      available: available,
+    );
+  }
+
+  /// Persist the width the drag landed on. Also the cancel path: the columns
+  /// have already moved on screen, so dropping the value would snap them back.
+  void _commitResize() {
+    final weights = _dragWeights.value;
+    if (weights == null) return;
+    _dragWeights.value = null;
+    context.read<SettingsService>().setColumnWeights(weights);
+  }
+
+  void _resetWidths() {
+    _dragWeights.value = null;
+    context.read<SettingsService>().resetColumnWeights();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final browser = context.watch<FileBrowserService>();
-    final ai = context.watch<AiService>();
 
-    if (browser.currentDirectory == null) {
+    // Deliberately one narrow select per value rather than a watch per
+    // service. Clicking a row notifies FileBrowserService, and watching it
+    // here rebuilt the table — and with it every visible row — for a change
+    // that concerns two of them. Rows now watch their own selection state
+    // (see [_FileRow]), and this build runs only when the directory, its
+    // contents, the plan or the column widths actually change.
+    final currentDirectory = context.select<FileBrowserService, String?>(
+      (b) => b.currentDirectory,
+    );
+
+    if (currentDirectory == null) {
       return GlassPanel(
         radius: 24,
         elevated: true,
-        child: _EmptyState(onPickFolder: onPickFolder),
+        child: _EmptyState(onPickFolder: widget.onPickFolder),
       );
     }
 
-    final files = visibleFiles(browser.files, searchQuery);
+    final files = MediaTable.visibleFiles(
+      context.select<FileBrowserService, List<FileEntry>>((b) => b.files),
+      widget.searchQuery,
+    );
 
     // Index plan actions by their folder-relative source path for quick lookup.
+    final plan = context.select<AiService, OrganizePlan?>((a) => a.currentPlan);
+    final base = context.select<AiService, String?>((a) => a.planBaseDir);
     final actionBySource = <String, OrganizeAction>{};
-    final plan = ai.currentPlan;
-    final base = ai.planBaseDir;
     if (plan != null && base != null) {
       for (final a in plan.actions) {
         actionBySource[a.source] = a;
@@ -95,8 +157,11 @@ class MediaTable extends StatelessWidget {
     final showThumbnails = context.select<SettingsService, bool>(
       (s) => s.showVideoThumbnails,
     );
+    final storedWeights = context
+        .select<SettingsService, Map<MediaColumn, double>>(
+          (s) => s.columnWeights,
+        );
 
-    final settings = context.watch<SettingsService>();
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -111,26 +176,34 @@ class MediaTable extends StatelessWidget {
             // border shrinks the space its child actually gets — skip it and
             // the header overflows by exactly that much.
             GlassPanel.borderWidth * 2 -
-            contentInset * 2 -
+            MediaTable.contentInset * 2 -
             MediaColumnLayout.gutter -
             MediaColumnLayout.dividerHitWidth * (MediaColumn.values.length - 1);
-        final widths = MediaColumnLayout.resolve(
-          available,
-          settings.columnWeights,
-        );
-        return _table(
-          context,
-          l10n: l10n,
-          browser: browser,
-          files: files,
-          actionBySource: actionBySource,
-          base: base,
-          showThumbnails: showThumbnails,
-          settings: settings,
-          scheme: scheme,
-          isDark: isDark,
-          widths: widths,
-          available: available,
+        // Only this subtree redraws while a divider is under the pointer.
+        return ValueListenableBuilder<Map<MediaColumn, double>?>(
+          valueListenable: _dragWeights,
+          builder: (context, dragged, _) {
+            return _table(
+              context,
+              l10n: l10n,
+              files: files,
+              actionBySource: actionBySource,
+              base: base,
+              showThumbnails: showThumbnails,
+              scheme: scheme,
+              isDark: isDark,
+              widths: MediaColumnLayout.resolve(
+                available,
+                dragged ?? storedWeights,
+              ),
+              onResize: (column, dx) => _resize(
+                column: column,
+                dx: dx,
+                available: available,
+                stored: storedWeights,
+              ),
+            );
+          },
         );
       },
     );
@@ -139,17 +212,16 @@ class MediaTable extends StatelessWidget {
   Widget _table(
     BuildContext context, {
     required AppLocalizations l10n,
-    required FileBrowserService browser,
     required List<FileEntry> files,
     required Map<String, OrganizeAction> actionBySource,
     required String? base,
     required bool showThumbnails,
-    required SettingsService settings,
     required ColorScheme scheme,
     required bool isDark,
     required Map<MediaColumn, double> widths,
-    required double available,
+    required void Function(MediaColumn column, double dx) onResize,
   }) {
+    final browser = context.read<FileBrowserService>();
     return GlassPanel(
       radius: 24,
       elevated: true,
@@ -169,7 +241,10 @@ class MediaTable extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _TopBar(onOrganize: onOrganize, onPickFolder: onPickFolder),
+          _TopBar(
+            onOrganize: widget.onOrganize,
+            onPickFolder: widget.onPickFolder,
+          ),
           const _Divider(),
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -181,15 +256,9 @@ class MediaTable extends StatelessWidget {
             child: _HeaderRow(
               l10n: l10n,
               widths: widths,
-              onResize: (column, dx) => settings.setColumnWeights(
-                MediaColumnLayout.resize(
-                  weights: settings.columnWeights,
-                  column: column,
-                  dx: dx,
-                  available: available,
-                ),
-              ),
-              onReset: settings.resetColumnWeights,
+              onResize: onResize,
+              onResizeEnd: _commitResize,
+              onReset: _resetWidths,
             ),
           ),
           Expanded(
@@ -216,8 +285,6 @@ class MediaTable extends StatelessWidget {
                         widths: widths,
                         showThumbnail: showThumbnails,
                         action: rel != null ? actionBySource[rel] : null,
-                        selected: browser.selectedFile?.path == file.path,
-                        checked: browser.isSelected(file.path),
                         onCheck: () => browser.toggleSelection(file),
                         onTap: () {
                           final keys =
@@ -280,14 +347,17 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 4),
           Builder(
             builder: (context) {
-              final settings = context.watch<SettingsService>();
               final dir = context.read<FileBrowserService>().currentDirectory;
-              final pinned = dir != null && settings.isFavorite(dir);
+              // Just this one bool: watching the whole service redrew the star
+              // on every recent-folder push and every column commit.
+              final pinned = context.select<SettingsService, bool>(
+                (s) => dir != null && s.isFavorite(dir),
+              );
               return IconButton(
                 tooltip: l10n.favorites,
                 onPressed: dir == null
                     ? null
-                    : () => settings.toggleFavorite(dir),
+                    : () => context.read<SettingsService>().toggleFavorite(dir),
                 icon: Icon(
                   pinned ? Icons.star_rounded : Icons.star_outline_rounded,
                   color: pinned ? const Color(0xFFFFB020) : null,
@@ -398,12 +468,17 @@ class _HeaderRow extends StatelessWidget {
   final AppLocalizations l10n;
   final Map<MediaColumn, double> widths;
   final void Function(MediaColumn column, double dx) onResize;
+
+  /// Fired when the pointer is released, so the drag can be persisted once
+  /// instead of on every move.
+  final VoidCallback onResizeEnd;
   final VoidCallback onReset;
 
   const _HeaderRow({
     required this.l10n,
     required this.widths,
     required this.onResize,
+    required this.onResizeEnd,
     required this.onReset,
   });
 
@@ -446,6 +521,7 @@ class _HeaderRow extends StatelessWidget {
           if (i < columns.length - 1)
             _ColumnDivider(
               onDrag: (dx) => onResize(columns[i], dx),
+              onDragEnd: onResizeEnd,
               onReset: onReset,
               tooltip: l10n.colResetWidths,
             ),
@@ -463,11 +539,13 @@ class _HeaderRow extends StatelessWidget {
 /// has dragged a column down to nothing.
 class _ColumnDivider extends StatefulWidget {
   final ValueChanged<double> onDrag;
+  final VoidCallback onDragEnd;
   final VoidCallback onReset;
   final String tooltip;
 
   const _ColumnDivider({
     required this.onDrag,
+    required this.onDragEnd,
     required this.onReset,
     required this.tooltip,
   });
@@ -492,8 +570,16 @@ class _ColumnDividerState extends State<_ColumnDivider> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragStart: (_) => setState(() => _dragging = true),
-        onHorizontalDragEnd: (_) => setState(() => _dragging = false),
-        onHorizontalDragCancel: () => setState(() => _dragging = false),
+        // Cancel commits too: the columns have already moved on screen, so
+        // dropping the pending width would snap them back under the pointer.
+        onHorizontalDragEnd: (_) {
+          setState(() => _dragging = false);
+          widget.onDragEnd();
+        },
+        onHorizontalDragCancel: () {
+          setState(() => _dragging = false);
+          widget.onDragEnd();
+        },
         onHorizontalDragUpdate: (d) => widget.onDrag(d.delta.dx),
         onDoubleTap: widget.onReset,
         child: Tooltip(
@@ -526,8 +612,6 @@ class _FileRow extends StatefulWidget {
   final FileEntry entry;
   final Map<MediaColumn, double> widths;
   final OrganizeAction? action;
-  final bool selected;
-  final bool checked;
   final bool showThumbnail;
   final VoidCallback onCheck;
   final VoidCallback onTap;
@@ -538,8 +622,6 @@ class _FileRow extends StatefulWidget {
     required this.entry,
     required this.widths,
     required this.action,
-    required this.selected,
-    required this.checked,
     required this.showThumbnail,
     required this.onCheck,
     required this.onTap,
@@ -565,7 +647,6 @@ class _FileRowState extends State<_FileRow> {
 
   FileEntry get entry => widget.entry;
   OrganizeAction? get action => widget.action;
-  bool get selected => widget.selected;
 
   void _handleTap() {
     final now = DateTime.now();
@@ -591,8 +672,19 @@ class _FileRowState extends State<_FileRow> {
     );
     final name = entry.name;
     final size = isDir ? '—' : formatBytes(entry.size);
-    final highlighted = selected || widget.checked;
-    final showCheckbox = _hovered || widget.checked;
+
+    // Each row subscribes to its own selection state. Computed in the parent's
+    // itemBuilder instead, as it was, one click rebuilt every visible row to
+    // change the appearance of two.
+    final path = entry.path;
+    final selected = context.select<FileBrowserService, bool>(
+      (b) => b.selectedFile?.path == path,
+    );
+    final checked = context.select<FileBrowserService, bool>(
+      (b) => b.isSelected(path),
+    );
+    final highlighted = selected || checked;
+    final showCheckbox = _hovered || checked;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
@@ -654,7 +746,7 @@ class _FileRowState extends State<_FileRow> {
                         child: IgnorePointer(
                           ignoring: !showCheckbox,
                           child: Checkbox(
-                            value: widget.checked,
+                            value: checked,
                             onChanged: (_) => widget.onCheck(),
                             visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(
