@@ -168,6 +168,7 @@ class SettingsService extends ChangeNotifier {
                 if (raw[column.name] is num)
                   column: (raw[column.name] as num).toDouble(),
             };
+            _sanitizedColumnWeights = null;
           }
         }
       }
@@ -279,19 +280,30 @@ class SettingsService extends ChangeNotifier {
   /// File-table column widths, as weights. See [MediaColumnLayout] for why
   /// weights rather than pixels.
   Map<MediaColumn, double> _columnWeights = {};
+
+  /// Memoized [MediaColumnLayout.sanitize] of [_columnWeights].
+  ///
+  /// The getter used to sanitize on every read, handing back a fresh map each
+  /// time. `context.select` compares with `==`, and two equal-but-distinct maps
+  /// are not `==`, so selecting on this rebuilt the table on every unrelated
+  /// settings change. Cached, the instance is stable until the weights
+  /// actually move.
+  Map<MediaColumn, double>? _sanitizedColumnWeights;
   Map<MediaColumn, double> get columnWeights =>
-      MediaColumnLayout.sanitize(_columnWeights);
+      _sanitizedColumnWeights ??= MediaColumnLayout.sanitize(_columnWeights);
 
   /// Called on every drag frame, so it leans on the same 250ms debounce as the
   /// glass slider rather than writing the file per pixel.
   void setColumnWeights(Map<MediaColumn, double> weights) {
     _columnWeights = Map.of(weights);
+    _sanitizedColumnWeights = null;
     _scheduleSave();
     notifyListeners();
   }
 
   void resetColumnWeights() {
     _columnWeights = {};
+    _sanitizedColumnWeights = null;
     _scheduleSave();
     notifyListeners();
   }

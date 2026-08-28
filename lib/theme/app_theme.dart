@@ -98,7 +98,48 @@ class AppTheme {
     fontFamily: fontFamily,
   );
 
+  /// The last theme built for each brightness, with the inputs that produced
+  /// it.
+  ///
+  /// `MyApp.build` constructs both the light and the dark theme, and it runs on
+  /// every `SettingsService` / `FontService` notification — a favourite
+  /// toggled, a recent pushed, a column divider dragged. Almost all of those
+  /// pass exactly the same three inputs, so the work was not only repeated but
+  /// also handed `MaterialApp` a fresh `ThemeData` identity each time, which
+  /// rebuilt everything reading `Theme.of`.
+  ///
+  /// One slot per brightness is the right size: the repeated calls are
+  /// identical, so they hit, while a genuine change (dragging the glass
+  /// intensity slider) misses and costs what it always cost. A map keyed by
+  /// the inputs would instead grow one entry per slider pixel.
+  static final Map<Brightness, (String, ThemeData)> _memo = {};
+
+  static String _memoKey(
+    Color? accent,
+    double? glassIntensity,
+    String? fontFamily,
+  ) => '${accent?.toARGB32()}|$glassIntensity|$fontFamily';
+
   static ThemeData _build(
+    Brightness brightness, {
+    Color? accent,
+    double? glassIntensity,
+    String? fontFamily,
+  }) {
+    final key = _memoKey(accent, glassIntensity, fontFamily);
+    final cached = _memo[brightness];
+    if (cached != null && cached.$1 == key) return cached.$2;
+    final built = _buildUncached(
+      brightness,
+      accent: accent,
+      glassIntensity: glassIntensity,
+      fontFamily: fontFamily,
+    );
+    _memo[brightness] = (key, built);
+    return built;
+  }
+
+  static ThemeData _buildUncached(
     Brightness brightness, {
     Color? accent,
     double? glassIntensity,

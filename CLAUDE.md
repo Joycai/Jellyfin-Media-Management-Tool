@@ -30,6 +30,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 [home_screen.dart](lib/screens/home_screen.dart) is the shell: a full-width header (brand · section tabs · search · actions) over a three-pane body — `AppSidebar` (244px) | `MediaTable` (flex) | `AiAssistantPanel` (352px). Three sections: Files, Library (placeholder), Tasks.
 
+**`MediaTable` subscribes narrowly on purpose.** It takes one `context.select` per value rather than a `watch` per service, and each `_FileRow` watches its own selected/checked state, because clicking a row notifies `FileBrowserService` and a `watch` there rebuilt the table — and with it every visible row — for a change that concerns two of them. Dragging a column divider likewise stays local: the live weights live in a `ValueNotifier` inside the table's state and only the release commits to `SettingsService`. Writing through on every pointer move notified every listener in the app and re-armed the `config.json` save debounce, per pixel. Cancelling a drag commits too — the columns have already moved on screen, so discarding the pending width would snap them back under the pointer. `SettingsService.columnWeights` caches its sanitized map for the same reason: `context.select` compares with `==`, and a fresh map per read is never equal to the last one.
+
 **Init order in `main()` matters.** `AiProfilesService.init()` must run *before* `SettingsService.init()` — it performs a one-time migration out of the legacy `config.json` AI keys, and `SettingsService` would otherwise rewrite that file without them. `FontService.init()` + `loadIfDownloaded()` must complete before `runApp` or the first frame flashes the system font.
 
 ### Services
@@ -193,12 +195,14 @@ Platform quirks that shaped the code: Windows ignores the `height` argument (squ
 
 **The glass surface family** (`lib/widgets/glass/`) is the only sanctioned chrome for floating surfaces:
 
-- `GlassPanel` — page-level panes and cards (blur + translucent fill + hairline stroke).
+- `GlassPanel` — page-level panes and cards (blur + translucent fill + hairline stroke). **The blur is dropped when the panel's own `fill`/`gradient` is fully opaque**, because a `BackdropFilter` paints its child over the blurred backdrop and an opaque child hides the result entirely — which is exactly what the light theme's centre-table gradient does. Skipping it removes a full-panel, multi-pass GPU filter that was re-running every frame at device resolution for an invisible result. Asking for `blur: true` is therefore not a guarantee of getting it; making a fill opaque is also a decision to give up its frost.
 - `GlassDialogSurface` — the modal surface: backdrop blur under a near-opaque wash of `scheme.surface`, hairline stroke, deep shadow. Near-opaque on purpose — a dialog's job is to be read; the ~8% translucency is what keeps it glass.
 - `GlassAlertDialog` — drop-in `AlertDialog` replacement (same `icon`/`title`/`content`/`actions` shape, plus `maxWidth`).
 - `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` — context menus; items are icon + label + optional monospace trailing hint, with a primary-tinted pill (not a radio) marking the current state.
 
 `dialogTheme` / `popupMenuTheme` in `AppTheme` are fallbacks in the same palette so an unmigrated surface degrades to matching colors — they cannot add the backdrop blur, so they are a safety net, not an alternative.
+
+**`AppTheme.light` / `.dark` memoize one `ThemeData` per brightness**, keyed by accent + glass intensity + font family. `MyApp.build` asks for both on every `SettingsService` / `FontService` notification — a favourite toggled, a recent pushed — and rebuilding them handed `MaterialApp` a fresh identity each time, rebuilding everything under `Theme.of`. One slot per brightness is the right size: the repeated calls are identical so they hit, while a real change (dragging the intensity slider) misses and costs what it always cost. A map keyed by the inputs would grow an entry per slider pixel instead.
 
 ### Localization
 

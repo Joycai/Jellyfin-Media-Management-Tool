@@ -28,6 +28,10 @@ class GlassPanel extends StatelessWidget {
   /// that float over the backdrop gradient want this (default); nested
   /// cards inside an already-blurred or already-opaque parent can disable
   /// it to skip the expensive blur pass.
+  ///
+  /// Asking for it is not the same as getting it: an opaque [fill] or
+  /// [gradient] paints over the blurred backdrop, so the filter is dropped
+  /// even here. See [_fillHidesBackdrop].
   final bool blur;
 
   /// The hairline border eats layout space on every side: a child that fills
@@ -35,6 +39,22 @@ class GlassPanel extends StatelessWidget {
   /// itself against the panel's outer constraints must subtract it, or its
   /// content is exactly `2 * borderWidth` too wide.
   static const borderWidth = 1.0;
+
+  /// Whether the panel's own fill already covers everything behind it.
+  ///
+  /// A [BackdropFilter] blurs the backdrop and then paints its child on top,
+  /// so an opaque child makes the blur invisible — the light theme's table
+  /// gradient is exactly that case, its three stops all at full alpha. The
+  /// blur is not cheap to throw away: it is a full-panel, multi-pass GPU
+  /// filter re-run on every frame, at device resolution. So when the fill
+  /// hides it, it is skipped rather than computed and painted over.
+  ///
+  /// Only fully opaque counts. A gradient extends its end colors past its
+  /// stops, so every stop being opaque means every pixel is.
+  static bool _fillHidesBackdrop(Gradient? gradient, Color fill) {
+    if (gradient != null) return gradient.colors.every((c) => c.a >= 1.0);
+    return fill.a >= 1.0;
+  }
 
   const GlassPanel({
     super.key,
@@ -54,12 +74,13 @@ class GlassPanel extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderRadius = BorderRadius.circular(radius);
 
+    final resolvedFill =
+        fill ?? (sidebar ? glass.sidebarFill : glass.panelFill);
+
     final fillBox = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: gradient != null
-            ? null
-            : (fill ?? (sidebar ? glass.sidebarFill : glass.panelFill)),
+        color: gradient != null ? null : resolvedFill,
         gradient: gradient,
         borderRadius: borderRadius,
         border: Border.all(color: glass.panelStroke, width: borderWidth),
@@ -67,9 +88,11 @@ class GlassPanel extends StatelessWidget {
       child: child,
     );
 
+    final useBlur = blur && !_fillHidesBackdrop(gradient, resolvedFill);
+
     final panel = ClipRRect(
       borderRadius: borderRadius,
-      child: blur
+      child: useBlur
           ? BackdropFilter(
               filter: ImageFilter.blur(
                 sigmaX: glass.blurSigma,
