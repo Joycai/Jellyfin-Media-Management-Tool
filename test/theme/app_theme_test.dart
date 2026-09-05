@@ -54,4 +54,45 @@ void main() {
       );
     });
   });
+
+  group('performance mode', () {
+    test('is part of the memo key', () {
+      // The whole toggle is silent if it is not: MyApp asks for the theme on
+      // every settings notification, so the first call after startup would
+      // seed the slot and every later one would serve that same theme back.
+      final normal = AppTheme.light();
+      final reduced = AppTheme.light(reduceEffects: true);
+      expect(identical(normal, reduced), isFalse);
+      expect(identical(AppTheme.light(), normal), isFalse, reason: 'evicted');
+    });
+
+    test('zeroes the blur and flattens the fills in both brightnesses', () {
+      for (final glass in [
+        AppTheme.light(reduceEffects: true).extension<GlassTheme>()!,
+        AppTheme.dark(reduceEffects: true).extension<GlassTheme>()!,
+      ]) {
+        expect(glass.reduceEffects, isTrue);
+        expect(glass.blurSigma, 0);
+        // Opaque, so a panel reads as a panel without a blur behind it — and
+        // so GlassPanel's own fill check would drop the filter regardless.
+        expect(glass.panelFill.a, 1.0);
+        expect(glass.sidebarFill.a, 1.0);
+      }
+    });
+
+    test('overrides the glass intensity slider rather than combining', () {
+      final glass = AppTheme.dark(
+        glassIntensity: 100,
+        reduceEffects: true,
+      ).extension<GlassTheme>()!;
+      expect(glass.blurSigma, 0);
+    });
+
+    test('leaves the normal theme frosted', () {
+      final glass = AppTheme.dark().extension<GlassTheme>()!;
+      expect(glass.reduceEffects, isFalse);
+      expect(glass.blurSigma, greaterThan(0));
+      expect(glass.panelFill.a, lessThan(1.0));
+    });
+  });
 }

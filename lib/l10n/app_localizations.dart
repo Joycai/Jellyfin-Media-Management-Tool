@@ -1712,6 +1712,18 @@ abstract class AppLocalizations {
   /// **'Strong'**
   String get glassStrong;
 
+  /// No description provided for @performanceMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance mode'**
+  String get performanceMode;
+
+  /// No description provided for @performanceModeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off the backdrop blur and the large shadows. Worth it on integrated graphics or a high-resolution display, where the blur is redrawn over every pixel each frame.'**
+  String get performanceModeDesc;
+
   /// No description provided for @accentColor.
   ///
   /// In en, this message translates to:

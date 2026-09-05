@@ -11,6 +11,7 @@ import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
+import '../../theme/app_theme.dart';
 
 /// 3-step first-run guide: welcome → pick library root → choose AI protocol.
 ///
@@ -443,72 +444,70 @@ class _DashDropTarget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return ClipRRect(
+    return _onboardingFrost(
+      context: context,
       borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(20),
+      builder: (alphaScale) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04 * alphaScale),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: CustomPaint(
+          painter: _DashedRRectPainter(
+            color: const Color(0xFF22C9A9).withValues(alpha: 0.55),
+            radius: 20,
           ),
-          child: CustomPaint(
-            painter: _DashedRRectPainter(
-              color: const Color(0xFF22C9A9).withValues(alpha: 0.55),
-              radius: 20,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 44),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _FolderIcon(picked: pickedPath != null),
-                  const SizedBox(height: 22),
-                  Text(
-                    pickedPath ?? l10n.onboardingDropFolder,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 44),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _FolderIcon(picked: pickedPath != null),
+                const SizedBox(height: 22),
+                Text(
+                  pickedPath ?? l10n.onboardingDropFolder,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    l10n.onboardingOr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  l10n.onboardingOr,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _GhostButton(label: l10n.onboardingPickFolder, onTap: onPick),
+                const SizedBox(height: 22),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  child: Text(
+                    l10n.onboardingRootHint,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.55),
-                      fontSize: 13,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _GhostButton(label: l10n.onboardingPickFolder, onTap: onPick),
-                  const SizedBox(height: 22),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.28),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.06),
-                      ),
-                    ),
-                    child: Text(
-                      l10n.onboardingRootHint,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -708,88 +707,81 @@ class _ProviderCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        child: ClipRRect(
+        child: _onboardingFrost(
+          context: context,
           borderRadius: BorderRadius.circular(18),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: selected
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.04),
-                border: Border.all(color: border, width: selected ? 1.2 : 1),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          badgeColor,
-                          badgeColor.withValues(alpha: 0.75),
-                        ],
+          builder: (alphaScale) => AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: selected
+                  ? Colors.white.withValues(alpha: 0.08 * alphaScale)
+                  : Colors.white.withValues(alpha: 0.04 * alphaScale),
+              border: Border.all(color: border, width: selected ? 1.2 : 1),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [badgeColor, badgeColor.withValues(alpha: 0.75)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: badgeColor.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        spreadRadius: -2,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: badgeColor.withValues(alpha: 0.35),
-                          blurRadius: 16,
-                          spreadRadius: -2,
-                        ),
-                      ],
+                    ],
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
                     ),
-                    child: Text(
-                      badge,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 13,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Icon(
-                    selected
-                        ? Icons.check_circle_rounded
-                        : Icons.chevron_right_rounded,
-                    color: Colors.white.withValues(
-                      alpha: selected ? 0.95 : 0.4,
-                    ),
-                    size: 22,
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.chevron_right_rounded,
+                  color: Colors.white.withValues(alpha: selected ? 0.95 : 0.4),
+                  size: 22,
+                ),
+              ],
             ),
           ),
         ),
@@ -909,4 +901,33 @@ class _PrimaryButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Wrap [child] in the onboarding cards' frosted backdrop, unless performance
+/// mode is on.
+///
+/// These two cards sit on a dark decorative gradient and carry a 4-8% white
+/// wash, which reads as a surface only because the blur behind it separates it
+/// from the background. Dropping the filter alone would leave them invisible,
+/// so the caller's fill alpha is scaled up to compensate — the card keeps its
+/// weight without the per-frame filter.
+///
+/// Onboarding is a one-time screen, so this is about the switch meaning the
+/// same thing everywhere rather than about frame time here.
+Widget _onboardingFrost({
+  required BuildContext context,
+  required BorderRadius borderRadius,
+  required Widget Function(double alphaScale) builder,
+}) {
+  final flat = Theme.of(context).extension<GlassTheme>()!.reduceEffects;
+  final content = builder(flat ? 2.5 : 1.0);
+  return ClipRRect(
+    borderRadius: borderRadius,
+    child: flat
+        ? content
+        : BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: content,
+          ),
+  );
 }

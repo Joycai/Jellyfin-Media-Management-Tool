@@ -124,34 +124,54 @@ class GlassDialogSurface extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderRadius = BorderRadius.circular(radius);
 
+    // Near-opaque already, so performance mode loses very little by going the
+    // rest of the way: the wash becomes solid, the filter is skipped, and the
+    // 60px shadow — the most expensive thing here, drawn over a footprint
+    // larger than the dialog — shrinks to something that still lifts the
+    // surface off the page.
+    final flat = glass.reduceEffects;
+    final wash = scheme.surface.withValues(
+      alpha: flat
+          ? 1.0
+          : isDark
+          ? 0.92
+          : 0.97,
+    );
+
+    final surface = DecoratedBox(
+      decoration: BoxDecoration(
+        color: wash,
+        borderRadius: borderRadius,
+        border: Border.all(color: glass.panelStroke),
+      ),
+      child: child,
+    );
+
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.18),
-            blurRadius: 60,
-            spreadRadius: -12,
-            offset: const Offset(0, 24),
+            color: Colors.black.withValues(
+              alpha: flat ? (isDark ? 0.34 : 0.12) : (isDark ? 0.5 : 0.18),
+            ),
+            blurRadius: flat ? 12 : 60,
+            spreadRadius: flat ? -2 : -12,
+            offset: Offset(0, flat ? 4 : 24),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: glass.blurSigma,
-            sigmaY: glass.blurSigma,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: scheme.surface.withValues(alpha: isDark ? 0.92 : 0.97),
-              borderRadius: borderRadius,
-              border: Border.all(color: glass.panelStroke),
-            ),
-            child: child,
-          ),
-        ),
+        child: flat
+            ? surface
+            : BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: glass.blurSigma,
+                  sigmaY: glass.blurSigma,
+                ),
+                child: surface,
+              ),
       ),
     );
   }

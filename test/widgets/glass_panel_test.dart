@@ -92,4 +92,52 @@ void main() {
     final filter = tester.widget<BackdropFilter>(blur).filter;
     expect(filter, isA<ImageFilter>());
   });
+
+  group('performance mode', () {
+    Future<void> pumpReduced(WidgetTester tester, GlassPanel panel) =>
+        tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(reduceEffects: true),
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(width: 300, height: 200, child: panel),
+              ),
+            ),
+          ),
+        );
+
+    testWidgets('skips the filter instead of passing a zero sigma', (
+      tester,
+    ) async {
+      // A zero-sigma BackdropFilter is not free: it still ends the render pass
+      // and reads back the whole target, which is where the cost is. The
+      // widget has to go, not just its sigma.
+      await pumpReduced(tester, const GlassPanel(child: SizedBox()));
+      expect(blur, findsNothing);
+    });
+
+    testWidgets('drops the elevated drop shadow too', (tester) async {
+      await _pump(tester, const GlassPanel(elevated: true, child: SizedBox()));
+      expect(_shadowed(tester), isTrue);
+
+      await pumpReduced(
+        tester,
+        const GlassPanel(elevated: true, child: SizedBox()),
+      );
+      // MaterialApp animates a theme swap over kThemeAnimationDuration, and
+      // GlassTheme.lerp only flips the flag at the halfway mark — so the
+      // panel is still the frosted one on the frame right after the pump.
+      await tester.pumpAndSettle();
+      expect(_shadowed(tester), isFalse);
+    });
+  });
 }
+
+/// Whether anything in the tree paints a drop shadow.
+bool _shadowed(WidgetTester tester) => tester
+    .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+    .any(
+      (d) =>
+          d.decoration is BoxDecoration &&
+          ((d.decoration as BoxDecoration).boxShadow?.isNotEmpty ?? false),
+    );
