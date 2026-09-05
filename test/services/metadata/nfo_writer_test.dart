@@ -3,6 +3,7 @@ import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_merge.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_reader.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_writer.dart';
+import 'package:jellyfin_media_management_tool/services/scrape/image_role.dart';
 
 MediaMetadata _sample() => MediaMetadata(
   title: '美少女戦士セーラーディオーレ 絶望の餌食',
@@ -132,6 +133,30 @@ void main() {
       );
       expect(xml, contains('<poster>poster.png</poster>'));
       expect(xml, contains('<fanart>fanart.png</fanart>'));
+    });
+
+    test('the default art names are the ones the images are saved under', () {
+      // NfoOptions restates the stems rather than importing ImageRole, so this
+      // is what stops the <art> block and the files on disk drifting apart.
+      const options = NfoOptions();
+      expect(options.posterFileName, '${ImageRole.poster.stem}.jpg');
+      expect(options.fanartFileName, '${ImageRole.fanart.stem}.jpg');
+      expect(
+        NfoWriter.write(_sample()),
+        contains('<poster>folder.jpg</poster>'),
+      );
+    });
+
+    test('kinds map to and from Jellyfin file names and root elements', () {
+      expect(NfoKind.movie.fileName, 'movie.nfo');
+      expect(NfoKind.tvShow.fileName, 'tvshow.nfo');
+      expect(NfoKind.forFileName('tvshow.nfo'), NfoKind.tvShow);
+      expect(NfoKind.forFileName('TVSHOW.NFO'), NfoKind.tvShow);
+      expect(NfoKind.forFileName('movie.nfo'), NfoKind.movie);
+      expect(NfoKind.forFileName('SPSF-43.nfo'), NfoKind.movie);
+      expect(NfoKind.fromRootElement('tvshow'), NfoKind.tvShow);
+      expect(NfoKind.fromRootElement('episodedetails'), NfoKind.episode);
+      expect(NfoKind.fromRootElement('video'), isNull);
     });
 
     test('emits the right root element per kind', () {

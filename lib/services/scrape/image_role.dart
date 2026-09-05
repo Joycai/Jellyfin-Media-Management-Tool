@@ -1,9 +1,17 @@
 /// What a scraped image should become on disk.
 ///
 /// Jellyfin recognises artwork by **file name**, not by anything in the NFO, so
-/// naming a file `poster.jpg` is what makes it the poster. That is the whole
+/// naming a file `folder.jpg` is what makes it the poster. That is the whole
 /// mechanism, and it is why marking an image with a role is a real operation
 /// rather than a label: the role *is* the file name.
+///
+/// Each role is one Jellyfin image *type* (Primary, Backdrop, Thumb, …), and
+/// [ImageRole.stem] is the one file name this app writes for it. Jellyfin
+/// accepts several names per type — `poster`/`folder`/`cover` are all Primary,
+/// `backdrop`/`fanart`/`background` all Backdrop — and the stems here are the
+/// ones verified against a live server. Two roles must never share a type:
+/// a `thumb.jpg` next to a `landscape.jpg` is two files for one slot, and
+/// Jellyfin silently picks one.
 ///
 /// [ImageRole.original] is the default for anything the scrape did not already
 /// identify. An image the user just wants to keep should land under the name it
@@ -16,18 +24,24 @@ enum ImageRole {
   /// Keep the file name the server used.
   original,
 
+  /// Primary — the vertical cover. Written as `folder`.
   poster,
 
-  /// Jellyfin accepts `backdrop` and `fanart` for the same thing; `fanart` is
-  /// what the NFO's `<art>` block conventionally names, so the two agree.
+  /// Backdrop — the wide background. Written as `backdrop`; the NFO's `<art>`
+  /// block still calls the element `<fanart>`, which is a Kodi element name
+  /// and not a file name.
   fanart,
 
   /// Additional backdrops, numbered inside `extrafanart/` — the one role that
   /// can hold more than one image.
   extraFanart,
 
-  landscape,
+  /// Thumb — the 16:9 thumbnail. Written as `landscape`.
   thumb,
+
+  /// Menu artwork. Written as `menu`.
+  menu,
+
   banner,
   logo,
   clearArt,
@@ -40,13 +54,16 @@ enum ImageRole {
       this != ImageRole.original && this != ImageRole.extraFanart;
 
   /// The name stem Jellyfin looks for, or null when the file keeps its own.
+  ///
+  /// `NfoOptions` defaults its `<art>` file names to the poster and fanart
+  /// stems here; a test pins the two together.
   String? get stem => switch (this) {
     ImageRole.original => null,
-    ImageRole.poster => 'poster',
-    ImageRole.fanart => 'fanart',
+    ImageRole.poster => 'folder',
+    ImageRole.fanart => 'backdrop',
     ImageRole.extraFanart => 'extrafanart/backdrop',
-    ImageRole.landscape => 'landscape',
-    ImageRole.thumb => 'thumb',
+    ImageRole.thumb => 'landscape',
+    ImageRole.menu => 'menu',
     ImageRole.banner => 'banner',
     ImageRole.logo => 'logo',
     ImageRole.clearArt => 'clearart',

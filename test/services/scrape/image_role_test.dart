@@ -25,19 +25,42 @@ void main() {
     });
 
     test('a marked image takes the name Jellyfin looks for', () {
+      // The names verified against a live server: `folder` for the primary
+      // image, `backdrop` for the background, `landscape` for the thumb and
+      // `menu` for the menu art. Jellyfin also reads `poster`/`fanart`/`thumb`,
+      // but one type gets one name here.
       expect(
         _plan(
-          order: ['https://e.test/pac_s.jpg', 'https://e.test/bg.jpg'],
+          order: [
+            'https://e.test/pac_s.jpg',
+            'https://e.test/bg.jpg',
+            'https://e.test/wide.jpg',
+            'https://e.test/menu.jpg',
+          ],
           roles: {
             'https://e.test/pac_s.jpg': ImageRole.poster,
-            'https://e.test/bg.jpg': ImageRole.landscape,
+            'https://e.test/bg.jpg': ImageRole.fanart,
+            'https://e.test/wide.jpg': ImageRole.thumb,
+            'https://e.test/menu.jpg': ImageRole.menu,
           },
         ),
         {
-          'https://e.test/pac_s.jpg': 'poster.jpg',
-          'https://e.test/bg.jpg': 'landscape.jpg',
+          'https://e.test/pac_s.jpg': 'folder.jpg',
+          'https://e.test/bg.jpg': 'backdrop.jpg',
+          'https://e.test/wide.jpg': 'landscape.jpg',
+          'https://e.test/menu.jpg': 'menu.jpg',
         },
       );
+    });
+
+    test('no two roles write the same Jellyfin slot', () {
+      // `thumb.jpg` beside `landscape.jpg` is two files for one image type,
+      // and Jellyfin silently picks one — so each type has exactly one stem.
+      final stems = [
+        for (final role in ImageRole.values)
+          if (role.stem != null) role.stem!,
+      ];
+      expect(stems.toSet().length, stems.length);
     });
 
     test('extra backdrops are numbered in their own folder', () {
@@ -62,7 +85,7 @@ void main() {
           roles: {'https://e.test/pac_s.jpg': ImageRole.poster},
           extension: 'png',
         ).values.single,
-        'poster.png',
+        'folder.png',
       );
     });
 

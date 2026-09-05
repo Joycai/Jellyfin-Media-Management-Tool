@@ -11,6 +11,18 @@ import 'package:xml/xml.dart';
 import '../../models/media_metadata.dart';
 
 class NfoReader {
+  /// The root element of [xmlText] (`movie`, `tvshow`, …), or null when there
+  /// is no parseable document. Lets a refresh keep the flavour a file already
+  /// has instead of assuming every NFO is a movie.
+  static String? rootElementName(String? xmlText) {
+    if (xmlText == null || xmlText.trim().isEmpty) return null;
+    try {
+      return XmlDocument.parse(xmlText).rootElement.name.local;
+    } on XmlException {
+      return null;
+    }
+  }
+
   /// Parses [xmlText]. Returns null when the document is not usable XML —
   /// callers treat that as "no existing metadata" and keep the file for backup
   /// rather than trying to repair it.

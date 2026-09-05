@@ -563,7 +563,7 @@ abstract class AppLocalizations {
   /// No description provided for @appBrand.
   ///
   /// In en, this message translates to:
-  /// **'Jellyfin Organizer'**
+  /// **'Jellyfin Media Management Tool'**
   String get appBrand;
 
   /// No description provided for @tabFiles.
@@ -1985,7 +1985,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingWelcomeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to Jellyfin Organizer'**
+  /// **'Welcome to Jellyfin Media Management Tool'**
   String get onboardingWelcomeTitle;
 
   /// No description provided for @onboardingWelcomeBody.
@@ -3032,6 +3032,18 @@ abstract class AppLocalizations {
   /// **'Browse…'**
   String get scrapeNfoBrowse;
 
+  /// No description provided for @scrapeKindMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie'**
+  String get scrapeKindMovie;
+
+  /// No description provided for @scrapeKindTvShow.
+  ///
+  /// In en, this message translates to:
+  /// **'TV show'**
+  String get scrapeKindTvShow;
+
   /// No description provided for @scrapeNfoAutoDetected.
   ///
   /// In en, this message translates to:
@@ -3131,13 +3143,13 @@ abstract class AppLocalizations {
   /// No description provided for @scrapeRolePoster.
   ///
   /// In en, this message translates to:
-  /// **'Poster'**
+  /// **'Poster (folder)'**
   String get scrapeRolePoster;
 
   /// No description provided for @scrapeRoleFanart.
   ///
   /// In en, this message translates to:
-  /// **'Backdrop (fanart)'**
+  /// **'Backdrop'**
   String get scrapeRoleFanart;
 
   /// No description provided for @scrapeRoleExtraFanart.
@@ -3146,17 +3158,17 @@ abstract class AppLocalizations {
   /// **'Extra backdrop'**
   String get scrapeRoleExtraFanart;
 
-  /// No description provided for @scrapeRoleLandscape.
-  ///
-  /// In en, this message translates to:
-  /// **'Landscape'**
-  String get scrapeRoleLandscape;
-
   /// No description provided for @scrapeRoleThumb.
   ///
   /// In en, this message translates to:
-  /// **'Thumb'**
+  /// **'Thumb (landscape)'**
   String get scrapeRoleThumb;
+
+  /// No description provided for @scrapeRoleMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get scrapeRoleMenu;
 
   /// No description provided for @scrapeRoleBanner.
   ///

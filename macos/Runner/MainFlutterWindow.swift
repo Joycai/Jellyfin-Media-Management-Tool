@@ -27,9 +27,9 @@ class MainFlutterWindow: NSWindow {
 
     // Set the window title after the nib/Flutter setup so it isn't overwritten
     // by the product name; reassert next run-loop turn to be safe.
-    self.title = "Jellyfin Organizer"
+    self.title = "Jellyfin Media Management Tool"
     DispatchQueue.main.async { [weak self] in
-      self?.title = "Jellyfin Organizer"
+      self?.title = "Jellyfin Media Management Tool"
     }
   }
 }

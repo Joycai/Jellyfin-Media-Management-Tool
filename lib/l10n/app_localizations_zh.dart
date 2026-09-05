@@ -254,7 +254,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get video => '视频';
 
   @override
-  String get appBrand => '媒体库整理';
+  String get appBrand => 'Jellyfin Media Management Tool';
 
   @override
   String get tabFiles => '文件';
@@ -1067,7 +1067,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get onboardingWelcomeTitle => '欢迎使用 Jellyfin 整理器';
+  String get onboardingWelcomeTitle => '欢迎使用 Jellyfin Media Management Tool';
 
   @override
   String get onboardingWelcomeBody =>
@@ -1652,6 +1652,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeNfoBrowse => '浏览…';
 
   @override
+  String get scrapeKindMovie => '电影';
+
+  @override
+  String get scrapeKindTvShow => '剧集';
+
+  @override
   String scrapeNfoAutoDetected(Object name) {
     return '根据 $name 自动识别';
   }
@@ -1710,19 +1716,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeRoleOriginal => '按原名保存';
 
   @override
-  String get scrapeRolePoster => '海报 poster';
+  String get scrapeRolePoster => '封面 folder';
 
   @override
-  String get scrapeRoleFanart => '背景图 fanart';
+  String get scrapeRoleFanart => '背景图 backdrop';
 
   @override
   String get scrapeRoleExtraFanart => '附加背景图';
 
   @override
-  String get scrapeRoleLandscape => '横版图 landscape';
+  String get scrapeRoleThumb => '缩略图 landscape';
 
   @override
-  String get scrapeRoleThumb => '缩略图 thumb';
+  String get scrapeRoleMenu => '菜单图 menu';
 
   @override
   String get scrapeRoleBanner => '横幅 banner';

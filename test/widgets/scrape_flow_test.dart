@@ -178,6 +178,23 @@ void main() {
     expect(find.text('Browse…'), findsOneWidget);
   });
 
+  testWidgets('switching to TV show targets tvshow.nfo', (tester) async {
+    // Jellyfin reads a series from tvshow.nfo, never from movie.nfo; the
+    // switch is what makes the second name reachable without Browse.
+    await _pumpApp(tester);
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('TV show'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('tvshow.nfo'), findsWidgets);
+    expect(find.textContaining('movie.nfo'), findsNothing);
+
+    await tester.tap(find.text('Movie'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('movie.nfo'), findsWidgets);
+  });
+
   testWidgets('no AI profile means no direct-LLM button', (tester) async {
     // Offering a button that can only produce an error is worse than not
     // offering it.

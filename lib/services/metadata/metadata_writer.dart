@@ -26,7 +26,9 @@ import 'dart:convert';
 import 'package:file/file.dart';
 import 'package:file/local.dart';
 
+import '../file_label_service.dart';
 import '../path_safety.dart';
+import 'nfo_writer.dart';
 
 const FileSystem _defaultFs = LocalFileSystem();
 
@@ -219,11 +221,37 @@ class MetadataWriter {
     }
   }
 
-  /// Suggested NFO file name for a video.
+  /// The NFO file name Jellyfin will read for the movie at [videoPath].
   ///
-  /// Jellyfin accepts `movie.nfo` or `<video base name>.nfo`; the latter is
-  /// used because a folder holding two titles would otherwise have them fight
-  /// over one `movie.nfo`.
+  /// `movie.nfo` — the name Jellyfin documents and the one verified against a
+  /// live library — unless the video shares its folder with other videos. That
+  /// is a *mixed folder* to Jellyfin, where `movie.nfo` is not read at all and
+  /// only `<video base name>.nfo` (see [nfoNameForVideo]) can work. A folder
+  /// that cannot be listed counts as holding one video.
+  Future<String> nfoNameFor(String videoPath) async {
+    final path = fs.path;
+    final name = path.basename(videoPath);
+    var others = 0;
+    try {
+      await for (final entity in fs.directory(path.dirname(videoPath)).list()) {
+        if (entity is! File) continue;
+        if (path.basename(entity.path) == name) continue;
+        if (FileLabelService.getLabel(path.extension(entity.path)) != 'Video') {
+          continue;
+        }
+        others++;
+        break;
+      }
+    } catch (_) {
+      // Unreadable folder: assume the common case rather than fail the scrape
+      // before it starts.
+    }
+    return others == 0 ? NfoKind.movie.fileName! : nfoNameForVideo(name);
+  }
+
+  /// `<video base name>.nfo` — the per-video form Jellyfin reads in a mixed
+  /// folder. Prefer [nfoNameFor], which knows when the plain `movie.nfo` is
+  /// the right answer.
   static String nfoNameForVideo(String videoFileName) {
     final dot = videoFileName.lastIndexOf('.');
     final base = dot <= 0 ? videoFileName : videoFileName.substring(0, dot);

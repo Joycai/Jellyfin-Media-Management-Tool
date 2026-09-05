@@ -210,7 +210,7 @@ void main() {
       final names = ImageNaming.plan(
         order: const ['https://e.test/a.jpg', 'https://e.test/db/b.jpg'],
         selected: const {'https://e.test/a.jpg', 'https://e.test/db/b.jpg'},
-        roles: const {'https://e.test/a.jpg': ImageRole.landscape},
+        roles: const {'https://e.test/a.jpg': ImageRole.thumb},
         extensionOf: (_) => 'jpg',
       );
       await service.saveImages(

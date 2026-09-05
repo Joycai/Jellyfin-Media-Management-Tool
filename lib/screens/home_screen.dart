@@ -323,8 +323,10 @@ class _Header extends StatelessWidget {
           // free space (splitting it with the search Expanded) and dump its
           // unused allocation as trailing space AFTER the last icon button,
           // pushing the right-side icons away from the window edge.
+          // 300 fits the full product name at this size; the ellipsis is a
+          // backstop for a wider UI font, not the expected rendering.
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
+            constraints: const BoxConstraints(maxWidth: 300),
             child: Text(
               l10n.appBrand,
               maxLines: 1,
