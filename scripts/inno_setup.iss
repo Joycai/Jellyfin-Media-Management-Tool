@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 ; Non-commercial use only
 
-#define MyAppName "jellyfin media management tool"
+#define MyAppName "Jellyfin Media Management Tool"
 ; MyAppVersion / SourceDir can be overridden from the command line, e.g.
 ;   iscc /DMyAppVersion=1.2.3 scripts\inno_setup.iss
 #ifndef MyAppVersion

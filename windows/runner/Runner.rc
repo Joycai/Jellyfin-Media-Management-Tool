@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "joycai.cn" "\0"
-            VALUE "FileDescription", "jellyfin_media_management_tool" "\0"
+            VALUE "FileDescription", "Jellyfin Media Management Tool" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "jellyfin_media_management_tool" "\0"
+            VALUE "InternalName", "Jellyfin Media Management Tool" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 joycai.cn. All rights reserved." "\0"
             VALUE "OriginalFilename", "jellyfin_media_management_tool.exe" "\0"
-            VALUE "ProductName", "jellyfin_media_management_tool" "\0"
+            VALUE "ProductName", "Jellyfin Media Management Tool" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

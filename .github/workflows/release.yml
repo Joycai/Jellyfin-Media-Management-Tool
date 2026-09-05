@@ -79,15 +79,15 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           brew install create-dmg
-          APP_PATH="build/macos/Build/Products/Release/jellyfin_media_management_tool.app"
+          APP_PATH="build/macos/Build/Products/Release/Jellyfin Media Management Tool.app"
           DMG_NAME="${APP_BASENAME}-${VERSION}-macos.dmg"
           mkdir -p dist
           create-dmg \
-            --volname "Jellyfin Organizer" \
+            --volname "Jellyfin Media Management Tool" \
             --window-size 600 400 \
             --icon-size 100 \
             --app-drop-link 450 180 \
-            --icon "jellyfin_media_management_tool.app" 150 180 \
+            --icon "Jellyfin Media Management Tool.app" 150 180 \
             "dist/${DMG_NAME}" \
             "${APP_PATH}"
 
