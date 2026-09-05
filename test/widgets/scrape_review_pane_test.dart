@@ -115,7 +115,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(ImageGallery),
-        matching: find.text('Poster'),
+        matching: find.text('Poster (folder)'),
       ),
       findsOneWidget,
     );

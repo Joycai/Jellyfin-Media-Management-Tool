@@ -32,6 +32,7 @@ import '../metadata/nfo_writer.dart';
 import 'direct_extractor.dart';
 import 'image_cache.dart';
 import 'image_downloader.dart';
+import 'image_role.dart';
 import 'page_fetcher.dart';
 import 'recipe_applier.dart';
 import 'recipe_learner.dart';
@@ -438,7 +439,7 @@ class ScrapeService extends ChangeNotifier {
     ScrapeRecipe? recipe,
     ImageSelection images = const ImageSelection(),
     String? backupDir,
-    NfoKind kind = NfoKind.movie,
+    NfoKind? kind,
     AiCancelToken? cancelToken,
     ImageProgress? onImageProgress,
     ScrapeImageCache? imageCache,
@@ -468,16 +469,22 @@ class ScrapeService extends ChangeNotifier {
 
     // The NFO's <art> block must name the files we are about to write, so the
     // options are derived from what actually downloaded.
-    final poster = _assetNamed(assets, 'poster');
-    final fanart = _assetNamed(assets, 'fanart');
+    final poster = _assetNamed(assets, ImageRole.poster.stem!);
+    final fanart = _assetNamed(assets, ImageRole.fanart.stem!);
     final existingXml = await writer.readExisting(targetDir, nfoFileName);
     final xml = NfoWriter.write(
       metadata,
       existingXml: existingXml,
-      kind: kind,
+      // An explicit kind is the panel's choice. Without one — the batch
+      // refresh — keep whatever the file already is, then fall back to what
+      // its name says, so a tvshow.nfo is never rewritten as a <movie>.
+      kind:
+          kind ??
+          _existingKind(existingXml) ??
+          NfoKind.forFileName(nfoFileName),
       options: NfoOptions(
-        posterFileName: poster ?? 'poster.jpg',
-        fanartFileName: fanart ?? 'fanart.jpg',
+        posterFileName: poster ?? '${ImageRole.poster.stem}.jpg',
+        fanartFileName: fanart ?? '${ImageRole.fanart.stem}.jpg',
       ),
       includeArt: poster != null || fanart != null,
     );
@@ -648,6 +655,11 @@ class ScrapeService extends ChangeNotifier {
       if (a.relativePath.startsWith('$stem.')) return a.relativePath;
     }
     return null;
+  }
+
+  static NfoKind? _existingKind(String? xml) {
+    final root = NfoReader.rootElementName(xml);
+    return root == null ? null : NfoKind.fromRootElement(root);
   }
 
   @override

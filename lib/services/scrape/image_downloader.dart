@@ -11,6 +11,7 @@ import '../../models/scrape_recipe.dart';
 import '../ai/ai_cancel_token.dart';
 import '../metadata/metadata_writer.dart';
 import 'image_cache.dart';
+import 'image_role.dart';
 import 'page_fetcher.dart';
 
 /// Which of the available images the user actually wants.
@@ -79,17 +80,20 @@ class ImageDownloader {
     final jobs = <(String, String)>[]; // (relative path stem, url)
 
     if (selection.poster && metadata.posterUrl != null) {
-      jobs.add(('poster', metadata.posterUrl!));
+      jobs.add((ImageRole.poster.stem!, metadata.posterUrl!));
     }
     if (selection.fanart && metadata.fanartUrl != null) {
-      jobs.add(('fanart', metadata.fanartUrl!));
+      jobs.add((ImageRole.fanart.stem!, metadata.fanartUrl!));
     }
     final wanted = selection.resolveExtra(metadata.extraFanartUrls.length);
     var n = 0;
     for (var i = 0; i < metadata.extraFanartUrls.length; i++) {
       if (!wanted.contains(i)) continue;
       n++;
-      jobs.add(('extrafanart/backdrop-$n', metadata.extraFanartUrls[i]));
+      jobs.add((
+        '${ImageRole.extraFanart.stem}-$n',
+        metadata.extraFanartUrls[i],
+      ));
     }
 
     final assets = <ImageAsset>[];
@@ -163,7 +167,7 @@ class ImageDownloader {
 
   /// Picks the file extension from the bytes' magic number rather than from
   /// the URL: plenty of CDNs serve a PNG from a `.jpg` path, and Jellyfin
-  /// matches artwork by name, so writing `poster.jpg` containing PNG data is a
+  /// matches artwork by name, so writing `folder.jpg` containing PNG data is a
   /// real (if quiet) bug.
   static String extensionFor(List<int> bytes) {
     if (bytes.length >= 3 &&

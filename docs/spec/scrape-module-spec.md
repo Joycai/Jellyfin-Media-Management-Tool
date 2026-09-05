@@ -222,7 +222,7 @@ Jellyfin 的 NFO 命名规则（已核对官方文档）：
 | 季 | `season.nfo` |
 | 单集 | `<视频文件同名>.nfo` |
 
-单文件作品用 `<视频同名>.nfo` 最稳（一个文件夹放多个作品时不会打架）。
+默认写 `movie.nfo`（实际 Jellyfin 库里验证过的名字）；只有当同一文件夹里还有别的视频时（Jellyfin 所谓 mixed folder，此时它根本不读 `movie.nfo`）才退回 `<视频同名>.nfo`。面板上的「电影 / 剧集」开关把文件名切成 `tvshow.nfo`，根元素相应变成 `<tvshow>`；批量刷新不带类型，沿用文件已有的根元素，不会把 `<tvshow>` 改写成 `<movie>`。
 
 **合并流程**是三方对照，不是简单覆盖：
 
@@ -255,11 +255,14 @@ Jellyfin 的 NFO 命名规则（已核对官方文档）：
 
 | 用途 | 文件名 | 来源字段 |
 |---|---|---|
-| 竖版海报 | `poster.jpg`（亦识别 `folder`/`cover`/`movie`） | `posterUrl` |
-| 横版背景 | `fanart.jpg`（亦识别 `backdrop`/`background`/`art`） | `fanartUrl` |
+| 竖版封面 | `folder.jpg`（Jellyfin 亦识别 `poster`/`cover`/`movie`） | `posterUrl` |
+| 横版背景 | `backdrop.jpg`（亦识别 `fanart`/`background`/`art`） | `fanartUrl` |
 | 多张背景 | `extrafanart/backdrop-1.jpg`, `-2.jpg` … | `extraFanartUrls` |
-| 缩略图 | `thumb.jpg` / `landscape.jpg` | 可选 |
+| 缩略图 | `landscape.jpg`（亦识别 `thumb`） | 可选 |
+| 菜单图 | `menu.jpg` | 可选 |
 | 台标 | `logo.png` / `clearlogo.png` | 通常没有 |
+
+一种图片类型只对应一个文件名（`ImageRole.stem`），不提供 `poster` 与 `folder` 两个并列的角色：两个文件抢同一个槽位时 Jellyfin 只会静默取一个。上面的名字是在真实 Jellyfin 库里验证过的。
 
 预览里每张图给缩略图 + 尺寸 + 勾选框，用户可以只要封面不要那 20 张缩略图。
 下载前先 `HEAD`（或读前几 KB）校验 Content-Type 与尺寸，拒绝 1×1 像素点和非图片响应。

@@ -7,6 +7,7 @@ import '../../services/scrape/image_cache.dart';
 import '../../services/scrape/image_role.dart';
 import '../../services/scrape/image_downloader.dart';
 import '../../services/scrape/scrape_service.dart';
+import '../../services/metadata/nfo_writer.dart';
 import '../../theme/app_theme.dart';
 import '../dialogs/input_dialog.dart';
 import '../glass/glass_dialog.dart';
@@ -31,6 +32,10 @@ class ScrapeCommitDecision {
   final String nfoFileName;
   final String targetDir;
 
+  /// Movie or series: decides the root element, and is what made
+  /// [nfoFileName] `movie.nfo` or `tvshow.nfo` in the panel.
+  final NfoKind kind;
+
   /// Whether to store `ScrapeResult.learnedRecipe`. Always false when tier 3
   /// did not run — a learned recipe reaching `RecipeStore` is the one thing
   /// this dialog exists to gate.
@@ -43,6 +48,7 @@ class ScrapeCommitDecision {
     required this.backup,
     required this.nfoFileName,
     required this.targetDir,
+    this.kind = NfoKind.movie,
     this.saveRecipe = false,
   });
 }
@@ -62,6 +68,9 @@ class ScrapeReviewPane extends StatefulWidget {
   final ScrapeResult result;
   final String defaultTargetDir;
   final String defaultNfoFileName;
+
+  /// Chosen in the setup stage; carried through untouched.
+  final NfoKind kind;
 
   /// Shared with the panel so a thumbnail already fetched is not fetched again
   /// when the write runs.
@@ -89,6 +98,7 @@ class ScrapeReviewPane extends StatefulWidget {
     required this.result,
     required this.defaultTargetDir,
     required this.defaultNfoFileName,
+    this.kind = NfoKind.movie,
     required this.cache,
     required this.onSubmit,
     required this.onBack,
@@ -233,6 +243,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
         targetDir: _targetDir.text.trim().isEmpty
             ? widget.defaultTargetDir
             : _targetDir.text.trim(),
+        kind: widget.kind,
         saveRecipe: widget.result.learnedRecipe != null && _saveRecipe,
       ),
     );

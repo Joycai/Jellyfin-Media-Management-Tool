@@ -34,6 +34,7 @@ import '../../services/ai/ai_cancel_token.dart';
 import '../../services/ai/ai_provider.dart';
 import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
+import '../../services/metadata/nfo_writer.dart';
 import '../../services/scrape/cookie_store.dart';
 import '../../services/scrape/direct_extractor.dart';
 import '../../services/scrape/image_cache.dart';
@@ -119,9 +120,26 @@ class _ScrapePanelState extends State<ScrapePanel> {
   late String _targetDir = widget.targetDir;
   late String _nfoFileName = widget.nfoFileName;
 
+  /// Movie or series. Decides both the file name (`movie.nfo` / `tvshow.nfo`)
+  /// and the root element the writer emits. Seeded from the suggested name so
+  /// a Browse to an existing `tvshow.nfo` reads as a series.
+  late NfoKind _kind = NfoKind.forFileName(widget.nfoFileName);
+
   /// True once the user picked the NFO themselves, so the caption stops
   /// claiming it was auto-detected.
   bool _nfoChosen = false;
+
+  /// Switching kind renames the target unless the user chose a file by hand —
+  /// their pick outranks a default, but a default should follow the switch.
+  void _setKind(NfoKind kind) {
+    setState(() {
+      _kind = kind;
+      if (_nfoChosen) return;
+      _nfoFileName = kind == NfoKind.tvShow
+          ? NfoKind.tvShow.fileName!
+          : widget.nfoFileName;
+    });
+  }
 
   String? _backendId;
   bool _showPaste = false;
@@ -416,6 +434,11 @@ class _ScrapePanelState extends State<ScrapePanel> {
       _targetDir = p.dirname(path);
       _nfoFileName = p.basename(path);
       _nfoChosen = true;
+      // An existing tvshow.nfo is a series whatever the switch said; anything
+      // else keeps the user's choice, since `<video>.nfo` says nothing.
+      if (NfoKind.forFileName(_nfoFileName) == NfoKind.tvShow) {
+        _kind = NfoKind.tvShow;
+      }
     });
   }
 
@@ -512,6 +535,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
     result: _result!,
     defaultTargetDir: _targetDir,
     defaultNfoFileName: _nfoFileName,
+    kind: _kind,
     cache: _cache!,
     loadingImages: _imagesPending,
     onBack: () => setState(() => _stage = _Stage.setup),
@@ -861,6 +885,36 @@ class _ScrapePanelState extends State<ScrapePanel> {
         ),
       );
 
+  /// Movie / TV show. A deliberate compact variant, sized like the search-site
+  /// chips so it sits on the section-label line; hence the explicit metrics.
+  Widget _kindSwitch(AppLocalizations l10n) => SegmentedButton<NfoKind>(
+    segments: [
+      ButtonSegment(
+        value: NfoKind.movie,
+        icon: const Icon(Icons.movie_outlined, size: 13),
+        label: Text(l10n.scrapeKindMovie),
+      ),
+      ButtonSegment(
+        value: NfoKind.tvShow,
+        icon: const Icon(Icons.tv_outlined, size: 13),
+        label: Text(l10n.scrapeKindTvShow),
+      ),
+    ],
+    selected: {_kind},
+    showSelectedIcon: false,
+    onSelectionChanged: (picked) => _setKind(picked.single),
+    style: SegmentedButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      minimumSize: const Size(0, 28),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+        fontSize: 11.5,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+  );
+
   /// Where it lands. Auto-detected from what was right-clicked, because that
   /// is right almost every time, but never a dead end.
   Widget _nfoSection(AppLocalizations l10n, ColorScheme scheme) {
@@ -868,7 +922,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionLabel(l10n.scrapeNfoTarget),
+        Row(
+          children: [
+            _SectionLabel(l10n.scrapeNfoTarget),
+            const Spacer(),
+            _kindSwitch(l10n),
+          ],
+        ),
         const SizedBox(height: 8),
         Container(
           // 7 + 30-px button + 7 = the same 44 every field in the panel uses.

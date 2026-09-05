@@ -16,6 +16,7 @@ import '../../models/file_entry.dart';
 import '../../services/file_label_service.dart';
 import '../../services/history_service.dart';
 import '../../services/metadata/metadata_writer.dart';
+import '../../services/metadata/nfo_writer.dart';
 import '../../services/scrape/media_code.dart';
 import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
@@ -44,7 +45,12 @@ Future<void> startScrapeFlow(
   FileEntry? target,
   required String baseDir,
 }) async {
-  final where = _resolveTarget(target, baseDir);
+  final where = await _resolveTarget(
+    target,
+    baseDir,
+    context.read<ScrapeService>().writer,
+  );
+  if (!context.mounted) return;
 
   final panel = await showScrapePanel(
     context,
@@ -160,6 +166,7 @@ Future<void> _commit(
     recipe: result.recipe,
     images: decision.images,
     imageNames: decision.imageNames,
+    kind: decision.kind,
     backupDir: backupDir,
     // The grid already downloaded these to draw thumbnails.
     imageCache: panel.cache,
@@ -213,22 +220,26 @@ class _ScrapeTarget {
   });
 }
 
-/// A focused video writes `<video base name>.nfo` beside itself; a folder (or
-/// no selection at all) writes `movie.nfo` inside it. Both are names Jellyfin
-/// accepts — see [MetadataWriter.nfoNameForVideo] for why the per-video form is
-/// preferred where there is a video to name it after.
-_ScrapeTarget _resolveTarget(FileEntry? target, String baseDir) {
+/// A folder (or no selection at all) writes `movie.nfo` inside it. A focused
+/// video writes into its own folder under the name Jellyfin will actually read
+/// there — `movie.nfo`, or `<video base name>.nfo` when the folder is mixed;
+/// [MetadataWriter.nfoNameFor] makes that call.
+Future<_ScrapeTarget> _resolveTarget(
+  FileEntry? target,
+  String baseDir,
+  MetadataWriter writer,
+) async {
   if (target != null && !target.isDirectory) {
     return _ScrapeTarget(
       targetDir: p.dirname(target.path),
-      nfoFileName: MetadataWriter.nfoNameForVideo(target.name),
+      nfoFileName: await writer.nfoNameFor(target.path),
       label: target.name,
     );
   }
   final dir = target?.path ?? baseDir;
   return _ScrapeTarget(
     targetDir: dir,
-    nfoFileName: 'movie.nfo',
+    nfoFileName: NfoKind.movie.fileName!,
     label: p.basename(dir),
   );
 }

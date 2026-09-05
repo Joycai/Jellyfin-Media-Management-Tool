@@ -25,6 +25,31 @@ enum NfoKind {
 
   const NfoKind(this.rootElement);
   final String rootElement;
+
+  /// The file name Jellyfin reads this kind from, or null where the name is
+  /// derived from the video (`<episode>.nfo`).
+  String? get fileName => switch (this) {
+    NfoKind.movie => 'movie.nfo',
+    NfoKind.tvShow => 'tvshow.nfo',
+    NfoKind.episode => null,
+  };
+
+  /// The kind an existing document's root element declares, or null when it
+  /// is not one this writer knows — a refresh must not turn a `<tvshow>` into
+  /// a `<movie>` just because nobody said otherwise.
+  static NfoKind? fromRootElement(String name) {
+    final lower = name.toLowerCase();
+    for (final kind in values) {
+      if (kind.rootElement == lower) return kind;
+    }
+    return null;
+  }
+
+  /// The kind implied by a file name: `tvshow.nfo` is a series, everything
+  /// else (`movie.nfo`, `<video>.nfo`) a movie — this app does not scrape
+  /// individual episodes.
+  static NfoKind forFileName(String nfoFileName) =>
+      nfoFileName.toLowerCase() == 'tvshow.nfo' ? tvShow : movie;
 }
 
 class NfoOptions {
@@ -55,7 +80,10 @@ class NfoOptions {
   final String uniqueIdType;
 
   /// File names written into `<art>`. These are the names
-  /// `MetadataWriter` saves the images under, so the two must agree.
+  /// `MetadataWriter` saves the images under, so the two must agree: the
+  /// defaults are `ImageRole.poster.stem` / `ImageRole.fanart.stem` plus
+  /// `.jpg`, restated here so this library stays independent of the scrape
+  /// package, and a test pins them together.
   final String posterFileName;
   final String fanartFileName;
 
@@ -64,8 +92,8 @@ class NfoOptions {
     this.titleIncludesYear = true,
     this.compactCodeInTitles = true,
     this.uniqueIdType = 'custom',
-    this.posterFileName = 'poster.jpg',
-    this.fanartFileName = 'fanart.jpg',
+    this.posterFileName = 'folder.jpg',
+    this.fanartFileName = 'backdrop.jpg',
   });
 }
 

@@ -1685,6 +1685,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrapeNfoBrowse => 'Browse…';
 
   @override
+  String get scrapeKindMovie => 'Movie';
+
+  @override
+  String get scrapeKindTvShow => 'TV show';
+
+  @override
   String scrapeNfoAutoDetected(Object name) {
     return 'Auto-detected from $name';
   }
@@ -1744,19 +1750,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrapeRoleOriginal => 'Keep original name';
 
   @override
-  String get scrapeRolePoster => 'Poster';
+  String get scrapeRolePoster => 'Poster (folder)';
 
   @override
-  String get scrapeRoleFanart => 'Backdrop (fanart)';
+  String get scrapeRoleFanart => 'Backdrop';
 
   @override
   String get scrapeRoleExtraFanart => 'Extra backdrop';
 
   @override
-  String get scrapeRoleLandscape => 'Landscape';
+  String get scrapeRoleThumb => 'Thumb (landscape)';
 
   @override
-  String get scrapeRoleThumb => 'Thumb';
+  String get scrapeRoleMenu => 'Menu';
 
   @override
   String get scrapeRoleBanner => 'Banner';

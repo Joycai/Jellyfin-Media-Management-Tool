@@ -187,6 +187,30 @@ void main() {
     });
   });
 
+  group('nfoNameFor', () {
+    test('a video alone in its folder gets movie.nfo', () async {
+      // The name Jellyfin documents for movies, and the one verified against
+      // a live library; <video>.nfo also works there but this is the default.
+      seedFile(fs, '/work/Title (2026)/Title.mkv', contents: 'v');
+      seedFile(fs, '/work/Title (2026)/Title.srt', contents: 's');
+      expect(
+        await writer.nfoNameFor('/work/Title (2026)/Title.mkv'),
+        'movie.nfo',
+      );
+    });
+
+    test('a video sharing its folder with another gets its own name', () async {
+      // A mixed folder to Jellyfin, where movie.nfo is not read at all.
+      seedFile(fs, '/work/mixed/A.mkv', contents: 'a');
+      seedFile(fs, '/work/mixed/B.mp4', contents: 'b');
+      expect(await writer.nfoNameFor('/work/mixed/A.mkv'), 'A.nfo');
+    });
+
+    test('a folder that cannot be listed counts as one video', () async {
+      expect(await writer.nfoNameFor('/missing/A.mkv'), 'movie.nfo');
+    });
+  });
+
   group('nfoNameForVideo', () {
     test('swaps the extension', () {
       expect(

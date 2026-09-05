@@ -269,7 +269,7 @@ void main() {
       // The page (and the age gate in front of it), but nothing for images —
       // which is the actual claim, so assert that rather than a bare count.
       expect(site.requests.where((r) => r.url.path.endsWith('.jpg')), isEmpty);
-      expect(fs.file('/work/a/poster.jpg').existsSync(), isFalse);
+      expect(fs.file('/work/a/folder.jpg').existsSync(), isFalse);
     });
 
     test('one bad title does not sink the batch', () async {
@@ -302,6 +302,30 @@ void main() {
       // manifest covers the operation the user thinks of as one action.
       expect(result.restored, hasLength(2));
       expect(result.created, isEmpty);
+    });
+
+    test('a refresh keeps a tvshow.nfo a <tvshow>', () async {
+      // The batch passes no kind, and nothing about the scraped page says
+      // "series" — the file itself has to be what decides, or every refresh
+      // would quietly turn a show into a movie.
+      final fs = newMemoryFs();
+      seedFile(
+        fs,
+        '/work/show/tvshow.nfo',
+        contents:
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<tvshow><title>S</title><!-- scraped from $_url --></tvshow>',
+      );
+      final service = _service(_Site(), fs: fs);
+
+      final result = await service.rescrapeAll(
+        await service.findRescrapeTargets('/work'),
+      );
+
+      expect(result.failed, 0);
+      final nfo = fs.file('/work/show/tvshow.nfo').readAsStringSync();
+      expect(nfo, contains('<tvshow>'));
+      expect(nfo, isNot(contains('<movie>')));
     });
   });
 
@@ -394,8 +418,11 @@ void main() {
       );
       expect(nfo, contains('<runtime>85</runtime>'));
       expect(nfo, contains('<studio>GIGA</studio>'));
-      expect(nfo, contains('<poster>poster.jpg</poster>'));
-      expect(fs.file('/work/poster.jpg').existsSync(), isTrue);
+      // `folder.jpg`, the primary-image name verified against Jellyfin — and
+      // the <art> block names the same file.
+      expect(nfo, contains('<poster>folder.jpg</poster>'));
+      expect(fs.file('/work/folder.jpg').existsSync(), isTrue);
+      expect(fs.file('/work/poster.jpg').existsSync(), isFalse);
     });
 
     test('sends the page as Referer when downloading images', () async {
@@ -495,7 +522,7 @@ void main() {
 
       expect(written.hasFailures, isFalse);
       expect(fs.file('/work/a.nfo').existsSync(), isTrue);
-      expect(fs.file('/work/poster.jpg').existsSync(), isFalse);
+      expect(fs.file('/work/folder.jpg').existsSync(), isFalse);
       // No artwork downloaded -> no <art> block promising files that are not
       // there.
       expect(
