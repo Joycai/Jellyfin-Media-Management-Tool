@@ -255,7 +255,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get video => 'Video';
 
   @override
-  String get appBrand => 'Jellyfin Organizer';
+  String get appBrand => 'Jellyfin Media Management Tool';
 
   @override
   String get tabFiles => 'Files';
@@ -1080,7 +1080,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get onboardingWelcomeTitle => 'Welcome to Jellyfin Organizer';
+  String get onboardingWelcomeTitle =>
+      'Welcome to Jellyfin Media Management Tool';
 
   @override
   String get onboardingWelcomeBody =>

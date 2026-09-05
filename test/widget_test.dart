@@ -36,7 +36,10 @@ void main() {
     await tester.pump();
 
     // Welcome copy from the first onboarding step.
-    expect(find.text('Welcome to Jellyfin Organizer'), findsOneWidget);
+    expect(
+      find.text('Welcome to Jellyfin Media Management Tool'),
+      findsOneWidget,
+    );
     expect(find.text('Get started →'), findsOneWidget);
   });
 }

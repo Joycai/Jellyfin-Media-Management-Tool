@@ -563,7 +563,7 @@ abstract class AppLocalizations {
   /// No description provided for @appBrand.
   ///
   /// In en, this message translates to:
-  /// **'Jellyfin Organizer'**
+  /// **'Jellyfin Media Management Tool'**
   String get appBrand;
 
   /// No description provided for @tabFiles.
@@ -1985,7 +1985,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingWelcomeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to Jellyfin Organizer'**
+  /// **'Welcome to Jellyfin Media Management Tool'**
   String get onboardingWelcomeTitle;
 
   /// No description provided for @onboardingWelcomeBody.

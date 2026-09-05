@@ -254,7 +254,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get video => '视频';
 
   @override
-  String get appBrand => '媒体库整理';
+  String get appBrand => 'Jellyfin Media Management Tool';
 
   @override
   String get tabFiles => '文件';
@@ -1067,7 +1067,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get onboardingWelcomeTitle => '欢迎使用 Jellyfin 整理器';
+  String get onboardingWelcomeTitle => '欢迎使用 Jellyfin Media Management Tool';
 
   @override
   String get onboardingWelcomeBody =>
