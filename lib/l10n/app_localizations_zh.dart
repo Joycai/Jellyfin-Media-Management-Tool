@@ -926,6 +926,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get glassStrong => '强烈';
 
   @override
+  String get performanceMode => '性能模式';
+
+  @override
+  String get performanceModeDesc =>
+      '关闭背景高斯模糊与大范围阴影。核显或高分辨率屏幕上值得开启——模糊每帧都要在全部像素上重算一遍。';
+
+  @override
   String get accentColor => '强调色';
 
   @override

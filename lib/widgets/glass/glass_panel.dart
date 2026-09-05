@@ -88,7 +88,13 @@ class GlassPanel extends StatelessWidget {
       child: child,
     );
 
-    final useBlur = blur && !_fillHidesBackdrop(gradient, resolvedFill);
+    // A zero sigma is not a way to switch the blur off: the filter still ends
+    // the render pass and reads back the whole target, which is the part that
+    // costs. Performance mode has to skip the widget, not neuter it.
+    final useBlur =
+        blur &&
+        glass.blurSigma > 0 &&
+        !_fillHidesBackdrop(gradient, resolvedFill);
 
     final panel = ClipRRect(
       borderRadius: borderRadius,
@@ -103,7 +109,10 @@ class GlassPanel extends StatelessWidget {
           : fillBox,
     );
 
-    if (!elevated) return panel;
+    // The shadow spreads a 28px blur over the panel's whole footprint every
+    // frame, so it goes with the backdrop filter rather than surviving it.
+    // The hairline border is what separates the panel once it is gone.
+    if (!elevated || glass.reduceEffects) return panel;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,

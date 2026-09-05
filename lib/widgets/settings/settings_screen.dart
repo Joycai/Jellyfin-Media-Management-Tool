@@ -54,7 +54,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   _Section _section = _Section.appearance;
 
-  static const String _appVersion = '0.16.1';
+  static const String _appVersion = '0.17.0';
 
   @override
   Widget build(BuildContext context) {
@@ -430,6 +430,18 @@ class _AppearanceSection extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        // Sits under the glass slider because it overrides it: the slider
+        // scales the blur, this removes it.
+        _Card(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: _ToggleRow(
+            label: l10n.performanceMode,
+            subtitle: l10n.performanceModeDesc,
+            value: settings.performanceMode,
+            onChanged: settings.setPerformanceMode,
+          ),
+        ),
         const SizedBox(height: 26),
         _SectionTitle(l10n.fontSection),
         _Card(
@@ -716,21 +728,47 @@ class _AccentSwatch extends StatelessWidget {
 
 class _ToggleRow extends StatelessWidget {
   final String label;
+
+  /// Optional second line, for a toggle whose label cannot carry the whole
+  /// trade-off on its own.
+  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
   const _ToggleRow({
     required this.label,
+    this.subtitle,
     required this.value,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 14)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
           Switch(value: value, onChanged: onChanged),
         ],
       ),

@@ -40,6 +40,7 @@ class SettingsService extends ChangeNotifier {
   bool _alwaysShowPreview = true;
   bool _lowConfidenceSuggestOnly = false;
   bool _showVideoThumbnails = true;
+  bool _performanceMode = false;
   bool _onboardingSeen = false;
 
   /// UI font id: 'system' | 'harmony' | 'misans' (see FontService).
@@ -73,6 +74,14 @@ class SettingsService extends ChangeNotifier {
   bool get alwaysShowPreview => _alwaysShowPreview;
   bool get lowConfidenceSuggestOnly => _lowConfidenceSuggestOnly;
   bool get showVideoThumbnails => _showVideoThumbnails;
+
+  /// Drop the blur and the large drop shadows from the glass chrome.
+  ///
+  /// Off by default: it is a deliberate trade of the app's look for frame
+  /// time, worth making only where the GPU cannot afford the chrome — a
+  /// backdrop blur costs area x devicePixelRatio squared, so the same window
+  /// is four times as expensive on a HiDPI display as on a 1:1 one.
+  bool get performanceMode => _performanceMode;
   bool get onboardingSeen => _onboardingSeen;
   String get fontChoice => _fontChoice;
 
@@ -149,6 +158,9 @@ class SettingsService extends ChangeNotifier {
           if (data['show_video_thumbnails'] is bool) {
             _showVideoThumbnails = data['show_video_thumbnails'] as bool;
           }
+          if (data['performance_mode'] is bool) {
+            _performanceMode = data['performance_mode'] as bool;
+          }
           if (data['onboarding_seen'] is bool) {
             _onboardingSeen = data['onboarding_seen'] as bool;
           }
@@ -218,6 +230,7 @@ class SettingsService extends ChangeNotifier {
         'always_show_preview': _alwaysShowPreview,
         'low_confidence_suggest_only': _lowConfidenceSuggestOnly,
         'show_video_thumbnails': _showVideoThumbnails,
+        'performance_mode': _performanceMode,
         'onboarding_seen': _onboardingSeen,
         'font_choice': _fontChoice,
         'favorites': _favorites,
@@ -334,6 +347,13 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setShowVideoThumbnails(bool v) async {
     _showVideoThumbnails = v;
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  Future<void> setPerformanceMode(bool v) async {
+    if (_performanceMode == v) return;
+    _performanceMode = v;
     _scheduleSave();
     notifyListeners();
   }

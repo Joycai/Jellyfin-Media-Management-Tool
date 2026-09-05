@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Flutter **desktop** app for Windows/macOS/Linux. `android/`/`ios/` are not present; the `web/` directory is a `flutter create` artifact and is not a supported target.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `0.16.1+12`.
+- Dart SDK `^3.10.4`. Current app version: `0.17.0+13`.
 
 ## Common commands
 
@@ -201,6 +201,17 @@ Platform quirks that shaped the code: Windows ignores the `height` argument (squ
 - `GlassDialogSurface` — the modal surface: backdrop blur under a near-opaque wash of `scheme.surface`, hairline stroke, deep shadow. Near-opaque on purpose — a dialog's job is to be read; the ~8% translucency is what keeps it glass.
 - `GlassAlertDialog` — drop-in `AlertDialog` replacement (same `icon`/`title`/`content`/`actions` shape, plus `maxWidth`).
 - `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` — context menus; items are icon + label + optional monospace trailing hint, with a primary-tinted pill (not a radio) marking the current state.
+
+**Performance mode** (`SettingsService.performanceMode` → `AppTheme(reduceEffects:)` → `GlassTheme.reduceEffects`) is the escape hatch for weak GPUs. It rides the theme rather than a Provider lookup per panel, since every glass widget already reads `GlassTheme`. It **skips the `BackdropFilter` widget** rather than passing a zero sigma — a zero-sigma filter still ends the render pass and reads back the whole target, which is where the cost is — and `_flatten` composites the translucent fills onto the backdrop gradient with `Color.alphaBlend` so the panels stay readable without one. The large `elevated` / dialog drop shadows go too. Note `GlassTheme.lerp` snaps `reduceEffects` at t = 0.5: `MaterialApp` animates a theme swap over `kThemeAnimationDuration`, and fading the blur out would mean running it on every frame of that fade.
+
+Measured on a Ryzen 9 9900X iGPU driving 3840x2160 (devicePixelRatio 2.0), switching sections with the window maximized: p50 raster **61.5 ms → 23.9 ms** and **12.5 → 24.8 fps**. Two things that measurement settled and that guesswork got wrong:
+
+- **The cost is area x devicePixelRatio squared, and superlinear past that.** The same blur is nearly free in a small window and catastrophic maximized, so any before/after has to be measured at the size the complaint came from.
+- **`BackdropGroup` / `backdropKey` buys nothing here.** Only one `BackdropFilterLayer` is ever live — the sidebar and the AI panel pass `blur: false` — so there is no second filter to share a backdrop snapshot with.
+
+Note the **dark theme pays for a near-fullscreen blur that the light theme does not**: the centre table's gradient is opaque in light (so `_fillHidesBackdrop` drops the filter) and translucent in dark (so it runs, over the whole centre pane).
+
+Performance mode is not the whole story. With the blur gone, a maximized 4K frame still spends ~17.5 ms in `FlutterCompositorPresentLayers` against 0.73 ms of Flutter-side command encoding, scaling linearly with pixel count — Impeller's OpenGL ES (ANGLE) backend running ~10 full-size render passes per frame against shared system memory. That floor caps the app near 57 fps at 4K regardless of what the widget tree does.
 
 `dialogTheme` / `popupMenuTheme` in `AppTheme` are fallbacks in the same palette so an unmigrated surface degrades to matching colors — they cannot add the backdrop blur, so they are a safety net, not an alternative.
 

@@ -14,6 +14,19 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
   final Color sidebarFill;
   final double blurSigma;
 
+  /// Performance mode: the expensive chrome is off.
+  ///
+  /// Carried on the theme rather than read from `SettingsService` at each call
+  /// site because every glass widget already reads [GlassTheme], and a
+  /// `context.watch` per panel would rebuild them all on any settings change.
+  ///
+  /// When true, [blurSigma] is 0 and the fills have been flattened to opaque
+  /// equivalents, so a widget must skip its [BackdropFilter] entirely rather
+  /// than pass a zero sigma: a zero-sigma filter still splits the render pass
+  /// and reads back the whole target, which is where the cost actually is.
+  /// Widgets also drop their large-radius drop shadows.
+  final bool reduceEffects;
+
   const GlassTheme({
     required this.backdrop,
     required this.panelFill,
@@ -21,6 +34,7 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
     required this.rowSelected,
     required this.sidebarFill,
     required this.blurSigma,
+    this.reduceEffects = false,
   });
 
   @override
@@ -31,6 +45,7 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
     Color? rowSelected,
     Color? sidebarFill,
     double? blurSigma,
+    bool? reduceEffects,
   }) => GlassTheme(
     backdrop: backdrop ?? this.backdrop,
     panelFill: panelFill ?? this.panelFill,
@@ -38,6 +53,7 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
     rowSelected: rowSelected ?? this.rowSelected,
     sidebarFill: sidebarFill ?? this.sidebarFill,
     blurSigma: blurSigma ?? this.blurSigma,
+    reduceEffects: reduceEffects ?? this.reduceEffects,
   );
 
   @override
@@ -50,6 +66,8 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
       rowSelected: Color.lerp(rowSelected, other.rowSelected, t)!,
       sidebarFill: Color.lerp(sidebarFill, other.sidebarFill, t)!,
       blurSigma: lerpDouble(blurSigma, other.blurSigma, t),
+      // A flag has no midpoint; snap at the halfway mark.
+      reduceEffects: t < 0.5 ? reduceEffects : other.reduceEffects,
     );
   }
 
@@ -80,22 +98,26 @@ class AppTheme {
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
+    bool reduceEffects = false,
   }) => _build(
     Brightness.light,
     accent: accent,
     glassIntensity: glassIntensity,
     fontFamily: fontFamily,
+    reduceEffects: reduceEffects,
   );
 
   static ThemeData dark({
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
+    bool reduceEffects = false,
   }) => _build(
     Brightness.dark,
     accent: accent,
     glassIntensity: glassIntensity,
     fontFamily: fontFamily,
+    reduceEffects: reduceEffects,
   );
 
   /// The last theme built for each brightness, with the inputs that produced
@@ -118,15 +140,17 @@ class AppTheme {
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
-  ) => '${accent?.toARGB32()}|$glassIntensity|$fontFamily';
+    bool reduceEffects,
+  ) => '${accent?.toARGB32()}|$glassIntensity|$fontFamily|$reduceEffects';
 
   static ThemeData _build(
     Brightness brightness, {
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
+    bool reduceEffects = false,
   }) {
-    final key = _memoKey(accent, glassIntensity, fontFamily);
+    final key = _memoKey(accent, glassIntensity, fontFamily, reduceEffects);
     final cached = _memo[brightness];
     if (cached != null && cached.$1 == key) return cached.$2;
     final built = _buildUncached(
@@ -134,6 +158,7 @@ class AppTheme {
       accent: accent,
       glassIntensity: glassIntensity,
       fontFamily: fontFamily,
+      reduceEffects: reduceEffects,
     );
     _memo[brightness] = (key, built);
     return built;
@@ -144,6 +169,7 @@ class AppTheme {
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
+    bool reduceEffects = false,
   }) {
     final isDark = brightness == Brightness.dark;
     final primary = accent ?? _blue;
@@ -165,12 +191,13 @@ class AppTheme {
     );
 
     final glass = isDark ? _darkGlass : _lightGlass;
-    final scaledGlass = glassIntensity == null
+    final blurred = glassIntensity == null
         ? glass
         // 70 (default mockup value) maps to the original 24 sigma; cap at 48.
         : glass.copyWith(
             blurSigma: (glassIntensity / 70 * 24).clamp(0.0, 48.0),
           );
+    final scaledGlass = reduceEffects ? _flatten(blurred) : blurred;
 
     // One control-metrics system for the whole app: 44px fields, 38px
     // buttons, radius 10. Defined here rather than per widget so a dialog, a
@@ -313,6 +340,34 @@ class AppTheme {
       'Source Han Sans SC',
       'WenQuanYi Micro Hei',
     ];
+  }
+
+  /// Strip [GlassTheme] down to what a weak GPU can draw for free.
+  ///
+  /// Dropping the blur alone would leave the panels translucent over the
+  /// backdrop gradient, which is the look the blur was there to soften — text
+  /// sits on a moving-coloured ground and the panel edges stop reading as
+  /// edges. So the fills are also composited against the gradient here and
+  /// handed over opaque: same colour on screen, no per-frame work.
+  ///
+  /// Opaque fills are worth more than the tidier look. `GlassPanel` skips its
+  /// filter when the fill already hides the backdrop, and an opaque panel also
+  /// lets the rasteriser stop at the panel instead of drawing everything under
+  /// it — so this removes overdraw the blur was paying for twice.
+  ///
+  /// The backdrop's own stops are the reference: the sidebar sits at the
+  /// gradient's start, the centre card over its middle. Deriving them rather
+  /// than hardcoding means editing the gradient keeps performance mode honest.
+  static GlassTheme _flatten(GlassTheme glass) {
+    final stops = glass.backdrop.colors;
+    final start = stops.first;
+    final middle = stops[stops.length ~/ 2];
+    return glass.copyWith(
+      blurSigma: 0,
+      panelFill: Color.alphaBlend(glass.panelFill, middle),
+      sidebarFill: Color.alphaBlend(glass.sidebarFill, start),
+      reduceEffects: true,
+    );
   }
 
   static const GlassTheme _darkGlass = GlassTheme(

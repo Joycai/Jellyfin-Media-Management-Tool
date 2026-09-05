@@ -268,6 +268,8 @@
   "glassNone": "无",
   "glassSoft": "柔和",
   "glassStrong": "强烈",
+  "performanceMode": "性能模式",
+  "performanceModeDesc": "关闭背景高斯模糊与大范围阴影。核显或高分辨率屏幕上值得开启——模糊每帧都要在全部像素上重算一遍。",
   "accentColor": "强调色",
   "behavior": "行为",
   "behaviorAutoConnect": "启动时自动连接 AI 服务",

@@ -268,6 +268,8 @@
   "glassNone": "None",
   "glassSoft": "Soft",
   "glassStrong": "Strong",
+  "performanceMode": "Performance mode",
+  "performanceModeDesc": "Turn off the backdrop blur and the large shadows. Worth it on integrated graphics or a high-resolution display, where the blur is redrawn over every pixel each frame.",
   "accentColor": "Accent color",
   "behavior": "Behavior",
   "behaviorAutoConnect": "Auto-connect to AI service on launch",

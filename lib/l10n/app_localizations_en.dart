@@ -932,6 +932,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get glassStrong => 'Strong';
 
   @override
+  String get performanceMode => 'Performance mode';
+
+  @override
+  String get performanceModeDesc =>
+      'Turn off the backdrop blur and the large shadows. Worth it on integrated graphics or a high-resolution display, where the blur is redrawn over every pixel each frame.';
+
+  @override
   String get accentColor => 'Accent color';
 
   @override
