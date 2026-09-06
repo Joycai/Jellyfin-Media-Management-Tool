@@ -302,6 +302,8 @@
   "shortcutSettings": "Settings",
   "aboutTagline": "AI-driven media organizer for Jellyfin.",
   "aboutJellyfinNaming": "Jellyfin naming guide",
+  "aboutGpu": "Graphics adapter",
+  "aboutGpuHint": "The GPU Windows hands this app. Change it under Settings → System → Display → Graphics, then restart the app.",
   "langHeaderSubtitle": "Switching also affects the AI's output language",
   "langCurrent": "Current",
   "langImportArb": "Import translation file (.arb)",

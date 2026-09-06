@@ -12,6 +12,7 @@ import '../../models/scrape_recipe.dart';
 import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/font_service.dart';
+import '../../services/gpu_info.dart';
 import '../../services/history_service.dart';
 import '../../services/scrape/cookie_store.dart';
 import '../../services/scrape/recipe_store.dart';
@@ -54,7 +55,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   _Section _section = _Section.appearance;
 
-  static const String _appVersion = '0.17.0';
+  static const String _appVersion = '0.18.0';
 
   @override
   Widget build(BuildContext context) {
@@ -1872,6 +1873,9 @@ class _AboutSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    // Null off Windows, or when the DXGI query failed — the row is then simply
+    // absent rather than showing an apology.
+    final gpu = GpuInfo.current();
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
       children: [
@@ -1924,6 +1928,40 @@ class _AboutSection extends StatelessWidget {
                 l10n.aboutTagline,
                 style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
               ),
+              if (gpu != null) ...[
+                const SizedBox(height: 14),
+                Tooltip(
+                  message: l10n.aboutGpuHint,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.memory_outlined,
+                        size: 15,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${l10n.aboutGpu}: ',
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          gpu.summary,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
               Row(
                 children: [

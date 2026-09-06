@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Flutter **desktop** app for Windows/macOS/Linux. `android/`/`ios/` are not present; the `web/` directory is a `flutter create` artifact and is not a supported target.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `0.17.0+13`.
+- Dart SDK `^3.10.4`. Current app version: `0.18.0+14`.
 
 ## Common commands
 
@@ -52,7 +52,9 @@ Nine `ChangeNotifier`s are registered in `lib/main.dart`:
 
 [apply_controller.dart](lib/services/apply_controller.dart) is also a `ChangeNotifier` but is **not** registered — one instance is created per apply and owned by its `OrganizerTask`.
 
-Pure/plain (no Provider): the `AiProvider` implementations, `AiHttp`, `AiCancelToken`, `AiPrompt`, [path_safety.dart](lib/services/path_safety.dart), [organize_service.dart](lib/services/organize_service.dart) (a single top-level function), and all models.
+Pure/plain (no Provider): the `AiProvider` implementations, `AiHttp`, `AiCancelToken`, `AiPrompt`, [path_safety.dart](lib/services/path_safety.dart), [organize_service.dart](lib/services/organize_service.dart) (a single top-level function), [gpu_info.dart](lib/services/gpu_info.dart), and all models.
+
+[gpu_info.dart](lib/services/gpu_info.dart) names the graphics adapter shown on the About page, by enumerating DXGI through raw `dart:ffi` COM vtable calls (Windows only; null everywhere else, and the row is then absent). It reports the first **hardware** adapter because that is the default DXGI adapter for the process, which is what ANGLE builds Flutter's D3D11 device on — and what Windows' per-app GPU preference reorders. So the answer tracks that setting rather than just listing the machine's cards. It is inferred, not read back from the live GL context, which no Dart API exposes. A software rasterizer is kept only as a fallback when there is no real card, and every failure yields null: a diagnostic must never take down the screen that displays it.
 
 ### The organize pipeline
 

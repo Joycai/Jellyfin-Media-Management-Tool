@@ -1043,6 +1043,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutJellyfinNaming => 'Jellyfin naming guide';
 
   @override
+  String get aboutGpu => 'Graphics adapter';
+
+  @override
+  String get aboutGpuHint =>
+      'The GPU Windows hands this app. Change it under Settings → System → Display → Graphics, then restart the app.';
+
+  @override
   String get langHeaderSubtitle =>
       'Switching also affects the AI\'s output language';
 
