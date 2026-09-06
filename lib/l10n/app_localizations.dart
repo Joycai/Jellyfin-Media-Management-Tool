@@ -1916,6 +1916,18 @@ abstract class AppLocalizations {
   /// **'Jellyfin naming guide'**
   String get aboutJellyfinNaming;
 
+  /// No description provided for @aboutGpu.
+  ///
+  /// In en, this message translates to:
+  /// **'Graphics adapter'**
+  String get aboutGpu;
+
+  /// No description provided for @aboutGpuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The GPU Windows hands this app. Change it under Settings → System → Display → Graphics, then restart the app.'**
+  String get aboutGpuHint;
+
   /// No description provided for @langHeaderSubtitle.
   ///
   /// In en, this message translates to:

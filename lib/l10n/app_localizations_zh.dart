@@ -1033,6 +1033,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutJellyfinNaming => 'Jellyfin 命名规范';
 
   @override
+  String get aboutGpu => '显卡';
+
+  @override
+  String get aboutGpuHint =>
+      'Windows 分配给本应用的 GPU。可在「设置 → 系统 → 屏幕 → 显示卡」中更改，改后需重启应用。';
+
+  @override
   String get langHeaderSubtitle => '切换会同步影响 AI 输出语言';
 
   @override

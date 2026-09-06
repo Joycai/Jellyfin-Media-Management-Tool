@@ -302,6 +302,8 @@
   "shortcutSettings": "设置",
   "aboutTagline": "面向 Jellyfin 的 AI 媒体整理工具。",
   "aboutJellyfinNaming": "Jellyfin 命名规范",
+  "aboutGpu": "显卡",
+  "aboutGpuHint": "Windows 分配给本应用的 GPU。可在「设置 → 系统 → 屏幕 → 显示卡」中更改，改后需重启应用。",
   "langHeaderSubtitle": "切换会同步影响 AI 输出语言",
   "langCurrent": "当前",
   "langImportArb": "导入翻译文件 (.arb)",

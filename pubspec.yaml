@@ -37,6 +37,9 @@ dependencies:
   crypto: ^3.0.6
   # Native window control (minimum window size).
   window_manager: ^0.5.2
+  # Raw FFI into dxgi.dll to name the graphics adapter on the About page
+  # (already in the lock file transitively; declared because we import it).
+  ffi: ^2.1.0
   # Unzipping downloaded font packages (HarmonyOS Sans / MiSans).
   archive: ^4.0.9
   # Metadata scraping: HTML5 parsing with CSS-selector queries for the
