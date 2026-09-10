@@ -23,20 +23,26 @@ class AiHttp {
   /// Calls [send] up to [maxAttempts] times with exponential backoff between
   /// retries. Retries on:
   /// - [_retryableStatuses]
-  /// - [TimeoutException] and [SocketException] (network blips)
+  /// - [TimeoutException], unless [retryTimeouts] is false
+  /// - [SocketException] (network blips)
   ///
   /// Backoff doubles each retry starting from [initialBackoff]. Honors the
   /// `Retry-After` header on the last response when present (as an integer
   /// seconds value).
   ///
+  /// Pass `retryTimeouts: false` for a generation request. A timeout there
+  /// usually means the server is still working, and a retry makes it start
+  /// the same generation again while the first one keeps running.
+  ///
   /// A cancelled [cancelToken] aborts the loop with [AiCancelled] — checked
   /// before every attempt and after every backoff so a cancel that lands
   /// mid-backoff doesn't wait for the next request to be sent.
-  static Future<http.Response> withRetry(
-    Future<http.Response> Function() send, {
+  static Future<T> withRetry<T extends http.BaseResponse>(
+    Future<T> Function() send, {
     int maxAttempts = 3,
     Duration initialBackoff = const Duration(milliseconds: 500),
     AiCancelToken? cancelToken,
+    bool retryTimeouts = true,
   }) async {
     var backoff = initialBackoff;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -45,13 +51,17 @@ class AiHttp {
         final res = await send();
         if (_retryableStatuses.contains(res.statusCode) &&
             attempt < maxAttempts) {
+          // An unread streamed body would hold its connection open.
+          if (res is http.StreamedResponse) {
+            await res.stream.drain<void>().catchError((_) {});
+          }
           await Future.delayed(_retryAfter(res) ?? backoff);
           backoff *= 2;
           continue;
         }
         return res;
       } on TimeoutException {
-        if (attempt == maxAttempts) rethrow;
+        if (!retryTimeouts || attempt == maxAttempts) rethrow;
         await Future.delayed(backoff);
         backoff *= 2;
       } on SocketException {
@@ -98,7 +108,7 @@ class AiHttp {
     return 'HTTP ${res.statusCode}: $message';
   }
 
-  static Duration? _retryAfter(http.Response res) {
+  static Duration? _retryAfter(http.BaseResponse res) {
     final header = res.headers['retry-after'];
     if (header == null) return null;
     final seconds = int.tryParse(header.trim());

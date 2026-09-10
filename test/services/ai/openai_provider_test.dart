@@ -209,4 +209,162 @@ void main() {
     expect(limits.source, 'LM Studio');
     expect(limits.isModelMaximum, isFalse);
   });
+
+  test('streams the reply, keeping content and dropping reasoning', () async {
+    late Map<String, dynamic> sent;
+    final provider = OpenAiProvider(
+      _config('streamed'),
+      client: MockClient((request) async {
+        sent = _body(request);
+        return http.Response(
+          [
+            _event({
+              'choices': [
+                {
+                  'delta': {
+                    'role': 'assistant',
+                    'reasoning_content': 'A greeting {with braces}.',
+                  },
+                  'finish_reason': null,
+                },
+              ],
+            }),
+            _event({
+              'choices': [
+                {
+                  'delta': {'content': '{"reply": '},
+                  'finish_reason': null,
+                },
+              ],
+            }),
+            _event({
+              'choices': [
+                {
+                  'delta': {'content': '"Hi"}'},
+                  'finish_reason': 'stop',
+                },
+              ],
+            }),
+            _event({
+              'choices': <Object>[],
+              'usage': {'prompt_tokens': 91, 'completion_tokens': 74},
+            }),
+            'data: [DONE]\n\n',
+          ].join(),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    final response = await provider.complete(
+      systemPrompt: 's',
+      userPrompt: 'u',
+    );
+
+    expect(sent['stream'], isTrue);
+    expect(sent['stream_options'], {'include_usage': true});
+    expect(response.text, '{"reply": "Hi"}');
+    expect(response.finishReason, 'stop');
+    expect(response.promptTokens, 91);
+    expect(response.completionTokens, 74);
+  });
+
+  test('retries without stream_options when a server refuses them', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiProvider(
+      _config('nostreamoptions'),
+      client: MockClient((request) async {
+        final body = _body(request);
+        bodies.add(body);
+        return body.containsKey('stream_options')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message':
+                        'Unrecognized request argument supplied: stream_options',
+                  },
+                }),
+                400,
+              )
+            : _reply('{}');
+      }),
+    );
+
+    await provider.complete(systemPrompt: 's', userPrompt: 'u');
+
+    expect(bodies, hasLength(2));
+    expect(bodies.last['stream'], isTrue);
+  });
+
+  test('a stream that goes silent fails once, without a retry', () async {
+    var sends = 0;
+    final provider = OpenAiProvider(
+      _config('silent'),
+      idleTimeout: const Duration(milliseconds: 50),
+      client: MockClient.streaming((request, _) async {
+        sends++;
+        return http.StreamedResponse(
+          // One event, then nothing, and the connection never closes.
+          Stream<List<int>>.multi(
+            (controller) => controller.add(
+              utf8.encode(
+                _event({
+                  'choices': [
+                    {
+                      'delta': {'content': '{"actions": ['},
+                    },
+                  ],
+                }),
+              ),
+            ),
+          ),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await expectLater(
+      provider.complete(systemPrompt: 's', userPrompt: 'u'),
+      throwsA(
+        isA<AiException>().having(
+          (e) => e.message,
+          'message',
+          contains('stopped sending'),
+        ),
+      ),
+    );
+    expect(sends, 1);
+  });
+
+  test('a server that never starts answering times out once', () async {
+    var sends = 0;
+    final provider = OpenAiProvider(
+      _config('mute'),
+      firstEventTimeout: const Duration(milliseconds: 50),
+      client: MockClient.streaming((request, _) async {
+        sends++;
+        return http.StreamedResponse(
+          Stream<List<int>>.multi((_) {}),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await expectLater(
+      provider.complete(systemPrompt: 's', userPrompt: 'u'),
+      throwsA(
+        isA<AiException>().having(
+          (e) => e.message,
+          'message',
+          contains('No response'),
+        ),
+      ),
+    );
+    expect(sends, 1);
+  });
 }
+
+String _event(Map<String, Object?> event) => 'data: ${jsonEncode(event)}\n\n';
