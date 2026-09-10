@@ -11,6 +11,23 @@ import 'ai_provider.dart';
 /// steps down this list when a server rejects the current form.
 enum _JsonMode { object, schema, none }
 
+/// A way of asking a hybrid model for no reasoning, in the order they are
+/// tried. No one way works on every server, and several are silently ignored
+/// rather than rejected, so each is judged by what comes back: a reply that
+/// still reasons moves the next request on to the next way.
+enum _ThinkingOff {
+  /// `chat_template_kwargs.enable_thinking = false`, which llama.cpp and vLLM
+  /// hand to the chat template.
+  templateKwargs,
+
+  /// `reasoning_effort: "none"` — Ollama's `/v1`, and llama.cpp and vLLM too.
+  effortNone,
+
+  /// Qwen3's `/no_think` soft switch. Prompt text, so it reaches the model
+  /// through any server, including one with no documented reasoning control.
+  softSwitch,
+}
+
 /// Talks to any OpenAI-compatible `/chat/completions` endpoint.
 class OpenAiProvider implements AiProvider {
   @override
@@ -44,8 +61,16 @@ class OpenAiProvider implements AiProvider {
   /// `max_completion_tokens`, as OpenAI's reasoning models do.
   static final Set<String> _wantsMaxCompletionTokens = {};
 
-  /// Server + model pairs that refused `stream_options`.
-  static final Set<String> _rejectsStreamOptions = {};
+  /// Optional fields each server + model refused by name: sampling fields the
+  /// server does not know (`top_k` on OpenAI's own API), fields a reasoning
+  /// model will not take (`temperature`), `stream_options`.
+  static final Map<String, Set<String>> _rejectedFields = {};
+
+  /// Which [_ThinkingOff] way each server + model is on.
+  static final Map<String, int> _thinkingOffAttempts = {};
+
+  /// The server kind behind each API root, detected once per session.
+  static final Map<String, Future<ServerKind>> _serverKinds = {};
 
   /// Normalized base URL ending in `/v1` (or whatever versioned suffix the
   /// user supplied). Used to derive `/chat/completions` and `/models`.
@@ -81,8 +106,7 @@ class OpenAiProvider implements AiProvider {
     };
   }
 
-  /// Performs one streamed completion, stepping down the JSON modes on
-  /// rejection.
+  /// Performs one streamed completion.
   ///
   /// **Why a stream.** A plan is long — every file comes back as an action —
   /// and a local model writes it slowly: a 27B model on LM Studio took 88 s
@@ -91,10 +115,17 @@ class OpenAiProvider implements AiProvider {
   /// the server start the same generation again while the abandoned one was
   /// still running. A stream is timed on silence instead — [firstEventTimeout]
   /// for loading and reading the prompt, [idleTimeout] for any later gap.
-  /// Reasoning tokens stream too, so a slow model that is working never trips
-  /// it and a hung one still fails. Closing the stream, on timeout or cancel,
-  /// is also what makes the server stop generating. A timeout is never
-  /// retried.
+  /// Closing the stream, on timeout or cancel, is also what makes the server
+  /// stop generating. A timeout is never retried.
+  ///
+  /// **Sampling.** Every value the resolved preset holds is sent explicitly,
+  /// neutral ones included: servers fill gaps with their own defaults
+  /// (llama.cpp `min_p 0.05`; Ollama forces `temperature` and `top_p` to 1.0
+  /// when missing), so an omitted `min_p: 0` is not a preset at all. A field
+  /// a server rejects by name is dropped and remembered.
+  ///
+  /// **Reasoning.** With thinking off, a hybrid family is asked for no
+  /// reasoning in the way its server understands — see [_ThinkingOff].
   ///
   /// **JSON mode.** `response_format: json_object` is OpenAI's form and most
   /// servers take it, but not all: LM Studio answers it with a 400
@@ -112,23 +143,58 @@ class OpenAiProvider implements AiProvider {
     // A cancellable call goes through the token's own client so cancelling can
     // close the socket; otherwise reuse the shared pooled client.
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
+    final sampling = config.sampling;
+    final values = sampling.values;
+    final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
+    final offWays =
+        !sampling.thinking &&
+            (control == ThinkingControl.templateSwitch ||
+                control == ThinkingControl.softSwitch)
+        ? _thinkingOffWays(control, await detectServerKind())
+        : const <_ThinkingOff>[];
+    final rejected = _rejectedFields.putIfAbsent(_cacheKey, () => <String>{});
     final maxTokens = config.maxOutputTokens;
     var mode = _acceptedJsonModes[_cacheKey] ?? _JsonMode.object;
     var maxCompletionTokens = _wantsMaxCompletionTokens.contains(_cacheKey);
-    var streamOptions = !_rejectsStreamOptions.contains(_cacheKey);
 
     while (true) {
+      final attempt = _thinkingOffAttempts[_cacheKey] ?? 0;
+      final off = attempt < offWays.length ? offWays[attempt] : null;
+
+      final optional = <String, Object>{
+        'temperature': ?values.temperature,
+        'top_p': ?values.topP,
+        'top_k': ?values.topK,
+        'min_p': ?values.minP,
+        'presence_penalty': ?values.presencePenalty,
+        'repeat_penalty': ?values.repeatPenalty,
+        // gpt-oss cannot stop reasoning; asked for none, it gets the least.
+        if (control == ThinkingControl.effortOnly && !config.thinkingEnabled)
+          'reasoning_effort': 'low',
+        if (off == _ThinkingOff.templateKwargs)
+          'chat_template_kwargs': const {'enable_thinking': false},
+        if (off == _ThinkingOff.effortNone) 'reasoning_effort': 'none',
+        // Asks for token usage in the final chunk; a stream omits it otherwise.
+        'stream_options': const {'include_usage': true},
+      }..removeWhere((key, _) => rejected.contains(key));
+
+      final system = switch ((off, control)) {
+        (_ThinkingOff.softSwitch, _) => '$systemPrompt\n\n/no_think',
+        // Gemma 4 reasons only when the system prompt opens with this token.
+        (_, ThinkingControl.promptToken) when config.thinkingEnabled =>
+          '<|think|>\n$systemPrompt',
+        _ => systemPrompt,
+      };
+
       final body = jsonEncode({
         'model': config.model,
-        'temperature': config.temperature,
+        ...optional,
         (maxCompletionTokens ? 'max_completion_tokens' : 'max_tokens'):
             ?maxTokens,
         ...?_responseFormat(mode),
         'stream': true,
-        // Asks for token usage in the final chunk; a stream omits it otherwise.
-        if (streamOptions) 'stream_options': const {'include_usage': true},
         'messages': [
-          {'role': 'system', 'content': systemPrompt},
+          {'role': 'system', 'content': system},
           {'role': 'user', 'content': userPrompt},
         ],
       });
@@ -160,7 +226,11 @@ class OpenAiProvider implements AiProvider {
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         _acceptedJsonModes[_cacheKey] = mode;
-        return _read(res, cancelToken);
+        final response = await _read(res, cancelToken);
+        if (off == null || !response.reasoned) return response;
+        // This way of asking was ignored; the next request tries the next.
+        _thinkingOffAttempts[_cacheKey] = attempt + 1;
+        return response.withThinkingOffPending(attempt + 1 < offWays.length);
       }
 
       String error;
@@ -171,15 +241,7 @@ class OpenAiProvider implements AiProvider {
       }
       if (res.statusCode == 400 || res.statusCode == 422) {
         final detail = error.toLowerCase();
-        if (streamOptions && detail.contains('stream_options')) {
-          streamOptions = false;
-          _rejectsStreamOptions.add(_cacheKey);
-          continue;
-        }
-        if (mode != _JsonMode.none && _namesResponseFormat(detail)) {
-          mode = _JsonMode.values[mode.index + 1];
-          continue;
-        }
+        // Checked before the field names: this message also says `max_tokens`.
         if (maxTokens != null &&
             !maxCompletionTokens &&
             detail.contains('max_completion_tokens')) {
@@ -187,10 +249,36 @@ class OpenAiProvider implements AiProvider {
           _wantsMaxCompletionTokens.add(_cacheKey);
           continue;
         }
+        if (mode != _JsonMode.none && _namesResponseFormat(detail)) {
+          mode = _JsonMode.values[mode.index + 1];
+          continue;
+        }
+        final refused = optional.keys.where(detail.contains).firstOrNull;
+        if (refused != null) {
+          final isThinkingOffField =
+              refused == 'chat_template_kwargs' ||
+              (refused == 'reasoning_effort' && off == _ThinkingOff.effortNone);
+          if (isThinkingOffField) {
+            _thinkingOffAttempts[_cacheKey] = attempt + 1;
+          } else {
+            rejected.add(refused);
+          }
+          continue;
+        }
       }
       throw AiException(error);
     }
   }
+
+  static List<_ThinkingOff> _thinkingOffWays(
+    ThinkingControl control,
+    ServerKind kind,
+  ) => [
+    // Ollama's `/v1` passes nothing through to the template.
+    if (kind != ServerKind.ollama) _ThinkingOff.templateKwargs,
+    _ThinkingOff.effortNone,
+    if (control == ThinkingControl.softSwitch) _ThinkingOff.softSwitch,
+  ];
 
   static bool _namesResponseFormat(String detail) =>
       detail.contains('response_format') ||
@@ -218,10 +306,10 @@ class OpenAiProvider implements AiProvider {
 
   /// Collects a streamed completion from its server-sent events.
   ///
-  /// Only `delta.content` is kept: reasoning arrives as `reasoning_content`
-  /// and is not part of the answer. A body that is not an event stream — a
-  /// server or proxy that ignored `stream: true` — is parsed as one ordinary
-  /// JSON completion instead.
+  /// Only `delta.content` is the answer; reasoning arrives as
+  /// `reasoning_content` (or `reasoning`) and is noted, not kept. A body that
+  /// is not an event stream — a server or proxy that ignored `stream: true` —
+  /// is parsed as one ordinary JSON completion instead.
   Future<AiResponse> _read(
     http.StreamedResponse res,
     AiCancelToken? cancelToken,
@@ -237,6 +325,7 @@ class OpenAiProvider implements AiProvider {
     String? finishReason;
     var promptTokens = 0;
     var completionTokens = 0;
+    var reasoned = false;
     var started = false;
 
     try {
@@ -284,8 +373,12 @@ class OpenAiProvider implements AiProvider {
         if (choices is List && choices.isNotEmpty && choices.first is Map) {
           final choice = choices.first as Map;
           final delta = choice['delta'];
-          if (delta is Map && delta['content'] is String) {
-            content.write(delta['content']);
+          if (delta is Map) {
+            if (delta['content'] is String) content.write(delta['content']);
+            if (_hasText(delta['reasoning_content']) ||
+                _hasText(delta['reasoning'])) {
+              reasoned = true;
+            }
           }
           if (choice['finish_reason'] is String) {
             finishReason = choice['finish_reason'] as String;
@@ -297,6 +390,7 @@ class OpenAiProvider implements AiProvider {
               (usage['prompt_tokens'] as num?)?.toInt() ?? promptTokens;
           completionTokens =
               (usage['completion_tokens'] as num?)?.toInt() ?? completionTokens;
+          if (_reasoningTokens(usage) > 0) reasoned = true;
         }
       }
     } on AiException {
@@ -314,11 +408,13 @@ class OpenAiProvider implements AiProvider {
     if (content.isEmpty && finishReason == null) {
       throw const AiException('Empty response from model.');
     }
+    final (text, inline) = splitReasoning(content.toString());
     return AiResponse(
-      text: content.toString(),
+      text: text,
       promptTokens: promptTokens,
       completionTokens: completionTokens,
       finishReason: finishReason,
+      reasoned: reasoned || inline,
     );
   }
 
@@ -337,9 +433,10 @@ class OpenAiProvider implements AiProvider {
     final message = choice['message'];
     final content = message is Map ? message['content'] as String? : null;
     final usage = (json as Map)['usage'];
+    final (text, inline) = splitReasoning(content ?? '');
 
     return AiResponse(
-      text: content ?? '',
+      text: text,
       promptTokens: usage is Map
           ? (usage['prompt_tokens'] as num?)?.toInt() ?? 0
           : 0,
@@ -347,7 +444,52 @@ class OpenAiProvider implements AiProvider {
           ? (usage['completion_tokens'] as num?)?.toInt() ?? 0
           : 0,
       finishReason: choice['finish_reason'] as String?,
+      reasoned:
+          inline ||
+          (message is Map && _hasText(message['reasoning_content'])) ||
+          (usage is Map && _reasoningTokens(usage) > 0),
     );
+  }
+
+  /// Separates a leading think block from the answer.
+  ///
+  /// Some servers pass reasoning inline in the content rather than in
+  /// `reasoning_content`, and a brace inside it derails every JSON parser.
+  /// Only a block at the very start counts — a tag later on is the model's
+  /// own text. The Thinking-2507 models can omit the opening tag, so a lone
+  /// `</think>` closes a leading block too. Returns the answer, and whether
+  /// the block held any reasoning (Qwen3's `/no_think` leaves an empty one).
+  static (String, bool) splitReasoning(String content) {
+    const open = '<think>';
+    const close = '</think>';
+    final trimmed = content.trimLeft();
+    if (trimmed.startsWith(open)) {
+      final end = trimmed.indexOf(close);
+      if (end == -1) return ('', trimmed.length > open.length);
+      final inner = trimmed.substring(open.length, end);
+      return (
+        trimmed.substring(end + close.length).trimLeft(),
+        inner.trim().isNotEmpty,
+      );
+    }
+    final end = content.indexOf(close);
+    if (end != -1) {
+      return (
+        content.substring(end + close.length).trimLeft(),
+        content.substring(0, end).trim().isNotEmpty,
+      );
+    }
+    return (content, false);
+  }
+
+  static bool _hasText(Object? value) =>
+      value is String && value.trim().isNotEmpty;
+
+  static int _reasoningTokens(Map<dynamic, dynamic> usage) {
+    final details = usage['completion_tokens_details'];
+    return details is Map
+        ? (details['reasoning_tokens'] as num?)?.toInt() ?? 0
+        : 0;
   }
 
   static String _noResponse(Duration timeout) =>
@@ -376,6 +518,34 @@ class OpenAiProvider implements AiProvider {
       ModelLimits.fromOllamaShow(answers[3]),
       ModelLimits.fromOpenAiModels(answers[4], model),
     ]);
+  }
+
+  /// Each server answers one route only it serves: LM Studio lists models
+  /// with their load state, Ollama and vLLM report a version on different
+  /// paths, llama.cpp exposes its launch settings. Detected once per API root
+  /// for the session.
+  @override
+  Future<ServerKind> detectServerKind() =>
+      _serverKinds[_root] ??= _probeServerKind();
+
+  Future<ServerKind> _probeServerKind() async {
+    final answers = await Future.wait([
+      _probe(Uri.parse('$_root/api/v0/models')),
+      _probe(Uri.parse('$_root/api/version')),
+      _probe(Uri.parse('$_root/props')),
+      _probe(Uri.parse('$_root/version')),
+    ]);
+    bool has(Object? json, String key) => json is Map && json[key] != null;
+    if (answers[0] case final Map<dynamic, dynamic> models
+        when models['data'] is List) {
+      return ServerKind.lmStudio;
+    }
+    if (has(answers[1], 'version')) return ServerKind.ollama;
+    if (has(answers[2], 'default_generation_settings')) {
+      return ServerKind.llamaCpp;
+    }
+    if (has(answers[3], 'version')) return ServerKind.vllm;
+    return ServerKind.unknown;
   }
 
   /// One discovery request: decoded JSON, or null for anything else. The

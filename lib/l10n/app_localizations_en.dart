@@ -669,6 +669,75 @@ class AppLocalizationsEn extends AppLocalizations {
   String get useDetectedValue => 'Use';
 
   @override
+  String get samplingTitle => 'Sampling';
+
+  @override
+  String samplingPresetMatched(Object name) {
+    return 'Recommended values for $name';
+  }
+
+  @override
+  String get samplingPresetSource => 'Source';
+
+  @override
+  String get samplingNoPreset =>
+      'Unrecognized model family: the server\'s defaults apply';
+
+  @override
+  String get samplingReset => 'Reset to recommended';
+
+  @override
+  String get samplingDefault => 'Default';
+
+  @override
+  String get samplingTopP => 'Top P';
+
+  @override
+  String get samplingTopK => 'Top K';
+
+  @override
+  String get samplingMinP => 'Min P';
+
+  @override
+  String get samplingPresencePenalty => 'Presence penalty';
+
+  @override
+  String get samplingRepeatPenalty => 'Repeat penalty';
+
+  @override
+  String get samplingNote =>
+      'Leave a field blank to use the recommended value.';
+
+  @override
+  String get thinkingMode => 'Thinking mode';
+
+  @override
+  String get thinkingModeHint =>
+      'Off by default: reasoning makes small local models far slower and prone to going in circles.';
+
+  @override
+  String get thinkingAlwaysOn => 'This model can only run with reasoning on.';
+
+  @override
+  String get thinkingEffortOnly =>
+      'This model\'s reasoning cannot be turned off; with thinking off it runs at low effort.';
+
+  @override
+  String get thinkingVerifiedOff => 'Last test: reasoning was off.';
+
+  @override
+  String get thinkingStillOn =>
+      'Last test: the model still reasoned. Turn thinking off in the server\'s own model settings (in LM Studio: Enable Thinking).';
+
+  @override
+  String get presetNeedsSystemPrompt =>
+      'This model\'s card requires its own system prompt; results may suffer without it.';
+
+  @override
+  String get ollamaIgnoresSampling =>
+      'Ollama\'s OpenAI-compatible API ignores Top K, Min P and Repeat penalty; set them in the Modelfile instead.';
+
+  @override
   String get tokensThisSession => 'Tokens this session';
 
   @override

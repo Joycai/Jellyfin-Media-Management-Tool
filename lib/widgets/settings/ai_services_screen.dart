@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/ai_service_profile.dart';
@@ -322,7 +323,10 @@ class _ServiceDetailState extends State<_ServiceDetail> {
   late TextEditingController _model;
   late TextEditingController _contextWindow;
   late TextEditingController _maxOutput;
-  late double _temperature;
+
+  /// Sampling overrides as typed. Blank follows the model family's preset.
+  late final Map<_Sampling, TextEditingController> _sampling;
+  late bool _thinking;
   bool _obscureKey = true;
 
   bool _testing = false;
@@ -333,6 +337,10 @@ class _ServiceDetailState extends State<_ServiceDetail> {
   /// maximum are different claims, and only the user knows which one the
   /// budget should follow.
   ModelLimits? _detected;
+
+  /// The last successful test, for what it showed about reasoning and the
+  /// server: the thinking status line and the Ollama note read it.
+  AiConnectionCheckResult? _lastCheck;
 
   @override
   void initState() {
@@ -349,8 +357,22 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     _maxOutput = TextEditingController(
       text: p.maxOutputTokens?.toString() ?? '',
     );
-    _temperature = p.temperature;
+    _sampling = {
+      _Sampling.temperature: TextEditingController(text: _text(p.temperature)),
+      _Sampling.topP: TextEditingController(text: _text(p.topP)),
+      _Sampling.topK: TextEditingController(text: _text(p.topK)),
+      _Sampling.minP: TextEditingController(text: _text(p.minP)),
+      _Sampling.presencePenalty: TextEditingController(
+        text: _text(p.presencePenalty),
+      ),
+      _Sampling.repeatPenalty: TextEditingController(
+        text: _text(p.repeatPenalty),
+      ),
+    };
+    _thinking = p.thinkingEnabled;
   }
+
+  static String _text(num? value) => value?.toString() ?? '';
 
   @override
   void dispose() {
@@ -360,36 +382,60 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     _model.dispose();
     _contextWindow.dispose();
     _maxOutput.dispose();
+    for (final controller in _sampling.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
+
+  double? _decimal(_Sampling field) => AiConfig.decimal(_sampling[field]!.text);
 
   AiConfig _config() => AiConfig(
     provider: _provider,
     endpoint: _endpoint.text.trim(),
     apiKey: _apiKey.text.trim(),
     model: _model.text.trim(),
-    temperature: _temperature,
+    temperature: _decimal(_Sampling.temperature),
+    topP: _decimal(_Sampling.topP),
+    topK: AiConfig.tokenCount(_sampling[_Sampling.topK]!.text),
+    minP: _decimal(_Sampling.minP),
+    presencePenalty: _decimal(_Sampling.presencePenalty),
+    repeatPenalty: _decimal(_Sampling.repeatPenalty),
+    thinkingEnabled: _thinking,
     contextWindow: AiConfig.tokenCount(_contextWindow.text),
     maxOutputTokens: AiConfig.tokenCount(_maxOutput.text),
   );
 
   void _persist() {
     final config = _config();
-    final updated = AiServiceProfile(
-      id: widget.profile.id,
-      name: _name.text,
-      provider: config.provider,
-      endpoint: config.endpoint,
-      apiKey: config.apiKey,
-      model: config.model,
-      temperature: config.temperature,
-      contextWindow: config.contextWindow,
-      maxOutputTokens: config.maxOutputTokens,
+    context.read<AiProfilesService>().update(
+      AiServiceProfile.fromConfig(
+        id: widget.profile.id,
+        name: _name.text,
+        config: config,
+      ),
     );
-    context.read<AiProfilesService>().update(updated);
     if (widget.isActive) {
       context.read<AiService>().updateConfig(config);
     }
+  }
+
+  void _resetSampling() {
+    setState(() {
+      for (final controller in _sampling.values) {
+        controller.clear();
+      }
+    });
+    _persist();
+  }
+
+  void _setThinking(bool value) {
+    setState(() {
+      _thinking = value;
+      // The last test's verdict was about the other mode.
+      _lastCheck = null;
+    });
+    _persist();
   }
 
   Future<void> _test() async {
@@ -421,7 +467,10 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     setState(() {
       _testing = false;
       _testOk = checked != null;
-      if (checked != null) _detected = checked.limits;
+      if (checked != null) {
+        _detected = checked.limits;
+        _lastCheck = checked;
+      }
     });
     messenger.showSnackBar(
       SnackBar(
@@ -618,7 +667,11 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                 label: l10n.defaultModel,
                 controller: _model,
                 mono: true,
-                onChanged: (_) => _persist(),
+                onChanged: (_) {
+                  // The preset label and placeholders follow the model id.
+                  setState(() {});
+                  _persist();
+                },
               ),
             ),
           ],
@@ -668,17 +721,15 @@ class _ServiceDetailState extends State<_ServiceDetail> {
         ),
         const SizedBox(height: 24),
 
-        // Temperature slider.
-        _SliderField(
-          label: l10n.temperature,
-          value: _temperature.toStringAsFixed(1),
-          slider: Slider(
-            value: _temperature,
-            max: 2,
-            divisions: 20,
-            onChanged: (v) => setState(() => _temperature = v),
-            onChangeEnd: (_) => _persist(),
-          ),
+        // Sampling: the family preset, the user's overrides, and reasoning.
+        _SamplingSection(
+          preset: SamplingPresets.forModel(_model.text),
+          controllers: _sampling,
+          thinking: _thinking,
+          lastCheck: _lastCheck,
+          onChanged: _persist,
+          onThinkingChanged: _setThinking,
+          onReset: _resetSampling,
         ),
         const SizedBox(height: 24),
 
@@ -819,6 +870,9 @@ class _Field extends StatelessWidget {
   /// Accept only digits, for token counts.
   final bool digitsOnly;
 
+  /// Accept a non-negative decimal, for sampling values.
+  final bool decimal;
+
   const _Field({
     required this.label,
     required this.controller,
@@ -828,6 +882,7 @@ class _Field extends StatelessWidget {
     this.onChanged,
     this.hint,
     this.digitsOnly = false,
+    this.decimal = false,
   });
 
   @override
@@ -852,10 +907,17 @@ class _Field extends StatelessWidget {
                   controller: controller,
                   obscureText: obscure,
                   onChanged: onChanged,
-                  keyboardType: digitsOnly ? TextInputType.number : null,
-                  inputFormatters: digitsOnly
-                      ? [FilteringTextInputFormatter.digitsOnly]
+                  keyboardType: digitsOnly
+                      ? TextInputType.number
+                      : decimal
+                      ? const TextInputType.numberWithOptions(decimal: true)
                       : null,
+                  inputFormatters: [
+                    if (digitsOnly) FilteringTextInputFormatter.digitsOnly,
+                    // One optional decimal point, digits either side.
+                    if (decimal)
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                  ],
                   style: TextStyle(
                     fontSize: 15,
                     fontFamily: mono ? 'monospace' : null,
@@ -923,22 +985,92 @@ class _DetectedLimits extends StatelessWidget {
   }
 }
 
-class _SliderField extends StatelessWidget {
-  final String label;
-  final String value;
-  final Widget slider;
-  const _SliderField({
-    required this.label,
-    required this.value,
-    required this.slider,
+enum _Sampling { temperature, topP, topK, minP, presencePenalty, repeatPenalty }
+
+/// A service's sampling settings: which preset applies, one field per
+/// parameter with the preset's value as its placeholder, and the thinking
+/// switch with what the last connection test showed.
+///
+/// Every field is optional on purpose. A blank one follows the preset, so the
+/// recommended values keep working after a model is swapped for another
+/// family; typing a value is an explicit override.
+class _SamplingSection extends StatelessWidget {
+  final SamplingPreset? preset;
+  final Map<_Sampling, TextEditingController> controllers;
+  final bool thinking;
+  final AiConnectionCheckResult? lastCheck;
+  final VoidCallback onChanged;
+  final ValueChanged<bool> onThinkingChanged;
+  final VoidCallback onReset;
+
+  const _SamplingSection({
+    required this.preset,
+    required this.controllers,
+    required this.thinking,
+    required this.lastCheck,
+    required this.onChanged,
+    required this.onThinkingChanged,
+    required this.onReset,
   });
+
+  static const _rows = [
+    (_Sampling.temperature, _Sampling.topP),
+    (_Sampling.topK, _Sampling.minP),
+    (_Sampling.presencePenalty, _Sampling.repeatPenalty),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final preset = this.preset;
+    final reasons = preset?.reasons(requested: thinking) ?? thinking;
+    final values = preset?.valuesFor(thinking: reasons);
+    final status = _thinkingStatus(l10n, reasons);
+    final note = TextStyle(
+      fontSize: 12,
+      height: 1.4,
+      color: scheme.onSurfaceVariant,
+    );
+
+    String label(_Sampling field) => switch (field) {
+      _Sampling.temperature => l10n.temperature,
+      _Sampling.topP => l10n.samplingTopP,
+      _Sampling.topK => l10n.samplingTopK,
+      _Sampling.minP => l10n.samplingMinP,
+      _Sampling.presencePenalty => l10n.samplingPresencePenalty,
+      _Sampling.repeatPenalty => l10n.samplingRepeatPenalty,
+    };
+
+    // What a blank field sends: the preset's value for the mode reasoning
+    // will run in, or — outside every preset — the old fixed temperature.
+    String placeholder(_Sampling field) {
+      final value = switch (field) {
+        _Sampling.temperature =>
+          values?.temperature ??
+              (preset == null ? ResolvedSampling.legacyTemperature : null),
+        _Sampling.topP => values?.topP,
+        _Sampling.topK => values?.topK,
+        _Sampling.minP => values?.minP,
+        _Sampling.presencePenalty => values?.presencePenalty,
+        _Sampling.repeatPenalty => values?.repeatPenalty,
+      };
+      return value == null ? l10n.samplingDefault : '$value';
+    }
+
+    Widget field(_Sampling which) => _Field(
+      label: label(which),
+      controller: controllers[which]!,
+      mono: true,
+      hint: placeholder(which),
+      digitsOnly: which == _Sampling.topK,
+      decimal: which != _Sampling.topK,
+      onChanged: (_) => onChanged(),
+    );
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: glass.panelFill,
         borderRadius: BorderRadius.circular(14),
@@ -949,29 +1081,121 @@ class _SliderField extends StatelessWidget {
         children: [
           Row(
             children: [
-              _FieldLabel(label),
-              const SizedBox(width: 8),
-              Text(
-                '· $value',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: scheme.onSurfaceVariant,
+              _FieldLabel(l10n.samplingTitle),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  preset == null
+                      ? l10n.samplingNoPreset
+                      : l10n.samplingPresetMatched(preset.label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
+              ),
+              if (preset != null)
+                TextButton(
+                  onPressed: () => launchUrl(
+                    Uri.parse(preset.source),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: Text(l10n.samplingPresetSource),
+                ),
+              TextButton(onPressed: onReset, child: Text(l10n.samplingReset)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.thinkingMode,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(l10n.thinkingModeHint, style: note),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Switch(
+                value: reasons,
+                // Only a family whose reasoning really can be switched gets a
+                // live control; anything else would be a switch that does
+                // nothing.
+                onChanged: (preset?.thinkingIsOptional ?? false)
+                    ? onThinkingChanged
+                    : null,
               ),
             ],
           ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 4,
-              overlayShape: SliderComponentShape.noOverlay,
-              tickMarkShape: SliderTickMarkShape.noTickMark,
-              inactiveTrackColor: scheme.onSurface.withValues(alpha: 0.12),
+          if (status != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              status.text,
+              style: note.copyWith(
+                color: status.warning ? scheme.error : scheme.onSurfaceVariant,
+              ),
             ),
-            child: slider,
-          ),
+          ],
+          const SizedBox(height: 14),
+          for (final (left, right) in _rows) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: field(left)),
+                const SizedBox(width: 12),
+                Expanded(child: field(right)),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          Text(l10n.samplingNote, style: note),
+          if (preset?.needsSystemPrompt ?? false) ...[
+            const SizedBox(height: 6),
+            Text(l10n.presetNeedsSystemPrompt, style: note),
+          ],
+          if (lastCheck?.serverKind == ServerKind.ollama) ...[
+            const SizedBox(height: 6),
+            Text(l10n.ollamaIgnoresSampling, style: note),
+          ],
         ],
       ),
     );
+  }
+
+  /// A line under the switch: what the family allows, or — for a family
+  /// whose reasoning can be switched off — whether the last test showed it
+  /// actually was. That second case is the one worth a line, because servers
+  /// ignore the fields that turn it off without saying so.
+  ({String text, bool warning})? _thinkingStatus(
+    AppLocalizations l10n,
+    bool reasons,
+  ) {
+    switch (preset?.thinkingControl) {
+      case ThinkingControl.alwaysOn:
+        return (text: l10n.thinkingAlwaysOn, warning: false);
+      case ThinkingControl.effortOnly:
+        return (text: l10n.thinkingEffortOnly, warning: false);
+      default:
+        break;
+    }
+    final check = lastCheck;
+    if (check == null || reasons || !(preset?.thinkingIsOptional ?? false)) {
+      return null;
+    }
+    return check.reasoned
+        ? (text: l10n.thinkingStillOn, warning: true)
+        : (text: l10n.thinkingVerifiedOff, warning: false);
   }
 }
 

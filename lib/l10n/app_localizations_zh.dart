@@ -662,6 +662,71 @@ class AppLocalizationsZh extends AppLocalizations {
   String get useDetectedValue => '使用';
 
   @override
+  String get samplingTitle => '采样参数';
+
+  @override
+  String samplingPresetMatched(Object name) {
+    return '$name 推荐值';
+  }
+
+  @override
+  String get samplingPresetSource => '出处';
+
+  @override
+  String get samplingNoPreset => '未识别模型家族，使用服务端默认';
+
+  @override
+  String get samplingReset => '恢复推荐值';
+
+  @override
+  String get samplingDefault => '默认';
+
+  @override
+  String get samplingTopP => 'Top P';
+
+  @override
+  String get samplingTopK => 'Top K';
+
+  @override
+  String get samplingMinP => 'Min P';
+
+  @override
+  String get samplingPresencePenalty => '存在惩罚';
+
+  @override
+  String get samplingRepeatPenalty => '重复惩罚';
+
+  @override
+  String get samplingNote => '留空即使用推荐值。';
+
+  @override
+  String get thinkingMode => '思考模式';
+
+  @override
+  String get thinkingModeHint => '默认关闭：思考会让本地小模型明显变慢，并容易绕圈子。';
+
+  @override
+  String get thinkingAlwaysOn => '此模型只能以思考模式运行。';
+
+  @override
+  String get thinkingEffortOnly => '此模型无法关闭思考；关闭时以低强度运行。';
+
+  @override
+  String get thinkingVerifiedOff => '上次测试：思考已关闭。';
+
+  @override
+  String get thinkingStillOn =>
+      '上次测试：模型仍在思考。请在服务端的模型设置中关闭思考（LM Studio 中为 Enable Thinking）。';
+
+  @override
+  String get presetNeedsSystemPrompt =>
+      '该模型的模型卡要求使用专用的 system prompt，缺少时效果可能变差。';
+
+  @override
+  String get ollamaIgnoresSampling =>
+      'Ollama 的 OpenAI 兼容接口会忽略 Top K、Min P 和重复惩罚，请在 Modelfile 中设置。';
+
+  @override
   String get tokensThisSession => '本次会话 token';
 
   @override

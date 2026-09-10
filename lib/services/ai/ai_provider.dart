@@ -8,8 +8,16 @@ library;
 
 import 'ai_cancel_token.dart';
 import 'model_limits.dart';
+import 'sampling_presets.dart';
 
 export 'model_limits.dart' show ModelLimits;
+export 'sampling_presets.dart'
+    show
+        ResolvedSampling,
+        SamplingPreset,
+        SamplingPresets,
+        SamplingValues,
+        ThinkingControl;
 
 /// Identifies which wire protocol a provider speaks.
 enum AiProviderType {
@@ -41,6 +49,11 @@ extension AiProviderTypeX on AiProviderType {
   };
 }
 
+/// The software behind an OpenAI-compatible endpoint. They agree on the
+/// request shape and disagree on nearly everything around it: which sampling
+/// fields they honour, and how reasoning is turned off.
+enum ServerKind { lmStudio, ollama, llamaCpp, vllm, unknown }
+
 /// Result of a single completion call.
 class AiResponse {
   final String text;
@@ -51,11 +64,22 @@ class AiResponse {
   /// `MAX_TOKENS`, …). Null when it did not say.
   final String? finishReason;
 
+  /// The reply carried reasoning — reasoning deltas, reasoning tokens in the
+  /// usage, or a leading think block.
+  final bool reasoned;
+
+  /// Reasoning ran although this request asked for none, and the provider has
+  /// another way of asking that the next request will use. Lets a caller that
+  /// can afford a retry, such as the connection test, find out now.
+  final bool thinkingOffPending;
+
   const AiResponse({
     required this.text,
     this.promptTokens = 0,
     this.completionTokens = 0,
     this.finishReason,
+    this.reasoned = false,
+    this.thinkingOffPending = false,
   });
 
   int get totalTokens => promptTokens + completionTokens;
@@ -65,6 +89,15 @@ class AiResponse {
     'length' || 'max_tokens' => true,
     _ => false,
   };
+
+  AiResponse withThinkingOffPending(bool pending) => AiResponse(
+    text: text,
+    promptTokens: promptTokens,
+    completionTokens: completionTokens,
+    finishReason: finishReason,
+    reasoned: reasoned,
+    thinkingOffPending: pending,
+  );
 }
 
 /// Raised when a provider call fails. Carries a human-readable message that is
@@ -87,7 +120,20 @@ class AiConfig {
   final String endpoint;
   final String apiKey;
   final String model;
-  final double temperature;
+
+  /// Sampling overrides. Null follows the model family's preset — see
+  /// [sampling].
+  final double? temperature;
+  final double? topP;
+  final int? topK;
+  final double? minP;
+  final double? presencePenalty;
+  final double? repeatPenalty;
+
+  /// Whether reasoning should run. Off by default: on a small local model it
+  /// multiplies the time a task takes, and it is where the looping comes
+  /// from. A family that can only reason ignores it.
+  final bool thinkingEnabled;
 
   /// Tokens the model is served with, or null when unknown.
   ///
@@ -110,7 +156,13 @@ class AiConfig {
     required this.endpoint,
     required this.apiKey,
     required this.model,
-    this.temperature = 0.2,
+    this.temperature,
+    this.topP,
+    this.topK,
+    this.minP,
+    this.presencePenalty,
+    this.repeatPenalty,
+    this.thinkingEnabled = false,
     this.contextWindow,
     this.maxOutputTokens,
   });
@@ -122,12 +174,35 @@ class AiConfig {
       model.trim().isNotEmpty &&
       (!provider.requiresApiKey || apiKey.trim().isNotEmpty);
 
+  SamplingValues get samplingOverrides => SamplingValues(
+    temperature: temperature,
+    topP: topP,
+    topK: topK,
+    minP: minP,
+    presencePenalty: presencePenalty,
+    repeatPenalty: repeatPenalty,
+  );
+
+  /// What a request to this model sends: overrides over the family preset.
+  ResolvedSampling get sampling => ResolvedSampling.of(
+    model: model,
+    thinkingRequested: thinkingEnabled,
+    overrides: samplingOverrides,
+  );
+
   Map<String, dynamic> toJson() => {
     'provider': provider.id,
     'endpoint': endpoint,
     'api_key': apiKey,
     'model': model,
-    'temperature': temperature,
+    // A new key rather than `temperature`: see [legacyTemperature].
+    'temperature_override': temperature,
+    'top_p': topP,
+    'top_k': topK,
+    'min_p': minP,
+    'presence_penalty': presencePenalty,
+    'repeat_penalty': repeatPenalty,
+    'thinking_enabled': thinkingEnabled,
     'context_window': contextWindow,
     'max_output_tokens': maxOutputTokens,
   };
@@ -137,10 +212,41 @@ class AiConfig {
     endpoint: (json['endpoint'] as String?) ?? '',
     apiKey: (json['api_key'] as String?) ?? '',
     model: (json['model'] as String?) ?? '',
-    temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
+    temperature: json.containsKey('temperature_override')
+        ? decimal(json['temperature_override'])
+        : legacyTemperature(json['temperature']),
+    topP: decimal(json['top_p']),
+    topK: tokenCount(json['top_k']),
+    minP: decimal(json['min_p']),
+    presencePenalty: decimal(json['presence_penalty']),
+    repeatPenalty: decimal(json['repeat_penalty']),
+    thinkingEnabled: json['thinking_enabled'] == true,
     contextWindow: tokenCount(json['context_window']),
     maxOutputTokens: tokenCount(json['max_output_tokens']),
   );
+
+  /// Reads a temperature saved before presets existed.
+  ///
+  /// Every profile carried one, and `0.2` was the fixed default rather than a
+  /// choice, so reading it as "unset" is what lets the model's recommended
+  /// value apply. Any other value was typed by the user and is kept. This
+  /// version saves under `temperature_override` instead, so a user who now
+  /// picks 0.2 on purpose keeps it.
+  static double? legacyTemperature(Object? value) {
+    final t = decimal(value);
+    return t == ResolvedSampling.legacyTemperature ? null : t;
+  }
+
+  /// Reads a non-negative decimal from JSON or a text field; anything else
+  /// means "unset".
+  static double? decimal(Object? value) {
+    final d = switch (value) {
+      num v => v.toDouble(),
+      String v => double.tryParse(v.trim()),
+      _ => null,
+    };
+    return d != null && d.isFinite && d >= 0 ? d : null;
+  }
 
   /// Reads a token count from JSON or a text field. Anything that is not a
   /// positive integer means "unset" — a stray `0` must not become zero room.
@@ -181,4 +287,7 @@ abstract class AiProvider {
   /// without generating anything. Best-effort: never throws, and returns
   /// [ModelLimits.unknown] when nothing answered.
   Future<ModelLimits> detectLimits();
+
+  /// Which software serves the endpoint. Best-effort: never throws.
+  Future<ServerKind> detectServerKind();
 }

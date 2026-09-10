@@ -3,6 +3,9 @@ import '../utils/ids.dart';
 
 /// A single configured AI endpoint the user can manage. One profile is the
 /// "active" one that drives organization; the rest are kept on standby.
+///
+/// Mirrors [AiConfig] field for field, and serializes through it, so the two
+/// can never disagree about a key or a migration.
 class AiServiceProfile {
   final String id;
   final String name;
@@ -10,7 +13,17 @@ class AiServiceProfile {
   final String endpoint;
   final String apiKey;
   final String model;
-  final double temperature;
+
+  /// Sampling overrides; see [AiConfig.temperature] and its siblings.
+  final double? temperature;
+  final double? topP;
+  final int? topK;
+  final double? minP;
+  final double? presencePenalty;
+  final double? repeatPenalty;
+
+  /// See [AiConfig.thinkingEnabled].
+  final bool thinkingEnabled;
 
   /// See [AiConfig.contextWindow].
   final int? contextWindow;
@@ -25,10 +38,38 @@ class AiServiceProfile {
     required this.endpoint,
     required this.apiKey,
     required this.model,
-    this.temperature = 0.2,
+    this.temperature,
+    this.topP,
+    this.topK,
+    this.minP,
+    this.presencePenalty,
+    this.repeatPenalty,
+    this.thinkingEnabled = false,
     this.contextWindow,
     this.maxOutputTokens,
   });
+
+  factory AiServiceProfile.fromConfig({
+    required String id,
+    required String name,
+    required AiConfig config,
+  }) => AiServiceProfile(
+    id: id,
+    name: name,
+    provider: config.provider,
+    endpoint: config.endpoint,
+    apiKey: config.apiKey,
+    model: config.model,
+    temperature: config.temperature,
+    topP: config.topP,
+    topK: config.topK,
+    minP: config.minP,
+    presencePenalty: config.presencePenalty,
+    repeatPenalty: config.repeatPenalty,
+    thinkingEnabled: config.thinkingEnabled,
+    contextWindow: config.contextWindow,
+    maxOutputTokens: config.maxOutputTokens,
+  );
 
   /// Delegates to [AiConfig.isComplete] so the settings badge and the runtime
   /// can never disagree about whether a key is required.
@@ -41,6 +82,12 @@ class AiServiceProfile {
     apiKey: apiKey,
     model: model,
     temperature: temperature,
+    topP: topP,
+    topK: topK,
+    minP: minP,
+    presencePenalty: presencePenalty,
+    repeatPenalty: repeatPenalty,
+    thinkingEnabled: thinkingEnabled,
     contextWindow: contextWindow,
     maxOutputTokens: maxOutputTokens,
   );
@@ -48,28 +95,16 @@ class AiServiceProfile {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    'provider': provider.id,
-    'endpoint': endpoint,
-    'api_key': apiKey,
-    'model': model,
-    'temperature': temperature,
-    'context_window': contextWindow,
-    'max_output_tokens': maxOutputTokens,
+    ...toAiConfig().toJson(),
   };
 
   /// Reads a profile from JSON. Older configs may carry a `rate_limit` field
   /// from a previous schema — it's silently ignored here.
   factory AiServiceProfile.fromJson(Map<String, dynamic> json) =>
-      AiServiceProfile(
+      AiServiceProfile.fromConfig(
         id: (json['id'] as String?) ?? newId(),
         name: (json['name'] as String?) ?? 'AI Service',
-        provider: AiProviderTypeX.fromId(json['provider'] as String?),
-        endpoint: (json['endpoint'] as String?) ?? '',
-        apiKey: (json['api_key'] as String?) ?? '',
-        model: (json['model'] as String?) ?? '',
-        temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
-        contextWindow: AiConfig.tokenCount(json['context_window']),
-        maxOutputTokens: AiConfig.tokenCount(json['max_output_tokens']),
+        config: AiConfig.fromJson(json),
       );
 
   /// A fresh, empty profile with sensible defaults for [provider].

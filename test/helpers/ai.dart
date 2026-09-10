@@ -32,4 +32,7 @@ class ScriptedProvider implements AiProvider {
 
   @override
   Future<ModelLimits> detectLimits() async => ModelLimits.unknown;
+
+  @override
+  Future<ServerKind> detectServerKind() async => ServerKind.unknown;
 }
