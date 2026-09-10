@@ -215,6 +215,8 @@
   "thinkingEffortOnly": "This model's reasoning cannot be turned off; with thinking off it runs at low effort.",
   "thinkingVerifiedOff": "Last test: reasoning was off.",
   "thinkingStillOn": "Last test: the model still reasoned. Turn thinking off in the server's own model settings (in LM Studio: Enable Thinking).",
+  "toolsSupported": "Tool calling: supported. This model can organize folders and scrape metadata.",
+  "toolsUnsupported": "Tool calling: not supported. This model cannot be used to organize folders or scrape metadata.",
   "presetNeedsSystemPrompt": "This model's card requires its own system prompt; results may suffer without it.",
   "ollamaIgnoresSampling": "Ollama's OpenAI-compatible API ignores Top K, Min P and Repeat penalty; set them in the Modelfile instead.",
   "tokensThisSession": "Tokens this session",

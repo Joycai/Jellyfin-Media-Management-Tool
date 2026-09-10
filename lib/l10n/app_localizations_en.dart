@@ -730,6 +730,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Last test: the model still reasoned. Turn thinking off in the server\'s own model settings (in LM Studio: Enable Thinking).';
 
   @override
+  String get toolsSupported =>
+      'Tool calling: supported. This model can organize folders and scrape metadata.';
+
+  @override
+  String get toolsUnsupported =>
+      'Tool calling: not supported. This model cannot be used to organize folders or scrape metadata.';
+
+  @override
   String get presetNeedsSystemPrompt =>
       'This model\'s card requires its own system prompt; results may suffer without it.';
 

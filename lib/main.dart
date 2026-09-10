@@ -51,6 +51,13 @@ void main() async {
 
   final aiService = AiService();
   aiService.updateConfig(aiProfilesService.aiConfig);
+  // A task that had to check whether its model calls tools records the answer
+  // on the profiles, so the next task (and Settings) need not check again.
+  aiService.onToolSupport = (config, supported) {
+    if (aiProfilesService.recordToolSupport(config, supported)) {
+      aiService.updateConfig(aiProfilesService.aiConfig);
+    }
+  };
 
   final historyService = HistoryService();
   // Best-effort initial load; UI is fine before this completes.

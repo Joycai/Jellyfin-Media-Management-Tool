@@ -3,10 +3,11 @@
 /// Reached from the organize preview's "Adjust rules" button. It shows the
 /// built-in Jellyfin movie convention as template chips with a live-preview
 /// column, exactly per the design mockup, but nothing is editable yet: the
-/// templates are the hardcoded convention `AiPrompt` actually uses, Reset is
+/// templates are the hardcoded convention `JellyfinNaming` builds, Reset is
 /// disabled, and Save simply closes. A banner says so — a screen that looks
 /// configurable but silently ignores input would be worse than a placeholder
-/// that admits it. Wiring the templates into the prompt is a separate feature.
+/// that admits it. Wiring the templates into the naming rules is a separate
+/// feature.
 library;
 
 import 'package:flutter/material.dart';

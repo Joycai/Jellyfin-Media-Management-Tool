@@ -719,6 +719,12 @@ class AppLocalizationsZh extends AppLocalizations {
       '上次测试：模型仍在思考。请在服务端的模型设置中关闭思考（LM Studio 中为 Enable Thinking）。';
 
   @override
+  String get toolsSupported => '工具调用：支持。此模型可用于整理文件夹与刮削元数据。';
+
+  @override
+  String get toolsUnsupported => '工具调用：不支持。此模型无法用于整理文件夹或刮削元数据。';
+
+  @override
   String get presetNeedsSystemPrompt =>
       '该模型的模型卡要求使用专用的 system prompt，缺少时效果可能变差。';
 

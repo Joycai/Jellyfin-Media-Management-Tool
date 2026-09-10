@@ -6,12 +6,13 @@ import 'package:path/path.dart' as p;
 
 import '../models/organize_plan.dart';
 import 'ai/ai_cancel_token.dart';
-import 'ai/ai_prompt.dart';
 import 'ai/ai_provider.dart';
 import 'ai/connection_check.dart';
 import 'ai/google_genai_provider.dart';
 import 'ai/openai_provider.dart';
-import 'file_label_service.dart';
+import 'organize/filename_parser.dart';
+import 'organize/jellyfin_naming.dart';
+import 'organize/organize_agent.dart';
 
 enum ConnectionStatus { unknown, testing, connected, error }
 
@@ -96,6 +97,34 @@ class AiService extends ChangeNotifier {
     _notifySafely();
   }
 
+  /// Told when a run finds out whether a model calls tools, so the owner of
+  /// the profiles can record it. Wired in `main.dart`.
+  void Function(AiConfig config, bool supported)? onToolSupport;
+
+  static const toolsRequiredMessage =
+      'This model does not call tools, which organizing and scraping need. '
+      'Choose a model that supports tool calling, then run the connection '
+      'test in Settings.';
+
+  /// Makes sure [config]'s model calls tools, which every agent task needs —
+  /// there is no single-shot fallback. A model never checked is probed once
+  /// and the answer recorded through [onToolSupport]. Throws [AiException]
+  /// when it cannot call tools.
+  Future<void> ensureTools(
+    AiConfig config, {
+    AiCancelToken? cancelToken,
+  }) async {
+    var supported = config.supportsTools;
+    if (supported == null) {
+      supported = await AiConnectionCheck.probeTools(
+        providerFor(config),
+        cancelToken: cancelToken,
+      );
+      onToolSupport?.call(config, supported);
+    }
+    if (!supported) throw const AiException(toolsRequiredMessage);
+  }
+
   static bool _sameEndpoint(AiConfig a, AiConfig b) =>
       a.provider == b.provider &&
       a.endpoint == b.endpoint &&
@@ -143,21 +172,26 @@ class AiService extends ChangeNotifier {
   }
 
   /// Analyzes [baseDir] and stores the resulting [OrganizePlan]. Throws
-  /// [AiException]/[FormatException] on failure (caller surfaces it).
+  /// [AiException] on failure (caller surfaces it).
+  ///
+  /// The files are parsed and grouped in code, and [OrganizeAgent] has the
+  /// model decide each group through tool calls; see there for why.
   ///
   /// When [onlyPaths] is non-empty, only files whose absolute path is in the
-  /// set — or that live under a selected directory — are sent to the model,
-  /// so the user can organize a subset of the folder.
+  /// set — or that live under a selected directory — are organized, so the
+  /// user can organize a subset of the folder.
   ///
   /// Pass a [cancelToken] to make the run abortable: cancelling stops the
   /// directory walk and tears down the in-flight request, and the call
   /// completes with [AiCancelled] without touching [currentPlan].
+  /// [onProgress] receives the fraction of groups decided so far.
   Future<OrganizePlan> analyzeFolder(
     String baseDir, {
     String? titleHint,
     String? mediaTypeHint,
     Set<String>? onlyPaths,
     AiCancelToken? cancelToken,
+    void Function(double fraction)? onProgress,
   }) async {
     if (!_config.isComplete) {
       throw const AiException('AI is not configured.');
@@ -168,55 +202,48 @@ class AiService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final entries = await _collectEntries(
+      final paths = await _collectFiles(
         baseDir,
         onlyPaths: onlyPaths,
         cancelToken: cancelToken,
       );
-      if (entries.isEmpty) {
+      if (paths.isEmpty) {
         throw const AiException('No files to organize in this folder.');
       }
-      // Without a token budget this is one batch — the whole folder in one
-      // request, as it always was. With one, the folder is split so every
-      // request (files in, actions out) fits the model's window, and later
-      // batches are told which title folders the earlier ones chose.
-      final folderName = p.basename(baseDir);
-      final batches = AiPrompt.batchEntries(
-        entries,
-        config: _config,
-        folderName: folderName,
-        titleHint: titleHint,
-        mediaTypeHint: mediaTypeHint,
-      );
-      final provider = buildProvider();
-      final parts = <OrganizePlan>[];
-      for (final batch in batches) {
-        cancelToken?.throwIfCancelled();
-        final sw = Stopwatch()..start();
-        final response = await provider.complete(
-          systemPrompt: AiPrompt.systemPrompt,
-          userPrompt: AiPrompt.buildUserPrompt(
-            folderName: folderName,
-            entries: batch,
+      final config = _config;
+      final sw = Stopwatch()..start();
+      final run =
+          await OrganizeAgent(
+            providerFor(config),
+            beforeStart: () => ensureTools(config, cancelToken: cancelToken),
+          ).run(
+            folderName: p.basename(baseDir),
+            files: [for (final path in paths) FilenameParser.parse(path)],
             titleHint: titleHint,
-            mediaTypeHint: mediaTypeHint,
-            knownFolders: AiPrompt.titleFolders(
-              parts.expand((part) => part.actions).map((a) => a.target),
-            ),
-          ),
-          cancelToken: cancelToken,
-        );
-        sw.stop();
-        // A cancel that lands between the response arriving and the plan being
-        // stored must still win — otherwise the panel pops a plan the user
-        // already dismissed.
-        cancelToken?.throwIfCancelled();
-        _requestCount++;
-        _latencies.add(sw.elapsedMilliseconds);
+            typeHint: switch (mediaTypeHint) {
+              'movie' => GroupMediaType.movie,
+              'series' => GroupMediaType.series,
+              _ => null,
+            },
+            readFile: (relativePath) =>
+                _readSmallFile(p.join(baseDir, relativePath)),
+            cancelToken: cancelToken,
+            onProgress: onProgress == null
+                ? null
+                : (resolved, total) =>
+                      onProgress(total == 0 ? 1 : resolved / total),
+          );
+      sw.stop();
+      // A cancel that lands between the last reply and the plan being stored
+      // must still win — otherwise the panel pops a plan the user already
+      // dismissed.
+      cancelToken?.throwIfCancelled();
+      if (run.rounds > 0) {
+        _requestCount += run.rounds;
+        _latencies.add(sw.elapsedMilliseconds ~/ run.rounds);
         if (_latencies.length > 12) _latencies.removeAt(0);
-        parts.add(_parsePlan(response));
       }
-      final plan = OrganizePlan.merge(parts);
+      final plan = run.plan;
 
       _currentPlan = plan;
       _lastTokens = plan.totalTokens;
@@ -232,50 +259,40 @@ class AiService extends ChangeNotifier {
     }
   }
 
-  /// Parses one batch's reply, naming the likely cause when it was cut off: a
-  /// small model's output cap runs out long before a folder of files does, and
-  /// a bare "no JSON object found" gives the user nothing to act on.
-  static OrganizePlan _parsePlan(AiResponse response) {
-    try {
-      return OrganizePlan.fromAiJson(
-        response.text,
-        promptTokens: response.promptTokens,
-        completionTokens: response.completionTokens,
-      );
-    } on FormatException {
-      if (!response.truncated) rethrow;
-      throw AiException(
-        'The model stopped at its output limit '
-        '(${response.completionTokens} tokens) before finishing the plan. '
-        'Raise "Max output tokens", or set the context window so the folder '
-        'is sent in smaller batches.',
-      );
-    }
-  }
-
   void clearPlan() {
     _currentPlan = null;
     _planBaseDir = null;
     notifyListeners();
   }
 
-  /// Walks [baseDir] recursively (capped) collecting media-relevant files with
-  /// their folder-relative path, size, and coarse kind. Streams entries via
-  /// async `list()` so big trees don't freeze the UI between user click and
-  /// model request.
+  /// An NFO the model asked to read. Anything this large is not metadata
+  /// worth a model's context, and an unreadable file is simply "no NFO".
+  static Future<String?> _readSmallFile(String path) async {
+    try {
+      final file = File(path);
+      if (await file.length() > 512 * 1024) return null;
+      return await file.readAsString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Walks [baseDir] recursively (capped at 400, dotfiles skipped) and returns
+  /// each file's folder-relative path. Streams entries via async `list()` so
+  /// big trees don't freeze the UI between user click and model request.
   ///
   /// With a non-empty [onlyPaths], a file is kept only if its own path is
   /// selected or one of its ancestor directories is (selecting a folder
   /// includes everything inside it).
-  Future<List<MediaEntryInput>> _collectEntries(
+  Future<List<String>> _collectFiles(
     String baseDir, {
     Set<String>? onlyPaths,
     AiCancelToken? cancelToken,
   }) async {
     const cap = 400;
     final dir = Directory(baseDir);
-    final entries = <MediaEntryInput>[];
-    if (!await dir.exists()) return entries;
+    final paths = <String>[];
+    if (!await dir.exists()) return paths;
 
     bool included(String path) {
       if (onlyPaths == null || onlyPaths.isEmpty) return true;
@@ -293,23 +310,10 @@ class AiService extends ChangeNotifier {
       cancelToken?.throwIfCancelled();
       if (entity is! File) continue;
       if (!included(entity.path)) continue;
-      final name = p.basename(entity.path);
-      if (name.startsWith('.')) continue; // skip hidden/system files
-      int size;
-      try {
-        size = await entity.length();
-      } catch (_) {
-        continue;
-      }
-      entries.add(
-        MediaEntryInput(
-          relativePath: p.relative(entity.path, from: baseDir),
-          sizeBytes: size,
-          kind: FileLabelService.getLabel(p.extension(entity.path)),
-        ),
-      );
-      if (entries.length >= cap) break;
+      if (p.basename(entity.path).startsWith('.')) continue;
+      paths.add(p.relative(entity.path, from: baseDir));
+      if (paths.length >= cap) break;
     }
-    return entries;
+    return paths;
   }
 }

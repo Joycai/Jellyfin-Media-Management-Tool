@@ -342,6 +342,11 @@ class _ServiceDetailState extends State<_ServiceDetail> {
   /// server: the thinking status line and the Ollama note read it.
   AiConnectionCheckResult? _lastCheck;
 
+  /// The recorded tool-calling check. Carried through [_config] so saving an
+  /// edited field does not erase it; [AiConfig.supportsTools] already ignores
+  /// it once the endpoint or model no longer matches.
+  ToolSupport? _toolSupport;
+
   @override
   void initState() {
     super.initState();
@@ -370,6 +375,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       ),
     };
     _thinking = p.thinkingEnabled;
+    _toolSupport = p.toolSupport;
   }
 
   static String _text(num? value) => value?.toString() ?? '';
@@ -404,6 +410,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     thinkingEnabled: _thinking,
     contextWindow: AiConfig.tokenCount(_contextWindow.text),
     maxOutputTokens: AiConfig.tokenCount(_maxOutput.text),
+    toolSupport: _toolSupport,
   );
 
   void _persist() {
@@ -470,8 +477,21 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       if (checked != null) {
         _detected = checked.limits;
         _lastCheck = checked;
+        _toolSupport = ToolSupport(
+          fingerprint: config.toolFingerprint,
+          supported: checked.supportsTools,
+        );
       }
     });
+    if (checked != null) {
+      // Every profile on this endpoint and model shares the answer, and the
+      // live service must see it before the next organize or scrape.
+      context.read<AiProfilesService>().recordToolSupport(
+        config,
+        checked.supportsTools,
+      );
+      _persist();
+    }
     messenger.showSnackBar(
       SnackBar(
         content: Text(
@@ -595,6 +615,28 @@ class _ServiceDetailState extends State<_ServiceDetail> {
             ),
           ],
         ),
+        if (_config().supportsTools case final tools?) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                tools ? Icons.build_circle_outlined : Icons.block,
+                size: 16,
+                color: tools ? scheme.primary : scheme.error,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tools ? l10n.toolsSupported : l10n.toolsUnsupported,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: tools ? scheme.onSurfaceVariant : scheme.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 28),
 
         // Endpoint protocol segmented control.

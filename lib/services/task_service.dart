@@ -132,6 +132,10 @@ class TaskService extends ChangeNotifier {
           mediaTypeHint: mediaTypeHint,
           onlyPaths: onlyPaths,
           cancelToken: task.cancelToken,
+          onProgress: (fraction) {
+            task.progress = fraction;
+            notifyListeners();
+          },
         );
         task
           ..status = TaskStatus.done

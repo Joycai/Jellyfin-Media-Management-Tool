@@ -1,15 +1,17 @@
 /// Transport-level abstraction over an LLM endpoint.
 ///
 /// Implementations only handle HTTP and provider-specific request/response
-/// shapes; they return the raw model text plus token usage. Parsing the text
-/// into an [OrganizePlan] happens one layer up in `AiService`, so the providers
-/// stay free of any domain knowledge.
+/// shapes; they return the model's text, tool calls and token usage. Turning
+/// that into domain results happens one layer up, so the providers stay free
+/// of any domain knowledge.
 library;
 
 import 'ai_cancel_token.dart';
+import 'chat.dart';
 import 'model_limits.dart';
 import 'sampling_presets.dart';
 
+export 'chat.dart';
 export 'model_limits.dart' show ModelLimits;
 export 'sampling_presets.dart'
     show
@@ -90,13 +92,13 @@ class AiResponse {
     _ => false,
   };
 
-  AiResponse withThinkingOffPending(bool pending) => AiResponse(
-    text: text,
-    promptTokens: promptTokens,
-    completionTokens: completionTokens,
-    finishReason: finishReason,
-    reasoned: reasoned,
-    thinkingOffPending: pending,
+  factory AiResponse.fromChat(ChatResult result) => AiResponse(
+    text: result.text,
+    promptTokens: result.promptTokens,
+    completionTokens: result.completionTokens,
+    finishReason: result.finishReason,
+    reasoned: result.reasoned,
+    thinkingOffPending: result.thinkingOffPending,
   );
 }
 
@@ -108,6 +110,26 @@ class AiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Whether a model called a tool when asked to, and which provider, endpoint
+/// and model that was measured against.
+class ToolSupport {
+  final String fingerprint;
+  final bool supported;
+
+  const ToolSupport({required this.fingerprint, required this.supported});
+
+  Map<String, dynamic> toJson() => {'for': fingerprint, 'supported': supported};
+
+  static ToolSupport? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final fingerprint = json['for'];
+    final supported = json['supported'];
+    return fingerprint is String && supported is bool
+        ? ToolSupport(fingerprint: fingerprint, supported: supported)
+        : null;
+  }
 }
 
 /// Connection details shared by every provider.
@@ -151,6 +173,10 @@ class AiConfig {
   /// default.
   final int? maxOutputTokens;
 
+  /// The last tool-calling check; read it through [supportsTools], which
+  /// ignores a result measured against a different endpoint or model.
+  final ToolSupport? toolSupport;
+
   const AiConfig({
     required this.provider,
     required this.endpoint,
@@ -165,6 +191,7 @@ class AiConfig {
     this.thinkingEnabled = false,
     this.contextWindow,
     this.maxOutputTokens,
+    this.toolSupport,
   });
 
   /// Endpoint and model are always needed; a key only where the protocol
@@ -173,6 +200,41 @@ class AiConfig {
       endpoint.trim().isNotEmpty &&
       model.trim().isNotEmpty &&
       (!provider.requiresApiKey || apiKey.trim().isNotEmpty);
+
+  /// What a tool-support result is measured against. Changing any part of it
+  /// makes an earlier result stale.
+  String get toolFingerprint =>
+      '${provider.id}|${endpoint.trim()}|${model.trim()}';
+
+  /// Whether this model calls tools: true or false once checked, null when it
+  /// never was for this endpoint and model. Every agent task needs true —
+  /// there is no single-shot fallback.
+  bool? get supportsTools {
+    final support = toolSupport;
+    return support != null && support.fingerprint == toolFingerprint
+        ? support.supported
+        : null;
+  }
+
+  AiConfig withToolSupport(bool supported) => AiConfig(
+    provider: provider,
+    endpoint: endpoint,
+    apiKey: apiKey,
+    model: model,
+    temperature: temperature,
+    topP: topP,
+    topK: topK,
+    minP: minP,
+    presencePenalty: presencePenalty,
+    repeatPenalty: repeatPenalty,
+    thinkingEnabled: thinkingEnabled,
+    contextWindow: contextWindow,
+    maxOutputTokens: maxOutputTokens,
+    toolSupport: ToolSupport(
+      fingerprint: toolFingerprint,
+      supported: supported,
+    ),
+  );
 
   SamplingValues get samplingOverrides => SamplingValues(
     temperature: temperature,
@@ -205,6 +267,7 @@ class AiConfig {
     'thinking_enabled': thinkingEnabled,
     'context_window': contextWindow,
     'max_output_tokens': maxOutputTokens,
+    'tool_support': toolSupport?.toJson(),
   };
 
   factory AiConfig.fromJson(Map<String, dynamic> json) => AiConfig(
@@ -223,6 +286,7 @@ class AiConfig {
     thinkingEnabled: json['thinking_enabled'] == true,
     contextWindow: tokenCount(json['context_window']),
     maxOutputTokens: tokenCount(json['max_output_tokens']),
+    toolSupport: ToolSupport.fromJson(json['tool_support']),
   );
 
   /// Reads a temperature saved before presets existed.
@@ -271,7 +335,7 @@ class AiConfig {
   );
 }
 
-/// A provider turns a (system, user) prompt pair into model text.
+/// A provider turns prompts into model text and tool calls.
 abstract class AiProvider {
   AiConfig get config;
 
@@ -280,6 +344,16 @@ abstract class AiProvider {
   Future<AiResponse> complete({
     required String systemPrompt,
     required String userPrompt,
+    AiCancelToken? cancelToken,
+  });
+
+  /// One turn of a tool-calling conversation: sends [messages] with [tools]
+  /// on offer and returns the reply — text, tool calls, or both. No JSON mode:
+  /// forced JSON and tools exclude each other on most servers. Throws like
+  /// [complete].
+  Future<ChatResult> chat({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
     AiCancelToken? cancelToken,
   });
 

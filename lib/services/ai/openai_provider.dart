@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -106,17 +107,43 @@ class OpenAiProvider implements AiProvider {
     };
   }
 
-  /// Performs one streamed completion.
+  @override
+  Future<AiResponse> complete({
+    required String systemPrompt,
+    required String userPrompt,
+    AiCancelToken? cancelToken,
+  }) async => AiResponse.fromChat(
+    await _exchange(
+      messages: [SystemMessage(systemPrompt), UserMessage(userPrompt)],
+      tools: const [],
+      jsonMode: true,
+      cancelToken: cancelToken,
+    ),
+  );
+
+  @override
+  Future<ChatResult> chat({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+    AiCancelToken? cancelToken,
+  }) => _exchange(
+    messages: messages,
+    tools: tools,
+    jsonMode: false,
+    cancelToken: cancelToken,
+  );
+
+  /// Performs one streamed request.
   ///
-  /// **Why a stream.** A plan is long — every file comes back as an action —
-  /// and a local model writes it slowly: a 27B model on LM Studio took 88 s
-  /// for thirty episodes, much of it reasoning. The request used to have 120 s
-  /// in total, so any real folder timed out, and the retry that followed made
-  /// the server start the same generation again while the abandoned one was
-  /// still running. A stream is timed on silence instead — [firstEventTimeout]
-  /// for loading and reading the prompt, [idleTimeout] for any later gap.
-  /// Closing the stream, on timeout or cancel, is also what makes the server
-  /// stop generating. A timeout is never retried.
+  /// **Why a stream.** A plan is long and a local model writes it slowly: a
+  /// 27B model on LM Studio took 88 s for thirty episodes, much of it
+  /// reasoning. The request used to have 120 s in total, so any real folder
+  /// timed out, and the retry that followed made the server start the same
+  /// generation again while the abandoned one was still running. A stream is
+  /// timed on silence instead — [firstEventTimeout] for loading and reading
+  /// the prompt, [idleTimeout] for any later gap. Closing the stream, on
+  /// timeout or cancel, is also what makes the server stop generating. A
+  /// timeout is never retried.
   ///
   /// **Sampling.** Every value the resolved preset holds is sent explicitly,
   /// neutral ones included: servers fill gaps with their own defaults
@@ -127,17 +154,16 @@ class OpenAiProvider implements AiProvider {
   /// **Reasoning.** With thinking off, a hybrid family is asked for no
   /// reasoning in the way its server understands — see [_ThinkingOff].
   ///
-  /// **JSON mode.** `response_format: json_object` is OpenAI's form and most
-  /// servers take it, but not all: LM Studio answers it with a 400
-  /// ("'response_format.type' must be 'json_schema' or 'text'"). A rejection
-  /// naming the parameter retries with a permissive `json_schema`, then with
-  /// no constraint at all — the prompts already demand a bare JSON object, and
-  /// every parser tolerates stray prose around one. The mode that worked is
-  /// remembered.
-  @override
-  Future<AiResponse> complete({
-    required String systemPrompt,
-    required String userPrompt,
+  /// **JSON mode** ([jsonMode], never together with tools).
+  /// `response_format: json_object` is OpenAI's form and most servers take it,
+  /// but not all: LM Studio answers it with a 400 ("'response_format.type'
+  /// must be 'json_schema' or 'text'"). A rejection naming the parameter
+  /// retries with a permissive `json_schema`, then with no constraint at all.
+  /// The mode that worked is remembered.
+  Future<ChatResult> _exchange({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+    required bool jsonMode,
     AiCancelToken? cancelToken,
   }) async {
     // A cancellable call goes through the token's own client so cancelling can
@@ -178,25 +204,35 @@ class OpenAiProvider implements AiProvider {
         'stream_options': const {'include_usage': true},
       }..removeWhere((key, _) => rejected.contains(key));
 
-      final system = switch ((off, control)) {
-        (_ThinkingOff.softSwitch, _) => '$systemPrompt\n\n/no_think',
+      String editSystem(String prompt) => switch ((off, control)) {
+        (_ThinkingOff.softSwitch, _) => '$prompt\n\n/no_think',
         // Gemma 4 reasons only when the system prompt opens with this token.
         (_, ThinkingControl.promptToken) when config.thinkingEnabled =>
-          '<|think|>\n$systemPrompt',
-        _ => systemPrompt,
+          '<|think|>\n$prompt',
+        _ => prompt,
       };
+
+      var systemSeen = false;
+      final wire = [
+        for (final message in messages)
+          if (message is SystemMessage && !systemSeen)
+            (() {
+              systemSeen = true;
+              return {'role': 'system', 'content': editSystem(message.content)};
+            })()
+          else
+            _wire(message),
+      ];
 
       final body = jsonEncode({
         'model': config.model,
         ...optional,
         (maxCompletionTokens ? 'max_completion_tokens' : 'max_tokens'):
             ?maxTokens,
-        ...?_responseFormat(mode),
+        if (jsonMode) ...?_responseFormat(mode),
+        if (tools.isNotEmpty) 'tools': [for (final tool in tools) _tool(tool)],
         'stream': true,
-        'messages': [
-          {'role': 'system', 'content': system},
-          {'role': 'user', 'content': userPrompt},
-        ],
+        'messages': wire,
       });
 
       http.StreamedResponse res;
@@ -225,12 +261,12 @@ class OpenAiProvider implements AiProvider {
       }
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        _acceptedJsonModes[_cacheKey] = mode;
-        final response = await _read(res, cancelToken);
-        if (off == null || !response.reasoned) return response;
+        if (jsonMode) _acceptedJsonModes[_cacheKey] = mode;
+        final result = await _read(res, cancelToken);
+        if (off == null || !result.reasoned) return result;
         // This way of asking was ignored; the next request tries the next.
         _thinkingOffAttempts[_cacheKey] = attempt + 1;
-        return response.withThinkingOffPending(attempt + 1 < offWays.length);
+        return result.withThinkingOffPending(attempt + 1 < offWays.length);
       }
 
       String error;
@@ -249,7 +285,9 @@ class OpenAiProvider implements AiProvider {
           _wantsMaxCompletionTokens.add(_cacheKey);
           continue;
         }
-        if (mode != _JsonMode.none && _namesResponseFormat(detail)) {
+        if (jsonMode &&
+            mode != _JsonMode.none &&
+            _namesResponseFormat(detail)) {
           mode = _JsonMode.values[mode.index + 1];
           continue;
         }
@@ -269,6 +307,41 @@ class OpenAiProvider implements AiProvider {
       throw AiException(error);
     }
   }
+
+  static Map<String, Object?> _tool(ToolDefinition tool) => {
+    'type': 'function',
+    'function': {
+      'name': tool.name,
+      'description': tool.description,
+      'parameters': tool.parameters,
+    },
+  };
+
+  static Map<String, Object?> _wire(ChatMessage message) => switch (message) {
+    SystemMessage(:final content) => {'role': 'system', 'content': content},
+    UserMessage(:final content) => {'role': 'user', 'content': content},
+    AssistantMessage(:final content, :final toolCalls, :final reasoning) => {
+      'role': 'assistant',
+      // A tool-call turn with no prose is `null` content, not an empty string.
+      'content': toolCalls.isNotEmpty && content.isEmpty ? null : content,
+      if (toolCalls.isNotEmpty)
+        'tool_calls': [
+          for (final call in toolCalls)
+            {
+              'id': call.id,
+              'type': 'function',
+              'function': {'name': call.name, 'arguments': call.arguments},
+            },
+        ],
+      if (toolCalls.isNotEmpty && reasoning != null)
+        reasoning.field: reasoning.text,
+    },
+    ToolResultMessage(:final toolCallId, :final content) => {
+      'role': 'tool',
+      'tool_call_id': toolCallId,
+      'content': content,
+    },
+  };
 
   static List<_ThinkingOff> _thinkingOffWays(
     ThinkingControl control,
@@ -304,13 +377,14 @@ class OpenAiProvider implements AiProvider {
     _JsonMode.none => null,
   };
 
-  /// Collects a streamed completion from its server-sent events.
+  /// Collects a streamed reply from its server-sent events.
   ///
-  /// Only `delta.content` is the answer; reasoning arrives as
-  /// `reasoning_content` (or `reasoning`) and is noted, not kept. A body that
-  /// is not an event stream — a server or proxy that ignored `stream: true` —
-  /// is parsed as one ordinary JSON completion instead.
-  Future<AiResponse> _read(
+  /// `delta.content` is the answer and `delta.tool_calls` arrive in fragments
+  /// keyed by index. Reasoning (`reasoning_content` or `reasoning`) is kept
+  /// under the field name the server used, for sending back with tool calls.
+  /// A body that is not an event stream — a server or proxy that ignored
+  /// `stream: true` — is parsed as one ordinary JSON completion instead.
+  Future<ChatResult> _read(
     http.StreamedResponse res,
     AiCancelToken? cancelToken,
   ) async {
@@ -321,11 +395,14 @@ class OpenAiProvider implements AiProvider {
     );
     final content = StringBuffer();
     final plain = StringBuffer();
+    final calls = SplayTreeMap<int, _PendingCall>();
+    final reasoningText = StringBuffer();
+    String? reasoningField;
     bool? sse;
     String? finishReason;
     var promptTokens = 0;
     var completionTokens = 0;
-    var reasoned = false;
+    var reasoningTokens = 0;
     var started = false;
 
     try {
@@ -375,9 +452,20 @@ class OpenAiProvider implements AiProvider {
           final delta = choice['delta'];
           if (delta is Map) {
             if (delta['content'] is String) content.write(delta['content']);
-            if (_hasText(delta['reasoning_content']) ||
-                _hasText(delta['reasoning'])) {
-              reasoned = true;
+            for (final field in _reasoningFields) {
+              final piece = delta[field];
+              if (piece is String && piece.isNotEmpty) {
+                reasoningField ??= field;
+                reasoningText.write(piece);
+              }
+            }
+            final toolCalls = delta['tool_calls'];
+            if (toolCalls is List) {
+              for (final fragment in toolCalls.whereType<Map>()) {
+                final index =
+                    (fragment['index'] as num?)?.toInt() ?? calls.length;
+                calls.putIfAbsent(index, _PendingCall.new).add(fragment);
+              }
             }
           }
           if (choice['finish_reason'] is String) {
@@ -390,7 +478,7 @@ class OpenAiProvider implements AiProvider {
               (usage['prompt_tokens'] as num?)?.toInt() ?? promptTokens;
           completionTokens =
               (usage['completion_tokens'] as num?)?.toInt() ?? completionTokens;
-          if (_reasoningTokens(usage) > 0) reasoned = true;
+          reasoningTokens = _reasoningTokens(usage);
         }
       }
     } on AiException {
@@ -405,20 +493,32 @@ class OpenAiProvider implements AiProvider {
     }
 
     if (sse != true) return _parse(plain.toString());
-    if (content.isEmpty && finishReason == null) {
+    if (content.isEmpty && calls.isEmpty && finishReason == null) {
       throw const AiException('Empty response from model.');
     }
     final (text, inline) = splitReasoning(content.toString());
-    return AiResponse(
+    final field = reasoningField;
+    return ChatResult(
       text: text,
+      toolCalls: [
+        for (final entry in calls.entries) entry.value.build(entry.key),
+      ],
+      reasoning: field == null
+          ? null
+          : (field: field, text: reasoningText.toString()),
       promptTokens: promptTokens,
       completionTokens: completionTokens,
       finishReason: finishReason,
-      reasoned: reasoned || inline,
+      reasoned:
+          inline ||
+          reasoningText.toString().trim().isNotEmpty ||
+          reasoningTokens > 0,
     );
   }
 
-  static AiResponse _parse(String body) {
+  static const _reasoningFields = ['reasoning_content', 'reasoning'];
+
+  static ChatResult _parse(String body) {
     final Object? json;
     try {
       json = jsonDecode(body);
@@ -431,12 +531,43 @@ class OpenAiProvider implements AiProvider {
     }
     final choice = choices.first as Map;
     final message = choice['message'];
-    final content = message is Map ? message['content'] as String? : null;
     final usage = (json as Map)['usage'];
+    final content = message is Map ? message['content'] as String? : null;
     final (text, inline) = splitReasoning(content ?? '');
 
-    return AiResponse(
+    ReasoningPassback? reasoning;
+    if (message is Map) {
+      for (final field in _reasoningFields) {
+        final value = message[field];
+        if (value is String && value.trim().isNotEmpty) {
+          reasoning = (field: field, text: value);
+          break;
+        }
+      }
+    }
+    final rawCalls = message is Map ? message['tool_calls'] : null;
+    final toolCalls = <ToolCall>[
+      if (rawCalls is List)
+        for (final (index, raw) in rawCalls.whereType<Map>().indexed)
+          if (raw['function'] case final Map<dynamic, dynamic> function)
+            ToolCall(
+              id: raw['id'] is String && (raw['id'] as String).isNotEmpty
+                  ? raw['id'] as String
+                  : 'call_$index',
+              name: function['name'] as String? ?? '',
+              // Some servers hand arguments back already decoded.
+              arguments: switch (function['arguments']) {
+                String s => s,
+                null => '{}',
+                final Object other => jsonEncode(other),
+              },
+            ),
+    ];
+
+    return ChatResult(
       text: text,
+      toolCalls: toolCalls,
+      reasoning: reasoning,
       promptTokens: usage is Map
           ? (usage['prompt_tokens'] as num?)?.toInt() ?? 0
           : 0,
@@ -446,7 +577,7 @@ class OpenAiProvider implements AiProvider {
       finishReason: choice['finish_reason'] as String?,
       reasoned:
           inline ||
-          (message is Map && _hasText(message['reasoning_content'])) ||
+          reasoning != null ||
           (usage is Map && _reasoningTokens(usage) > 0),
     );
   }
@@ -481,9 +612,6 @@ class OpenAiProvider implements AiProvider {
     }
     return (content, false);
   }
-
-  static bool _hasText(Object? value) =>
-      value is String && value.trim().isNotEmpty;
 
   static int _reasoningTokens(Map<dynamic, dynamic> usage) {
     final details = usage['completion_tokens_details'];
@@ -564,4 +692,37 @@ class OpenAiProvider implements AiProvider {
       return null;
     }
   }
+}
+
+/// A tool call assembled from stream fragments.
+///
+/// Arguments arrive in pieces and are appended. The id and name normally
+/// arrive once, and some servers even split the id, so a new piece is
+/// appended — but others repeat the full id and name in every fragment, so a
+/// piece equal to what is already there is ignored rather than doubled.
+class _PendingCall {
+  String _id = '';
+  String _name = '';
+  final _arguments = StringBuffer();
+
+  void add(Map<dynamic, dynamic> fragment) {
+    final id = fragment['id'];
+    if (id is String && id.isNotEmpty && id != _id) _id += id;
+    final function = fragment['function'];
+    if (function is! Map) return;
+    final name = function['name'];
+    if (name is String && name.isNotEmpty && name != _name) _name += name;
+    final arguments = function['arguments'];
+    if (arguments is String) {
+      _arguments.write(arguments);
+    } else if (arguments is Map) {
+      _arguments.write(jsonEncode(arguments));
+    }
+  }
+
+  ToolCall build(int index) => ToolCall(
+    id: _id.isEmpty ? 'call_$index' : _id,
+    name: _name,
+    arguments: _arguments.isEmpty ? '{}' : _arguments.toString(),
+  );
 }

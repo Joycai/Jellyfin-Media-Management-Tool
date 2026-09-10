@@ -7,9 +7,18 @@
 /// folded synopsis and an expanded one, and a model that grabs the folded copy
 /// produces a recipe that runs, returns non-empty values, and looks entirely
 /// healthy while quietly storing truncated text for every title on the site.
-/// The self-check below can only catch *empty* fields — never short ones — so
-/// a human has to be the one who commits it.
+/// The check below can only catch *empty* fields — never short ones — so a
+/// human has to be the one who commits it.
+///
+/// It runs as a tool loop. The model explores the page through
+/// [PageInspector] instead of reading a skeleton of all of it, tries drafts
+/// with `test_recipe`, and hands the one it settles on to `submit_recipe`,
+/// which refuses a recipe that does not extract a title and something that
+/// identifies the release. The self-check that used to run after the fact now
+/// runs where the model can act on it.
 library;
+
+import 'dart:convert';
 
 import 'scrape_transform.dart';
 
@@ -17,10 +26,10 @@ import 'package:html/dom.dart';
 
 import '../../models/media_metadata.dart';
 import '../../models/scrape_recipe.dart';
+import '../agent/agent_runtime.dart';
 import '../ai/ai_cancel_token.dart';
 import '../ai/ai_provider.dart';
-import '../ai/token_budget.dart';
-import 'html_cleaner.dart';
+import 'page_tools.dart';
 import 'recipe_applier.dart';
 import 'scrape_prompt.dart';
 
@@ -30,20 +39,19 @@ class LearnedRecipe {
   /// Not yet in `RecipeStore` — see the library doc.
   final ScrapeRecipe recipe;
 
-  /// The self-check's output: what this recipe extracts from the page it was
-  /// learned on. Every field is [FieldOrigin.llm], which is what makes the
-  /// preview highlight them.
+  /// What this recipe extracts from the page it was learned on. Every field is
+  /// [FieldOrigin.llm], which is what makes the preview highlight them.
   final MediaMetadata extracted;
 
-  /// 1 when the first attempt worked, 2 when the retry did.
-  final int attempts;
+  /// Model turns the run took.
+  final int rounds;
   final int promptTokens;
   final int completionTokens;
 
   const LearnedRecipe({
     required this.recipe,
     required this.extracted,
-    required this.attempts,
+    required this.rounds,
     this.promptTokens = 0,
     this.completionTokens = 0,
   });
@@ -52,106 +60,75 @@ class LearnedRecipe {
 class RecipeLearner {
   final AiProvider provider;
 
-  /// One retry, carrying the first attempt's shortfall as feedback. A third
-  /// try is not worth the tokens: if the model cannot find a title with the
-  /// skeleton in front of it twice, the page needs tier 4.
-  static const int maxAttempts = 2;
+  /// Runs once before the first model call. The scrape panel passes
+  /// `AiService.ensureTools`, so a model that cannot call tools fails with a
+  /// message saying so rather than with "no recipe".
+  final Future<void> Function()? beforeStart;
 
-  /// Room kept for the recipe the model writes back — a few hundred tokens of
-  /// selectors — plus the retry's feedback paragraph.
-  static const int _replyReserve = 1500;
+  /// An outline, a few inspections and queries, a test or two and a
+  /// submission, with room for a model that needs to correct itself. Past
+  /// this, the page needs tier 4.
+  static const int maxRounds = 14;
 
-  const RecipeLearner(this.provider);
+  const RecipeLearner(this.provider, {this.beforeStart});
 
-  /// Learns a recipe for [pageUrl] from [html], or returns null when the model
-  /// cannot produce one that works.
-  ///
-  /// [document] is the already-parsed page, used for the self-check so the
-  /// verification runs against exactly the tree the real extraction would.
+  /// Learns a recipe for [pageUrl] from [document], or returns null when the
+  /// model does not submit one that works.
   Future<LearnedRecipe?> learn({
-    required String html,
     required Document document,
     required Uri pageUrl,
     AiCancelToken? cancelToken,
   }) async {
-    var skeleton = HtmlCleaner.clean(html);
-    if (skeleton.isEmpty) return null;
-    skeleton = _fitToWindow(skeleton, pageUrl);
+    final state = _LearnState(PageInspector(document, pageUrl), pageUrl);
+    if (state.page.outline.isEmpty) return null;
 
-    var promptTokens = 0;
-    var completionTokens = 0;
-    String? feedback;
-
-    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-      cancelToken?.throwIfCancelled();
-
-      final response = await provider.complete(
-        systemPrompt: ScrapePrompt.systemPrompt,
-        userPrompt: ScrapePrompt.buildUserPrompt(
-          pageUrl: pageUrl,
-          skeleton: skeleton,
-          feedback: feedback,
+    await beforeStart?.call();
+    cancelToken?.throwIfCancelled();
+    final run = await AgentRuntime.run<_LearnState>(
+      provider: provider,
+      messages: [
+        SystemMessage(ScrapePrompt.systemPrompt),
+        UserMessage(
+          ScrapePrompt.buildTaskPrompt(
+            pageUrl: pageUrl,
+            outline: state.page.outlinePage(1),
+          ),
         ),
-        cancelToken: cancelToken,
-      );
-      promptTokens += response.promptTokens;
-      completionTokens += response.completionTokens;
-
-      final recipe = parseRecipe(response.text, pageUrl);
-      if (recipe == null) {
-        feedback = 'It was not valid JSON in the shape described above.';
-        continue;
-      }
-
-      // Self-check: run it against the page it was written for. This is cheap,
-      // local, and catches the common failure of selectors that match nothing.
-      final extracted = RecipeApplier.apply(document, recipe, pageUrl);
-      final shortfall = ScrapePrompt.describeShortfall(extracted);
-      if (shortfall != null) {
-        feedback = shortfall;
-        continue;
-      }
-
-      return LearnedRecipe(
-        recipe: recipe,
-        extracted: _asLlmOrigin(extracted),
-        attempts: attempt,
-        promptTokens: promptTokens,
-        completionTokens: completionTokens,
-      );
-    }
-    return null;
-  }
-
-  /// Trims [skeleton] to what the provider's context window can take.
-  ///
-  /// The skeleton's 60 KB ceiling is sized for hosted models. A small local
-  /// model's window can be a tenth of that, and a local server cuts an
-  /// oversized prompt silently from the front — instructions first — instead
-  /// of rejecting it. Losing the end of the page costs the selectors for
-  /// whatever was there; losing the instructions costs the whole recipe.
-  String _fitToWindow(String skeleton, Uri pageUrl) {
-    final allowance = TokenBudget.inputAllowance(
-      provider.config,
-      fixedPrompt:
-          ScrapePrompt.systemPrompt +
-          ScrapePrompt.buildUserPrompt(pageUrl: pageUrl, skeleton: ''),
-      reservedOutput: _replyReserve,
+      ],
+      tools: const [
+        PageOutlineTool<_LearnState>(),
+        InspectTool<_LearnState>(),
+        QueryTool<_LearnState>(),
+        _TestRecipeTool(),
+        _SubmitRecipeTool(),
+      ],
+      context: state,
+      maxRounds: maxRounds,
+      isDone: () => state.submitted != null,
+      nudge: () =>
+          'You have not submitted a recipe yet. Check a draft with '
+          'test_recipe, then call submit_recipe.',
+      contextWindow: provider.config.contextWindow,
+      cancelToken: cancelToken,
     );
-    if (allowance == null) return skeleton;
-    return TokenBudget.truncate(
-      skeleton,
-      allowance,
-      marker: '\n<!-- truncated -->',
+
+    final recipe = state.submitted;
+    if (recipe == null) return null;
+    return LearnedRecipe(
+      recipe: recipe,
+      extracted: _asLlmOrigin(RecipeApplier.apply(document, recipe, pageUrl)),
+      rounds: run.rounds,
+      promptTokens: run.promptTokens,
+      completionTokens: run.completionTokens,
     );
   }
 
   /// Parses model text into a recipe, or null when it is unusable.
   ///
-  /// Tolerant of markdown fences and stray prose, like `OrganizePlan`'s parser.
-  /// The domain, origin and schema version are forced rather than trusted: a
-  /// model that writes someone else's domain would produce a recipe that
-  /// silently applies to the wrong site.
+  /// Tolerant of markdown fences and stray prose. The domain, origin and
+  /// schema version are forced rather than trusted: a model that writes
+  /// someone else's domain would produce a recipe that silently applies to the
+  /// wrong site.
   static ScrapeRecipe? parseRecipe(String raw, Uri pageUrl) {
     final json = extractJsonMap(raw);
     if (json == null) return null;
@@ -193,5 +170,128 @@ class RecipeLearner {
       if (!extracted.isBlank(field)) extracted.origins[field] = FieldOrigin.llm;
     }
     return extracted;
+  }
+}
+
+class _LearnState implements HasPage {
+  @override
+  final PageInspector page;
+  final Uri pageUrl;
+  ScrapeRecipe? submitted;
+
+  _LearnState(this.page, this.pageUrl);
+}
+
+const _recipeParameters = {
+  'type': 'object',
+  'properties': {
+    'recipe': {
+      'type': 'object',
+      'description': 'The recipe, in the shape the instructions show.',
+    },
+  },
+  'required': ['recipe'],
+};
+
+/// The recipe argument, which a model may pass as an object or, less tidily,
+/// as a JSON string.
+ScrapeRecipe _recipeArgument(Map<String, dynamic> arguments, Uri pageUrl) {
+  final text = switch (arguments['recipe']) {
+    String s => s,
+    Map<dynamic, dynamic> m => jsonEncode(m),
+    _ => null,
+  };
+  final recipe = text == null ? null : RecipeLearner.parseRecipe(text, pageUrl);
+  if (recipe == null) {
+    throw const ToolError(
+      'Pass the recipe as "recipe": a JSON object with at least one of '
+      'fields, keyValue, tagGroups or constants, in the shape the '
+      'instructions show.',
+    );
+  }
+  return recipe;
+}
+
+/// One line per extracted field, with its length — the number that tells a
+/// folded synopsis from the full one.
+String _describe(MediaMetadata extracted) {
+  final lines = <String>[
+    for (final field in MetadataField.all)
+      if (!extracted.isBlank(field))
+        switch (extracted.get(field)) {
+          List<Object?> items => '- $field: ${items.length} item(s)',
+          final Object? value => () {
+            final text = '$value';
+            final shown = text.length > 120
+                ? '${text.substring(0, 120)}…'
+                : text;
+            return '- $field (${text.length} chars): $shown';
+          }(),
+        },
+  ];
+  return lines.isEmpty ? 'It extracted nothing.' : lines.join('\n');
+}
+
+class _TestRecipeTool extends AgentTool<_LearnState> {
+  const _TestRecipeTool();
+
+  @override
+  ToolDefinition get definition => const ToolDefinition(
+    name: 'test_recipe',
+    description:
+        'Runs a draft recipe against this page and reports what each field '
+        'extracts, with its length. Nothing is saved.',
+    parameters: _recipeParameters,
+  );
+
+  @override
+  String execute(Map<String, dynamic> arguments, _LearnState context) {
+    final recipe = _recipeArgument(arguments, context.pageUrl);
+    final extracted = RecipeApplier.apply(
+      context.page.document,
+      recipe,
+      context.pageUrl,
+    );
+    final shortfall = ScrapePrompt.describeShortfall(extracted);
+    return [
+      _describe(extracted),
+      shortfall == null
+          ? 'This recipe can be submitted. Where a field could come from two '
+                'places, compare their lengths first and prefer the longer '
+                'copy.'
+          : 'Not enough to submit yet. $shortfall',
+    ].join('\n');
+  }
+}
+
+class _SubmitRecipeTool extends AgentTool<_LearnState> {
+  const _SubmitRecipeTool();
+
+  @override
+  ToolDefinition get definition => const ToolDefinition(
+    name: 'submit_recipe',
+    description:
+        'Submits the finished recipe. It must extract a title and a code or '
+        'poster from this page.',
+    parameters: _recipeParameters,
+  );
+
+  @override
+  String execute(Map<String, dynamic> arguments, _LearnState context) {
+    final recipe = _recipeArgument(arguments, context.pageUrl);
+    final extracted = RecipeApplier.apply(
+      context.page.document,
+      recipe,
+      context.pageUrl,
+    );
+    final shortfall = ScrapePrompt.describeShortfall(extracted);
+    if (shortfall != null) {
+      throw ToolError(
+        'Not accepted. $shortfall Fix the selectors, check them with '
+        'test_recipe, and submit again.',
+      );
+    }
+    context.submitted = recipe;
+    return 'Recipe accepted.';
   }
 }
