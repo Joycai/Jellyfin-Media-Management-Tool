@@ -343,9 +343,15 @@ Future<void> _revealInFileManager(BuildContext context, FileEntry entry) async {
   final messenger = ScaffoldMessenger.of(context);
   try {
     if (Platform.isWindows) {
+      // `/select,` and the path must be two arguments. As one, a path with a
+      // space makes Dart quote the whole token — `"/select,D:\My Movies\x"` —
+      // and Explorer cannot parse that: it opens Documents and selects
+      // nothing. NAS libraries hit it first only because their folder names
+      // tend to contain spaces. Split, only the path is quoted, and local and
+      // UNC paths both land on the item.
       // `explorer /select,` exits with a non-zero code even on success, so
       // don't check the exit code — just fire it.
-      await Process.start('explorer', ['/select,${entry.path}']);
+      await Process.start('explorer', ['/select,', p.normalize(entry.path)]);
     } else if (Platform.isMacOS) {
       await Process.start('open', ['-R', entry.path]);
     } else {

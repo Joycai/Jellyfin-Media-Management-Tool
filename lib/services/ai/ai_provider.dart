@@ -7,10 +7,14 @@
 library;
 
 import 'ai_cancel_token.dart';
+import 'model_limits.dart';
+
+export 'model_limits.dart' show ModelLimits;
 
 /// Identifies which wire protocol a provider speaks.
 enum AiProviderType {
-  /// OpenAI-compatible `/chat/completions` (OpenAI, Azure, LocalAI, Ollama, …).
+  /// OpenAI-compatible `/chat/completions` (OpenAI, Azure, LM Studio, Ollama,
+  /// llama.cpp, vLLM, …).
   openAi,
 
   /// Google Generative Language API (`:generateContent`).
@@ -22,6 +26,14 @@ extension AiProviderTypeX on AiProviderType {
     AiProviderType.openAi => 'openai',
     AiProviderType.googleGenAi => 'google',
   };
+
+  /// Whether a profile is unusable without an API key.
+  ///
+  /// Google's API rejects every keyless request. An OpenAI-compatible server
+  /// often wants none at all — LM Studio, Ollama, llama.cpp and vLLM run
+  /// without authentication by default — and requiring one there made users
+  /// invent a key just to get past the form.
+  bool get requiresApiKey => this == AiProviderType.googleGenAi;
 
   static AiProviderType fromId(String? id) => switch (id) {
     'google' => AiProviderType.googleGenAi,
@@ -35,13 +47,24 @@ class AiResponse {
   final int promptTokens;
   final int completionTokens;
 
+  /// Why generation stopped, as the server put it (`stop`, `length`,
+  /// `MAX_TOKENS`, …). Null when it did not say.
+  final String? finishReason;
+
   const AiResponse({
     required this.text,
     this.promptTokens = 0,
     this.completionTokens = 0,
+    this.finishReason,
   });
 
   int get totalTokens => promptTokens + completionTokens;
+
+  /// True when the server cut the reply off at its output limit.
+  bool get truncated => switch (finishReason?.toLowerCase()) {
+    'length' || 'max_tokens' => true,
+    _ => false,
+  };
 }
 
 /// Raised when a provider call fails. Carries a human-readable message that is
@@ -66,32 +89,38 @@ class AiConfig {
   final String model;
   final double temperature;
 
+  /// Tokens the model is served with, or null when unknown.
+  ///
+  /// A budget, not a server setting. OpenAI-compatible servers fix the context
+  /// when the model is loaded — LM Studio's slider, Ollama's `num_ctx`,
+  /// llama.cpp's `-c` — and none accept it per request, so the app cannot
+  /// change it. What it can do is stop sending more than fits: a local server
+  /// does not reject an oversized prompt, it drops the front of it, system
+  /// prompt first, and the model answers confidently without its
+  /// instructions. Null sends every prompt at its natural size, as before.
+  final int? contextWindow;
+
+  /// Cap on generated tokens, sent as `max_tokens` (or
+  /// `max_completion_tokens`) / `maxOutputTokens`. Null leaves the server's
+  /// default.
+  final int? maxOutputTokens;
+
   const AiConfig({
     required this.provider,
     required this.endpoint,
     required this.apiKey,
     required this.model,
     this.temperature = 0.2,
+    this.contextWindow,
+    this.maxOutputTokens,
   });
 
+  /// Endpoint and model are always needed; a key only where the protocol
+  /// demands one — see [AiProviderTypeX.requiresApiKey].
   bool get isComplete =>
       endpoint.trim().isNotEmpty &&
-      apiKey.trim().isNotEmpty &&
-      model.trim().isNotEmpty;
-
-  AiConfig copyWith({
-    AiProviderType? provider,
-    String? endpoint,
-    String? apiKey,
-    String? model,
-    double? temperature,
-  }) => AiConfig(
-    provider: provider ?? this.provider,
-    endpoint: endpoint ?? this.endpoint,
-    apiKey: apiKey ?? this.apiKey,
-    model: model ?? this.model,
-    temperature: temperature ?? this.temperature,
-  );
+      model.trim().isNotEmpty &&
+      (!provider.requiresApiKey || apiKey.trim().isNotEmpty);
 
   Map<String, dynamic> toJson() => {
     'provider': provider.id,
@@ -99,6 +128,8 @@ class AiConfig {
     'api_key': apiKey,
     'model': model,
     'temperature': temperature,
+    'context_window': contextWindow,
+    'max_output_tokens': maxOutputTokens,
   };
 
   factory AiConfig.fromJson(Map<String, dynamic> json) => AiConfig(
@@ -107,7 +138,20 @@ class AiConfig {
     apiKey: (json['api_key'] as String?) ?? '',
     model: (json['model'] as String?) ?? '',
     temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
+    contextWindow: tokenCount(json['context_window']),
+    maxOutputTokens: tokenCount(json['max_output_tokens']),
   );
+
+  /// Reads a token count from JSON or a text field. Anything that is not a
+  /// positive integer means "unset" — a stray `0` must not become zero room.
+  static int? tokenCount(Object? value) {
+    final n = switch (value) {
+      num v => v.toInt(),
+      String v => int.tryParse(v.trim()),
+      _ => null,
+    };
+    return n != null && n > 0 ? n : null;
+  }
 
   /// Truly empty sentinel — every string is blank so [isComplete] is false and
   /// nothing accidentally hits a real endpoint before the user configures one.
@@ -133,6 +177,8 @@ abstract class AiProvider {
     AiCancelToken? cancelToken,
   });
 
-  /// Lightweight connectivity/credential check. Returns true on success.
-  Future<bool> testConnection();
+  /// What the server reports about the model's context window and output cap,
+  /// without generating anything. Best-effort: never throws, and returns
+  /// [ModelLimits.unknown] when nothing answered.
+  Future<ModelLimits> detectLimits();
 }

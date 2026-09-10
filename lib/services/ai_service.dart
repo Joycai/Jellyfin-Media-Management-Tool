@@ -8,6 +8,7 @@ import '../models/organize_plan.dart';
 import 'ai/ai_cancel_token.dart';
 import 'ai/ai_prompt.dart';
 import 'ai/ai_provider.dart';
+import 'ai/connection_check.dart';
 import 'ai/google_genai_provider.dart';
 import 'ai/openai_provider.dart';
 import 'file_label_service.dart';
@@ -80,13 +81,14 @@ class AiService extends ChangeNotifier {
   /// "setState()/markNeedsBuild() called during build".
   void updateConfig(AiConfig config) {
     // A change to any connection-relevant field invalidates a prior "connected"
-    // status; temperature does not affect connectivity.
-    final connectionChanged =
-        config.provider != _config.provider ||
-        config.endpoint != _config.endpoint ||
-        config.apiKey != _config.apiKey ||
-        config.model != _config.model;
-    if (!connectionChanged && config.temperature == _config.temperature) return;
+    // status; temperature and the token budgets do not affect connectivity.
+    final connectionChanged = !_sameEndpoint(config, _config);
+    if (!connectionChanged &&
+        config.temperature == _config.temperature &&
+        config.contextWindow == _config.contextWindow &&
+        config.maxOutputTokens == _config.maxOutputTokens) {
+      return;
+    }
     _config = config;
     if (connectionChanged) {
       _status = ConnectionStatus.unknown;
@@ -94,6 +96,12 @@ class AiService extends ChangeNotifier {
     }
     _notifySafely();
   }
+
+  static bool _sameEndpoint(AiConfig a, AiConfig b) =>
+      a.provider == b.provider &&
+      a.endpoint == b.endpoint &&
+      a.apiKey == b.apiKey &&
+      a.model == b.model;
 
   /// Notifies listeners, deferring to after the current frame if we're mid-build
   /// (a listener watching this service could otherwise be rebuilt during build).
@@ -106,27 +114,32 @@ class AiService extends ChangeNotifier {
     }
   }
 
-  Future<bool> testConnection() async {
-    if (!_config.isComplete) {
-      _status = ConnectionStatus.error;
-      _statusMessage = 'Incomplete configuration';
-      notifyListeners();
-      return false;
+  /// Runs the Settings connection check against [config]: one real, tiny
+  /// completion — see [AiConnectionCheck]. Throws whatever the request threw.
+  ///
+  /// The sidebar status follows the result only when [config] is the live
+  /// endpoint, so testing a standby profile cannot paint the active one green
+  /// (or red).
+  Future<AiConnectionCheckResult> testConnection(AiConfig config) async {
+    if (!config.isComplete) {
+      throw const AiException('Incomplete configuration');
     }
-    _status = ConnectionStatus.testing;
-    _statusMessage = null;
-    notifyListeners();
+    final live = _sameEndpoint(config, _config);
+    void report(ConnectionStatus status, [String? message]) {
+      if (!live) return;
+      _status = status;
+      _statusMessage = message;
+      notifyListeners();
+    }
+
+    report(ConnectionStatus.testing);
     try {
-      final ok = await buildProvider().testConnection();
-      _status = ok ? ConnectionStatus.connected : ConnectionStatus.error;
-      _statusMessage = ok ? null : 'Unexpected response';
-      notifyListeners();
-      return ok;
+      final result = await AiConnectionCheck.run(providerFor(config));
+      report(ConnectionStatus.connected);
+      return result;
     } catch (e) {
-      _status = ConnectionStatus.error;
-      _statusMessage = e.toString();
-      notifyListeners();
-      return false;
+      report(ConnectionStatus.error, e.toString());
+      rethrow;
     }
   }
 
@@ -164,34 +177,51 @@ class AiService extends ChangeNotifier {
       if (entries.isEmpty) {
         throw const AiException('No files to organize in this folder.');
       }
-      final sw = Stopwatch()..start();
-      final response = await buildProvider().complete(
-        systemPrompt: AiPrompt.systemPrompt,
-        userPrompt: AiPrompt.buildUserPrompt(
-          folderName: p.basename(baseDir),
-          entries: entries,
-          titleHint: titleHint,
-          mediaTypeHint: mediaTypeHint,
-        ),
-        cancelToken: cancelToken,
+      // Without a token budget this is one batch — the whole folder in one
+      // request, as it always was. With one, the folder is split so every
+      // request (files in, actions out) fits the model's window, and later
+      // batches are told which title folders the earlier ones chose.
+      final folderName = p.basename(baseDir);
+      final batches = AiPrompt.batchEntries(
+        entries,
+        config: _config,
+        folderName: folderName,
+        titleHint: titleHint,
+        mediaTypeHint: mediaTypeHint,
       );
-      sw.stop();
-      // A cancel that lands between the response arriving and the plan being
-      // stored must still win — otherwise the panel pops a plan the user
-      // already dismissed.
-      cancelToken?.throwIfCancelled();
-      _requestCount++;
-      _latencies.add(sw.elapsedMilliseconds);
-      if (_latencies.length > 12) _latencies.removeAt(0);
-      final plan = OrganizePlan.fromAiJson(
-        response.text,
-        promptTokens: response.promptTokens,
-        completionTokens: response.completionTokens,
-      );
+      final provider = buildProvider();
+      final parts = <OrganizePlan>[];
+      for (final batch in batches) {
+        cancelToken?.throwIfCancelled();
+        final sw = Stopwatch()..start();
+        final response = await provider.complete(
+          systemPrompt: AiPrompt.systemPrompt,
+          userPrompt: AiPrompt.buildUserPrompt(
+            folderName: folderName,
+            entries: batch,
+            titleHint: titleHint,
+            mediaTypeHint: mediaTypeHint,
+            knownFolders: AiPrompt.titleFolders(
+              parts.expand((part) => part.actions).map((a) => a.target),
+            ),
+          ),
+          cancelToken: cancelToken,
+        );
+        sw.stop();
+        // A cancel that lands between the response arriving and the plan being
+        // stored must still win — otherwise the panel pops a plan the user
+        // already dismissed.
+        cancelToken?.throwIfCancelled();
+        _requestCount++;
+        _latencies.add(sw.elapsedMilliseconds);
+        if (_latencies.length > 12) _latencies.removeAt(0);
+        parts.add(_parsePlan(response));
+      }
+      final plan = OrganizePlan.merge(parts);
 
       _currentPlan = plan;
-      _lastTokens = response.totalTokens;
-      _totalTokens += response.totalTokens;
+      _lastTokens = plan.totalTokens;
+      _totalTokens += plan.totalTokens;
       _itemsProcessed += plan.actions.length;
       _status = ConnectionStatus.connected;
       _statusMessage = null;
@@ -200,6 +230,27 @@ class AiService extends ChangeNotifier {
       cancelToken?.dispose();
       _isAnalyzing = false;
       notifyListeners();
+    }
+  }
+
+  /// Parses one batch's reply, naming the likely cause when it was cut off: a
+  /// small model's output cap runs out long before a folder of files does, and
+  /// a bare "no JSON object found" gives the user nothing to act on.
+  static OrganizePlan _parsePlan(AiResponse response) {
+    try {
+      return OrganizePlan.fromAiJson(
+        response.text,
+        promptTokens: response.promptTokens,
+        completionTokens: response.completionTokens,
+      );
+    } on FormatException {
+      if (!response.truncated) rethrow;
+      throw AiException(
+        'The model stopped at its output limit '
+        '(${response.completionTokens} tokens) before finishing the plan. '
+        'Raise "Max output tokens", or set the context window so the folder '
+        'is sent in smaller batches.',
+      );
     }
   }
 

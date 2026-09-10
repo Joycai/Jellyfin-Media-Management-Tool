@@ -19,6 +19,7 @@ import '../../models/media_metadata.dart';
 import '../../models/scrape_recipe.dart';
 import '../ai/ai_cancel_token.dart';
 import '../ai/ai_provider.dart';
+import '../ai/token_budget.dart';
 import 'html_cleaner.dart';
 import 'recipe_applier.dart';
 import 'scrape_prompt.dart';
@@ -56,6 +57,10 @@ class RecipeLearner {
   /// skeleton in front of it twice, the page needs tier 4.
   static const int maxAttempts = 2;
 
+  /// Room kept for the recipe the model writes back — a few hundred tokens of
+  /// selectors — plus the retry's feedback paragraph.
+  static const int _replyReserve = 1500;
+
   const RecipeLearner(this.provider);
 
   /// Learns a recipe for [pageUrl] from [html], or returns null when the model
@@ -69,8 +74,9 @@ class RecipeLearner {
     required Uri pageUrl,
     AiCancelToken? cancelToken,
   }) async {
-    final skeleton = HtmlCleaner.clean(html);
+    var skeleton = HtmlCleaner.clean(html);
     if (skeleton.isEmpty) return null;
+    skeleton = _fitToWindow(skeleton, pageUrl);
 
     var promptTokens = 0;
     var completionTokens = 0;
@@ -115,6 +121,29 @@ class RecipeLearner {
       );
     }
     return null;
+  }
+
+  /// Trims [skeleton] to what the provider's context window can take.
+  ///
+  /// The skeleton's 60 KB ceiling is sized for hosted models. A small local
+  /// model's window can be a tenth of that, and a local server cuts an
+  /// oversized prompt silently from the front — instructions first — instead
+  /// of rejecting it. Losing the end of the page costs the selectors for
+  /// whatever was there; losing the instructions costs the whole recipe.
+  String _fitToWindow(String skeleton, Uri pageUrl) {
+    final allowance = TokenBudget.inputAllowance(
+      provider.config,
+      fixedPrompt:
+          ScrapePrompt.systemPrompt +
+          ScrapePrompt.buildUserPrompt(pageUrl: pageUrl, skeleton: ''),
+      reservedOutput: _replyReserve,
+    );
+    if (allowance == null) return skeleton;
+    return TokenBudget.truncate(
+      skeleton,
+      allowance,
+      marker: '\n<!-- truncated -->',
+    );
   }
 
   /// Parses model text into a recipe, or null when it is unusable.

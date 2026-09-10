@@ -1196,6 +1196,96 @@ abstract class AppLocalizations {
   /// **'Temperature'**
   String get temperature;
 
+  /// No description provided for @apiKeyOptionalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional for local servers (LM Studio, Ollama…)'**
+  String get apiKeyOptionalHint;
+
+  /// No description provided for @contextWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window (tokens)'**
+  String get contextWindow;
+
+  /// No description provided for @contextWindowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank = send everything'**
+  String get contextWindowHint;
+
+  /// No description provided for @maxOutputTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Max output tokens'**
+  String get maxOutputTokens;
+
+  /// No description provided for @maxOutputTokensHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank = server default'**
+  String get maxOutputTokensHint;
+
+  /// No description provided for @contextWindowNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The app cannot change a server\'s context size. Set it where the model is loaded (LM Studio, Ollama, llama.cpp) and enter the same number here: large folders are then organized in batches, and scraped pages are trimmed to fit.'**
+  String get contextWindowNote;
+
+  /// No description provided for @connectionIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the base URL and model first (Google also needs an API key)'**
+  String get connectionIncomplete;
+
+  /// No description provided for @connectionOkReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected in {ms} ms. The model replied: {reply}'**
+  String connectionOkReply(Object ms, Object reply);
+
+  /// No description provided for @connectionEmptyReply.
+  ///
+  /// In en, this message translates to:
+  /// **'(empty reply)'**
+  String get connectionEmptyReply;
+
+  /// No description provided for @connectionTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'The reply hit the output limit. Raise Max output tokens before organizing.'**
+  String get connectionTruncated;
+
+  /// No description provided for @detectedContextWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} reports a context window of {tokens} tokens'**
+  String detectedContextWindow(Object source, Object tokens);
+
+  /// No description provided for @detectedModelMaximum.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} reports the model supports up to {tokens} tokens; the loaded size may be smaller'**
+  String detectedModelMaximum(Object source, Object tokens);
+
+  /// No description provided for @detectedMaxOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'max output {tokens}'**
+  String detectedMaxOutput(Object tokens);
+
+  /// No description provided for @limitsNotDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'The server did not report a context size. Check it where the model is loaded.'**
+  String get limitsNotDetected;
+
+  /// No description provided for @useDetectedValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Use'**
+  String get useDetectedValue;
+
   /// No description provided for @tokensThisSession.
   ///
   /// In en, this message translates to:

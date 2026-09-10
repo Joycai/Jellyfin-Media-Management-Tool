@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../models/file_entry.dart';
 import 'file_label_service.dart';
@@ -160,7 +161,14 @@ class FileBrowserService extends ChangeNotifier {
     if (_currentDirectory == null) return;
     final directory = Directory(_currentDirectory!);
     try {
-      _directorySubscription = directory.watch().listen((_) => _onWatchEvent());
+      _directorySubscription = directory.watch().listen(
+        (_) => _onWatchEvent(),
+        // A network share's watch can fail after it starts — the NAS sleeps,
+        // the connection drops. That should cost live updates, not surface as
+        // an unhandled error; a manual refresh still works.
+        onError: (Object e) =>
+            debugPrint('Error watching directory $_currentDirectory: $e'),
+      );
     } catch (e) {
       debugPrint('Error watching directory $_currentDirectory: $e');
     }
@@ -173,7 +181,7 @@ class FileBrowserService extends ChangeNotifier {
   void _onWatchEvent() {
     final dir = _currentDirectory;
     if (dir == null) return;
-    if (!Directory(dir).existsSync()) {
+    if (!_existsSync(Directory(dir))) {
       _reloadDebounce?.cancel();
       goToParent();
       return;
@@ -193,7 +201,7 @@ class FileBrowserService extends ChangeNotifier {
     final gen = ++_loadGeneration;
     final directory = Directory(_currentDirectory!);
 
-    if (!await directory.exists()) {
+    if (!await _exists(directory)) {
       if (gen != _loadGeneration || _disposed) return;
       goToParent();
       return;
@@ -277,13 +285,35 @@ class FileBrowserService extends ChangeNotifier {
   }
 
   void goToParent() {
-    if (_currentDirectory != null) {
-      final parent = Directory(_currentDirectory!).parent;
-      if (parent.path != _currentDirectory) {
-        setCurrentDirectory(parent.path);
-      } else {
-        setCurrentDirectory(null);
-      }
+    final current = _currentDirectory;
+    if (current == null) return;
+    // `p.dirname` treats a UNC share (`\\nas\media`) as a root, the way it
+    // treats `C:\`. `Directory.parent` did not: it walked on to `\\nas\`,
+    // which is no directory at all, and `exists` throws on it.
+    final parent = p.dirname(current);
+    setCurrentDirectory(p.equals(parent, current) ? null : parent);
+  }
+
+  /// `exists`, counting a path that cannot be checked as still present.
+  ///
+  /// Windows throws rather than returning false for a UNC path it cannot
+  /// resolve — a NAS gone to sleep, a dropped connection. Reading that as
+  /// "deleted" walked the browser up the tree one failing parent at a time
+  /// until it fell off the root onto the empty start page, when the folder
+  /// was only out of reach for a moment.
+  static Future<bool> _exists(Directory directory) async {
+    try {
+      return await directory.exists();
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static bool _existsSync(Directory directory) {
+    try {
+      return directory.existsSync();
+    } catch (_) {
+      return true;
     }
   }
 

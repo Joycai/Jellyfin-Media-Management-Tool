@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/ai_service_profile.dart';
 import '../../services/ai/ai_provider.dart';
-import '../../services/ai/google_genai_provider.dart';
-import '../../services/ai/openai_provider.dart';
+import '../../services/ai/connection_check.dart';
 import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../theme/app_theme.dart';
@@ -320,11 +320,19 @@ class _ServiceDetailState extends State<_ServiceDetail> {
   late TextEditingController _endpoint;
   late TextEditingController _apiKey;
   late TextEditingController _model;
+  late TextEditingController _contextWindow;
+  late TextEditingController _maxOutput;
   late double _temperature;
   bool _obscureKey = true;
 
   bool _testing = false;
   bool? _testOk;
+
+  /// What the last successful test found the server reporting. Shown beside
+  /// the fields rather than written into them: a loaded size and a model
+  /// maximum are different claims, and only the user knows which one the
+  /// budget should follow.
+  ModelLimits? _detected;
 
   @override
   void initState() {
@@ -335,6 +343,12 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     _endpoint = TextEditingController(text: p.endpoint);
     _apiKey = TextEditingController(text: p.apiKey);
     _model = TextEditingController(text: p.model);
+    _contextWindow = TextEditingController(
+      text: p.contextWindow?.toString() ?? '',
+    );
+    _maxOutput = TextEditingController(
+      text: p.maxOutputTokens?.toString() ?? '',
+    );
     _temperature = p.temperature;
   }
 
@@ -344,61 +358,105 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     _endpoint.dispose();
     _apiKey.dispose();
     _model.dispose();
+    _contextWindow.dispose();
+    _maxOutput.dispose();
     super.dispose();
   }
 
+  AiConfig _config() => AiConfig(
+    provider: _provider,
+    endpoint: _endpoint.text.trim(),
+    apiKey: _apiKey.text.trim(),
+    model: _model.text.trim(),
+    temperature: _temperature,
+    contextWindow: AiConfig.tokenCount(_contextWindow.text),
+    maxOutputTokens: AiConfig.tokenCount(_maxOutput.text),
+  );
+
   void _persist() {
-    final updated = widget.profile.copyWith(
+    final config = _config();
+    final updated = AiServiceProfile(
+      id: widget.profile.id,
       name: _name.text,
-      provider: _provider,
-      endpoint: _endpoint.text.trim(),
-      apiKey: _apiKey.text.trim(),
-      model: _model.text.trim(),
-      temperature: _temperature,
+      provider: config.provider,
+      endpoint: config.endpoint,
+      apiKey: config.apiKey,
+      model: config.model,
+      temperature: config.temperature,
+      contextWindow: config.contextWindow,
+      maxOutputTokens: config.maxOutputTokens,
     );
     context.read<AiProfilesService>().update(updated);
     if (widget.isActive) {
-      context.read<AiService>().updateConfig(updated.toAiConfig());
+      context.read<AiService>().updateConfig(config);
     }
   }
 
   Future<void> _test() async {
     _persist();
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final config = _config();
+    if (!config.isComplete) {
+      setState(() => _testOk = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.connectionIncomplete)),
+      );
+      return;
+    }
+    final ai = context.read<AiService>();
     setState(() {
       _testing = true;
       _testOk = null;
     });
-    final cfg = AiConfig(
-      provider: _provider,
-      endpoint: _endpoint.text.trim(),
-      apiKey: _apiKey.text.trim(),
-      model: _model.text.trim(),
-      temperature: _temperature,
-    );
-    final messenger = ScaffoldMessenger.of(context);
-    final l10n = AppLocalizations.of(context)!;
-    bool ok = false;
-    String? err;
+    AiConnectionCheckResult? result;
+    String? error;
     try {
-      final provider = _provider == AiProviderType.googleGenAi
-          ? GoogleGenAiProvider(cfg)
-          : OpenAiProvider(cfg);
-      ok = await provider.testConnection();
+      result = await ai.testConnection(config);
     } catch (e) {
-      err = e.toString();
+      error = e.toString();
     }
     if (!mounted) return;
+    final checked = result;
     setState(() {
       _testing = false;
-      _testOk = ok;
+      _testOk = checked != null;
+      if (checked != null) _detected = checked.limits;
     });
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          ok ? l10n.connectionOk : l10n.connectionFailed(err ?? ''),
+          checked == null
+              ? l10n.connectionFailed(error ?? '')
+              : _describeCheck(l10n, checked),
         ),
       ),
     );
+  }
+
+  static String _describeCheck(
+    AppLocalizations l10n,
+    AiConnectionCheckResult result,
+  ) {
+    var reply = result.reply.replaceAll(RegExp(r'\s+'), ' ');
+    if (reply.length > 120) reply = '${reply.substring(0, 120)}…';
+    final text = l10n.connectionOkReply(
+      result.latency.inMilliseconds,
+      reply.isEmpty ? l10n.connectionEmptyReply : reply,
+    );
+    return result.truncated ? '$text\n${l10n.connectionTruncated}' : text;
+  }
+
+  void _useDetected(ModelLimits limits) {
+    setState(() {
+      if (limits.contextWindow != null) {
+        _contextWindow.text = '${limits.contextWindow}';
+      }
+      if (limits.maxOutputTokens != null) {
+        _maxOutput.text = '${limits.maxOutputTokens}';
+      }
+    });
+    _persist();
   }
 
   Future<void> _delete() async {
@@ -539,6 +597,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                 controller: _apiKey,
                 mono: true,
                 obscure: _obscureKey,
+                hint: _provider.requiresApiKey ? null : l10n.apiKeyOptionalHint,
                 onChanged: (_) => _persist(),
                 trailing: GestureDetector(
                   onTap: () => setState(() => _obscureKey = !_obscureKey),
@@ -563,6 +622,49 @@ class _ServiceDetailState extends State<_ServiceDetail> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 16),
+
+        // Token budget: the context the model is loaded with, and its cap.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _Field(
+                label: l10n.contextWindow,
+                controller: _contextWindow,
+                mono: true,
+                digitsOnly: true,
+                hint: l10n.contextWindowHint,
+                onChanged: (_) => _persist(),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _Field(
+                label: l10n.maxOutputTokens,
+                controller: _maxOutput,
+                mono: true,
+                digitsOnly: true,
+                hint: l10n.maxOutputTokensHint,
+                onChanged: (_) => _persist(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (_detected case final detected?)
+          _DetectedLimits(
+            limits: detected,
+            onUse: () => _useDetected(detected),
+          ),
+        Text(
+          l10n.contextWindowNote,
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.4,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 24),
 
@@ -711,6 +813,12 @@ class _Field extends StatelessWidget {
   final Widget? trailing;
   final ValueChanged<String>? onChanged;
 
+  /// Placeholder shown while the field is empty.
+  final String? hint;
+
+  /// Accept only digits, for token counts.
+  final bool digitsOnly;
+
   const _Field({
     required this.label,
     required this.controller,
@@ -718,6 +826,8 @@ class _Field extends StatelessWidget {
     this.obscure = false,
     this.trailing,
     this.onChanged,
+    this.hint,
+    this.digitsOnly = false,
   });
 
   @override
@@ -742,19 +852,71 @@ class _Field extends StatelessWidget {
                   controller: controller,
                   obscureText: obscure,
                   onChanged: onChanged,
+                  keyboardType: digitsOnly ? TextInputType.number : null,
+                  inputFormatters: digitsOnly
+                      ? [FilteringTextInputFormatter.digitsOnly]
+                      : null,
                   style: TextStyle(
                     fontSize: 15,
                     fontFamily: mono ? 'monospace' : null,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     isCollapsed: true,
                     border: InputBorder.none,
+                    hintText: hint,
                   ),
                 ),
               ),
               if (trailing != null) ...[const SizedBox(width: 8), trailing!],
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the last connection test found the server reporting, with a way to
+/// adopt it. Only the user can say whether a model's maximum is really what
+/// they loaded, so nothing is filled in without this click.
+class _DetectedLimits extends StatelessWidget {
+  final ModelLimits limits;
+  final VoidCallback onUse;
+  const _DetectedLimits({required this.limits, required this.onUse});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final source = limits.source ?? '';
+    final window = limits.contextWindow;
+    final found = !limits.isEmpty;
+    final parts = <String>[
+      if (window != null)
+        limits.isModelMaximum
+            ? l10n.detectedModelMaximum(source, window)
+            : l10n.detectedContextWindow(source, window),
+      if (limits.maxOutputTokens case final output?)
+        l10n.detectedMaxOutput(output),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            found ? Icons.radar_rounded : Icons.help_outline_rounded,
+            size: 16,
+            color: found ? scheme.primary : scheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              found ? parts.join(' · ') : l10n.limitsNotDetected,
+              style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
+            ),
+          ),
+          if (found)
+            TextButton(onPressed: onUse, child: Text(l10n.useDetectedValue)),
         ],
       ),
     );

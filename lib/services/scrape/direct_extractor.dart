@@ -25,6 +25,7 @@ import 'package:html/dom.dart';
 import '../../models/media_metadata.dart';
 import '../ai/ai_cancel_token.dart';
 import '../ai/ai_provider.dart';
+import '../ai/token_budget.dart';
 import 'page_digest.dart';
 
 /// What the model read off one page.
@@ -45,6 +46,10 @@ class DirectExtraction {
 class DirectExtractor {
   final AiProvider provider;
 
+  /// Room kept for the reply: every field, including a synopsis that can run
+  /// to several hundred tokens on its own.
+  static const int _replyReserve = 2000;
+
   const DirectExtractor(this.provider);
 
   /// Reads [document] and returns what the model found, or null when it
@@ -59,7 +64,7 @@ class DirectExtractor {
     String? instructions,
     AiCancelToken? cancelToken,
   }) async {
-    final digest = PageDigest.of(document, pageUrl);
+    final digest = _fitToWindow(document, pageUrl, instructions);
     if (digest.isEmpty) return null;
 
     cancelToken?.throwIfCancelled();
@@ -79,6 +84,44 @@ class DirectExtractor {
       metadata: metadata,
       promptTokens: response.promptTokens,
       completionTokens: response.completionTokens,
+    );
+  }
+
+  /// The page digest, trimmed to what the provider's context window can take.
+  ///
+  /// The digest's 40 000 characters of text are sized for hosted models: a
+  /// Japanese page at that length is tens of thousands of tokens, and a local
+  /// server handed more than its window drops the front of the prompt — the
+  /// rules and the image list — without an error. With a known window the
+  /// image list shrinks along with it (sixty URLs are a couple of thousand
+  /// tokens on their own) and the text is cut to whatever room is left.
+  PageDigest _fitToWindow(
+    Document document,
+    Uri pageUrl,
+    String? instructions,
+  ) {
+    final window = provider.config.contextWindow;
+    if (window == null) return PageDigest.of(document, pageUrl);
+
+    final digest = PageDigest.of(
+      document,
+      pageUrl,
+      maxImages: (window ~/ 400).clamp(10, PageDigest.defaultMaxImages).toInt(),
+    );
+    final allowance = TokenBudget.inputAllowance(
+      provider.config,
+      fixedPrompt:
+          systemPrompt +
+          buildUserPrompt(
+            pageUrl: pageUrl,
+            digest: PageDigest(text: '', images: digest.images),
+            instructions: instructions,
+          ),
+      reservedOutput: _replyReserve,
+    )!;
+    return PageDigest(
+      text: TokenBudget.truncate(digest.text, allowance),
+      images: digest.images,
     );
   }
 

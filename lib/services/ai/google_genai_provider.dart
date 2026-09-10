@@ -11,7 +11,10 @@ class GoogleGenAiProvider implements AiProvider {
   @override
   final AiConfig config;
 
-  GoogleGenAiProvider(this.config);
+  /// Replaces the transport in tests; see [OpenAiProvider].
+  final http.Client? _client;
+
+  GoogleGenAiProvider(this.config, {http.Client? client}) : _client = client;
 
   /// Normalized base URL with a `/v1*` segment, e.g.
   /// `https://generativelanguage.googleapis.com/v1beta`.
@@ -26,11 +29,15 @@ class GoogleGenAiProvider implements AiProvider {
     return base;
   }
 
-  Uri _generateUri() => Uri.parse(
-    '$_base/models/${config.model}:generateContent?key=${config.apiKey}',
-  );
+  String get _keyQuery {
+    final key = config.apiKey.trim();
+    return key.isEmpty ? '' : '?key=${Uri.encodeQueryComponent(key)}';
+  }
 
-  Uri _modelsUri() => Uri.parse('$_base/models?key=${config.apiKey}');
+  Uri _generateUri() =>
+      Uri.parse('$_base/models/${config.model}:generateContent$_keyQuery');
+
+  Uri _modelUri() => Uri.parse('$_base/models/${config.model}$_keyQuery');
 
   @override
   Future<AiResponse> complete({
@@ -55,12 +62,14 @@ class GoogleGenAiProvider implements AiProvider {
       'generationConfig': {
         'temperature': config.temperature,
         'responseMimeType': 'application/json',
+        if (config.maxOutputTokens != null)
+          'maxOutputTokens': config.maxOutputTokens,
       },
     });
 
     // A cancellable call goes through the token's own client so cancelling can
     // close the socket; otherwise reuse the shared pooled client.
-    final client = cancelToken?.client ?? AiHttp.client;
+    final client = _client ?? cancelToken?.client ?? AiHttp.client;
 
     http.Response res;
     try {
@@ -84,7 +93,7 @@ class GoogleGenAiProvider implements AiProvider {
     }
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw AiException(_errorMessage(res));
+      throw AiException(AiHttp.describeError(res));
     }
 
     final Map<String, dynamic> json = jsonDecode(utf8.decode(res.bodyBytes));
@@ -92,7 +101,8 @@ class GoogleGenAiProvider implements AiProvider {
     if (candidates == null || candidates.isEmpty) {
       throw const AiException('Empty response from model.');
     }
-    final parts = candidates.first['content']?['parts'] as List<dynamic>?;
+    final candidate = candidates.first as Map<String, dynamic>;
+    final parts = candidate['content']?['parts'] as List<dynamic>?;
     final text = (parts != null && parts.isNotEmpty)
         ? (parts.first['text'] as String? ?? '')
         : '';
@@ -102,38 +112,27 @@ class GoogleGenAiProvider implements AiProvider {
       text: text,
       promptTokens: (usage?['promptTokenCount'] as num?)?.toInt() ?? 0,
       completionTokens: (usage?['candidatesTokenCount'] as num?)?.toInt() ?? 0,
+      finishReason: candidate['finishReason'] as String?,
     );
   }
 
-  /// Probes `GET /v1beta/models` — validates the API key without spending
-  /// generation tokens. Confirms the response carries a `models` array.
+  /// `GET models/{model}` reports the input and output limits the API itself
+  /// enforces.
   @override
-  Future<bool> testConnection() async {
-    http.Response res;
+  Future<ModelLimits> detectLimits() async {
     try {
-      res = await AiHttp.withRetry(
-        () => AiHttp.client
-            .get(_modelsUri())
-            .timeout(const Duration(seconds: 15)),
-      );
-    } catch (e) {
-      throw AiException('Network error: $e');
-    }
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw AiException(_errorMessage(res));
-    }
-    final Map<String, dynamic> body = jsonDecode(utf8.decode(res.bodyBytes));
-    return body['models'] is List;
-  }
-
-  String _errorMessage(http.Response res) {
-    try {
-      final Map<String, dynamic> body = jsonDecode(utf8.decode(res.bodyBytes));
-      final msg = body['error']?['message'];
-      if (msg is String && msg.isNotEmpty) {
-        return 'HTTP ${res.statusCode}: $msg';
+      final res = await (_client ?? AiHttp.client)
+          .get(_modelUri())
+          .timeout(const Duration(seconds: 5));
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return ModelLimits.unknown;
       }
-    } catch (_) {}
-    return 'HTTP ${res.statusCode}';
+      return ModelLimits.fromGoogleModel(
+            jsonDecode(utf8.decode(res.bodyBytes)),
+          ) ??
+          ModelLimits.unknown;
+    } catch (_) {
+      return ModelLimits.unknown;
+    }
   }
 }

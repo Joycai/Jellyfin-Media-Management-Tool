@@ -112,6 +112,44 @@ class OrganizePlan {
     );
   }
 
+  /// Joins the plans of a folder that was sent to the model in batches.
+  ///
+  /// Actions are concatenated, keeping the first answer when a source came
+  /// back twice. The media type is the batches' common answer — `mixed` when
+  /// they disagree, `unknown` only when none of them knew — and the first
+  /// non-empty target root wins, which is also the one later batches were
+  /// told to reuse.
+  factory OrganizePlan.merge(List<OrganizePlan> parts) {
+    if (parts.length == 1) return parts.single;
+    final types = {
+      for (final part in parts)
+        if (part.mediaType.isNotEmpty && part.mediaType != 'unknown')
+          part.mediaType,
+    };
+    final sources = <String>{};
+    return OrganizePlan(
+      mediaType: switch (types.length) {
+        0 => 'unknown',
+        1 => types.single,
+        _ => 'mixed',
+      },
+      targetRoot: parts
+          .map((part) => part.targetRoot)
+          .firstWhere((root) => root.isNotEmpty, orElse: () => ''),
+      reasoning: {for (final part in parts) ...part.reasoning}.toList(),
+      actions: [
+        for (final part in parts)
+          for (final action in part.actions)
+            if (sources.add(action.source)) action,
+      ],
+      promptTokens: parts.fold(0, (sum, part) => sum + part.promptTokens),
+      completionTokens: parts.fold(
+        0,
+        (sum, part) => sum + part.completionTokens,
+      ),
+    );
+  }
+
   /// Finds the outermost `{ … }` so leading/trailing junk is ignored.
   static String _extractJsonObject(String raw) {
     final start = raw.indexOf('{');
