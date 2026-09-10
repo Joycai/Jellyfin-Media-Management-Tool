@@ -12,6 +12,12 @@ class AiServiceProfile {
   final String model;
   final double temperature;
 
+  /// See [AiConfig.contextWindow].
+  final int? contextWindow;
+
+  /// See [AiConfig.maxOutputTokens].
+  final int? maxOutputTokens;
+
   const AiServiceProfile({
     required this.id,
     required this.name,
@@ -20,12 +26,13 @@ class AiServiceProfile {
     required this.apiKey,
     required this.model,
     this.temperature = 0.2,
+    this.contextWindow,
+    this.maxOutputTokens,
   });
 
-  bool get isComplete =>
-      endpoint.trim().isNotEmpty &&
-      apiKey.trim().isNotEmpty &&
-      model.trim().isNotEmpty;
+  /// Delegates to [AiConfig.isComplete] so the settings badge and the runtime
+  /// can never disagree about whether a key is required.
+  bool get isComplete => toAiConfig().isComplete;
 
   /// Runtime config consumed by the providers / [AiService].
   AiConfig toAiConfig() => AiConfig(
@@ -34,23 +41,8 @@ class AiServiceProfile {
     apiKey: apiKey,
     model: model,
     temperature: temperature,
-  );
-
-  AiServiceProfile copyWith({
-    String? name,
-    AiProviderType? provider,
-    String? endpoint,
-    String? apiKey,
-    String? model,
-    double? temperature,
-  }) => AiServiceProfile(
-    id: id,
-    name: name ?? this.name,
-    provider: provider ?? this.provider,
-    endpoint: endpoint ?? this.endpoint,
-    apiKey: apiKey ?? this.apiKey,
-    model: model ?? this.model,
-    temperature: temperature ?? this.temperature,
+    contextWindow: contextWindow,
+    maxOutputTokens: maxOutputTokens,
   );
 
   Map<String, dynamic> toJson() => {
@@ -61,6 +53,8 @@ class AiServiceProfile {
     'api_key': apiKey,
     'model': model,
     'temperature': temperature,
+    'context_window': contextWindow,
+    'max_output_tokens': maxOutputTokens,
   };
 
   /// Reads a profile from JSON. Older configs may carry a `rate_limit` field
@@ -74,6 +68,8 @@ class AiServiceProfile {
         apiKey: (json['api_key'] as String?) ?? '',
         model: (json['model'] as String?) ?? '',
         temperature: (json['temperature'] as num?)?.toDouble() ?? 0.2,
+        contextWindow: AiConfig.tokenCount(json['context_window']),
+        maxOutputTokens: AiConfig.tokenCount(json['max_output_tokens']),
       );
 
   /// A fresh, empty profile with sensible defaults for [provider].

@@ -608,6 +608,60 @@ class AppLocalizationsZh extends AppLocalizations {
   String get temperature => '温度';
 
   @override
+  String get apiKeyOptionalHint => '本地服务（LM Studio、Ollama 等）可留空';
+
+  @override
+  String get contextWindow => '上下文窗口（tokens）';
+
+  @override
+  String get contextWindowHint => '留空 = 不限制';
+
+  @override
+  String get maxOutputTokens => '最大输出 tokens';
+
+  @override
+  String get maxOutputTokensHint => '留空 = 服务端默认';
+
+  @override
+  String get contextWindowNote =>
+      '本应用无法修改服务端的上下文大小。请在加载模型的地方（LM Studio、Ollama、llama.cpp）设置，并在此填写相同数值：之后较大的文件夹会分批整理，刮削的网页也会裁剪到可容纳的长度。';
+
+  @override
+  String get connectionIncomplete => '请先填写 Base URL 和模型（Google 还需要 API 密钥）';
+
+  @override
+  String connectionOkReply(Object ms, Object reply) {
+    return '连接成功，耗时 $ms ms。模型回复：$reply';
+  }
+
+  @override
+  String get connectionEmptyReply => '（空回复）';
+
+  @override
+  String get connectionTruncated => '回复触达输出上限，整理前请调高最大输出 tokens。';
+
+  @override
+  String detectedContextWindow(Object source, Object tokens) {
+    return '$source 报告上下文窗口为 $tokens tokens';
+  }
+
+  @override
+  String detectedModelMaximum(Object source, Object tokens) {
+    return '$source 报告模型最多支持 $tokens tokens，实际加载的可能更小';
+  }
+
+  @override
+  String detectedMaxOutput(Object tokens) {
+    return '最大输出 $tokens';
+  }
+
+  @override
+  String get limitsNotDetected => '服务端未报告上下文大小，请在加载模型的地方查看。';
+
+  @override
+  String get useDetectedValue => '使用';
+
+  @override
   String get tokensThisSession => '本次会话 token';
 
   @override

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -61,6 +62,40 @@ class AiHttp {
       cancelToken?.throwIfCancelled();
     }
     throw StateError('AiHttp.withRetry: unreachable');
+  }
+
+  /// A one-line, UI-safe description of a failed response.
+  ///
+  /// OpenAI nests the text as `{"error": {"message": …}}`, but compatible
+  /// servers each pick their own shape: LM Studio sends `{"error": "…"}` as a
+  /// bare string, vLLM `{"message": …}`, FastAPI-based servers
+  /// `{"detail": …}`. Reading only the first reduced an LM Studio rejection to
+  /// a bare "HTTP 400" with its reason thrown away.
+  static String describeError(http.Response res) {
+    final body = utf8.decode(res.bodyBytes, allowMalformed: true).trim();
+    String? message;
+    try {
+      final json = jsonDecode(body);
+      if (json is Map) {
+        final error = json['error'];
+        if (error is Map && error['message'] is String) {
+          message = error['message'] as String;
+        } else if (error is String) {
+          message = error;
+        } else if (json['message'] is String) {
+          message = json['message'] as String;
+        } else if (json['detail'] is String) {
+          message = json['detail'] as String;
+        }
+      }
+    } on FormatException {
+      // Plain text is worth showing; a proxy's HTML error page is not.
+      if (!body.startsWith('<')) message = body;
+    }
+    message = message?.trim();
+    if (message == null || message.isEmpty) return 'HTTP ${res.statusCode}';
+    if (message.length > 300) message = '${message.substring(0, 300)}…';
+    return 'HTTP ${res.statusCode}: $message';
   }
 
   static Duration? _retryAfter(http.Response res) {

@@ -611,6 +611,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get temperature => 'Temperature';
 
   @override
+  String get apiKeyOptionalHint =>
+      'Optional for local servers (LM Studio, Ollama…)';
+
+  @override
+  String get contextWindow => 'Context window (tokens)';
+
+  @override
+  String get contextWindowHint => 'Blank = send everything';
+
+  @override
+  String get maxOutputTokens => 'Max output tokens';
+
+  @override
+  String get maxOutputTokensHint => 'Blank = server default';
+
+  @override
+  String get contextWindowNote =>
+      'The app cannot change a server\'s context size. Set it where the model is loaded (LM Studio, Ollama, llama.cpp) and enter the same number here: large folders are then organized in batches, and scraped pages are trimmed to fit.';
+
+  @override
+  String get connectionIncomplete =>
+      'Fill in the base URL and model first (Google also needs an API key)';
+
+  @override
+  String connectionOkReply(Object ms, Object reply) {
+    return 'Connected in $ms ms. The model replied: $reply';
+  }
+
+  @override
+  String get connectionEmptyReply => '(empty reply)';
+
+  @override
+  String get connectionTruncated =>
+      'The reply hit the output limit. Raise Max output tokens before organizing.';
+
+  @override
+  String detectedContextWindow(Object source, Object tokens) {
+    return '$source reports a context window of $tokens tokens';
+  }
+
+  @override
+  String detectedModelMaximum(Object source, Object tokens) {
+    return '$source reports the model supports up to $tokens tokens; the loaded size may be smaller';
+  }
+
+  @override
+  String detectedMaxOutput(Object tokens) {
+    return 'max output $tokens';
+  }
+
+  @override
+  String get limitsNotDetected =>
+      'The server did not report a context size. Check it where the model is loaded.';
+
+  @override
+  String get useDetectedValue => 'Use';
+
+  @override
   String get tokensThisSession => 'Tokens this session';
 
   @override
