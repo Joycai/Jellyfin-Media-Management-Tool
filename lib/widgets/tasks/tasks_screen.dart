@@ -254,20 +254,13 @@ class _TaskCard extends StatelessWidget {
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(
-                end: task.status == TaskStatus.failed ? 0 : progress,
-              ),
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 6,
-                backgroundColor: scheme.outlineVariant.withValues(alpha: 0.4),
-                valueColor: AlwaysStoppedAnimation(
-                  task.status == TaskStatus.failed ? scheme.error : accent,
-                ),
-              ),
+            child: _ProgressBar(
+              // A failed task shows an empty bar; anything else with no
+              // fraction yet (analyze, a commit before its first download)
+              // is indeterminate.
+              value: task.status == TaskStatus.failed ? 0 : progress,
+              color: task.status == TaskStatus.failed ? scheme.error : accent,
+              background: scheme.outlineVariant.withValues(alpha: 0.4),
             ),
           ),
           if (task.error != null) ...[
@@ -365,6 +358,45 @@ class _TaskCard extends StatelessWidget {
     // The progress screen calls controller.start() in initState — that's a
     // no-op once started, so it's safe to re-open over a running task.
     return OrganizeProgressScreen.show(context, controller);
+  }
+}
+
+/// A task's progress bar: animated between known fractions, indeterminate
+/// when there is none.
+///
+/// The null case must not reach the tween. `TweenAnimationBuilder` evaluates
+/// `Tween(end: null)` as `null as double`, which throws on the first frame —
+/// and in a release build a throwing list item is painted as a grey error box
+/// sized to fill the viewport, so one running analyze task blanked the whole
+/// Tasks tab.
+class _ProgressBar extends StatelessWidget {
+  final double? value;
+  final Color color;
+  final Color background;
+
+  const _ProgressBar({
+    required this.value,
+    required this.color,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget bar(double? v) => LinearProgressIndicator(
+      value: v,
+      minHeight: 6,
+      backgroundColor: background,
+      valueColor: AlwaysStoppedAnimation(color),
+    );
+
+    final target = value;
+    if (target == null) return bar(null);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: target),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      builder: (context, v, _) => bar(v),
+    );
   }
 }
 
