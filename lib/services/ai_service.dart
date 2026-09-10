@@ -11,8 +11,10 @@ import 'ai/connection_check.dart';
 import 'ai/google_genai_provider.dart';
 import 'ai/openai_provider.dart';
 import 'organize/filename_parser.dart';
+import 'organize/grouping.dart';
 import 'organize/jellyfin_naming.dart';
 import 'organize/organize_agent.dart';
+import 'organize/organize_workspace.dart';
 
 enum ConnectionStatus { unknown, testing, connected, error }
 
@@ -20,6 +22,18 @@ enum ConnectionStatus { unknown, testing, connected, error }
 /// plan. Registered as a `ChangeNotifier` so the assistant panel and the file
 /// table rebuild as analysis progresses.
 class AiService extends ChangeNotifier {
+  /// [workspace] remembers group decisions and preview corrections between
+  /// runs; without one, every run starts from nothing.
+  AiService({OrganizeWorkspace? workspace}) : _workspace = workspace;
+
+  final OrganizeWorkspace? _workspace;
+
+  /// The scan behind [currentPlan], by relative path, and the group key each
+  /// file was decided under — what [rememberEdits] needs to fingerprint a
+  /// correction.
+  Map<String, FileStamp> _planStamps = const {};
+  Map<String, String> _planGroupKeys = const {};
+
   AiConfig _config = AiConfig.empty;
 
   ConnectionStatus _status = ConnectionStatus.unknown;
@@ -199,17 +213,35 @@ class AiService extends ChangeNotifier {
     _isAnalyzing = true;
     _currentPlan = null;
     _planBaseDir = baseDir;
+    _planStamps = const {};
+    _planGroupKeys = const {};
     notifyListeners();
 
     try {
-      final paths = await _collectFiles(
+      final stamps = await _collectFiles(
         baseDir,
         onlyPaths: onlyPaths,
         cancelToken: cancelToken,
       );
-      if (paths.isEmpty) {
+      if (stamps.isEmpty) {
         throw const AiException('No files to organize in this folder.');
       }
+      final files = [
+        for (final stamp in stamps) FilenameParser.parse(stamp.relativePath),
+      ];
+      final groups = Grouping.build(files);
+      final byPath = {for (final stamp in stamps) stamp.relativePath: stamp};
+      final workspace = _workspace;
+      final groupKeys = <String, String>{
+        if (workspace != null)
+          for (final g in groups)
+            g.id: workspace.groupKey(baseDir, [
+              for (final f in g.files) byPath[f.relativePath]!,
+            ]),
+      };
+      final remembered = await _remembered(baseDir, groupKeys);
+      final overrides = await _overrides(baseDir, stamps);
+
       final config = _config;
       final sw = Stopwatch()..start();
       final run =
@@ -218,7 +250,8 @@ class AiService extends ChangeNotifier {
             beforeStart: () => ensureTools(config, cancelToken: cancelToken),
           ).run(
             folderName: p.basename(baseDir),
-            files: [for (final path in paths) FilenameParser.parse(path)],
+            files: files,
+            groups: groups,
             titleHint: titleHint,
             typeHint: switch (mediaTypeHint) {
               'movie' => GroupMediaType.movie,
@@ -227,11 +260,30 @@ class AiService extends ChangeNotifier {
             },
             readFile: (relativePath) =>
                 _readSmallFile(p.join(baseDir, relativePath)),
+            remembered: remembered,
+            overrides: overrides,
             cancelToken: cancelToken,
             onProgress: onProgress == null
                 ? null
-                : (resolved, total) =>
-                      onProgress(total == 0 ? 1 : resolved / total),
+                : (done, total) => onProgress(total == 0 ? 1 : done / total),
+            // Written as each group is decided, not at the end, so a cancel
+            // or a crash keeps what was already paid for.
+            onDecided: (g) {
+              final key = groupKeys[g.group.id];
+              final decision = g.decision;
+              if (workspace == null || key == null || decision == null) return;
+              workspace
+                  .saveDecision(
+                    baseDir,
+                    key,
+                    CachedDecision(
+                      decision: decision,
+                      confidence: g.confidence,
+                      note: g.note,
+                    ),
+                  )
+                  .ignore();
+            },
           );
       sw.stop();
       // A cancel that lands between the last reply and the plan being stored
@@ -245,6 +297,12 @@ class AiService extends ChangeNotifier {
       }
       final plan = run.plan;
 
+      _planStamps = byPath;
+      _planGroupKeys = {
+        for (final g in groups)
+          if (groupKeys[g.id] case final key?)
+            for (final f in g.files) f.relativePath: key,
+      };
       _currentPlan = plan;
       _lastTokens = plan.totalTokens;
       _totalTokens += plan.totalTokens;
@@ -262,7 +320,64 @@ class AiService extends ChangeNotifier {
   void clearPlan() {
     _currentPlan = null;
     _planBaseDir = null;
+    _planStamps = const {};
+    _planGroupKeys = const {};
     notifyListeners();
+  }
+
+  /// Remembers the targets the user corrected in [plan]'s preview, so the
+  /// next run keeps them. Call it when the user applies; it never throws.
+  Future<void> rememberEdits(OrganizePlan plan, String baseDir) async {
+    final workspace = _workspace;
+    if (workspace == null || !identical(plan, _currentPlan)) return;
+    final stamps = _planStamps;
+    final groupKeys = _planGroupKeys;
+    final edits = [
+      for (final action in plan.actions)
+        if (action.userEdited)
+          if (stamps[action.source] case final stamp?)
+            CorrectedFile(
+              stamp: stamp,
+              target: p.posix.joinAll(p.split(action.target)),
+              isVideo: action.kind == 'video',
+              groupKey: groupKeys[action.source],
+            ),
+    ];
+    try {
+      await workspace.recordEdits(baseDir, edits);
+    } catch (_) {}
+  }
+
+  /// Remembered decisions for the groups in [groupKeys], by group id. A cache
+  /// that cannot be read is an empty one.
+  Future<Map<String, CachedDecision>> _remembered(
+    String baseDir,
+    Map<String, String> groupKeys,
+  ) async {
+    final workspace = _workspace;
+    if (workspace == null || groupKeys.isEmpty) return const {};
+    try {
+      final cached = await workspace.loadDecisions(baseDir);
+      return {
+        for (final MapEntry(key: id, value: key) in groupKeys.entries)
+          id: ?cached[key],
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  Future<Map<String, String>> _overrides(
+    String baseDir,
+    List<FileStamp> stamps,
+  ) async {
+    final workspace = _workspace;
+    if (workspace == null) return const {};
+    try {
+      return await workspace.overridesFor(baseDir, stamps);
+    } catch (_) {
+      return const {};
+    }
   }
 
   /// An NFO the model asked to read. Anything this large is not metadata
@@ -278,20 +393,22 @@ class AiService extends ChangeNotifier {
   }
 
   /// Walks [baseDir] recursively (capped at 400, dotfiles skipped) and returns
-  /// each file's folder-relative path. Streams entries via async `list()` so
-  /// big trees don't freeze the UI between user click and model request.
+  /// each file's folder-relative path, size and modification time — the
+  /// fingerprint the workspace remembers decisions by. Streams entries via
+  /// async `list()` so big trees don't freeze the UI between user click and
+  /// model request.
   ///
   /// With a non-empty [onlyPaths], a file is kept only if its own path is
   /// selected or one of its ancestor directories is (selecting a folder
   /// includes everything inside it).
-  Future<List<String>> _collectFiles(
+  Future<List<FileStamp>> _collectFiles(
     String baseDir, {
     Set<String>? onlyPaths,
     AiCancelToken? cancelToken,
   }) async {
     const cap = 400;
     final dir = Directory(baseDir);
-    final paths = <String>[];
+    final paths = <FileStamp>[];
     if (!await dir.exists()) return paths;
 
     bool included(String path) {
@@ -311,7 +428,19 @@ class AiService extends ChangeNotifier {
       if (entity is! File) continue;
       if (!included(entity.path)) continue;
       if (p.basename(entity.path).startsWith('.')) continue;
-      paths.add(p.relative(entity.path, from: baseDir));
+      final FileStat stat;
+      try {
+        stat = await entity.stat();
+      } catch (_) {
+        continue;
+      }
+      paths.add(
+        FileStamp(
+          relativePath: p.relative(entity.path, from: baseDir),
+          size: stat.size,
+          modified: stat.modified,
+        ),
+      );
       if (paths.length >= cap) break;
     }
     return paths;

@@ -54,6 +54,23 @@ class OrganizePlan {
   final int promptTokens;
   final int completionTokens;
 
+  /// Groups decided, whether by the model in this run or remembered.
+  final int decidedGroups;
+
+  /// Of [decidedGroups], those remembered from an earlier run.
+  final int cachedGroups;
+
+  /// Groups left for the user: marked unsure, or never decided.
+  final int reviewGroups;
+
+  /// Groups whose batch failed even after a retry. Their files are flagged
+  /// for review too.
+  final int failedGroups;
+
+  /// Something the task card should say beyond the counts, such as a model
+  /// whose tool calls kept failing.
+  final String? warning;
+
   OrganizePlan({
     required this.mediaType,
     required this.targetRoot,
@@ -61,6 +78,11 @@ class OrganizePlan {
     required this.actions,
     this.promptTokens = 0,
     this.completionTokens = 0,
+    this.decidedGroups = 0,
+    this.cachedGroups = 0,
+    this.reviewGroups = 0,
+    this.failedGroups = 0,
+    this.warning,
   });
 
   int get totalTokens => promptTokens + completionTokens;

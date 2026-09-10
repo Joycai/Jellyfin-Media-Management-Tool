@@ -7,6 +7,12 @@
 /// than 26 paths to spell identically, and the paths a decision produces go
 /// back to the model, so a wrong season is corrected before the user sees it.
 ///
+/// A large folder is decided in batches, each a fresh, short conversation
+/// rather than one long one: the context a session needs does not grow with
+/// the folder, so a small local model's window is never the limit, and a batch
+/// that fails costs only its own groups. Consistency across batches comes from
+/// a table of the titles decided so far, not from a shared transcript.
+///
 /// The model never writes a path and never names a file by path: it points at
 /// groups by id and files by number. Nothing it says can aim a move outside
 /// the folder, and the preview remains the only gate to the disk.
@@ -25,6 +31,7 @@ import '../metadata/nfo_reader.dart';
 import 'filename_parser.dart';
 import 'grouping.dart';
 import 'jellyfin_naming.dart';
+import 'organize_workspace.dart';
 
 /// Reads a file inside the folder being organized by its relative path, or
 /// returns null when it cannot.
@@ -53,84 +60,177 @@ class OrganizeAgent {
   /// stops costing tokens.
   static int maxRoundsFor(int groups) => (6 + groups * 3).clamp(12, 200);
 
-  /// Groups [files], has the model decide each group, and turns the decisions
-  /// into a plan. A group the model did not decide still appears, with every
-  /// file flagged for review, so nothing silently drops out of the preview.
+  /// Groups per session even when the window would allow more: a long
+  /// conversation degrades a small model well before it overflows.
+  static const maxBatch = 12;
+
+  /// Rough cost of one group in a session — a file listing page and a
+  /// submission report — and of what every session carries regardless: the
+  /// system prompt, the task prompt and the decided-titles table.
+  static const _tokensPerGroup = 700;
+  static const _sessionOverhead = 4000;
+
+  static int batchSizeFor(int? contextWindow) {
+    if (contextWindow == null) return maxBatch;
+    final usable = (contextWindow * 0.9).floor() - _sessionOverhead;
+    return (usable ~/ _tokensPerGroup).clamp(1, maxBatch);
+  }
+
+  /// Has the model decide each group of [files] and turns the decisions into
+  /// a plan. A group the model did not decide still appears, with every file
+  /// flagged for review, so nothing silently drops out of the preview.
   ///
-  /// Throws [AiException] when the model decided nothing at all: a plan of
-  /// nothing but flagged rows would only hide that the run failed.
+  /// [groups] is [files] already grouped, when the caller needed the ids
+  /// first. [remembered] holds decisions from an earlier run, by group id,
+  /// and those groups are not asked about again. [overrides] maps a file's
+  /// relative path to a target the user chose earlier; it wins over any
+  /// decision, and a group whose every file has one needs none.
+  /// [onDecided] hears each fresh decision worth remembering.
+  ///
+  /// A batch that throws is retried once and then marked failed, and the run
+  /// goes on. Throws when no group was decided at all: a plan of nothing but
+  /// flagged rows would only hide that the run failed.
   Future<OrganizeRun> run({
     required String folderName,
     required List<ParsedFile> files,
+    List<MediaGroup>? groups,
     String? titleHint,
     GroupMediaType? typeHint,
     ReadFolderFile? readFile,
+    Map<String, CachedDecision> remembered = const {},
+    Map<String, String> overrides = const {},
+    int? batchSize,
     AiCancelToken? cancelToken,
-    void Function(int resolved, int total)? onProgress,
+    void Function(int done, int total)? onProgress,
+    void Function(GroupState group)? onDecided,
   }) async {
     final state = OrganizeState(
-      Grouping.build(files),
+      groups ?? Grouping.build(files),
       typeHint: typeHint,
       readFile: readFile,
+      overrides: overrides,
+      onDecided: onDecided,
     );
-    if (state.required.isEmpty) {
-      return OrganizeRun(
-        plan: state.buildPlan(promptTokens: 0, completionTokens: 0),
-        rounds: 0,
+    for (final g in state.groups) {
+      if (remembered[g.group.id] case final cached?) {
+        g.decide(cached.decision, cached.confidence, cached.note);
+        g.remembered = true;
+      }
+    }
+    (int, int)? reported;
+    void report() {
+      final required = state.required;
+      final progress = (
+        required.where((g) => g.resolved || g.failure != null).length,
+        required.length,
       );
+      if (progress == reported) return;
+      reported = progress;
+      onProgress?.call(progress.$1, progress.$2);
     }
 
-    await beforeStart?.call();
-    cancelToken?.throwIfCancelled();
-    void report() => onProgress?.call(
-      state.required.length - state.undecided.length,
-      state.required.length,
-    );
-    report();
+    final size = batchSize ?? batchSizeFor(provider.config.contextWindow);
+    final batchCount = (state.pending.length / size).ceil();
+    var promptTokens = 0;
+    var completionTokens = 0;
+    var rounds = 0;
+    var batchNumber = 0;
+    AgentOutcome? lastOutcome;
+    Exception? lastError;
+    String? warning;
 
-    final run = await AgentRuntime.run<OrganizeState>(
-      provider: provider,
-      messages: [
-        const SystemMessage(systemPrompt),
-        UserMessage(
-          buildTaskPrompt(
-            folderName: folderName,
-            fileCount: files.length,
-            groupCount: state.groups.length,
-            undecided: state.undecided.length,
-            titleHint: titleHint,
-            typeHint: typeHint,
-            firstPage: state.groupsPage(1),
-          ),
-        ),
-      ],
-      tools: const [
-        _ListGroupsTool(),
-        _ListGroupFilesTool(),
-        _ReadExistingNfoTool(),
-        _SubmitGroupTool(),
-        _SplitGroupTool(),
-        _MarkUnsureTool(),
-      ],
-      context: state,
-      maxRounds: maxRoundsFor(state.required.length),
-      isDone: () => state.undecided.isEmpty,
-      nudge: () {
-        final left = state.undecided;
-        if (left.isEmpty) return null;
-        final ids = left.take(12).map((g) => g.group.id).join(', ');
-        return 'Still undecided: $ids${left.length > 12 ? ', …' : ''}. '
-            'Call submit_group or mark_unsure for each of them.';
-      },
-      contextWindow: provider.config.contextWindow,
-      cancelToken: cancelToken,
-      onEvent: (event) {
-        if (event is AgentToolFinished) report();
-      },
-    );
+    if (state.pending.isNotEmpty) {
+      await beforeStart?.call();
+      report();
+    }
+    while (state.pending.isNotEmpty) {
+      cancelToken?.throwIfCancelled();
+      batchNumber++;
+      state.active = state.pending.take(size).toList();
+      for (var attempt = 1; ; attempt++) {
+        state.active = [
+          for (final g in state.active)
+            if (!g.resolved) g,
+        ];
+        try {
+          final run = await AgentRuntime.run<OrganizeState>(
+            provider: provider,
+            messages: [
+              const SystemMessage(systemPrompt),
+              UserMessage(
+                buildTaskPrompt(
+                  folderName: folderName,
+                  fileCount: files.length,
+                  groupCount: state.groups.length,
+                  undecided: state.undecided.length,
+                  titleHint: titleHint,
+                  typeHint: typeHint,
+                  batch: batchCount > 1
+                      ? (batchNumber, math.max(batchCount, batchNumber))
+                      : null,
+                  decided: state.decidedTable(),
+                  firstPage: state.groupsPage(1),
+                ),
+              ),
+            ],
+            tools: const [
+              _ListGroupsTool(),
+              _ListGroupFilesTool(),
+              _ReadExistingNfoTool(),
+              _FindDecidedTool(),
+              _SubmitGroupTool(),
+              _SplitGroupTool(),
+              _MarkUnsureTool(),
+            ],
+            context: state,
+            maxRounds: maxRoundsFor(state.active.length),
+            isDone: () => state.undecided.isEmpty,
+            nudge: () {
+              final left = state.undecided;
+              if (left.isEmpty) return null;
+              final ids = left.take(12).map((g) => g.group.id).join(', ');
+              return 'Still undecided: $ids${left.length > 12 ? ', …' : ''}. '
+                  'Call submit_group or mark_unsure for each of them.';
+            },
+            contextWindow: provider.config.contextWindow,
+            cancelToken: cancelToken,
+            onEvent: (event) {
+              if (event is AgentToolFinished) report();
+            },
+          );
+          promptTokens += run.promptTokens;
+          completionTokens += run.completionTokens;
+          rounds += run.rounds;
+          lastOutcome = run.outcome;
+          if (run.outcome == AgentOutcome.erratic) {
+            // Not retried: a model that cannot drive the tools will not start
+            // to on a second try, it will only spend the same tokens again.
+            state.failActive('the model kept calling the tools incorrectly');
+            warning =
+                'model tool calls kept failing; try a larger model or turn '
+                'thinking on';
+          }
+          state.finishActive();
+          break;
+        } on AiCancelled {
+          rethrow;
+        } on Exception catch (e) {
+          if (cancelToken?.isCancelled ?? false) rethrow;
+          lastError = e;
+          if (attempt >= 2) {
+            state.failActive(_describe(e));
+            state.finishActive();
+            break;
+          }
+        }
+      }
+      report();
+    }
 
-    if (state.required.every((g) => !g.resolved)) {
-      throw AiException(switch (run.outcome) {
+    if (state.required.isNotEmpty && state.required.every((g) => !g.resolved)) {
+      final error = lastError;
+      if (error != null && lastOutcome == null) throw error;
+      throw AiException(switch (lastOutcome) {
         AgentOutcome.erratic =>
           'The model kept calling the organize tools incorrectly and was '
               'stopped. Try a larger model, or turn thinking on.',
@@ -141,11 +241,17 @@ class OrganizeAgent {
     }
     return OrganizeRun(
       plan: state.buildPlan(
-        promptTokens: run.promptTokens,
-        completionTokens: run.completionTokens,
+        promptTokens: promptTokens,
+        completionTokens: completionTokens,
+        warning: warning,
       ),
-      rounds: run.rounds,
+      rounds: rounds,
     );
+  }
+
+  static String _describe(Exception error) {
+    final text = error.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+    return text.length <= 160 ? text : '${text.substring(0, 159)}…';
   }
 
   static const systemPrompt = '''
@@ -157,11 +263,13 @@ and NFO files attached. You decide what each group IS. The app builds every
 file name and folder from your decision, so you never write paths.
 
 Tools:
-- list_groups: the groups, a page at a time, with sample names and what was
-  parsed from them.
+- list_groups: the groups to decide, a page at a time, with sample names and
+  what was parsed from them.
 - list_group_files: every file in one group, numbered, with its parsed season,
   episode, year and language — and, once decided, the path it will get.
 - read_existing_nfo: titles and years from NFO files already in a group.
+- find_decided: titles already decided for this folder, including groups
+  handled in earlier batches.
 - submit_group: your decision for one group. The reply shows the paths it
   produces and any file that could not be placed. Submitting a group again
   replaces your earlier decision.
@@ -184,7 +292,8 @@ How to decide:
   "Season 2" or "第二季". Omit it for season 1.
 - episodeOffset: only when a later season continues the episode numbering
   (season 2 starting at episode 13 means -12). Usually omit it.
-- Groups of the same show or movie must use the same title and year.
+- Groups of the same show or movie must use the same title and year, including
+  titles decided earlier.
 - confidence from 0 to 1. Below 0.6 the files are flagged for review.''';
 
   static String buildTaskPrompt({
@@ -195,12 +304,19 @@ How to decide:
     required String firstPage,
     String? titleHint,
     GroupMediaType? typeHint,
+    (int, int)? batch,
+    String decided = '',
   }) {
     final title = titleHint?.trim() ?? '';
     return [
       'Folder: "$folderName"',
-      '$fileCount file(s) in $groupCount group(s); $undecided group(s) with '
-          'videos need a decision.',
+      if (batch case (final number, final total))
+        '$fileCount file(s) in $groupCount group(s). This is batch $number of '
+            '$total: decide the $undecided group(s) listed below; the others '
+            'are handled in other batches.'
+      else
+        '$fileCount file(s) in $groupCount group(s); $undecided group(s) with '
+            'videos need a decision.',
       if (typeHint == GroupMediaType.movie)
         'The user says this folder holds MOVIES: use mediaType "movie".',
       if (typeHint == GroupMediaType.series)
@@ -208,6 +324,7 @@ How to decide:
       if (title.isNotEmpty)
         'The user gives the title "$title". Use it exactly as written for the '
             'groups it names — normally all of them.',
+      if (decided.isNotEmpty) ...['', decided],
       '',
       firstPage,
     ].join('\n');
@@ -223,7 +340,20 @@ class GroupState {
   String? unsureReason;
   List<PlannedTarget> planned = const [];
 
-  GroupState(this.group);
+  /// Decided in an earlier run and taken from the cache.
+  bool remembered = false;
+
+  /// Why this group's batch failed, when it did.
+  String? failure;
+
+  /// Offered to the model in a session that ran to its end, decided or not.
+  bool asked = false;
+
+  /// Its files are no longer the ones the grouping produced, so a decision
+  /// about it says nothing about that fingerprint.
+  bool split;
+
+  GroupState(this.group, {this.split = false});
 
   bool get resolved => decision != null || unsureReason != null;
 
@@ -232,6 +362,7 @@ class GroupState {
     this.confidence = confidence;
     this.note = note;
     unsureReason = null;
+    failure = null;
     planned = JellyfinNaming.plan(group, value);
   }
 
@@ -246,6 +377,8 @@ class GroupState {
     decision = null;
     unsureReason = null;
     planned = const [];
+    remembered = false;
+    split = true;
   }
 }
 
@@ -254,25 +387,68 @@ class OrganizeState {
   final List<GroupState> groups;
   final GroupMediaType? typeHint;
   final ReadFolderFile? readFile;
+  final Map<String, String> overrides;
+  final void Function(GroupState group)? onDecided;
+
+  /// The groups the current session works on. The tools see only these, so
+  /// a batch's conversation stays about its own groups.
+  List<GroupState> active;
 
   static const groupsPerPage = 20;
   static const filesPerPage = 25;
   static const defaultConfidence = 0.8;
 
-  OrganizeState(List<MediaGroup> groups, {this.typeHint, this.readFile})
-    : groups = [for (final group in groups) GroupState(group)];
+  /// Rows of the decided-titles table a session starts with; past it the
+  /// model looks titles up with find_decided.
+  static const decidedTableRows = 30;
+  static const _foundShown = 15;
 
-  /// Groups that need a decision. One without videos has nothing to anchor
-  /// a path to; its files go to review unless the model decides it anyway.
+  OrganizeState(
+    List<MediaGroup> groups, {
+    this.typeHint,
+    this.readFile,
+    this.overrides = const {},
+    this.onDecided,
+  }) : groups = [for (final group in groups) GroupState(group)],
+       active = const [] {
+    active = this.groups;
+  }
+
+  /// Groups that need a decision. One without videos has nothing to anchor a
+  /// path to, and one whose every file the user already placed needs none.
   List<GroupState> get required => [
     for (final g in groups)
-      if (g.group.videos.isNotEmpty) g,
+      if (g.group.videos.isNotEmpty &&
+          !g.group.files.every((f) => overrides.containsKey(f.relativePath)))
+        g,
   ];
 
-  List<GroupState> get undecided => [
+  /// Required groups no session has dealt with yet.
+  List<GroupState> get pending => [
     for (final g in required)
-      if (!g.resolved) g,
+      if (!g.resolved && g.failure == null && !g.asked) g,
   ];
+
+  /// Required groups of the current session still waiting for a decision.
+  List<GroupState> get undecided {
+    final needed = required.toSet();
+    return [
+      for (final g in active)
+        if (needed.contains(g) && !g.resolved) g,
+    ];
+  }
+
+  void failActive(String reason) {
+    for (final g in active) {
+      if (!g.resolved) g.failure = reason;
+    }
+  }
+
+  void finishActive() {
+    for (final g in active) {
+      g.asked = true;
+    }
+  }
 
   GroupState find(Object? value) {
     final raw = switch (value) {
@@ -280,13 +456,14 @@ class OrganizeState {
       _ => value?.toString().trim().toLowerCase() ?? '',
     };
     final id = RegExp(r'^\d+$').hasMatch(raw) ? 'g$raw' : raw;
-    for (final g in groups) {
+    for (final g in active) {
       if (g.group.id == id) return g;
     }
     throw ToolError(
       raw.isEmpty
           ? 'group is required: an id from list_groups, e.g. "g1".'
-          : 'There is no group "$raw". Call list_groups to see the group ids.',
+          : 'There is no group "$raw" in this batch. Call list_groups to see '
+                'the group ids.',
     );
   }
 
@@ -297,13 +474,68 @@ class OrganizeState {
     return 'g${used + 1}';
   }
 
+  void addSplit(GroupState from, GroupState moved) {
+    groups.insert(groups.indexOf(from) + 1, moved);
+    active = [...active, moved];
+  }
+
+  /// Hands a fresh decision out to be remembered, unless the group no longer
+  /// holds the files it was fingerprinted by.
+  void decided(GroupState g) {
+    if (!g.split) onDecided?.call(g);
+  }
+
   String groupsPage(int page) => _paged(
-    [for (final g in groups) _summary(g)],
+    [for (final g in active) _summary(g)],
     page: page,
     perPage: groupsPerPage,
     what: 'Groups',
     more: 'list_groups',
   );
+
+  /// The titles decided outside the current session, for a new batch to stay
+  /// consistent with. Empty when there are none.
+  String decidedTable() {
+    final rows = _decidedRows(outsideActive: true);
+    if (rows.isEmpty) return '';
+    return [
+      'Titles decided so far — use the same title and year for the same show '
+          'or movie:',
+      for (final row in rows.take(decidedTableRows)) '- $row',
+      if (rows.length > decidedTableRows)
+        '… and ${rows.length - decidedTableRows} more; find_decided looks '
+            'them up.',
+    ].join('\n');
+  }
+
+  String findDecided(String query) {
+    final needle = query.trim().toLowerCase();
+    if (needle.isEmpty) {
+      throw const ToolError('query is required: part of a title or folder.');
+    }
+    final rows = [
+      for (final row in _decidedRows(outsideActive: false))
+        if (row.toLowerCase().contains(needle)) row,
+    ];
+    if (rows.isEmpty) return 'No decided title matches "$query".';
+    return [
+      for (final row in rows.take(_foundShown)) row,
+      if (rows.length > _foundShown)
+        '… and ${rows.length - _foundShown} more; use a longer query.',
+    ].join('\n');
+  }
+
+  List<String> _decidedRows({required bool outsideActive}) {
+    final inSession = outsideActive ? active.toSet() : const <GroupState>{};
+    final seen = <String>{};
+    return [
+      for (final g in groups)
+        if (g.decision case final d? when !inSession.contains(g))
+          if (seen.add(JellyfinNaming.titleFolder(d)))
+            '${JellyfinNaming.titleFolder(d)} (folder '
+                '${_folderLabel(g.group.folder)})',
+    ];
+  }
 
   String filesPage(GroupState g, int page) {
     final files = g.group.files;
@@ -373,28 +605,55 @@ class OrganizeState {
   OrganizePlan buildPlan({
     required int promptTokens,
     required int completionTokens,
+    String? warning,
   }) {
     final rows =
-        <({ParsedFile file, String? target, double confidence, String note})>[];
+        <
+          ({
+            ParsedFile file,
+            String? target,
+            double confidence,
+            String note,
+            bool edited,
+          })
+        >[];
     for (final g in groups) {
-      if (g.decision != null) {
-        for (final t in g.planned) {
-          rows.add((
+      final note = switch (g) {
+        GroupState(:final unsureReason?) => 'Unsure: $unsureReason',
+        GroupState(:final failure?) =>
+          'The model failed on this group: $failure',
+        _ when g.group.videos.isEmpty =>
+          'No video in this group to place these files by',
+        _ => 'The model did not decide this group',
+      };
+      final planned = g.decision == null
+          ? [for (final file in g.group.files) PlannedTarget(file: file)]
+          : g.planned;
+      for (final t in planned) {
+        final corrected = overrides[t.file.relativePath];
+        rows.add(switch (corrected) {
+          final String target => (
+            file: t.file,
+            target: target,
+            confidence: 1.0,
+            note: 'Your earlier correction',
+            edited: true,
+          ),
+          null when g.decision == null => (
+            file: t.file,
+            target: null,
+            confidence: 0.0,
+            note: note,
+            edited: false,
+          ),
+          null => (
             file: t.file,
             target: t.target,
             confidence: g.confidence,
             note: t.target == null ? 'Not placed: ${t.problem}' : g.note,
-          ));
-        }
-        continue;
-      }
-      final note = g.unsureReason != null
-          ? 'Unsure: ${g.unsureReason}'
-          : g.group.videos.isEmpty
-          ? 'No video in this group to place these files by'
-          : 'The model did not decide this group';
-      for (final file in g.group.files) {
-        rows.add((file: file, target: null, confidence: 0, note: note));
+            edited: false,
+          ),
+        });
       }
     }
 
@@ -421,10 +680,11 @@ class OrganizeState {
               : (row.file.kind.isEmpty ? 'other' : row.file.kind.toLowerCase()),
           confidence: target == null || clash ? 0 : row.confidence,
           note: clash ? 'Another file is planned for the same path' : row.note,
-        ),
+        )..userEdited = row.edited,
       );
     }
 
+    final required = this.required;
     final types = {for (final g in groups) ?g.decision?.type};
     final firstDecision = groups
         .map((g) => g.decision)
@@ -444,13 +704,27 @@ class OrganizeState {
           if (g.decision case final d?)
             '${g.group.id} ${_folderLabel(g.group.folder)} → '
                 '${JellyfinNaming.titleFolder(d)}'
+                '${g.remembered ? ' (remembered)' : ''}'
                 '${g.note.isEmpty ? '' : ': ${g.note}'}'
           else if (g.unsureReason case final reason?)
-            '${g.group.id} ${_folderLabel(g.group.folder)}: unsure — $reason',
+            '${g.group.id} ${_folderLabel(g.group.folder)}: unsure — $reason'
+          else if (g.failure case final failure?)
+            '${g.group.id} ${_folderLabel(g.group.folder)}: failed — $failure',
       ],
       actions: actions,
       promptTokens: promptTokens,
       completionTokens: completionTokens,
+      decidedGroups: groups.where((g) => g.decision != null).length,
+      cachedGroups: groups
+          .where((g) => g.decision != null && g.remembered)
+          .length,
+      reviewGroups: required
+          .where((g) => g.decision == null && g.failure == null)
+          .length,
+      failedGroups: required
+          .where((g) => g.decision == null && g.failure != null)
+          .length,
+      warning: warning,
     );
   }
 
@@ -617,7 +891,7 @@ class _ListGroupsTool extends AgentTool<OrganizeState> {
   ToolDefinition get definition => const ToolDefinition(
     name: 'list_groups',
     description:
-        'Lists the groups of files a page at a time: sample file names, what '
+        'Lists the groups to decide a page at a time: sample file names, what '
         'was parsed from them, and whether each group is decided.',
     parameters: {
       'type': 'object',
@@ -706,6 +980,33 @@ class _ReadExistingNfoTool extends AgentTool<OrganizeState> {
     }
     return lines.join('\n');
   }
+}
+
+class _FindDecidedTool extends AgentTool<OrganizeState> {
+  const _FindDecidedTool();
+
+  @override
+  ToolDefinition get definition => const ToolDefinition(
+    name: 'find_decided',
+    description:
+        'Searches the titles already decided for this folder, including '
+        'groups from earlier batches, so the same show or movie gets the same '
+        'title and year.',
+    parameters: {
+      'type': 'object',
+      'properties': {
+        'query': {
+          'type': 'string',
+          'description': 'Part of a title or folder name.',
+        },
+      },
+      'required': ['query'],
+    },
+  );
+
+  @override
+  String execute(Map<String, dynamic> arguments, OrganizeState context) =>
+      context.findDecided(arguments['query']?.toString() ?? '');
 }
 
 class _SubmitGroupTool extends AgentTool<OrganizeState> {
@@ -811,6 +1112,8 @@ class _SubmitGroupTool extends AgentTool<OrganizeState> {
       OrganizeState.confidenceOf(arguments['confidence']),
       arguments['note']?.toString().trim() ?? '',
     );
+    g.remembered = false;
+    context.decided(g);
     return context.placementReport(g);
   }
 }
@@ -892,9 +1195,9 @@ class _SplitGroupTool extends AgentTool<OrganizeState> {
     }
 
     final id = context.nextId();
-    final moved = GroupState(part(id, picked.contains));
+    final moved = GroupState(part(id, picked.contains), split: true);
     g.reset(part(g.group.id, (f) => !picked.contains(f)));
-    context.groups.insert(context.groups.indexOf(g) + 1, moved);
+    context.addSplit(g, moved);
     return 'Moved ${picked.length} file(s) from ${g.group.id} into $id. Both '
         'are undecided now; list_group_files shows what each holds.';
   }

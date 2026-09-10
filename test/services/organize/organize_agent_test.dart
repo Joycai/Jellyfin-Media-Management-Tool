@@ -4,6 +4,7 @@ import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/organize/filename_parser.dart';
 import 'package:jellyfin_media_management_tool/services/organize/jellyfin_naming.dart';
 import 'package:jellyfin_media_management_tool/services/organize/organize_agent.dart';
+import 'package:jellyfin_media_management_tool/services/organize/organize_workspace.dart';
 import 'package:path/path.dart' as p;
 
 import '../../helpers/ai.dart';
@@ -83,6 +84,7 @@ void main() {
       'list_groups',
       'list_group_files',
       'read_existing_nfo',
+      'find_decided',
       'submit_group',
       'split_group',
       'mark_unsure',
@@ -343,5 +345,251 @@ void main() {
     );
 
     expect(progress, [(0, 2), (1, 2), (2, 2)]);
+  });
+
+  group('batches', () {
+    final threeShows = _files([
+      ['A', 'Show A - 01.mkv'],
+      ['B', 'Show B - 01.mkv'],
+      ['C', 'Show C - 01.mkv'],
+    ]);
+
+    ChatTurn fails(String message) =>
+        (_) => throw AiException(message);
+
+    test(
+      'each batch is a fresh session told what earlier ones chose',
+      () async {
+        final provider = ScriptedChatProvider([
+          (_) => toolTurn([
+            (
+              'submit_group',
+              {'group': 'g1', 'mediaType': 'series', 'title': 'Show A'},
+            ),
+            (
+              'submit_group',
+              {'group': 'g2', 'mediaType': 'series', 'title': 'Show B'},
+            ),
+          ]),
+          _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
+        ]);
+
+        final run = await OrganizeAgent(
+          provider,
+        ).run(folderName: 'Media', files: threeShows, batchSize: 2);
+
+        expect(provider.calls, 2);
+        // The second session does not carry the first one's transcript.
+        expect(provider.seen[1], hasLength(2));
+        final task = (provider.seen[1][1] as UserMessage).content;
+        expect(task, contains('batch 2 of 2'));
+        expect(task, contains('Shows/Show A'));
+        expect(task, isNot(contains('g1:')));
+        expect(run.plan.decidedGroups, 3);
+      },
+    );
+
+    test('find_decided reaches titles from earlier batches', () async {
+      final provider = ScriptedChatProvider([
+        _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Show A'}),
+        (_) => toolTurn([
+          ('find_decided', {'query': 'show a'}),
+        ]),
+        _submit({'group': 'g2', 'mediaType': 'series', 'title': 'Show A'}),
+        _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
+      ]);
+
+      await OrganizeAgent(
+        provider,
+      ).run(folderName: 'Media', files: threeShows, batchSize: 1);
+
+      expect(_lastResult(provider, 2), contains('Shows/Show A'));
+    });
+
+    test('a batch that keeps failing is isolated from the rest', () async {
+      final provider = ScriptedChatProvider([
+        _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Show A'}),
+        fails('server error'),
+        fails('server error'),
+        _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
+      ]);
+
+      final run = await OrganizeAgent(
+        provider,
+      ).run(folderName: 'Media', files: threeShows, batchSize: 1);
+
+      // Retried once, then given up on; the next batch still ran.
+      expect(provider.calls, 4);
+      expect(run.plan.decidedGroups, 2);
+      expect(run.plan.failedGroups, 1);
+      final b = run.plan.actions.singleWhere((a) => a.source.contains('B'));
+      expect(b.status, ActionStatus.needsReview);
+      expect(b.note, contains('server error'));
+    });
+
+    test('a batch whose retry succeeds loses nothing', () async {
+      final provider = ScriptedChatProvider([
+        fails('blip'),
+        _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
+      ]);
+
+      final run = await OrganizeAgent(
+        provider,
+      ).run(folderName: 'Some Show', files: _show);
+
+      expect(provider.calls, 2);
+      expect(run.plan.decidedGroups, 1);
+      expect(run.plan.failedGroups, 0);
+    });
+
+    test('when every batch fails, the user sees the error', () async {
+      final provider = ScriptedChatProvider([fails('connection refused')]);
+
+      await expectLater(
+        OrganizeAgent(provider).run(folderName: 'Some Show', files: _show),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.toString(),
+            'message',
+            contains('connection refused'),
+          ),
+        ),
+      );
+    });
+
+    test('an erratic batch is not retried, and the card says why', () async {
+      final bad = _submit({'group': 'g9', 'mediaType': 'series', 'title': 'X'});
+      final provider = ScriptedChatProvider([
+        bad,
+        bad,
+        bad,
+        _submit({'group': 'g2', 'mediaType': 'series', 'title': 'Show B'}),
+        _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
+      ]);
+
+      final run = await OrganizeAgent(
+        provider,
+      ).run(folderName: 'Media', files: threeShows, batchSize: 1);
+
+      expect(provider.calls, 5);
+      expect(run.plan.failedGroups, 1);
+      expect(run.plan.decidedGroups, 2);
+      expect(run.plan.warning, contains('tool calls'));
+    });
+  });
+
+  group('remembering', () {
+    test('a remembered decision is not asked again', () async {
+      final provider = ScriptedChatProvider([(_) => textTurn('unused')]);
+      var checked = false;
+
+      final run =
+          await OrganizeAgent(
+            provider,
+            beforeStart: () async => checked = true,
+          ).run(
+            folderName: 'Some Show',
+            files: _show,
+            remembered: {
+              'g1': const CachedDecision(
+                decision: GroupDecision(
+                  type: GroupMediaType.series,
+                  title: 'Some Show',
+                  year: 2020,
+                ),
+                confidence: 0.9,
+              ),
+            },
+          );
+
+      expect(provider.calls, 0);
+      expect(checked, isFalse);
+      expect(run.plan.cachedGroups, 1);
+      expect(
+        run.plan.actions.map((a) => a.target),
+        contains('Shows/Some Show (2020)/Season 01/Some Show S01E01.mkv'),
+      );
+    });
+
+    test('a correction from an earlier preview wins', () async {
+      const mine = 'Shows/Mine/Season 01/Mine S01E01.mkv';
+      final episode = p.join('Some Show', 'Some Show - 01.mkv');
+      final provider = ScriptedChatProvider([
+        _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
+      ]);
+
+      final run = await OrganizeAgent(
+        provider,
+      ).run(folderName: 'Some Show', files: _show, overrides: {episode: mine});
+
+      final action = run.plan.actions.singleWhere((a) => a.source == episode);
+      expect(action.target, mine);
+      expect(action.userEdited, isTrue);
+      expect(action.status, ActionStatus.pending);
+    });
+
+    test('a group the user placed entirely needs no model', () async {
+      final provider = ScriptedChatProvider([(_) => textTurn('unused')]);
+
+      final run = await OrganizeAgent(provider).run(
+        folderName: 'Some Show',
+        files: _show,
+        overrides: {
+          for (final (i, f) in _show.indexed) f.relativePath: 'Mine/$i.mkv',
+        },
+      );
+
+      expect(provider.calls, 0);
+      expect(run.plan.actions.map((a) => a.target), [
+        'Mine/0.mkv',
+        'Mine/1.mkv',
+        'Mine/2.mkv',
+      ]);
+    });
+
+    test('fresh decisions are handed out, but not for split groups', () async {
+      final decided = <String>[];
+      await OrganizeAgent(
+        ScriptedChatProvider([
+          _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
+        ]),
+      ).run(
+        folderName: 'Some Show',
+        files: _show,
+        onDecided: (g) => decided.add(g.group.id),
+      );
+      expect(decided, ['g1']);
+
+      decided.clear();
+      await OrganizeAgent(
+        ScriptedChatProvider([
+          (_) => toolTurn([
+            (
+              'split_group',
+              {
+                'group': 'g1',
+                'files': [2],
+              },
+            ),
+          ]),
+          (_) => toolTurn([
+            (
+              'submit_group',
+              {'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'},
+            ),
+            (
+              'submit_group',
+              {'group': 'g2', 'mediaType': 'series', 'title': 'Other'},
+            ),
+          ]),
+        ]),
+      ).run(
+        folderName: 'Some Show',
+        files: _show,
+        onDecided: (g) => decided.add(g.group.id),
+      );
+      // Neither group holds the files its fingerprint would name any more.
+      expect(decided, isEmpty);
+    });
   });
 }
