@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -20,7 +21,20 @@ class OpenAiProvider implements AiProvider {
   /// pooled one.
   final http.Client? _client;
 
-  OpenAiProvider(this.config, {http.Client? client}) : _client = client;
+  /// How long to wait for the first streamed event. Covers what a local
+  /// server does before it says anything: loading the model and reading the
+  /// whole prompt.
+  final Duration firstEventTimeout;
+
+  /// How long the stream may fall silent once it has started.
+  final Duration idleTimeout;
+
+  OpenAiProvider(
+    this.config, {
+    http.Client? client,
+    this.firstEventTimeout = const Duration(minutes: 10),
+    this.idleTimeout = const Duration(minutes: 2),
+  }) : _client = client;
 
   /// The JSON mode each server + model last accepted, remembered for the
   /// process so only the first request of a session pays for a rejection.
@@ -29,6 +43,9 @@ class OpenAiProvider implements AiProvider {
   /// Server + model pairs that refused `max_tokens` in favour of
   /// `max_completion_tokens`, as OpenAI's reasoning models do.
   static final Set<String> _wantsMaxCompletionTokens = {};
+
+  /// Server + model pairs that refused `stream_options`.
+  static final Set<String> _rejectsStreamOptions = {};
 
   /// Normalized base URL ending in `/v1` (or whatever versioned suffix the
   /// user supplied). Used to derive `/chat/completions` and `/models`.
@@ -64,15 +81,28 @@ class OpenAiProvider implements AiProvider {
     };
   }
 
-  /// Performs one completion, stepping down the JSON modes on rejection.
+  /// Performs one streamed completion, stepping down the JSON modes on
+  /// rejection.
   ///
-  /// `response_format: json_object` is OpenAI's form and most servers take it,
-  /// but not all: LM Studio answers it with a 400 ("'response_format.type'
-  /// must be 'json_schema' or 'text'"), which failed every organize and scrape
-  /// request against it. A rejection naming the parameter now retries with a
-  /// permissive `json_schema`, then with no constraint at all — the prompts
-  /// already demand a bare JSON object, and every parser tolerates stray prose
-  /// around one. The mode that worked is remembered.
+  /// **Why a stream.** A plan is long — every file comes back as an action —
+  /// and a local model writes it slowly: a 27B model on LM Studio took 88 s
+  /// for thirty episodes, much of it reasoning. The request used to have 120 s
+  /// in total, so any real folder timed out, and the retry that followed made
+  /// the server start the same generation again while the abandoned one was
+  /// still running. A stream is timed on silence instead — [firstEventTimeout]
+  /// for loading and reading the prompt, [idleTimeout] for any later gap.
+  /// Reasoning tokens stream too, so a slow model that is working never trips
+  /// it and a hung one still fails. Closing the stream, on timeout or cancel,
+  /// is also what makes the server stop generating. A timeout is never
+  /// retried.
+  ///
+  /// **JSON mode.** `response_format: json_object` is OpenAI's form and most
+  /// servers take it, but not all: LM Studio answers it with a 400
+  /// ("'response_format.type' must be 'json_schema' or 'text'"). A rejection
+  /// naming the parameter retries with a permissive `json_schema`, then with
+  /// no constraint at all — the prompts already demand a bare JSON object, and
+  /// every parser tolerates stray prose around one. The mode that worked is
+  /// remembered.
   @override
   Future<AiResponse> complete({
     required String systemPrompt,
@@ -85,6 +115,7 @@ class OpenAiProvider implements AiProvider {
     final maxTokens = config.maxOutputTokens;
     var mode = _acceptedJsonModes[_cacheKey] ?? _JsonMode.object;
     var maxCompletionTokens = _wantsMaxCompletionTokens.contains(_cacheKey);
+    var streamOptions = !_rejectsStreamOptions.contains(_cacheKey);
 
     while (true) {
       final body = jsonEncode({
@@ -93,22 +124,33 @@ class OpenAiProvider implements AiProvider {
         (maxCompletionTokens ? 'max_completion_tokens' : 'max_tokens'):
             ?maxTokens,
         ...?_responseFormat(mode),
+        'stream': true,
+        // Asks for token usage in the final chunk; a stream omits it otherwise.
+        if (streamOptions) 'stream_options': const {'include_usage': true},
         'messages': [
           {'role': 'system', 'content': systemPrompt},
           {'role': 'user', 'content': userPrompt},
         ],
       });
 
-      http.Response res;
+      http.StreamedResponse res;
       try {
         res = await AiHttp.withRetry(
           () => client
-              .post(_chatUri, headers: _headers, body: body)
-              .timeout(const Duration(seconds: 120)),
+              .send(
+                http.Request('POST', _chatUri)
+                  ..headers.addAll(_headers)
+                  ..body = body,
+              )
+              .timeout(firstEventTimeout),
           cancelToken: cancelToken,
+          retryTimeouts: false,
         );
       } on AiCancelled {
         rethrow;
+      } on TimeoutException {
+        if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
+        throw AiException(_noResponse(firstEventTimeout));
       } catch (e) {
         // Closing the client to cancel surfaces as a generic ClientException;
         // report it as a cancellation, not a network failure.
@@ -118,12 +160,22 @@ class OpenAiProvider implements AiProvider {
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         _acceptedJsonModes[_cacheKey] = mode;
-        return _parse(res);
+        return _read(res, cancelToken);
       }
 
-      final error = AiHttp.describeError(res);
+      String error;
+      try {
+        error = AiHttp.describeError(await http.Response.fromStream(res));
+      } catch (_) {
+        error = 'HTTP ${res.statusCode}';
+      }
       if (res.statusCode == 400 || res.statusCode == 422) {
         final detail = error.toLowerCase();
+        if (streamOptions && detail.contains('stream_options')) {
+          streamOptions = false;
+          _rejectsStreamOptions.add(_cacheKey);
+          continue;
+        }
         if (mode != _JsonMode.none && _namesResponseFormat(detail)) {
           mode = _JsonMode.values[mode.index + 1];
           continue;
@@ -164,23 +216,145 @@ class OpenAiProvider implements AiProvider {
     _JsonMode.none => null,
   };
 
-  static AiResponse _parse(http.Response res) {
-    final Map<String, dynamic> json = jsonDecode(utf8.decode(res.bodyBytes));
-    final choices = json['choices'] as List<dynamic>?;
-    if (choices == null || choices.isEmpty) {
+  /// Collects a streamed completion from its server-sent events.
+  ///
+  /// Only `delta.content` is kept: reasoning arrives as `reasoning_content`
+  /// and is not part of the answer. A body that is not an event stream — a
+  /// server or proxy that ignored `stream: true` — is parsed as one ordinary
+  /// JSON completion instead.
+  Future<AiResponse> _read(
+    http.StreamedResponse res,
+    AiCancelToken? cancelToken,
+  ) async {
+    final eventStream =
+        res.headers['content-type']?.contains('text/event-stream') ?? false;
+    final lines = StreamIterator(
+      res.stream.transform(utf8.decoder).transform(const LineSplitter()),
+    );
+    final content = StringBuffer();
+    final plain = StringBuffer();
+    bool? sse;
+    String? finishReason;
+    var promptTokens = 0;
+    var completionTokens = 0;
+    var started = false;
+
+    try {
+      while (true) {
+        final bool more;
+        try {
+          more = await lines.moveNext().timeout(
+            started ? idleTimeout : firstEventTimeout,
+          );
+        } on TimeoutException {
+          throw AiException(
+            started
+                ? 'The server stopped sending for ${_duration(idleTimeout)} '
+                      'partway through the reply.'
+                : _noResponse(firstEventTimeout),
+          );
+        }
+        if (!more) break;
+        final line = lines.current;
+        if (line.trim().isEmpty) continue;
+        started = true;
+        sse ??= eventStream || line.startsWith('data:');
+        if (!sse) {
+          plain.writeln(line);
+          continue;
+        }
+        // `event:`, `id:` and `:` keep-alive comments carry nothing we need.
+        if (!line.startsWith('data:')) continue;
+        final data = line.substring(5).trim();
+        if (data == '[DONE]') break;
+
+        final Object? event;
+        try {
+          event = jsonDecode(data);
+        } on FormatException {
+          continue;
+        }
+        if (event is! Map) continue;
+        final error = event['error'];
+        if (error != null) {
+          final message = error is Map ? error['message'] : error;
+          throw AiException('Model error: $message');
+        }
+        final choices = event['choices'];
+        if (choices is List && choices.isNotEmpty && choices.first is Map) {
+          final choice = choices.first as Map;
+          final delta = choice['delta'];
+          if (delta is Map && delta['content'] is String) {
+            content.write(delta['content']);
+          }
+          if (choice['finish_reason'] is String) {
+            finishReason = choice['finish_reason'] as String;
+          }
+        }
+        final usage = event['usage'];
+        if (usage is Map) {
+          promptTokens =
+              (usage['prompt_tokens'] as num?)?.toInt() ?? promptTokens;
+          completionTokens =
+              (usage['completion_tokens'] as num?)?.toInt() ?? completionTokens;
+        }
+      }
+    } on AiException {
+      rethrow;
+    } catch (e) {
+      if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
+      throw AiException('Network error: $e');
+    } finally {
+      // On an early exit this closes the connection, which is what tells the
+      // server to stop generating.
+      await lines.cancel();
+    }
+
+    if (sse != true) return _parse(plain.toString());
+    if (content.isEmpty && finishReason == null) {
       throw const AiException('Empty response from model.');
     }
-    final choice = choices.first as Map<String, dynamic>;
-    final content = (choice['message']?['content'] as String?) ?? '';
-    final usage = json['usage'] as Map<String, dynamic>?;
+    return AiResponse(
+      text: content.toString(),
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      finishReason: finishReason,
+    );
+  }
+
+  static AiResponse _parse(String body) {
+    final Object? json;
+    try {
+      json = jsonDecode(body);
+    } on FormatException {
+      throw const AiException('Empty response from model.');
+    }
+    final choices = json is Map ? json['choices'] : null;
+    if (choices is! List || choices.isEmpty || choices.first is! Map) {
+      throw const AiException('Empty response from model.');
+    }
+    final choice = choices.first as Map;
+    final message = choice['message'];
+    final content = message is Map ? message['content'] as String? : null;
+    final usage = (json as Map)['usage'];
 
     return AiResponse(
-      text: content,
-      promptTokens: (usage?['prompt_tokens'] as num?)?.toInt() ?? 0,
-      completionTokens: (usage?['completion_tokens'] as num?)?.toInt() ?? 0,
+      text: content ?? '',
+      promptTokens: usage is Map
+          ? (usage['prompt_tokens'] as num?)?.toInt() ?? 0
+          : 0,
+      completionTokens: usage is Map
+          ? (usage['completion_tokens'] as num?)?.toInt() ?? 0
+          : 0,
       finishReason: choice['finish_reason'] as String?,
     );
   }
+
+  static String _noResponse(Duration timeout) =>
+      'No response from the server within ${_duration(timeout)}.';
+
+  static String _duration(Duration d) =>
+      d.inMinutes >= 1 ? '${d.inMinutes} min' : '${d.inSeconds} s';
 
   /// Asks every server dialect at once — llama.cpp, LM Studio, Ollama, then
   /// the generic model list — and keeps the most authoritative answer; see
