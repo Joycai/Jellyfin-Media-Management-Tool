@@ -30,6 +30,15 @@ class FileBrowserService extends ChangeNotifier {
   /// of stomping on fresher state.
   int _loadGeneration = 0;
 
+  /// How many entries are stat'd at once when listing a directory.
+  ///
+  /// One future per entry meant a folder with 20k files put 20k concurrent
+  /// stat calls and 20k pending futures in flight before the first result
+  /// came back. Batching also gives the generation guard somewhere to check:
+  /// it used to run only after the whole listing had resolved, so switching
+  /// folders quickly still paid for every stale stat.
+  static const int _statBatch = 64;
+
   /// Burst-event debounce window before a watcher-triggered reload runs.
   /// Long enough to coalesce extracts/batch renames, short enough to feel
   /// instant for one-off file drops.
@@ -211,11 +220,22 @@ class FileBrowserService extends ChangeNotifier {
       final raw = await directory.list(followLinks: false).toList();
       if (gen != _loadGeneration || _disposed) return;
 
-      final entries = await Future.wait(raw.map(_toEntry));
+      // Entries we couldn't stat (e.g. permission-denied symlinks) come back
+      // null from _toEntry and are dropped here rather than aborting the
+      // listing over one unreadable file.
+      final usable = <FileEntry>[];
+      for (var i = 0; i < raw.length; i += _statBatch) {
+        // A newer load -- or a dispose -- while this one was mid-flight means
+        // the rest of these stats are work for a directory nobody is looking
+        // at any more.
+        if (gen != _loadGeneration || _disposed) return;
+        final batch = raw.skip(i).take(_statBatch);
+        usable.addAll(
+          (await Future.wait(batch.map(_toEntry))).whereType<FileEntry>(),
+        );
+      }
       if (gen != _loadGeneration || _disposed) return;
 
-      // Drop entries we couldn't stat (e.g. permission-denied symlinks).
-      final usable = entries.whereType<FileEntry>().toList();
       _sortEntries(usable);
       _files = usable;
       // Clear stale selection if the file is gone.
