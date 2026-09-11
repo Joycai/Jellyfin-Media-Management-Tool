@@ -14,7 +14,7 @@ enum LogLevel { info, warn, debug }
 
 /// Semantic activity-log entry; the screen formats it with localized strings so
 /// the log stays translatable.
-enum LogKind { started, moved, skipped, failed, finished, stopped }
+enum LogKind { started, moved, skipped, failed, finished, stopped, undoLost }
 
 class LogEntry {
   final DateTime time;
@@ -90,6 +90,14 @@ class ApplyController extends ChangeNotifier {
   bool _started = false;
 
   bool _disposed = false;
+
+  /// Set when the batch moved files but the undo manifest could not be
+  /// written, which leaves the result unrecoverable from the History
+  /// screen. Surfaced in the task summary as well as the log: a log the
+  /// user has already scrolled past is not a warning.
+  String? _undoError;
+
+  String? get undoError => _undoError;
 
   /// Pending throttled notify; non-null means a rebuild is already queued.
   /// Lifecycle, pause/resume and terminal transitions flush via
@@ -203,65 +211,93 @@ class ApplyController extends ChangeNotifier {
     // without meaningfully slowing large batches.
     final pace = total <= 60 ? 40 : (total <= 200 ? 12 : 0);
 
-    for (final a in plan.actions) {
-      if (_stopRequested) break;
-      while (_pauseGate != null) {
-        await _pauseGate!.future;
-      }
-      if (_stopRequested) break;
-
-      if (a.status == ActionStatus.needsReview) {
-        _skipped++;
-        _addLog(
-          LogEntry(
-            LogKind.skipped,
-            level: LogLevel.warn,
-            name: p.basename(a.source),
-          ),
-        );
-        _scheduleNotify();
-        continue;
-      }
-      if (a.status != ActionStatus.pending) continue;
-
-      _inProgress++;
-      _scheduleNotify();
-      if (pace > 0) await Future.delayed(Duration(milliseconds: pace));
-
-      final outcome = await applyOrganizeAction(a, baseDir: baseDir);
-      _inProgress--;
-      if (outcome.ok) {
-        _done++;
-        _bytesDone += outcome.bytes;
-        if (outcome.fromPath != null && outcome.toPath != null) {
-          _moves.add({'from': outcome.fromPath!, 'to': outcome.toPath!});
+    try {
+      for (final a in plan.actions) {
+        if (_stopRequested) break;
+        while (_pauseGate != null) {
+          await _pauseGate!.future;
         }
-        _addLog(
-          LogEntry(
-            LogKind.moved,
-            level: LogLevel.info,
-            name: p.basename(a.source),
-            dir: p.dirname(a.target),
-          ),
-        );
-      } else {
-        _failed++;
-        _addLog(
-          LogEntry(
-            LogKind.failed,
-            level: LogLevel.warn,
-            name: p.basename(a.source),
-            error: outcome.error ?? '',
-          ),
-        );
-      }
-      _scheduleNotify();
-    }
+        if (_stopRequested) break;
 
-    if (backup && _moves.isNotEmpty && history != null) {
-      final renames = _moves
-          .where((m) => p.basename(m['from']!) != p.basename(m['to']!))
-          .length;
+        if (a.status == ActionStatus.needsReview) {
+          _skipped++;
+          _addLog(
+            LogEntry(
+              LogKind.skipped,
+              level: LogLevel.warn,
+              name: p.basename(a.source),
+            ),
+          );
+          _scheduleNotify();
+          continue;
+        }
+        if (a.status != ActionStatus.pending) continue;
+
+        _inProgress++;
+        _scheduleNotify();
+        if (pace > 0) await Future.delayed(Duration(milliseconds: pace));
+
+        final outcome = await applyOrganizeAction(a, baseDir: baseDir);
+        _inProgress--;
+        if (outcome.ok) {
+          _done++;
+          _bytesDone += outcome.bytes;
+          if (outcome.fromPath != null && outcome.toPath != null) {
+            _moves.add({'from': outcome.fromPath!, 'to': outcome.toPath!});
+          }
+          _addLog(
+            LogEntry(
+              LogKind.moved,
+              level: LogLevel.info,
+              name: p.basename(a.source),
+              dir: p.dirname(a.target),
+            ),
+          );
+        } else {
+          _failed++;
+          _addLog(
+            LogEntry(
+              LogKind.failed,
+              level: LogLevel.warn,
+              name: p.basename(a.source),
+              error: outcome.error ?? '',
+            ),
+          );
+        }
+        _scheduleNotify();
+      }
+    } finally {
+      // All of this has to run even when the loop threw. Files have already
+      // been moved by then, so the manifest is the only record that they can
+      // be moved back, and the status is what tells the UI the batch is over
+      // rather than still running.
+      await _recordUndo();
+      _sw.stop();
+      _status = _stopRequested ? ApplyStatus.stopped : ApplyStatus.done;
+      _addLog(
+        LogEntry(
+          _stopRequested ? LogKind.stopped : LogKind.finished,
+          level: LogLevel.info,
+          done: _done,
+          skipped: _skipped,
+        ),
+      );
+      _notifyNow();
+    }
+  }
+
+  /// Writes the undo manifest for everything that actually moved.
+  ///
+  /// Failures are captured rather than thrown: the moves already happened, so
+  /// an exception from here would replace whatever the loop threw with a
+  /// complaint about the paperwork and the caller would learn neither. The
+  /// user gets a warn line in the log and [undoError] in the task summary.
+  Future<void> _recordUndo() async {
+    if (!backup || _moves.isEmpty || history == null) return;
+    final renames = _moves
+        .where((m) => p.basename(m['from']!) != p.basename(m['to']!))
+        .length;
+    try {
       await history!.record(
         kind: HistoryKind.aiOrganize,
         baseDir: baseDir,
@@ -271,19 +307,17 @@ class ApplyController extends ChangeNotifier {
         totalBytes: _bytesDone,
         moves: _moves,
       );
+    } catch (e) {
+      _undoError = e.toString();
+      _addLog(
+        LogEntry(
+          LogKind.undoLost,
+          level: LogLevel.warn,
+          name: baseDir,
+          error: _undoError!,
+        ),
+      );
     }
-
-    _sw.stop();
-    _status = _stopRequested ? ApplyStatus.stopped : ApplyStatus.done;
-    _addLog(
-      LogEntry(
-        _stopRequested ? LogKind.stopped : LogKind.finished,
-        level: LogLevel.info,
-        done: _done,
-        skipped: _skipped,
-      ),
-    );
-    _notifyNow();
   }
 
   void pause() {

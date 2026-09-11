@@ -915,6 +915,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String logUndoLost(Object error) {
+    return '无法撤销 · $error';
+  }
+
+  @override
   String get historyTitle => '操作历史';
 
   @override

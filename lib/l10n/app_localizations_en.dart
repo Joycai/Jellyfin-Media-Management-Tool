@@ -930,6 +930,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String logUndoLost(Object error) {
+    return 'Undo unavailable · $error';
+  }
+
+  @override
   String get historyTitle => 'Operation history';
 
   @override

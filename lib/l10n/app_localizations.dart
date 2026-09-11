@@ -1718,6 +1718,12 @@ abstract class AppLocalizations {
   /// **'Stopped · {done} organized, {skipped} skipped'**
   String logStopped(Object done, Object skipped);
 
+  /// No description provided for @logUndoLost.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo unavailable · {error}'**
+  String logUndoLost(Object error);
+
   /// No description provided for @historyTitle.
   ///
   /// In en, this message translates to:
