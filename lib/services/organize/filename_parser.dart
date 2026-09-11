@@ -107,6 +107,61 @@ abstract final class FilenameParser {
   static final _open = String.fromCharCode(2);
   static final _close = String.fromCharCode(3);
 
+  // Everything below is compiled once. `parse` runs per file, `_cleanTitle`
+  // per title, and one of these is applied per *word* -- so a RegExp literal
+  // left inside any of them is a compilation per call, which for one organize
+  // run over a large library is tens of thousands of compilations of the same
+  // handful of patterns. The rest of this file already declares its patterns
+  // as static finals; these were the ones inside method bodies.
+
+  /// Audio channel layouts (`DTS-5.1`, `AAC2.0`), matched before dots turn
+  /// into spaces.
+  static final _audioLayout = RegExp(
+    r'(?<=^|[\s._\-\[(A-Za-z])[2-9]\.[0-2](?=$|[\s._\-\])])',
+  );
+
+  /// Every opening-bracket style, rewritten to [_open].
+  static final _anyOpenBracket = RegExp(r'[\[【(（]');
+
+  /// Every closing-bracket style, rewritten to [_close].
+  static final _anyCloseBracket = RegExp(r'[\]】)）]');
+
+  /// Dot and ideographic-space separators.
+  static final _dotSeparator = RegExp(r'[._　]');
+
+  /// One normalized bracket group, capturing its contents. [parse] uses the
+  /// capture; `_cleanTitle` uses the same pattern to strip groups, where the
+  /// whole match is what gets replaced and the capture is ignored.
+  static final _bracketGroup = RegExp('$_open([^$_close]*)(?:$_close|\$)');
+
+  /// The bracket sentinels themselves, left behind once groups are stripped.
+  static final _bracketSentinel = RegExp('[$_open$_close]');
+
+  static final _whitespaceRun = RegExp(r'\s+');
+
+  /// A word made only of punctuation, which carries no title information.
+  static final _punctuationOnly = RegExp(r'^[-~–—:,;|+]+$');
+
+  static final _firstNonSpace = RegExp(r'\S');
+
+  /// A candidate title made only of digits is an episode number, not a title.
+  static final _digitsOnly = RegExp(r'^\d+$');
+
+  /// `chs&jpn`, `sc+jp`, `chs_jpn`: separators inside a language tail.
+  static final _languageSeparators = RegExp(r'[&+_]');
+
+  /// Separators inside a bracket group when hunting for a language token.
+  static final _tokenSeparators = RegExp(r'[\s_&+,/]+');
+
+  /// Punctuation at either edge of a cleaned title.
+  static final _edgePunctuation = RegExp(r'^[-~–—:,;|]+|[-~–—:,;|]+$');
+
+  /// Anything that is not a letter or a number, in any script.
+  static final _nonAlphanumeric = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+
+  /// Full-width digits, folded to ASCII before `int.parse` sees them.
+  static final _fullWidthDigits = RegExp('[０-９]');
+
   static ParsedFile parse(String relativePath) {
     final dir = p.dirname(relativePath);
     final folder = dir == '.' ? '' : dir;
@@ -134,16 +189,14 @@ abstract final class FilenameParser {
 
     final text = _normalize(stem);
     final groups = [
-      for (final m in RegExp(
-        '$_open([^$_close]*)(?:$_close|\$)',
-      ).allMatches(text))
+      for (final m in _bracketGroup.allMatches(text))
         (start: m.start, end: m.end, content: m.group(1)!),
     ];
 
     // A bracket group at the very start is the release group in practice
     // (`[SubsPlease]`, `[VCB-Studio]`); markers inside it describe nothing.
     var leadEnd = 0;
-    final first = text.indexOf(RegExp(r'\S'));
+    final first = text.indexOf(_firstNonSpace);
     if (first >= 0 && text[first] == _open) {
       final close = text.indexOf(_close, first);
       leadEnd = close < 0 ? text.length : close + 1;
@@ -379,7 +432,7 @@ abstract final class FilenameParser {
       for (final g in groups) {
         if (g.start < leadEnd || g.end > cut) continue;
         final candidate = _cleanTitle(g.content);
-        if (candidate.isNotEmpty && !RegExp(r'^\d+$').hasMatch(candidate)) {
+        if (candidate.isNotEmpty && !_digitsOnly.hasMatch(candidate)) {
           titleGuess = candidate;
           break;
         }
@@ -726,7 +779,7 @@ abstract final class FilenameParser {
     if (known != null) return known;
     if (_otherLanguages.contains(normalized)) return normalized;
     // `chs&jpn`, `sc+jp`: the first language names the file.
-    final parts = segment.split(RegExp(r'[&+_]'));
+    final parts = segment.split(_languageSeparators);
     if (parts.length > 1 && parts.every(_languageTags.containsKey)) {
       return _languageTags[parts.first];
     }
@@ -744,7 +797,7 @@ abstract final class FilenameParser {
       final content = g.content.trim();
       if (content == '简') return 'zh-Hans';
       if (content == '繁') return 'zh-Hant';
-      for (final token in content.toLowerCase().split(RegExp(r'[\s_&+,/]+'))) {
+      for (final token in content.toLowerCase().split(_tokenSeparators)) {
         final tag = _languageTags[token];
         if (tag != null) return tag;
       }
@@ -760,32 +813,24 @@ abstract final class FilenameParser {
       )
       // Audio channel layouts (`DTS-5.1`, `AAC2.0`) before dots become
       // spaces, or `5.1` would read as two numbers.
-      .replaceAll(
-        RegExp(r'(?<=^|[\s._\-\[(A-Za-z])[2-9]\.[0-2](?=$|[\s._\-\])])'),
-        ' ',
-      )
-      .replaceAll(RegExp(r'[\[【(（]'), _open)
-      .replaceAll(RegExp(r'[\]】)）]'), _close)
-      .replaceAll(RegExp(r'[._　]'), ' ');
+      .replaceAll(_audioLayout, ' ')
+      .replaceAll(_anyOpenBracket, _open)
+      .replaceAll(_anyCloseBracket, _close)
+      .replaceAll(_dotSeparator, ' ');
 
   static String _cleanTitle(String head, {int from = 0}) {
     final visible = from >= head.length ? '' : head.substring(from);
     final outside = visible
-        .replaceAll(RegExp('$_open[^$_close]*(?:$_close|\$)'), ' ')
-        .replaceAll(RegExp('[$_open$_close]'), ' ');
+        .replaceAll(_bracketGroup, ' ')
+        .replaceAll(_bracketSentinel, ' ');
     final words = outside
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty && !RegExp(r'^[-~–—:,;|+]+$').hasMatch(w));
-    return words
-        .join(' ')
-        .replaceAll(RegExp(r'^[-~–—:,;|]+|[-~–—:,;|]+$'), '')
-        .trim();
+        .split(_whitespaceRun)
+        .where((w) => w.isNotEmpty && !_punctuationOnly.hasMatch(w));
+    return words.join(' ').replaceAll(_edgePunctuation, '').trim();
   }
 
-  static String _key(String title) => title
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
-      .trim();
+  static String _key(String title) =>
+      title.toLowerCase().replaceAll(_nonAlphanumeric, ' ').trim();
 
   static int? _seasonOfFolder(String name) {
     final m = _seasonFolder.firstMatch(name.trim());
@@ -809,7 +854,7 @@ abstract final class FilenameParser {
   /// ASCII, full-width or Chinese numerals (`05`, `０５`, `二十三`).
   static int? _number(String raw) {
     final ascii = raw.replaceAllMapped(
-      RegExp('[０-９]'),
+      _fullWidthDigits,
       (m) => String.fromCharCode(m.group(0)!.codeUnitAt(0) - 0xFF10 + 0x30),
     );
     final parsed = int.tryParse(ascii);

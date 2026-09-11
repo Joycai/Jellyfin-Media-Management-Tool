@@ -275,7 +275,10 @@ class NfoWriter {
     return options.compactCodeInTitles ? _compact(code) : code;
   }
 
-  static String _compact(String s) => s.replaceAll(RegExp(r'[-_\s]'), '');
+  /// Compiled once: `_compact` runs several times per field comparison.
+  static final _separators = RegExp(r'[-_\s]');
+
+  static String _compact(String s) => s.replaceAll(_separators, '');
 
   /// Writes `<name>value</name>`, skipping blanks so the NFO has no empty
   /// elements (Jellyfin treats an empty `<plot/>` as a real empty synopsis and

@@ -89,14 +89,14 @@ class ModelLimits {
   /// Ollama `POST /api/show`: a `num_ctx` line in `parameters` when the
   /// Modelfile sets one, otherwise `<arch>.context_length` from `model_info` —
   /// the model's maximum, which Ollama does not load by default.
+  /// The `num_ctx` line in an Ollama Modelfile's `parameters` block.
+  static final _numCtx = RegExp(r'^\s*num_ctx\s+(\d+)', multiLine: true);
+
   static ModelLimits? fromOllamaShow(Object? json) {
     if (json is! Map) return null;
     final parameters = json['parameters'];
     if (parameters is String) {
-      final match = RegExp(
-        r'^\s*num_ctx\s+(\d+)',
-        multiLine: true,
-      ).firstMatch(parameters);
+      final match = _numCtx.firstMatch(parameters);
       final ctx = _positive(match?.group(1));
       if (ctx != null) return ModelLimits(contextWindow: ctx, source: 'Ollama');
     }

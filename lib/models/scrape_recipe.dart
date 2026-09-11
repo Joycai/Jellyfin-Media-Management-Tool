@@ -322,9 +322,20 @@ class ScrapeRecipe {
   /// Minimal glob: `*` matches any run of characters, everything else is
   /// literal. Deliberately not a regex — recipes are user-editable data and a
   /// regex there is a footgun.
+  /// Compiled globs, keyed by pattern.
+  ///
+  /// A recipe is matched against every URL the panel is pointed at and its
+  /// `pathPattern` is data that never changes at runtime, so compiling it per
+  /// call is pure waste. Bounded by the number of distinct patterns in the
+  /// recipe store.
+  static final Map<String, RegExp> _compiledGlobs = {};
+
   static bool _globMatches(String pattern, String path) {
-    final escaped = pattern.split('*').map(RegExp.escape).join('.*');
-    return RegExp('^$escaped\$').hasMatch(path);
+    final glob = _compiledGlobs.putIfAbsent(pattern, () {
+      final escaped = pattern.split('*').map(RegExp.escape).join('.*');
+      return RegExp('^$escaped\$');
+    });
+    return glob.hasMatch(path);
   }
 
   Map<String, dynamic> toJson() => {
