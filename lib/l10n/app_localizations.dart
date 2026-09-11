@@ -1286,6 +1286,126 @@ abstract class AppLocalizations {
   /// **'Use'**
   String get useDetectedValue;
 
+  /// No description provided for @samplingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampling'**
+  String get samplingTitle;
+
+  /// No description provided for @samplingPresetMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended values for {name}'**
+  String samplingPresetMatched(Object name);
+
+  /// No description provided for @samplingPresetSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get samplingPresetSource;
+
+  /// No description provided for @samplingNoPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Unrecognized model family: the server\'s defaults apply'**
+  String get samplingNoPreset;
+
+  /// No description provided for @samplingReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to recommended'**
+  String get samplingReset;
+
+  /// No description provided for @samplingDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get samplingDefault;
+
+  /// No description provided for @samplingTopP.
+  ///
+  /// In en, this message translates to:
+  /// **'Top P'**
+  String get samplingTopP;
+
+  /// No description provided for @samplingTopK.
+  ///
+  /// In en, this message translates to:
+  /// **'Top K'**
+  String get samplingTopK;
+
+  /// No description provided for @samplingMinP.
+  ///
+  /// In en, this message translates to:
+  /// **'Min P'**
+  String get samplingMinP;
+
+  /// No description provided for @samplingPresencePenalty.
+  ///
+  /// In en, this message translates to:
+  /// **'Presence penalty'**
+  String get samplingPresencePenalty;
+
+  /// No description provided for @samplingRepeatPenalty.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat penalty'**
+  String get samplingRepeatPenalty;
+
+  /// No description provided for @samplingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave a field blank to use the recommended value.'**
+  String get samplingNote;
+
+  /// No description provided for @thinkingMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking mode'**
+  String get thinkingMode;
+
+  /// No description provided for @thinkingModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default: reasoning makes small local models far slower and prone to going in circles.'**
+  String get thinkingModeHint;
+
+  /// No description provided for @thinkingAlwaysOn.
+  ///
+  /// In en, this message translates to:
+  /// **'This model can only run with reasoning on.'**
+  String get thinkingAlwaysOn;
+
+  /// No description provided for @thinkingEffortOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This model\'s reasoning cannot be turned off; with thinking off it runs at low effort.'**
+  String get thinkingEffortOnly;
+
+  /// No description provided for @thinkingVerifiedOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Last test: reasoning was off.'**
+  String get thinkingVerifiedOff;
+
+  /// No description provided for @thinkingStillOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Last test: the model still reasoned. Turn thinking off in the server\'s own model settings (in LM Studio: Enable Thinking).'**
+  String get thinkingStillOn;
+
+  /// No description provided for @presetNeedsSystemPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'This model\'s card requires its own system prompt; results may suffer without it.'**
+  String get presetNeedsSystemPrompt;
+
+  /// No description provided for @ollamaIgnoresSampling.
+  ///
+  /// In en, this message translates to:
+  /// **'Ollama\'s OpenAI-compatible API ignores Top K, Min P and Repeat penalty; set them in the Modelfile instead.'**
+  String get ollamaIgnoresSampling;
+
   /// No description provided for @tokensThisSession.
   ///
   /// In en, this message translates to:

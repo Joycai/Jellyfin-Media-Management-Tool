@@ -45,6 +45,7 @@ class GoogleGenAiProvider implements AiProvider {
     required String userPrompt,
     AiCancelToken? cancelToken,
   }) async {
+    final sampling = config.sampling.values;
     final body = jsonEncode({
       'systemInstruction': {
         'parts': [
@@ -60,10 +61,12 @@ class GoogleGenAiProvider implements AiProvider {
         },
       ],
       'generationConfig': {
-        'temperature': config.temperature,
+        'temperature': ?sampling.temperature,
+        'topP': ?sampling.topP,
+        'topK': ?sampling.topK,
+        'presencePenalty': ?sampling.presencePenalty,
         'responseMimeType': 'application/json',
-        if (config.maxOutputTokens != null)
-          'maxOutputTokens': config.maxOutputTokens,
+        'maxOutputTokens': ?config.maxOutputTokens,
       },
     });
 
@@ -102,17 +105,21 @@ class GoogleGenAiProvider implements AiProvider {
       throw const AiException('Empty response from model.');
     }
     final candidate = candidates.first as Map<String, dynamic>;
-    final parts = candidate['content']?['parts'] as List<dynamic>?;
-    final text = (parts != null && parts.isNotEmpty)
-        ? (parts.first['text'] as String? ?? '')
-        : '';
+    final parts = (candidate['content']?['parts'] as List<dynamic>? ?? [])
+        .whereType<Map<dynamic, dynamic>>()
+        .toList();
+    // Thought parts are reasoning, not the answer.
+    final answer = parts.where((p) => p['thought'] != true).firstOrNull;
     final usage = json['usageMetadata'] as Map<String, dynamic>?;
 
     return AiResponse(
-      text: text,
+      text: answer?['text'] as String? ?? '',
       promptTokens: (usage?['promptTokenCount'] as num?)?.toInt() ?? 0,
       completionTokens: (usage?['candidatesTokenCount'] as num?)?.toInt() ?? 0,
       finishReason: candidate['finishReason'] as String?,
+      reasoned:
+          parts.any((p) => p['thought'] == true) ||
+          ((usage?['thoughtsTokenCount'] as num?)?.toInt() ?? 0) > 0,
     );
   }
 
@@ -135,4 +142,9 @@ class GoogleGenAiProvider implements AiProvider {
       return ModelLimits.unknown;
     }
   }
+
+  /// Google's API is not one of the self-hosted servers [ServerKind] tells
+  /// apart.
+  @override
+  Future<ServerKind> detectServerKind() async => ServerKind.unknown;
 }

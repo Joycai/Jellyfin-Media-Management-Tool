@@ -81,12 +81,11 @@ class AiService extends ChangeNotifier {
   /// "setState()/markNeedsBuild() called during build".
   void updateConfig(AiConfig config) {
     // A change to any connection-relevant field invalidates a prior "connected"
-    // status; temperature and the token budgets do not affect connectivity.
+    // status; sampling, reasoning and the token budgets do not affect
+    // connectivity. Every field is a primitive, so comparing the JSON forms is
+    // an exact equality check that cannot fall behind a new field.
     final connectionChanged = !_sameEndpoint(config, _config);
-    if (!connectionChanged &&
-        config.temperature == _config.temperature &&
-        config.contextWindow == _config.contextWindow &&
-        config.maxOutputTokens == _config.maxOutputTokens) {
+    if (!connectionChanged && mapEquals(config.toJson(), _config.toJson())) {
       return;
     }
     _config = config;

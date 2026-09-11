@@ -5,8 +5,8 @@
 /// and that is exactly where compatible servers differ. LM Studio listed its
 /// models happily and then rejected every organize request over
 /// `response_format`, so the test passed while the feature failed. Going
-/// through [AiProvider.complete] sends the same body, JSON mode and fallbacks
-/// the organize and scrape pipelines use.
+/// through [AiProvider.complete] sends the same body, JSON mode, sampling and
+/// reasoning switches the organize and scrape pipelines use.
 library;
 
 import 'dart:convert';
@@ -27,6 +27,14 @@ class AiConnectionCheckResult {
   /// tight for real requests.
   final bool truncated;
 
+  /// The model reasoned on the final attempt. With thinking off, that means
+  /// no way of turning it off worked on this server.
+  final bool reasoned;
+
+  /// Which software answered, for notes such as Ollama ignoring some sampling
+  /// fields.
+  final ServerKind serverKind;
+
   /// What the server reports about the model, looked up alongside the test.
   final ModelLimits limits;
 
@@ -36,6 +44,8 @@ class AiConnectionCheckResult {
     required this.promptTokens,
     required this.completionTokens,
     required this.truncated,
+    required this.reasoned,
+    required this.serverKind,
     required this.limits,
   });
 }
@@ -47,6 +57,9 @@ class AiConnectionCheck {
   /// first request and a large one can take most of a minute to arrive.
   static const timeout = Duration(seconds: 90);
 
+  /// Enough to walk every way a provider has of turning reasoning off.
+  static const maxAttempts = 4;
+
   static const systemPrompt =
       'You are a connectivity check. Reply with a JSON object of the form '
       '{"reply": "<a short greeting>"} and nothing else.';
@@ -54,25 +67,34 @@ class AiConnectionCheck {
   static const userPrompt = 'Hello! Please greet me back in a few words.';
 
   /// Sends the greeting through [provider]. Throws whatever the request threw.
+  ///
+  /// With thinking off, a reply that still reasons moves the provider on to
+  /// its next way of asking. A greeting is cheap enough to find the one that
+  /// works now, rather than on the user's first real task.
   static Future<AiConnectionCheckResult> run(AiProvider provider) async {
     final token = AiCancelToken();
     // Discovery never throws, so it can run alongside without a handler.
     final limits = provider.detectLimits();
+    final serverKind = provider.detectServerKind();
     final stopwatch = Stopwatch()..start();
     try {
-      final response = await provider
-          .complete(
-            systemPrompt: systemPrompt,
-            userPrompt: userPrompt,
-            cancelToken: token,
-          )
-          .timeout(
-            timeout,
-            onTimeout: () {
-              token.cancel();
-              throw AiException('No reply within ${timeout.inSeconds} s.');
-            },
-          );
+      late AiResponse response;
+      for (var attempt = 0; attempt < maxAttempts; attempt++) {
+        response = await provider
+            .complete(
+              systemPrompt: systemPrompt,
+              userPrompt: userPrompt,
+              cancelToken: token,
+            )
+            .timeout(
+              timeout,
+              onTimeout: () {
+                token.cancel();
+                throw AiException('No reply within ${timeout.inSeconds} s.');
+              },
+            );
+        if (!response.thinkingOffPending) break;
+      }
       stopwatch.stop();
       return AiConnectionCheckResult(
         reply: replyText(response.text),
@@ -80,6 +102,8 @@ class AiConnectionCheck {
         promptTokens: response.promptTokens,
         completionTokens: response.completionTokens,
         truncated: response.truncated,
+        reasoned: response.reasoned,
+        serverKind: await serverKind,
         limits: await limits,
       );
     } finally {
