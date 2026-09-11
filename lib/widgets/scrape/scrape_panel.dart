@@ -437,13 +437,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
   }
 
   Future<void> _browseForNfo() async {
-    final picked = await FilePicker.pickFiles(
+    final picked = await FilePicker.pickFile(
       dialogTitle: AppLocalizations.of(context)!.scrapeNfoTarget,
       initialDirectory: _targetDir,
       type: FileType.custom,
       allowedExtensions: const ['nfo'],
     );
-    final path = picked?.files.single.path;
+    final path = picked?.path;
     if (path == null || !mounted) return;
     setState(() {
       _targetDir = p.dirname(path);

@@ -261,7 +261,6 @@ Three persisted settings toggles — `autoConnectAi`, `alwaysShowPreview`, `lowC
 - UI is Material 3; respect light/dark themes, the accent seed, and `GlassTheme`.
 - Dialogs use `GlassAlertDialog` (or `GlassDialogSurface` inside a transparent `Dialog` for large/custom ones); context menus use `showGlassMenu` with `glassMenuItem`/`glassMenuHeader`. Never a bare `AlertDialog` or `showMenu` — the Material surfaces don't match the liquid-glass style (see Theming).
 - Standard controls (inputs, dropdowns, buttons, sliders) take their size from the theme — do not restate heights, paddings or border shapes per widget. An explicit size is a deliberate compact variant and must opt out of the theme borders explicitly (see Theming).
-- `xml` is pinned to `^6`, not `^7`: it was already in the lock file transitively via `msix` at 6.6.1, and a `^7` caret fails version solving the same way `intl: ^0.20.3` does.
 - No `freezed` / `json_serializable` / `build_runner` in this project — JSON is hand-rolled in the services. Don't introduce codegen without a reason.
 
 ## Platform-specific notes
