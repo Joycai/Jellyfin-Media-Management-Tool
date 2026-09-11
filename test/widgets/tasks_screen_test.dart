@@ -23,6 +23,7 @@ class _HangingAi extends AiService {
     String? mediaTypeHint,
     Set<String>? onlyPaths,
     AiCancelToken? cancelToken,
+    void Function(double fraction)? onProgress,
   }) => _never.future;
 }
 

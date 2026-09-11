@@ -13,6 +13,7 @@ import 'services/ai_service.dart';
 import 'services/file_browser_service.dart';
 import 'services/font_service.dart';
 import 'services/history_service.dart';
+import 'services/organize/organize_workspace.dart';
 import 'services/scrape/recipe_store.dart';
 import 'services/scrape/scrape_service.dart';
 import 'services/settings_service.dart';
@@ -49,8 +50,19 @@ void main() async {
     AppFontChoiceX.fromId(settingsService.fontChoice),
   );
 
-  final aiService = AiService();
+  // Remembered group decisions and preview corrections. Pruning is best
+  // effort: an old cache costs disk, never correctness.
+  final organizeWorkspace = OrganizeWorkspace();
+  unawaited(organizeWorkspace.prune().catchError((Object _) {}));
+  final aiService = AiService(workspace: organizeWorkspace);
   aiService.updateConfig(aiProfilesService.aiConfig);
+  // A task that had to check whether its model calls tools records the answer
+  // on the profiles, so the next task (and Settings) need not check again.
+  aiService.onToolSupport = (config, supported) {
+    if (aiProfilesService.recordToolSupport(config, supported)) {
+      aiService.updateConfig(aiProfilesService.aiConfig);
+    }
+  };
 
   final historyService = HistoryService();
   // Best-effort initial load; UI is fine before this completes.

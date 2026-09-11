@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
 import 'package:jellyfin_media_management_tool/models/scrape_recipe.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/builtin_recipes.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/recipe_learner.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/scrape_prompt.dart';
@@ -18,11 +20,20 @@ final _pageUrl = Uri.parse(
   'https://www.giga-web.jp/product/index.php?product_id=7743',
 );
 
+final _giga = jsonDecode(BuiltinRecipes.gigaWebJson) as Map<String, Object?>;
+
 /// A recipe that finds nothing on the fixture — the shape of a plausible-looking
 /// but wrong first attempt.
-const _uselessRecipe = '''
-{ "fields": { "title": { "selector": "#nothing-here" } } }
-''';
+const _useless = {
+  'fields': {
+    'title': {'selector': '#nothing-here'},
+  },
+};
+
+ChatTurn _submits(Object? recipe) =>
+    (_) => toolTurn([
+      ('submit_recipe', {'recipe': recipe}),
+    ]);
 
 void main() {
   final document = html_parser.parse(_fixture);
@@ -87,25 +98,28 @@ void main() {
   });
 
   group('RecipeLearner.learn', () {
-    test('accepts a recipe that extracts the required fields', () async {
-      final provider = ScriptedProvider([BuiltinRecipes.gigaWebJson]);
+    test(
+      'accepts a submitted recipe that extracts the required fields',
+      () async {
+        final provider = ScriptedChatProvider([_submits(_giga)]);
 
-      final learned = await RecipeLearner(
-        provider,
-      ).learn(html: _fixture, document: document, pageUrl: _pageUrl);
+        final learned = await RecipeLearner(
+          provider,
+        ).learn(document: document, pageUrl: _pageUrl);
 
-      expect(learned, isNotNull);
-      expect(learned!.attempts, 1);
-      expect(provider.calls, 1);
-      expect(learned.extracted.title, isNotNull);
-      expect(learned.extracted.code, 'SPSF-43');
-      expect(learned.promptTokens, 10);
-    });
+        expect(learned, isNotNull);
+        expect(learned!.rounds, 1);
+        expect(provider.calls, 1);
+        expect(learned.extracted.title, isNotNull);
+        expect(learned.extracted.code, 'SPSF-43');
+        expect(learned.promptTokens, 10);
+      },
+    );
 
     test('marks every extracted field as LLM-sourced', () async {
       final learned = await RecipeLearner(
-        ScriptedProvider([BuiltinRecipes.gigaWebJson]),
-      ).learn(html: _fixture, document: document, pageUrl: _pageUrl);
+        ScriptedChatProvider([_submits(_giga)]),
+      ).learn(document: document, pageUrl: _pageUrl);
 
       // The badge in the preview — and NfoMerge's refusal to let a guess
       // overwrite an existing value — both key off this.
@@ -114,50 +128,104 @@ void main() {
     });
 
     test(
-      'retries once with the shortfall as feedback, then succeeds',
+      'refuses a submission that misses a required field, saying which',
       () async {
-        final provider = ScriptedProvider([
-          _uselessRecipe,
-          BuiltinRecipes.gigaWebJson,
+        final provider = ScriptedChatProvider([
+          _submits(_useless),
+          _submits(_giga),
         ]);
 
         final learned = await RecipeLearner(
           provider,
-        ).learn(html: _fixture, document: document, pageUrl: _pageUrl);
+        ).learn(document: document, pageUrl: _pageUrl);
 
-        expect(learned, isNotNull);
-        expect(learned!.attempts, 2);
-        expect(provider.calls, 2);
-        // Handing the model its own miss is the point of the retry.
-        expect(provider.userPrompts.first, isNot(contains('did not work')));
-        expect(provider.userPrompts[1], contains('did not work'));
-        expect(provider.userPrompts[1], contains('title'));
-        // Tokens accumulate across both attempts.
+        expect(learned!.rounds, 2);
+        final refusal = provider.seen[1].last as ToolResultMessage;
+        // Handing the model its own miss is what lets it correct itself.
+        expect(refusal.content, contains('Not accepted'));
+        expect(refusal.content, contains('title'));
         expect(learned.promptTokens, 20);
       },
     );
 
-    test(
-      'gives up after two attempts rather than burning more tokens',
-      () async {
-        final provider = ScriptedProvider([_uselessRecipe]);
+    test('test_recipe shows what a draft extracts, with lengths', () async {
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('test_recipe', {'recipe': _giga}),
+        ]),
+        _submits(_giga),
+      ]);
 
-        final learned = await RecipeLearner(
-          provider,
-        ).learn(html: _fixture, document: document, pageUrl: _pageUrl);
+      await RecipeLearner(
+        provider,
+      ).learn(document: document, pageUrl: _pageUrl);
 
-        expect(learned, isNull);
-        expect(provider.calls, RecipeLearner.maxAttempts);
-      },
-    );
+      final report = (provider.seen[1].last as ToolResultMessage).content;
+      expect(report, contains('SPSF-43'));
+      expect(report, contains('chars'));
+      expect(report, contains('can be submitted'));
+    });
+
+    test('a recipe passed as a JSON string is accepted too', () async {
+      final learned = await RecipeLearner(
+        ScriptedChatProvider([_submits(BuiltinRecipes.gigaWebJson)]),
+      ).learn(document: document, pageUrl: _pageUrl);
+
+      expect(learned, isNotNull);
+    });
+
+    test('gives up when the model never submits', () async {
+      final provider = ScriptedChatProvider([
+        (_) => textTurn('I cannot work this page out.'),
+      ]);
+
+      final learned = await RecipeLearner(
+        provider,
+      ).learn(document: document, pageUrl: _pageUrl);
+
+      expect(learned, isNull);
+      expect(provider.calls, 3, reason: 'one turn and two reminders');
+    });
+
+    test('the model starts from an outline, not the whole page', () async {
+      final provider = ScriptedChatProvider([_submits(_giga)]);
+
+      await RecipeLearner(
+        provider,
+      ).learn(document: document, pageUrl: _pageUrl);
+
+      final task = (provider.seen.first[1] as UserMessage).content;
+      expect(task, contains('Outline of'));
+      expect(task.length, lessThan(_fixture.length ~/ 2));
+      expect(provider.offeredTools.first, [
+        'page_outline',
+        'inspect',
+        'query',
+        'test_recipe',
+        'submit_recipe',
+      ]);
+    });
 
     test('does not mutate the document it verifies against', () async {
       final plotBefore = document.querySelector('#story_list2')?.text;
       await RecipeLearner(
-        ScriptedProvider([BuiltinRecipes.gigaWebJson]),
-      ).learn(html: _fixture, document: document, pageUrl: _pageUrl);
+        ScriptedChatProvider([_submits(_giga)]),
+      ).learn(document: document, pageUrl: _pageUrl);
 
       expect(document.querySelector('#story_list2')?.text, plotBefore);
+    });
+
+    test('runs the readiness check before the first model call', () async {
+      final provider = ScriptedChatProvider([_submits(_giga)]);
+
+      await expectLater(
+        RecipeLearner(
+          provider,
+          beforeStart: () async => throw const AiException('no tools'),
+        ).learn(document: document, pageUrl: _pageUrl),
+        throwsA(isA<AiException>()),
+      );
+      expect(provider.calls, 0);
     });
   });
 

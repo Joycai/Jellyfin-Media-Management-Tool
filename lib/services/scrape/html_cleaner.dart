@@ -5,8 +5,8 @@
 /// the bulk of the visible text. A 200 KB page reduces to roughly 20–30 KB, and
 /// the main-region heuristic usually takes it well below that.
 ///
-/// Pure and static, like `AiPrompt` — no provider, no filesystem, unit-testable
-/// on a fixture.
+/// Pure and static, like `FilenameParser` — no provider, no filesystem,
+/// unit-testable on a fixture.
 library;
 
 import 'package:html/dom.dart';
@@ -81,10 +81,15 @@ class HtmlCleaner {
   /// Parses its own copy, so the caller's document is never mutated — the
   /// scrape pipeline reuses that document for extraction and for the learned
   /// recipe's self-check.
+  ///
+  /// [narrowToMain] is off when the caller already chose the region — the
+  /// page tools inspecting one node the model pointed at must not be narrowed
+  /// again to whatever looks like a main column inside it.
   static String clean(
     String html, {
     int maxTextLength = defaultMaxTextLength,
     int maxChars = defaultMaxChars,
+    bool narrowToMain = true,
   }) {
     final document = html_parser.parse(html);
     final body = document.body;
@@ -92,7 +97,7 @@ class HtmlCleaner {
 
     _strip(body, maxTextLength);
 
-    final region = _mainRegion(body);
+    final region = narrowToMain ? _mainRegion(body) : body;
     final out = _collapse(region.innerHtml);
     return out.length <= maxChars
         ? out

@@ -1,8 +1,8 @@
 /// Prompts for tier 3: asking the model to write a [ScrapeRecipe] for a site
 /// it has never seen.
 ///
-/// Static and pure, mirroring `AiPrompt` — no provider dependency, so the exact
-/// text can be asserted in a test.
+/// Static and pure — no provider dependency, so the exact text can be
+/// asserted in a test.
 ///
 /// The one idea worth restating: the model is asked for **selectors, not
 /// content**. A model that reads the page and hands back the title has produced
@@ -17,9 +17,16 @@ import 'builtin_recipes.dart';
 class ScrapePrompt {
   static final String systemPrompt =
       '''
-You write extraction recipes for media product pages. You are given a stripped
-skeleton of one page's HTML. Return a JSON recipe describing HOW to find each
-field with CSS selectors — never the field values themselves.
+You write extraction recipes for media product pages: JSON describing HOW to
+find each field with CSS selectors — never the field values themselves.
+
+You cannot see the page directly. Explore it with the tools:
+- page_outline shows its structure, with node ids;
+- inspect shows the markup of one node, so you can read its ids, classes and
+  labels;
+- query tries a selector and shows what it matches.
+Then call test_recipe with a draft recipe and read what it extracts. Fix the
+selectors until it finds the fields, and call submit_recipe with the recipe.
 
 Fields you may target (anything else is ignored):
 ${MetadataField.all.join(', ')}
@@ -68,48 +75,35 @@ transform grammar (the value after "transform"):
   regexInt:<pattern>    first capture group, as an integer
 
 Rules:
-- Selectors must come from the skeleton you were given. Do not guess ids or
-  class names that are not there.
+- Selectors must come from what the tools showed you. Do not guess ids or
+  class names you have not seen.
 - WHEN THE SAME TEXT APPEARS TWICE, PREFER THE LONGER COPY. Pages routinely
   ship a truncated synopsis for display and the full one hidden next to it.
-  Put the full one first in the selector list. Picking the short one produces
-  a recipe that looks perfectly healthy and silently stores truncated text.
+  test_recipe reports each value's length: compare them, and put the full
+  copy first in the selector list. Picking the short one produces a recipe
+  that looks perfectly healthy and silently stores truncated text.
 - Prefer an id or a stable-looking class over a long descendant chain.
 - Omit a field you cannot locate. A missing field is fine; a wrong selector
   pollutes every title on the site.
-- Output ONLY the JSON object. No markdown fences, no prose.
+- Pass the recipe as the tool's "recipe" argument, as a JSON object.
 
 Here is a complete, working recipe for a different site. Match its structure:
 
 ${BuiltinRecipes.gigaWebJson.trim()}
 ''';
 
-  /// The user turn: which page this is, plus its skeleton.
-  ///
-  /// [feedback] is set on the retry and names what the previous attempt failed
-  /// to extract. Handing the model its own miss is worth far more than simply
-  /// asking again at a higher temperature.
-  static String buildUserPrompt({
+  /// The task turn: which page this is, and the first page of its outline so
+  /// the model can start exploring without spending a round asking for it.
+  static String buildTaskPrompt({
     required Uri pageUrl,
-    required String skeleton,
-    String? feedback,
-  }) {
-    final b = StringBuffer()
-      ..writeln('Domain: ${pageUrl.host}')
-      ..writeln('URL: $pageUrl')
-      ..writeln('Suggested pathPattern: ${suggestPathPattern(pageUrl)}')
-      ..writeln();
-    if (feedback != null && feedback.isNotEmpty) {
-      b
-        ..writeln('Your previous recipe did not work. $feedback')
-        ..writeln('Look again at the skeleton and choose different selectors.')
-        ..writeln();
-    }
-    b
-      ..writeln('Page skeleton:')
-      ..writeln(skeleton);
-    return b.toString();
-  }
+    required String outline,
+  }) => [
+    'Domain: ${pageUrl.host}',
+    'URL: $pageUrl',
+    'Suggested pathPattern: ${suggestPathPattern(pageUrl)}',
+    '',
+    outline,
+  ].join('\n');
 
   /// A glob covering sibling product pages: the path with its last segment
   /// replaced by `*`, so `/product/index.php` becomes `/product/*`.
@@ -123,8 +117,8 @@ ${BuiltinRecipes.gigaWebJson.trim()}
     return '/${segments.sublist(0, segments.length - 1).join('/')}/*';
   }
 
-  /// Names the required fields a learned recipe failed to produce, for the
-  /// retry turn. Returns null when the recipe is good enough to keep.
+  /// Names the required fields a recipe failed to produce, or null when it is
+  /// good enough to keep.
   ///
   /// "Good enough" is a title plus something that identifies the release — a
   /// catalogue code or a poster. A recipe that finds only a title has almost

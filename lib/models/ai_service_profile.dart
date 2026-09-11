@@ -31,6 +31,9 @@ class AiServiceProfile {
   /// See [AiConfig.maxOutputTokens].
   final int? maxOutputTokens;
 
+  /// See [AiConfig.toolSupport].
+  final ToolSupport? toolSupport;
+
   const AiServiceProfile({
     required this.id,
     required this.name,
@@ -47,6 +50,7 @@ class AiServiceProfile {
     this.thinkingEnabled = false,
     this.contextWindow,
     this.maxOutputTokens,
+    this.toolSupport,
   });
 
   factory AiServiceProfile.fromConfig({
@@ -69,6 +73,7 @@ class AiServiceProfile {
     thinkingEnabled: config.thinkingEnabled,
     contextWindow: config.contextWindow,
     maxOutputTokens: config.maxOutputTokens,
+    toolSupport: config.toolSupport,
   );
 
   /// Delegates to [AiConfig.isComplete] so the settings badge and the runtime
@@ -90,6 +95,7 @@ class AiServiceProfile {
     thinkingEnabled: thinkingEnabled,
     contextWindow: contextWindow,
     maxOutputTokens: maxOutputTokens,
+    toolSupport: toolSupport,
   );
 
   Map<String, dynamic> toJson() => {

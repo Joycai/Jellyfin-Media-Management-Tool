@@ -215,6 +215,8 @@
   "thinkingEffortOnly": "此模型无法关闭思考；关闭时以低强度运行。",
   "thinkingVerifiedOff": "上次测试：思考已关闭。",
   "thinkingStillOn": "上次测试：模型仍在思考。请在服务端的模型设置中关闭思考（LM Studio 中为 Enable Thinking）。",
+  "toolsSupported": "工具调用：支持。此模型可用于整理文件夹与刮削元数据。",
+  "toolsUnsupported": "工具调用：不支持。此模型无法用于整理文件夹或刮削元数据。",
   "presetNeedsSystemPrompt": "该模型的模型卡要求使用专用的 system prompt，缺少时效果可能变差。",
   "ollamaIgnoresSampling": "Ollama 的 OpenAI 兼容接口会忽略 Top K、Min P 和重复惩罚，请在 Modelfile 中设置。",
   "tokensThisSession": "本次会话 token",

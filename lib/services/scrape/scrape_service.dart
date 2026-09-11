@@ -329,7 +329,6 @@ class ScrapeService extends ChangeNotifier {
       // site never pays for a model call.
       if (learner != null) {
         final result = await learner.learn(
-          html: html,
           document: document,
           pageUrl: pageUrl,
           cancelToken: cancelToken,

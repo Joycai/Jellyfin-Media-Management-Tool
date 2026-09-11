@@ -367,7 +367,14 @@ class _TopBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           FilledButton.icon(
-            onPressed: ai.isAnalyzing || !ai.isConfigured ? null : onOrganize,
+            // A model known not to call tools cannot organize (there is no
+            // single-shot fallback); one never checked is probed on first run.
+            onPressed:
+                ai.isAnalyzing ||
+                    !ai.isConfigured ||
+                    ai.config.supportsTools == false
+                ? null
+                : onOrganize,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               shape: RoundedRectangleBorder(

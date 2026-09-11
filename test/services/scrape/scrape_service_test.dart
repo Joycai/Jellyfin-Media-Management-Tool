@@ -138,8 +138,14 @@ void main() {
     // A host with no built-in recipe, served the same fixture markup.
     const unknownUrl = 'https://unknown.example/product/index.php?id=1';
 
+    // A model that submits the built-in GIGA recipe on its first turn.
+    ChatTurn submitsGiga() =>
+        (_) => toolTurn([
+          ('submit_recipe', {'recipe': BuiltinRecipes.gigaWebJson}),
+        ]);
+
     test('is not reached while a recipe already matches', () async {
-      final provider = ScriptedProvider([BuiltinRecipes.gigaWebJson]);
+      final provider = ScriptedChatProvider([submitsGiga()]);
       final result = await _service(
         _Site(),
       ).scrapeUrl(_url, learner: RecipeLearner(provider));
@@ -154,7 +160,7 @@ void main() {
       'runs when nothing matches, and does not save what it learns',
       () async {
         final recipes = RecipeStore();
-        final provider = ScriptedProvider([BuiltinRecipes.gigaWebJson]);
+        final provider = ScriptedChatProvider([submitsGiga()]);
         final service = ScrapeService(
           fetcher: PageFetcher(client: _Site().client(), minIntervalMs: 0),
           recipes: recipes,
@@ -177,14 +183,15 @@ void main() {
     );
 
     test('reports a note when the model cannot work the page out', () async {
-      final provider = ScriptedProvider([
-        '{"fields":{"title":{"selector":"#nope"}}}',
+      final provider = ScriptedChatProvider([
+        (_) => textTurn('I cannot find a title on this page.'),
       ]);
       final result = await _service(
         _Site(),
       ).scrapeUrl(unknownUrl, learner: RecipeLearner(provider));
 
-      expect(provider.calls, RecipeLearner.maxAttempts);
+      // One turn, then the two reminders the loop allows before giving up.
+      expect(provider.calls, 3);
       expect(result.learnedRecipe, isNull);
       expect(result.notes, contains(ScrapeNote.recipeLearningFailed));
     });

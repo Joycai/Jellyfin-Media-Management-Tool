@@ -174,6 +174,35 @@ class AiProfilesService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Records whether a model called tools, on every profile that points at the
+  /// same provider, endpoint and model — the answer belongs to the model, not
+  /// to whichever profile happened to run the check. Returns whether anything
+  /// changed.
+  bool recordToolSupport(AiConfig tested, bool supported) {
+    var changed = false;
+    _services = [
+      for (final profile in _services)
+        if (profile.toAiConfig() case final config
+            when config.toolFingerprint == tested.toolFingerprint &&
+                config.supportsTools != supported)
+          () {
+            changed = true;
+            return AiServiceProfile.fromConfig(
+              id: profile.id,
+              name: profile.name,
+              config: config.withToolSupport(supported),
+            );
+          }()
+        else
+          profile,
+    ];
+    if (changed) {
+      _scheduleSave();
+      notifyListeners();
+    }
+    return changed;
+  }
+
   Future<void> setActive(String id) async {
     if (_services.every((s) => s.id != id)) return;
     _activeId = id;

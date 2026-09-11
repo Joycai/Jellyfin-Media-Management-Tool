@@ -314,7 +314,8 @@ void main() {
       ),
     );
 
-    expect(server.bodies, hasLength(2));
+    // The greetings only; the tool check that follows carries `tools`.
+    expect(server.bodies.where((b) => !b.containsKey('tools')), hasLength(2));
     expect(result.reasoned, isFalse);
     expect(result.serverKind, ServerKind.lmStudio);
     expect(result.reply, 'hi');

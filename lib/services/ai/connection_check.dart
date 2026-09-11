@@ -1,4 +1,5 @@
-/// The Settings "Test connection" button: one real, tiny completion.
+/// The Settings "Test connection" button: one real, tiny completion, then a
+/// check that the model calls tools.
 ///
 /// It used to list `GET /models`, which proves the server is up and accepts
 /// the key but says nothing about whether a generation request goes through —
@@ -6,7 +7,7 @@
 /// models happily and then rejected every organize request over
 /// `response_format`, so the test passed while the feature failed. Going
 /// through [AiProvider.complete] sends the same body, JSON mode, sampling and
-/// reasoning switches the organize and scrape pipelines use.
+/// reasoning switches the pipelines use.
 library;
 
 import 'dart:convert';
@@ -31,6 +32,10 @@ class AiConnectionCheckResult {
   /// no way of turning it off worked on this server.
   final bool reasoned;
 
+  /// The model called the test tool. Organize and scrape run as tool loops, so
+  /// without this the model cannot run them.
+  final bool supportsTools;
+
   /// Which software answered, for notes such as Ollama ignoring some sampling
   /// fields.
   final ServerKind serverKind;
@@ -45,6 +50,7 @@ class AiConnectionCheckResult {
     required this.completionTokens,
     required this.truncated,
     required this.reasoned,
+    required this.supportsTools,
     required this.serverKind,
     required this.limits,
   });
@@ -66,7 +72,20 @@ class AiConnectionCheck {
 
   static const userPrompt = 'Hello! Please greet me back in a few words.';
 
-  /// Sends the greeting through [provider]. Throws whatever the request threw.
+  static const toolProbe = ToolDefinition(
+    name: 'report_greeting',
+    description: 'Reports a short greeting back to the application.',
+    parameters: {
+      'type': 'object',
+      'properties': {
+        'greeting': {'type': 'string', 'description': 'A short greeting.'},
+      },
+      'required': ['greeting'],
+    },
+  );
+
+  /// Sends the greeting through [provider], then checks tool calling. Throws
+  /// whatever the greeting threw; a failed tool check only reports false.
   ///
   /// With thinking off, a reply that still reasons moves the provider on to
   /// its next way of asking. A greeting is cheap enough to find the one that
@@ -96,6 +115,7 @@ class AiConnectionCheck {
         if (!response.thinkingOffPending) break;
       }
       stopwatch.stop();
+      final supportsTools = await probeTools(provider, cancelToken: token);
       return AiConnectionCheckResult(
         reply: replyText(response.text),
         latency: stopwatch.elapsed,
@@ -103,12 +123,53 @@ class AiConnectionCheck {
         completionTokens: response.completionTokens,
         truncated: response.truncated,
         reasoned: response.reasoned,
+        supportsTools: supportsTools,
         serverKind: await serverKind,
         limits: await limits,
       );
     } finally {
       token.dispose();
     }
+  }
+
+  /// Whether [provider]'s model calls a tool when the request plainly needs
+  /// one.
+  ///
+  /// Asked twice: a small model sometimes answers the first time in prose even
+  /// though it can call tools, and blocking every agent task on one stray
+  /// reply would be worse than a second greeting. A server that rejects the
+  /// `tools` field outright counts as unsupported.
+  static Future<bool> probeTools(
+    AiProvider provider, {
+    AiCancelToken? cancelToken,
+  }) async {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final result = await provider
+            .chat(
+              messages: const [
+                SystemMessage(
+                  'You are a connectivity check. Call the report_greeting '
+                  'tool with a short greeting. Do not reply in text.',
+                ),
+                UserMessage('Hello!'),
+              ],
+              tools: const [toolProbe],
+              cancelToken: cancelToken,
+            )
+            .timeout(timeout);
+        final called = result.toolCalls.any(
+          (call) =>
+              call.name == toolProbe.name && call.decodedArguments != null,
+        );
+        if (called) return true;
+      } on AiCancelled {
+        rethrow;
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
   }
 
   /// The greeting out of `{"reply": …}`, or the raw text when the model

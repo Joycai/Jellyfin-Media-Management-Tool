@@ -199,9 +199,16 @@ class _ScrapePanelState extends State<ScrapePanel> {
     );
   }
 
+  /// The backend's provider, or null when there is nothing the LLM paths can
+  /// use: no complete backend, or one already known not to call tools — both
+  /// LLM paths are tool loops, and a button that can only fail is worse than
+  /// no button. A backend never checked still gets a provider; the run checks
+  /// it first.
   AiProvider? _provider() {
     final config = _backend?.toAiConfig();
-    if (config == null || !config.isComplete) return null;
+    if (config == null || !config.isComplete || config.supportsTools == false) {
+      return null;
+    }
     return AiService.providerFor(config);
   }
 
@@ -254,6 +261,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
     }
 
     final scraper = context.read<ScrapeService>();
+    final ai = context.read<AiService>();
     _applyCookies(scraper, url);
     final token = AiCancelToken();
 
@@ -275,9 +283,16 @@ class _ScrapePanelState extends State<ScrapePanel> {
 
     try {
       final pasted = _html.text.trim();
+      // Both LLM paths run as tool loops, so each first makes sure the model
+      // calls tools — probing once when it was never checked — and fails with
+      // that reason rather than with an empty result.
+      final backend = provider?.config;
+      Future<void> ready() => ai.ensureTools(backend!, cancelToken: token);
       // Tier 3 is only offered when there is a backend to ask; without one the
       // ladder simply stops at tier 2.
-      final learner = provider == null ? null : RecipeLearner(provider);
+      final learner = provider == null
+          ? null
+          : RecipeLearner(provider, beforeStart: ready);
       var result = pasted.isEmpty
           ? await scraper.scrapeUrl(
               url.toString(),
@@ -302,7 +317,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
         if (mounted) setState(() => _scrapeStage = ScrapeStage.extracting);
         result = await scraper.askLlm(
           result: result,
-          extractor: DirectExtractor(provider!),
+          extractor: DirectExtractor(provider!, beforeStart: ready),
           instructions: _instructions.text,
         );
       }

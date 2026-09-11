@@ -132,6 +132,10 @@ class TaskService extends ChangeNotifier {
           mediaTypeHint: mediaTypeHint,
           onlyPaths: onlyPaths,
           cancelToken: task.cancelToken,
+          onProgress: (fraction) {
+            task.progress = fraction;
+            notifyListeners();
+          },
         );
         task
           ..status = TaskStatus.done
@@ -447,10 +451,19 @@ class TaskService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Counts rather than the first problem, per the batch convention: how many
+  /// groups were decided, left for review or lost to a failed batch.
   String _analyzeSummary(OrganizePlan plan) {
-    final n = plan.actions.length;
     final tokens = plan.promptTokens + plan.completionTokens;
-    return '$n · $tokens tok';
+    return [
+      '${plan.decidedGroups} groups',
+      if (plan.cachedGroups > 0) '${plan.cachedGroups} remembered',
+      if (plan.reviewGroups > 0) '${plan.reviewGroups} to review',
+      if (plan.failedGroups > 0) '${plan.failedGroups} failed',
+      '${plan.actions.length} files',
+      '$tokens tok',
+      ?plan.warning,
+    ].join(' · ');
   }
 
   /// Not localized, matching the other summaries — these are dense status

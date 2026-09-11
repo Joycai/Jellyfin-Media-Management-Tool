@@ -16,17 +16,23 @@
 /// stamped [FieldOrigin.llm] — which makes the preview flag it in amber and
 /// stops `NfoMerge` from letting it overwrite anything already on disk. It also
 /// costs a call per title, so a folder refresh never uses it.
+///
+/// It runs as a tool loop over [PageInspector]: the model reads the parts of
+/// the page it needs and submits fields as it finds them, so the page never
+/// has to fit the window in one piece.
 library;
+
+import 'dart:convert';
 
 import 'scrape_transform.dart';
 
 import 'package:html/dom.dart';
 
 import '../../models/media_metadata.dart';
+import '../agent/agent_runtime.dart';
 import '../ai/ai_cancel_token.dart';
 import '../ai/ai_provider.dart';
-import '../ai/token_budget.dart';
-import 'page_digest.dart';
+import 'page_tools.dart';
 
 /// What the model read off one page.
 class DirectExtraction {
@@ -46,14 +52,19 @@ class DirectExtraction {
 class DirectExtractor {
   final AiProvider provider;
 
-  /// Room kept for the reply: every field, including a synopsis that can run
-  /// to several hundred tokens on its own.
-  static const int _replyReserve = 2000;
+  /// Runs once before the first model call. The scrape panel passes
+  /// `AiService.ensureTools`, so a model that cannot call tools fails with a
+  /// message saying so rather than with an empty result.
+  final Future<void> Function()? beforeStart;
 
-  const DirectExtractor(this.provider);
+  /// Outline, a few sections, the images, a submission or two — with room for
+  /// a model that reads more carefully than that.
+  static const int maxRounds = 12;
+
+  const DirectExtractor(this.provider, {this.beforeStart});
 
   /// Reads [document] and returns what the model found, or null when it
-  /// returned nothing usable.
+  /// submitted nothing usable.
   ///
   /// [instructions] is the user's own free text, appended verbatim as an extra
   /// requirement. It is theirs to write and is not sanitised beyond being
@@ -64,109 +75,96 @@ class DirectExtractor {
     String? instructions,
     AiCancelToken? cancelToken,
   }) async {
-    final digest = _fitToWindow(document, pageUrl, instructions);
-    if (digest.isEmpty) return null;
+    final state = _ExtractState(PageInspector(document, pageUrl));
+    if (state.page.outline.isEmpty && state.page.images.isEmpty) return null;
 
+    await beforeStart?.call();
     cancelToken?.throwIfCancelled();
-    final response = await provider.complete(
-      systemPrompt: systemPrompt,
-      userPrompt: buildUserPrompt(
-        pageUrl: pageUrl,
-        digest: digest,
-        instructions: instructions,
-      ),
+    final run = await AgentRuntime.run<_ExtractState>(
+      provider: provider,
+      messages: [
+        SystemMessage(systemPrompt),
+        UserMessage(
+          buildTaskPrompt(
+            pageUrl: pageUrl,
+            outline: state.page.outlinePage(1),
+            imageCount: state.page.images.length,
+            instructions: instructions,
+          ),
+        ),
+      ],
+      tools: const [
+        PageOutlineTool<_ExtractState>(),
+        ReadSectionTool<_ExtractState>(),
+        ListImagesTool<_ExtractState>(),
+        _SubmitFieldsTool(),
+      ],
+      context: state,
+      maxRounds: maxRounds,
+      // Submitting does not end the run: the model may add fields it finds
+      // later, and says it is finished by replying without a tool call.
+      isDone: () => state.submissions > 0,
+      stopWhenDone: false,
+      nudge: () => state.submissions > 0
+          ? null
+          : 'You have not submitted anything yet. Read the page with '
+                'read_section, then call submit_fields with what it states.',
+      contextWindow: provider.config.contextWindow,
       cancelToken: cancelToken,
     );
 
-    final metadata = parseFields(response.text, digest.images);
-    if (metadata == null) return null;
+    if (state.metadata.isEmpty) return null;
     return DirectExtraction(
-      metadata: metadata,
-      promptTokens: response.promptTokens,
-      completionTokens: response.completionTokens,
-    );
-  }
-
-  /// The page digest, trimmed to what the provider's context window can take.
-  ///
-  /// The digest's 40 000 characters of text are sized for hosted models: a
-  /// Japanese page at that length is tens of thousands of tokens, and a local
-  /// server handed more than its window drops the front of the prompt — the
-  /// rules and the image list — without an error. With a known window the
-  /// image list shrinks along with it (sixty URLs are a couple of thousand
-  /// tokens on their own) and the text is cut to whatever room is left.
-  PageDigest _fitToWindow(
-    Document document,
-    Uri pageUrl,
-    String? instructions,
-  ) {
-    final window = provider.config.contextWindow;
-    if (window == null) return PageDigest.of(document, pageUrl);
-
-    final digest = PageDigest.of(
-      document,
-      pageUrl,
-      maxImages: (window ~/ 400).clamp(10, PageDigest.defaultMaxImages).toInt(),
-    );
-    final allowance = TokenBudget.inputAllowance(
-      provider.config,
-      fixedPrompt:
-          systemPrompt +
-          buildUserPrompt(
-            pageUrl: pageUrl,
-            digest: PageDigest(text: '', images: digest.images),
-            instructions: instructions,
-          ),
-      reservedOutput: _replyReserve,
-    )!;
-    return PageDigest(
-      text: TokenBudget.truncate(digest.text, allowance),
-      images: digest.images,
+      metadata: state.metadata,
+      promptTokens: run.promptTokens,
+      completionTokens: run.completionTokens,
     );
   }
 
   static final String systemPrompt =
       '''
-You read one media product page and report its metadata as JSON.
+You read one media product page and report its metadata.
 
-Return a single JSON object. Use only these keys, and omit any you cannot fill
-from the page:
-${MetadataField.all.join(', ')}
+You cannot see the page directly. Explore it with the tools:
+- page_outline shows its structure, with node ids;
+- read_section returns the text of a node, or of the whole page, a page at a
+  time;
+- list_images numbers the page's images.
+Then call submit_fields with what you found. You may call it more than once;
+a later value replaces an earlier one. When nothing is left to add, reply in
+one short sentence without calling a tool.
+
+Fields: ${MetadataField.all.join(', ')}
 
 Types:
 - runtimeMinutes: integer minutes. Convert "1h 25m" to 85. If the page gives a
   main feature and a bonus separately, report the main feature.
 - rating: number.
 - premiered: "YYYY-MM-DD". Convert any local date format to it.
-- genres, tags, extraFanart: arrays of strings.
+- genres, tags: arrays of strings.
 - actors: array of { "name": "...", "role": "..." }; omit role if unknown.
-- poster, fanart: one image URL each, copied EXACTLY from the numbered list of
-  images given below. extraFanart: an array of them.
+- poster, fanart: the NUMBER of an image from list_images. extraFanart: an
+  array of image numbers.
 - everything else: a string.
 
 Rules:
-- Report only what the page states. If a field is not on the page, omit the
-  key. An omitted field is correct; a guessed one is a bug.
-- Never invent an image URL. Every URL you return must appear in the list.
-- WHEN THE SAME TEXT APPEARS TWICE, ONCE TRUNCATED AND ONCE IN FULL, RETURN THE
+- Report only what the page states. If a field is not on the page, leave it
+  out. An omitted field is correct; a guessed one is a bug.
+- Never invent an image: use only numbers list_images showed you.
+- WHEN THE SAME TEXT APPEARS TWICE, ONCE TRUNCATED AND ONCE IN FULL, REPORT THE
   FULL COPY. Pages fold long synopses behind a "read more" control and leave
   both copies in the markup.
 - Keep the original language. Do not translate, romanise or summarise.
 - plot is the story synopsis. outline is a separate short blurb or staff
-  comment, if the page has one; do not duplicate plot into it.
-- Return the JSON object alone, with no commentary.''';
+  comment, if the page has one; do not duplicate plot into it.''';
 
-  static String buildUserPrompt({
+  static String buildTaskPrompt({
     required Uri pageUrl,
-    required PageDigest digest,
+    required String outline,
+    required int imageCount,
     String? instructions,
   }) {
     final extra = instructions?.trim() ?? '';
-    final images = <String>[
-      for (var i = 0; i < digest.images.length; i++)
-        '${i + 1}. ${digest.images[i]}',
-    ];
-
     return [
       'URL: $pageUrl',
       if (extra.isNotEmpty) ...[
@@ -177,11 +175,10 @@ Rules:
         '"""',
       ],
       '',
-      'Images available on the page (choose from these only):',
-      images.isEmpty ? '(none)' : images.join('\n'),
+      'The page has $imageCount candidate image(s); call list_images to see '
+          'them.',
       '',
-      'Page text:',
-      digest.text,
+      outline,
     ].join('\n');
   }
 
@@ -216,5 +213,131 @@ Rules:
       out.set(field, value, FieldOrigin.llm);
     }
     return out.isEmpty ? null : out;
+  }
+}
+
+class _ExtractState implements HasPage {
+  @override
+  final PageInspector page;
+  final MediaMetadata metadata = MediaMetadata();
+  int submissions = 0;
+
+  _ExtractState(this.page);
+}
+
+class _SubmitFieldsTool extends AgentTool<_ExtractState> {
+  const _SubmitFieldsTool();
+
+  static final Map<String, Object?> _schema = {
+    'type': 'object',
+    'properties': {
+      for (final field in MetadataField.all)
+        field: switch (field) {
+          MetadataField.runtimeMinutes => {
+            'type': 'integer',
+            'description': 'Minutes of the main feature.',
+          },
+          MetadataField.rating => {'type': 'number'},
+          MetadataField.premiered => {
+            'type': 'string',
+            'description': 'YYYY-MM-DD',
+          },
+          MetadataField.genres || MetadataField.tags => {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+          MetadataField.actors => {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+                'role': {'type': 'string'},
+              },
+              'required': ['name'],
+            },
+          },
+          MetadataField.poster || MetadataField.fanart => {
+            'type': 'integer',
+            'description': 'The number of an image from list_images.',
+          },
+          MetadataField.extraFanart => {
+            'type': 'array',
+            'items': {'type': 'integer'},
+            'description': 'Numbers of images from list_images.',
+          },
+          _ => {'type': 'string'},
+        },
+    },
+  };
+
+  @override
+  ToolDefinition get definition => ToolDefinition(
+    name: 'submit_fields',
+    description:
+        'Stores metadata you found on the page. Pass only the fields the page '
+        'states; a later value for a field replaces an earlier one.',
+    parameters: _schema,
+  );
+
+  @override
+  String execute(Map<String, dynamic> arguments, _ExtractState context) {
+    final images = context.page.images;
+    final translated = <String, Object?>{};
+    for (final MapEntry(:key, :value) in arguments.entries) {
+      switch (key) {
+        case MetadataField.poster || MetadataField.fanart:
+          final url = _image(value, images);
+          if (url == null) {
+            throw ToolError(
+              '$key must be the number of an image from list_images '
+              '(1 to ${images.length}).',
+            );
+          }
+          translated[key] = url;
+        case MetadataField.extraFanart:
+          if (value is! List) {
+            throw const ToolError(
+              'extraFanart must be a list of image numbers from list_images.',
+            );
+          }
+          translated[key] = [for (final v in value) ?_image(v, images)];
+        default:
+          translated[key] = value;
+      }
+    }
+
+    final parsed = DirectExtractor.parseFields(jsonEncode(translated), images);
+    if (parsed == null) {
+      throw ToolError(
+        'Nothing usable was submitted. Use these field names: '
+        '${MetadataField.all.join(', ')} — with values the page states.',
+      );
+    }
+    final stored = [
+      for (final field in MetadataField.all)
+        if (!parsed.isBlank(field)) field,
+    ];
+    for (final field in stored) {
+      context.metadata.set(field, translated[field], FieldOrigin.llm);
+    }
+    context.submissions++;
+    return 'Stored: ${stored.join(', ')}. Submit again to add or correct '
+        'fields; reply without a tool call when nothing is left.';
+  }
+
+  /// The URL a model's image reference names: a 1-based number from
+  /// list_images, or — leniently — a URL that is on the list.
+  static String? _image(Object? value, List<String> images) {
+    final number = switch (value) {
+      num v => v.toInt(),
+      String v => int.tryParse(v.trim()),
+      _ => null,
+    };
+    if (number != null) {
+      return number >= 1 && number <= images.length ? images[number - 1] : null;
+    }
+    final url = value?.toString().trim();
+    return url != null && images.contains(url) ? url : null;
   }
 }

@@ -122,6 +122,11 @@ class AiAssistantPanel extends StatelessWidget {
     );
     if (res == null || !res.apply) return;
 
+    // Only an applied preview is remembered: cancelling means the corrections
+    // were never the user's decision. Best effort — it must not hold up the
+    // apply they just confirmed.
+    ai.rememberEdits(plan, baseDir).ignore();
+
     final controller = ApplyController(
       plan: plan,
       baseDir: baseDir,

@@ -3,6 +3,7 @@ import 'dart:io' as io;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/direct_extractor.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/page_digest.dart';
 
@@ -125,10 +126,21 @@ void main() {
   });
 
   group('extract', () {
-    test('reads a real page through a scripted model', () async {
-      final provider = ScriptedProvider([
-        '{"title":"美少女戦士セーラーディオーレ 絶望の餌食","code":"SPSF-43",'
-            '"runtimeMinutes":85,"director":"坂田徹"}',
+    test('stores what the model submits and ends when it says so', () async {
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([('read_section', <String, Object?>{})]),
+        (_) => toolTurn([
+          (
+            'submit_fields',
+            {
+              'title': '美少女戦士セーラーディオーレ 絶望の餌食',
+              'code': 'SPSF-43',
+              'runtimeMinutes': 85,
+              'director': '坂田徹',
+            },
+          ),
+        ]),
+        (_) => textTurn('Done.'),
       ]);
 
       final result = await DirectExtractor(
@@ -137,13 +149,64 @@ void main() {
 
       expect(result!.metadata.code, 'SPSF-43');
       expect(result.metadata.runtimeMinutes, 85);
-      // The page's own text has to be in the prompt — this is the tier that
-      // reads content rather than structure.
-      expect(provider.userPrompts.single, contains('SPSF-43'));
+      expect(result.metadata.origins[MetadataField.code], FieldOrigin.llm);
+      // The page's own text reached the model through read_section.
+      final read = provider.seen[1].last as ToolResultMessage;
+      expect(read.content, contains('SPSF-43'));
+      expect(provider.calls, 3);
     });
 
+    test('the page is offered as an outline, not in full', () async {
+      final provider = ScriptedChatProvider([(_) => textTurn('Nothing.')]);
+
+      await DirectExtractor(
+        provider,
+      ).extract(document: html_parser.parse(_fixture), pageUrl: _page);
+
+      final task = provider.seen.first[1] as UserMessage;
+      expect(task.content, contains('Outline of'));
+      expect(task.content.length, lessThan(_fixture.length ~/ 2));
+    });
+
+    test(
+      'images are chosen by number, and a number off the list is refused',
+      () async {
+        final document = html_parser.parse(
+          '<html><body><h1 class="t">Title</h1>'
+          '<img src="/cover.jpg"><img src="/still.jpg"></body></html>',
+        );
+        final provider = ScriptedChatProvider([
+          (_) => toolTurn([
+            ('submit_fields', {'title': 'Title', 'poster': 7}),
+          ]),
+          (_) => toolTurn([
+            (
+              'submit_fields',
+              {
+                'poster': 1,
+                'extraFanart': [2],
+              },
+            ),
+          ]),
+          (_) => textTurn('Done.'),
+        ]);
+
+        final result = await DirectExtractor(
+          provider,
+        ).extract(document: document, pageUrl: Uri.parse('https://e.test/p'));
+
+        final refusal = provider.seen[1].last as ToolResultMessage;
+        expect(
+          refusal.content,
+          contains('poster must be the number of an image'),
+        );
+        expect(result!.metadata.posterUrl, 'https://e.test/cover.jpg');
+        expect(result.metadata.extraFanartUrls, ['https://e.test/still.jpg']);
+      },
+    );
+
     test('passes the user\'s own instructions through, delimited', () async {
-      final provider = ScriptedProvider(['{"title":"T"}']);
+      final provider = ScriptedChatProvider([(_) => textTurn('Nothing.')]);
 
       await DirectExtractor(provider).extract(
         document: html_parser.parse(_fixture),
@@ -151,19 +214,57 @@ void main() {
         instructions: 'use the sidebar credits as tags',
       );
 
-      final prompt = provider.userPrompts.single;
-      expect(prompt, contains('use the sidebar credits as tags'));
-      expect(prompt, contains('"""'));
+      final task = (provider.seen.first[1] as UserMessage).content;
+      expect(task, contains('use the sidebar credits as tags'));
+      expect(task, contains('"""'));
     });
 
-    test('a model that returns nothing usable is not an exception', () async {
-      final provider = ScriptedProvider(['I could not find anything.']);
+    test('a model that submits nothing returns null after reminders', () async {
+      final provider = ScriptedChatProvider([
+        (_) => textTurn('I could not find anything.'),
+      ]);
 
       final result = await DirectExtractor(
         provider,
       ).extract(document: html_parser.parse(_fixture), pageUrl: _page);
 
       expect(result, isNull);
+      expect(provider.calls, 3, reason: 'one turn and two reminders');
+    });
+
+    test(
+      'a submission with no usable field is refused with the names',
+      () async {
+        final provider = ScriptedChatProvider([
+          (_) => toolTurn([
+            ('submit_fields', {'nonsense': 'x'}),
+          ]),
+          (_) => textTurn('Giving up.'),
+        ]);
+
+        final result = await DirectExtractor(
+          provider,
+        ).extract(document: html_parser.parse(_fixture), pageUrl: _page);
+
+        expect(result, isNull);
+        expect(
+          (provider.seen[1].last as ToolResultMessage).content,
+          contains('Nothing usable was submitted'),
+        );
+      },
+    );
+
+    test('runs the readiness check before the first model call', () async {
+      final provider = ScriptedChatProvider([(_) => textTurn('Nothing.')]);
+
+      await expectLater(
+        DirectExtractor(
+          provider,
+          beforeStart: () async => throw const AiException('no tools'),
+        ).extract(document: html_parser.parse(_fixture), pageUrl: _page),
+        throwsA(isA<AiException>()),
+      );
+      expect(provider.calls, 0);
     });
   });
 }

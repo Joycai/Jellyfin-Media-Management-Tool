@@ -1,33 +1,31 @@
-import 'dart:convert';
-
 /// Lifecycle of a single action as it moves through the UI.
 enum ActionStatus { pending, applied, needsReview, failed }
 
-/// One move/rename the AI proposes for a single file.
+/// One move/rename proposed for a single file.
 class OrganizeAction {
-  /// Path of the file relative to the organized folder (matches the `source`
-  /// the model was given). Combined with the folder base path at apply time.
+  /// Path of the file relative to the organized folder, as the scan found it.
+  /// Combined with the folder base path at apply time.
   final String source;
 
   /// Target path relative to the folder being organized. The first segment is
   /// the library root (e.g. `Movies/...`).
   ///
-  /// Mutable because the preview dialog lets the user correct the model's
-  /// proposal before anything is written — editing the plan in memory keeps
-  /// every filesystem write behind `ApplyController`.
+  /// Mutable because the preview dialog lets the user correct the proposal
+  /// before anything is written — editing the plan in memory keeps every
+  /// filesystem write behind `ApplyController`.
   String target;
 
-  /// Coarse kind echoed by the model (video / subtitle / image / …).
+  /// Coarse kind (video / subtitle / image / metadata / audio / extra / other).
   final String kind;
 
-  /// Model confidence, 0–1.
+  /// Confidence, 0–1.
   final double confidence;
   final String note;
 
   ActionStatus status;
 
   /// True once the user rewrote [target] in the preview, so the UI can mark the
-  /// row as no longer being what the model proposed.
+  /// row as no longer being what was proposed.
   bool userEdited = false;
 
   /// Populated after an apply attempt fails.
@@ -44,33 +42,34 @@ class OrganizeAction {
 
   static ActionStatus _initialStatus(double confidence) =>
       confidence < 0.6 ? ActionStatus.needsReview : ActionStatus.pending;
-
-  factory OrganizeAction.fromJson(Map<String, dynamic> json) => OrganizeAction(
-    source: (json['source'] as String?)?.trim() ?? '',
-    target: (json['target'] as String?)?.trim() ?? '',
-    kind: (json['kind'] as String?)?.trim() ?? 'other',
-    confidence: _asDouble(json['confidence']),
-    note: (json['note'] as String?)?.trim() ?? '',
-  );
-
-  static double _asDouble(dynamic v) {
-    if (v is num) {
-      final d = v.toDouble();
-      return d > 1 ? (d / 100).clamp(0, 1) : d.clamp(0, 1);
-    }
-    if (v is String) return _asDouble(num.tryParse(v) ?? 0);
-    return 0;
-  }
 }
 
 /// A full organization proposal for one folder.
 class OrganizePlan {
+  /// `movie`, `series`, `mixed` or `unknown`.
   final String mediaType;
   final String targetRoot;
   final List<String> reasoning;
   final List<OrganizeAction> actions;
   final int promptTokens;
   final int completionTokens;
+
+  /// Groups decided, whether by the model in this run or remembered.
+  final int decidedGroups;
+
+  /// Of [decidedGroups], those remembered from an earlier run.
+  final int cachedGroups;
+
+  /// Groups left for the user: marked unsure, or never decided.
+  final int reviewGroups;
+
+  /// Groups whose batch failed even after a retry. Their files are flagged
+  /// for review too.
+  final int failedGroups;
+
+  /// Something the task card should say beyond the counts, such as a model
+  /// whose tool calls kept failing.
+  final String? warning;
 
   OrganizePlan({
     required this.mediaType,
@@ -79,84 +78,12 @@ class OrganizePlan {
     required this.actions,
     this.promptTokens = 0,
     this.completionTokens = 0,
+    this.decidedGroups = 0,
+    this.cachedGroups = 0,
+    this.reviewGroups = 0,
+    this.failedGroups = 0,
+    this.warning,
   });
 
   int get totalTokens => promptTokens + completionTokens;
-
-  /// Parses raw model text into a plan. Tolerant of markdown fences or stray
-  /// prose around the JSON object. Throws [FormatException] if no object is
-  /// found.
-  factory OrganizePlan.fromAiJson(
-    String raw, {
-    int promptTokens = 0,
-    int completionTokens = 0,
-  }) {
-    final jsonText = _extractJsonObject(raw);
-    final Map<String, dynamic> data = jsonDecode(jsonText);
-    final actions = (data['actions'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(OrganizeAction.fromJson)
-        .where((a) => a.source.isNotEmpty && a.target.isNotEmpty)
-        .toList();
-
-    return OrganizePlan(
-      mediaType: (data['mediaType'] as String?)?.trim() ?? 'unknown',
-      targetRoot: (data['targetRoot'] as String?)?.trim() ?? '',
-      reasoning: (data['reasoning'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .where((s) => s.trim().isNotEmpty)
-          .toList(),
-      actions: actions,
-      promptTokens: promptTokens,
-      completionTokens: completionTokens,
-    );
-  }
-
-  /// Joins the plans of a folder that was sent to the model in batches.
-  ///
-  /// Actions are concatenated, keeping the first answer when a source came
-  /// back twice. The media type is the batches' common answer — `mixed` when
-  /// they disagree, `unknown` only when none of them knew — and the first
-  /// non-empty target root wins, which is also the one later batches were
-  /// told to reuse.
-  factory OrganizePlan.merge(List<OrganizePlan> parts) {
-    if (parts.length == 1) return parts.single;
-    final types = {
-      for (final part in parts)
-        if (part.mediaType.isNotEmpty && part.mediaType != 'unknown')
-          part.mediaType,
-    };
-    final sources = <String>{};
-    return OrganizePlan(
-      mediaType: switch (types.length) {
-        0 => 'unknown',
-        1 => types.single,
-        _ => 'mixed',
-      },
-      targetRoot: parts
-          .map((part) => part.targetRoot)
-          .firstWhere((root) => root.isNotEmpty, orElse: () => ''),
-      reasoning: {for (final part in parts) ...part.reasoning}.toList(),
-      actions: [
-        for (final part in parts)
-          for (final action in part.actions)
-            if (sources.add(action.source)) action,
-      ],
-      promptTokens: parts.fold(0, (sum, part) => sum + part.promptTokens),
-      completionTokens: parts.fold(
-        0,
-        (sum, part) => sum + part.completionTokens,
-      ),
-    );
-  }
-
-  /// Finds the outermost `{ … }` so leading/trailing junk is ignored.
-  static String _extractJsonObject(String raw) {
-    final start = raw.indexOf('{');
-    final end = raw.lastIndexOf('}');
-    if (start == -1 || end == -1 || end <= start) {
-      throw const FormatException('No JSON object found in model response.');
-    }
-    return raw.substring(start, end + 1);
-  }
 }
