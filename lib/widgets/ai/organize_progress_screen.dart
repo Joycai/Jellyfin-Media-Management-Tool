@@ -44,17 +44,24 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   /// that fight each other.
   bool _autoScrollPending = false;
 
+  /// Held from [initState] because [dispose] runs after this element has been
+  /// deactivated, and an ancestor lookup from there throws ("Looking up a
+  /// deactivated widget's ancestor is unsafe"). Reading the provider once up
+  /// front is also what keeps the listener removal pointed at the same
+  /// controller the listener was added to.
+  late final ApplyController _controller;
+
   @override
   void initState() {
     super.initState();
-    final controller = context.read<ApplyController>();
-    controller.addListener(_autoScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.start());
+    _controller = context.read<ApplyController>();
+    _controller.addListener(_autoScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _controller.start());
   }
 
   @override
   void dispose() {
-    context.read<ApplyController>().removeListener(_autoScroll);
+    _controller.removeListener(_autoScroll);
     _scroll.dispose();
     super.dispose();
   }
