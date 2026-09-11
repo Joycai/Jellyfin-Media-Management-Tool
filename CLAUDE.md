@@ -245,9 +245,9 @@ ARB files at `lib/l10n/app_en.arb` and `lib/l10n/app_zh.arb`. `flutter: generate
 
 ### Legacy
 
-[rename_service.dart](lib/services/rename_service.dart) predates the AI pipeline and is now nearly dead: its only consumer is [edit_action_dialog.dart](lib/widgets/ai/edit_action_dialog.dart), which uses `buildName` and `baseNameForTarget` to suggest a corrected filename. `getNewName(File, ...)` and `rename(File, ...)` have no call sites. The one rule worth preserving if it's ever removed: `baseNameForTarget` walks *past* `Season NN` / `Specials` container folders up to the series folder, otherwise TV renames produce `Season 01.S01E01.mkv`.
+[rename_service.dart](lib/services/rename_service.dart) predates the AI pipeline and is down to two statics, `buildName` and `baseNameForTarget`, both called by [edit_action_dialog.dart](lib/widgets/ai/edit_action_dialog.dart) to suggest a corrected filename for a *planned* target. The rule worth preserving: `baseNameForTarget` walks *past* `Season NN` / `Specials` container folders up to the series folder, otherwise TV renames produce `Season 01.S01E01.mkv`.
 
-Similarly, `lib/widgets/dialogs/{tv_show,part,subtitle}_dialog.dart` are remnants of the old manual rename workflow.
+`lib/widgets/dialogs/{tv_show,part,subtitle}_dialog.dart` look like leftovers from that same manual workflow and are not. `EditActionDialog` builds all three -- `PartDialog`, `TVShowDialog`, `SubtitleDialog` -- whenever a rule needs input beyond the base name, and the organize preview reaches it from its per-action edit menu. They are live code on the AI path, so editing them edits the preview dialog. Do not delete them as dead.
 
 Three persisted settings toggles — `autoConnectAi`, `alwaysShowPreview`, `lowConfidenceSuggestOnly` — are read only by the settings UI and have **no effect on runtime behavior**. The preview is always shown; low-confidence handling is hardcoded in `OrganizeAction`.
 
