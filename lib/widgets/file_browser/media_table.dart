@@ -335,7 +335,13 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final ai = context.watch<AiService>();
+    // Two booleans, not the whole service. AiService also notifies on
+    // connection status, usage totals and every plan change, and this bar
+    // draws none of them -- it only needs to know whether the organize button
+    // is live and whether to spin.
+    final (isAnalyzing, canOrganize) = context.select<AiService, (bool, bool)>(
+      (a) => (a.isAnalyzing, a.isConfigured && a.config.supportsTools != false),
+    );
     final selectionCount = context.select<FileBrowserService, int>(
       (b) => b.selectionCount,
     );
@@ -369,19 +375,14 @@ class _TopBar extends StatelessWidget {
           FilledButton.icon(
             // A model known not to call tools cannot organize (there is no
             // single-shot fallback); one never checked is probed on first run.
-            onPressed:
-                ai.isAnalyzing ||
-                    !ai.isConfigured ||
-                    ai.config.supportsTools == false
-                ? null
-                : onOrganize,
+            onPressed: isAnalyzing || !canOrganize ? null : onOrganize,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: ai.isAnalyzing
+            icon: isAnalyzing
                 ? const SizedBox(
                     width: 16,
                     height: 16,
@@ -406,9 +407,14 @@ class _Breadcrumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final browser = context.watch<FileBrowserService>();
+    // Only the path is drawn here. Watching the whole service rebuilt the
+    // breadcrumb -- a p.split plus a widget per segment -- on every row click
+    // and every selection change, none of which move it.
+    final current = context.select<FileBrowserService, String?>(
+      (b) => b.currentDirectory,
+    );
     final scheme = Theme.of(context).colorScheme;
-    final dir = browser.currentDirectory!;
+    final dir = current!;
     final parts = p.split(dir);
 
     final children = <Widget>[];
@@ -428,7 +434,9 @@ class _Breadcrumb extends StatelessWidget {
           onTap: isLast
               ? null
               : () {
-                  browser.setCurrentDirectory(target);
+                  context.read<FileBrowserService>().setCurrentDirectory(
+                    target,
+                  );
                   context.read<SettingsService>().pushRecent(target);
                 },
           child: Padding(
@@ -453,12 +461,14 @@ class _Breadcrumb extends StatelessWidget {
           onPressed: onPickFolder,
           icon: const Icon(Icons.folder_open_outlined, size: 20),
         ),
-        if (browser.currentDirectory != null)
-          IconButton(
-            tooltip: AppLocalizations.of(context)!.parentFolder,
-            onPressed: browser.goToParent,
-            icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-          ),
+        // Unconditional: `dir` above is `current!`, so getting this far means
+        // there is a directory to go up from. The null check this replaced was
+        // only ever true.
+        IconButton(
+          tooltip: AppLocalizations.of(context)!.parentFolder,
+          onPressed: () => context.read<FileBrowserService>().goToParent(),
+          icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+        ),
         Expanded(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -972,17 +982,25 @@ class _FooterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final browser = context.watch<FileBrowserService>();
-    final ai = context.watch<AiService>();
+    // The footer draws four values off two services. Watching either service
+    // whole rebuilt it on every row click, every file-list reload, and every
+    // AI status or usage notification -- which is the same trap the rest of
+    // this file documents avoiding.
+    final (selectionCount, hasFocus, dir) = context
+        .select<FileBrowserService, (int, bool, String?)>(
+          (b) => (b.selectionCount, b.selectedFile != null, b.currentDirectory),
+        );
+    final (isAnalyzing, analyzedHere) = context.select<AiService, (bool, bool)>(
+      (a) => (a.isAnalyzing, a.currentPlan != null && a.planBaseDir == dir),
+    );
     final scheme = Theme.of(context).colorScheme;
 
     final String statusText;
     final Color statusColor;
-    if (ai.isAnalyzing) {
+    if (isAnalyzing) {
       statusText = l10n.analyzing;
       statusColor = scheme.primary;
-    } else if (ai.currentPlan != null &&
-        ai.planBaseDir == browser.currentDirectory) {
+    } else if (analyzedHere) {
       statusText = l10n.analysisComplete;
       statusColor = const Color(0xFF34C759);
     } else {
@@ -990,9 +1008,7 @@ class _FooterBar extends StatelessWidget {
       statusColor = scheme.onSurfaceVariant;
     }
 
-    final selCount = browser.selectionCount > 0
-        ? browser.selectionCount
-        : (browser.selectedFile != null ? 1 : 0);
+    final selCount = selectionCount > 0 ? selectionCount : (hasFocus ? 1 : 0);
     final style = TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
@@ -1004,11 +1020,11 @@ class _FooterBar extends StatelessWidget {
                 : l10n.itemsCount(fileCount),
             style: style,
           ),
-          if (browser.selectionCount > 0) ...[
+          if (selectionCount > 0) ...[
             const SizedBox(width: 10),
             InkWell(
               borderRadius: BorderRadius.circular(6),
-              onTap: browser.clearSelection,
+              onTap: () => context.read<FileBrowserService>().clearSelection(),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
