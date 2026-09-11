@@ -453,15 +453,32 @@ class _Tile extends StatelessWidget {
   Widget _preview(ColorScheme scheme) {
     final bytes = cache.peek(image.url);
     if (bytes != null) {
-      return Image.memory(
-        // Already a Uint8List off the wire in practice; the copy is only a
-        // fallback for an injected fake.
-        bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
-        fit: BoxFit.cover,
-        // A file that downloaded but will not decode is still a dead end for
-        // the user, so it looks the same as one that failed to arrive.
-        errorBuilder: (_, _, _) =>
-            _placeholder(scheme, Icons.broken_image_outlined),
+      // Already a Uint8List off the wire in practice; the copy is only a
+      // fallback for an injected fake.
+      final source = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Decode at the tile's own resolution, not the source's. Artwork
+          // arrives as full posters and backdrops (1000x1500, 1920x1080) while
+          // a tile is a third of the panel wide, and the picker builds every
+          // candidate at once -- decoded at source size that is an 8-33 MB
+          // bitmap each. Width only, so the intrinsic aspect ratio survives
+          // for BoxFit.cover to crop; file_thumbnail.dart does the same for
+          // video posters.
+          final width = constraints.maxWidth;
+          final ratio = MediaQuery.devicePixelRatioOf(context);
+          return Image.memory(
+            source,
+            fit: BoxFit.cover,
+            cacheWidth: width.isFinite && width > 0
+                ? (width * ratio).round()
+                : null,
+            // A file that downloaded but will not decode is still a dead end
+            // for the user, so it looks the same as one that failed to arrive.
+            errorBuilder: (_, _, _) =>
+                _placeholder(scheme, Icons.broken_image_outlined),
+          );
+        },
       );
     }
     if (cache.isFailed(image.url)) {
