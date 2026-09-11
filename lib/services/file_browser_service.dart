@@ -270,26 +270,44 @@ class FileBrowserService extends ChangeNotifier {
     }
   }
 
+  /// Sorts [entries] in place: folders first, then by the active option.
+  ///
+  /// The comparison keys are derived once per entry rather than once per
+  /// comparison. Both name-based sorts used to call `toLowerCase()` on each
+  /// side inside the comparator -- and the type sort called
+  /// [FileLabelService.getLabel], which lowercases the extension again -- so
+  /// sorting a 5k-entry folder was roughly 60k comparisons producing on the
+  /// order of 250k short-lived strings, once per listing and once per column
+  /// header click.
   void _sortEntries(List<FileEntry> entries) {
-    entries.sort((a, b) {
+    final needsName =
+        _currentSort == SortOption.name || _currentSort == SortOption.type;
+    final names = needsName
+        ? [for (final e in entries) e.name.toLowerCase()]
+        : const <String>[];
+    final labels = _currentSort == SortOption.type
+        ? [
+            for (final e in entries)
+              e.isDirectory ? 'Folder' : FileLabelService.getLabel(e.extension),
+          ]
+        : const <String>[];
+
+    final order = [for (var i = 0; i < entries.length; i++) i];
+    order.sort((ia, ib) {
+      final a = entries[ia];
+      final b = entries[ib];
       if (a.isDirectory && !b.isDirectory) return -1;
       if (!a.isDirectory && b.isDirectory) return 1;
 
       int comparison;
       switch (_currentSort) {
         case SortOption.name:
-          comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          comparison = names[ia].compareTo(names[ib]);
           break;
         case SortOption.type:
-          final labelA = a.isDirectory
-              ? 'Folder'
-              : FileLabelService.getLabel(a.extension);
-          final labelB = b.isDirectory
-              ? 'Folder'
-              : FileLabelService.getLabel(b.extension);
-          comparison = labelA.compareTo(labelB);
+          comparison = labels[ia].compareTo(labels[ib]);
           if (comparison == 0) {
-            comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+            comparison = names[ia].compareTo(names[ib]);
           }
           break;
         case SortOption.date:
@@ -302,6 +320,8 @@ class FileBrowserService extends ChangeNotifier {
 
       return _isAscending ? comparison : -comparison;
     });
+
+    entries.setAll(0, [for (final i in order) entries[i]]);
   }
 
   void goToParent() {
