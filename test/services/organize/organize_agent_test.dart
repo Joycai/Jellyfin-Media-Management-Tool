@@ -592,4 +592,12 @@ void main() {
       expect(decided, isEmpty);
     });
   });
+
+  test('the prompt forbids completing a title from world knowledge', () {
+    // A live 27B model turned "Frieren" into "Frieren Beyond Journey's End":
+    // the real broadcast title, but one no file carried, which files the whole
+    // group under a folder nothing on disk asked for.
+    expect(OrganizeAgent.systemPrompt, contains('only words that appear'));
+    expect(OrganizeAgent.systemPrompt, contains('your own knowledge'));
+  });
 }
