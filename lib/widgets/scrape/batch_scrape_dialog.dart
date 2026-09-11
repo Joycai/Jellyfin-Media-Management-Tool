@@ -64,106 +64,118 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
       title: Text(l10n.batchScrapeTitle),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 620, maxHeight: 520),
-        child: empty
-            ? Text(
-                l10n.batchScrapeEmpty,
-                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.batchScrapeFound(widget.targets.length),
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                    ),
+        // Every row here is a CheckboxListTile, and a ListTile paints its
+        // background and ink on the nearest Material -- which without this is
+        // the glass dialog's own DecoratedBox, so the framework asserts that
+        // the splash is invisible the moment the dialog opens. A transparent
+        // Material gives the tiles something to ink on without painting over
+        // the surface.
+        child: Material(
+          type: MaterialType.transparency,
+          child: empty
+              ? Text(
+                  l10n.batchScrapeEmpty,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: glass.panelFill,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: glass.panelStroke),
-                    ),
-                    child: Text(
-                      l10n.batchScrapePolicy,
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.4,
-                        color: scheme.onSurfaceVariant,
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.batchScrapeFound(widget.targets.length),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: widget.targets.length,
-                      itemBuilder: (_, i) {
-                        final t = widget.targets[i];
-                        return CheckboxListTile(
-                          dense: true,
-                          value: _selected.contains(_key(t)),
-                          onChanged: (v) => setState(() {
-                            if (v ?? false) {
-                              _selected.add(_key(t));
-                            } else {
-                              _selected.remove(_key(t));
-                            }
-                          }),
-                          title: Text(
-                            t.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                          subtitle: Text(
-                            t.sourceUrl,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontFamily: 'monospace',
-                              color: scheme.onSurfaceVariant,
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: glass.panelFill,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: glass.panelStroke),
+                      ),
+                      child: Text(
+                        l10n.batchScrapePolicy,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: widget.targets.length,
+                        itemBuilder: (_, i) {
+                          final t = widget.targets[i];
+                          return CheckboxListTile(
+                            dense: true,
+                            value: _selected.contains(_key(t)),
+                            onChanged: (v) => setState(() {
+                              if (v ?? false) {
+                                _selected.add(_key(t));
+                              } else {
+                                _selected.remove(_key(t));
+                              }
+                            }),
+                            title: Text(
+                              t.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const Divider(height: 18),
-                  CheckboxListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    value: _artwork,
-                    onChanged: (v) => setState(() => _artwork = v ?? false),
-                    title: Text(
-                      l10n.batchScrapeArtwork,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    subtitle: Text(
-                      l10n.batchScrapeArtworkHint,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: scheme.onSurfaceVariant,
+                            subtitle: Text(
+                              t.sourceUrl,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ),
-                  CheckboxListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    value: _backup,
-                    onChanged: (v) => setState(() => _backup = v ?? true),
-                    title: Text(
-                      l10n.scrapeWriteBackup,
-                      style: const TextStyle(fontSize: 13),
+                    const Divider(height: 18),
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: _artwork,
+                      onChanged: (v) => setState(() => _artwork = v ?? false),
+                      title: Text(
+                        l10n.batchScrapeArtwork,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        l10n.batchScrapeArtworkHint,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: _backup,
+                      onChanged: (v) => setState(() => _backup = v ?? true),
+                      title: Text(
+                        l10n.scrapeWriteBackup,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
       actions: [
         TextButton(
