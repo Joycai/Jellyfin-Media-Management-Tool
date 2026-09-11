@@ -148,6 +148,20 @@ abstract final class JellyfinNaming {
 
     if (series) {
       for (final v in mains) {
+        // Jellyfin cannot number a half episode, and its docs say a special
+        // the metadata source does not know should carry a descriptive name
+        // in Season 00 rather than an invented S00Exx.
+        if (v.specialLabel case final label?) {
+          place(
+            v,
+            p.posix.join(
+              base,
+              'Season 00',
+              '${sanitize('$title - $label')}${v.extension}',
+            ),
+          );
+          continue;
+        }
         if (v.episode == null) {
           fail(v, 'no episode number');
           continue;

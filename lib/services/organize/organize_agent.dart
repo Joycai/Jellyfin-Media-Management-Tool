@@ -791,7 +791,10 @@ class OrganizeState {
         'season $season',
       if (file.year case final year?) 'year $year',
       if (file.part case final part?) 'part $part',
-      if (file.special) 'special',
+      if (file.specialLabel case final label?)
+        'half episode "$label" (goes to Season 00 under that name)'
+      else if (file.special)
+        'special',
       if (file.extraType case final extra?) 'extra: $extra',
       if (file.language case final language?) 'language $language',
     ].join(', ');

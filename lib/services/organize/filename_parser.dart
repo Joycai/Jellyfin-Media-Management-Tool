@@ -23,6 +23,7 @@ class ParsedFile {
     this.special = false,
     this.extraType,
     this.language,
+    this.specialLabel,
     required this.seriesKey,
     required this.titleGuess,
   });
@@ -67,6 +68,12 @@ class ParsedFile {
   /// the name states one.
   final String? language;
 
+  /// The name a special Jellyfin cannot number goes under: a half episode's
+  /// number and whatever the release says about it
+  /// (`18.5 Collabo Detective Conan-20060606`). Jellyfin reads `S01E18.5` as a
+  /// second episode 18, so a file with a label has no [episode] at all.
+  final String? specialLabel;
+
   /// Equality key for "same title": case, punctuation, release tags and episode
   /// numbers removed. Never shown to anyone. `folder:<folder>` when the name
   /// carries no title at all, so bare `01.mkv` files still group together.
@@ -82,7 +89,7 @@ class ParsedFile {
       'ParsedFile($relativePath, title: "$titleGuess", key: "$seriesKey", '
       'S$season E$episode${episodeEnd == null ? '' : '-$episodeEnd'}, '
       'year: $year, part: $part, special: $special, extra: $extraType, '
-      'language: $language)';
+      'language: $language, specialLabel: $specialLabel)';
 }
 
 /// Reads season / episode / year / part / extra / language out of media file
@@ -197,6 +204,33 @@ abstract final class FilenameParser {
       if (episode != null) episodeEnd = _end(episode, m.group(2));
     }
 
+    // A half episode (`[18.5]`, `- 18.5`) is a special in all but name.
+    // Jellyfin reads `S01E18.5` as a second episode 18, so it gets no episode
+    // number; [ParsedFile.specialLabel] names it instead.
+    String? fractional;
+    var fractionalEnd = 0;
+    if (episode == null) {
+      for (final g in groups) {
+        if (g.start < leadEnd || overlapsTaken(g.start, g.end)) continue;
+        final m = _fractionalBracket.firstMatch(g.content.trim());
+        if (m == null) continue;
+        take(g.start, g.end);
+        fractional = m.group(1)!;
+        fractionalEnd = g.end;
+        break;
+      }
+    }
+    if (episode == null && fractional == null) {
+      for (final m in hits(_fractionalDash)) {
+        if (overlapsTaken(m.start, m.end)) continue;
+        take(m.start, m.end);
+        fractional = m.group(1)!;
+        fractionalEnd = m.end;
+        break;
+      }
+    }
+    if (fractional != null) special = true;
+
     for (final re in _specialMarkers) {
       for (final m in hits(re)) {
         if (overlapsTaken(m.start, m.end)) continue;
@@ -276,7 +310,7 @@ abstract final class FilenameParser {
     // Bare numbers last: they are the weakest evidence of an episode, and
     // everything that could look like one (years, 1080p, x264, SP01) has
     // claimed its span by now.
-    if (episode == null) {
+    if (episode == null && fractional == null) {
       for (final m in hits(_dashEpisode)) {
         final raw = m.group(1)!;
         if (overlapsTaken(m.start, m.end) || _isYear(raw)) continue;
@@ -286,7 +320,7 @@ abstract final class FilenameParser {
         break;
       }
     }
-    if (episode == null) {
+    if (episode == null && fractional == null) {
       for (final g in groups) {
         if (g.start < leadEnd || overlapsTaken(g.start, g.end)) continue;
         final m = _bracketEpisode.firstMatch(g.content.trim());
@@ -302,7 +336,7 @@ abstract final class FilenameParser {
     // A trailing number (`Show 第二季 05`) is also how sequels are named, so it
     // needs two digits unless it is the whole name, and is not trusted at all
     // next to a Jellyfin-style `(year)` — `Ocean's 11 (2001)` is a movie.
-    if (episode == null && !enclosedYear) {
+    if (episode == null && fractional == null && !enclosedYear) {
       for (final m in hits(_trailingNumber)) {
         final raw = m.group(1)!;
         if (overlapsTaken(m.start, m.end) ||
@@ -315,6 +349,28 @@ abstract final class FilenameParser {
         episode = int.parse(raw);
         break;
       }
+    }
+
+    // What the release says about a half episode, kept as written: the plain
+    // text right after its number and every later bracket no marker claimed.
+    // A descriptive name is Jellyfin's own advice for a special its metadata
+    // source does not know.
+    String? specialLabel;
+    if (fractional != null) {
+      var until = text.length;
+      for (final t in taken) {
+        if (t.$1 >= fractionalEnd && t.$1 < until) until = t.$1;
+      }
+      for (final g in groups) {
+        if (g.start >= fractionalEnd && g.start < until) until = g.start;
+      }
+      specialLabel = [
+        fractional.replaceAll(_point, '.'),
+        _cleanTitle(text.substring(fractionalEnd, until)),
+        for (final g in groups)
+          if (g.start >= fractionalEnd && !overlapsTaken(g.start, g.end))
+            _cleanTitle(g.content),
+      ].where((part) => part.isNotEmpty).join(' ');
     }
 
     var titleGuess = _cleanTitle(text.substring(0, cut), from: leadEnd);
@@ -372,6 +428,7 @@ abstract final class FilenameParser {
       special: special,
       extraType: extraType,
       language: language,
+      specialLabel: specialLabel,
       seriesKey: seriesKey,
       titleGuess: titleGuess,
     );
@@ -507,6 +564,25 @@ abstract final class FilenameParser {
   static final _dashEpisode = RegExp(
     r'(?<=^|\s)-\s*(\d{1,4})(?:v\d{1,2})?(?:\s*-\s*(\d{1,4})(?:v\d{1,2})?)?'
     r'(?![A-Za-z0-9])',
+  );
+
+  /// Stands in for the point of a half episode (`18.5`) through [_normalize],
+  /// which turns every other `.` into a word break.
+  static final _point = String.fromCharCode(4);
+
+  /// A half episode where a release puts an episode number: alone in a
+  /// bracket, or after a dash. Only `.5` — `5.1` and `2.0` are audio layouts.
+  static final _protectFractional = RegExp(
+    r'(?<=[\[【(（]\s*)(\d{1,4})\.5(?=(?:v\d{1,2})?\s*[\]】)）])'
+    r'|(?<=(?:^|[\s_])-[\s_]*)(\d{1,4})\.5(?=(?:v\d{1,2})?(?:$|[\s_\[【(（]))',
+  );
+
+  static final _fractionalBracket = RegExp(
+    '^(\\d{1,4}${_point}5)(?:v\\d{1,2})?\$',
+  );
+
+  static final _fractionalDash = RegExp(
+    '(?<=^|\\s)-\\s*(\\d{1,4}${_point}5)(?:v\\d{1,2})?(?![A-Za-z0-9])',
   );
 
   static final _bracketEpisode = RegExp(
@@ -677,6 +753,11 @@ abstract final class FilenameParser {
   }
 
   static String _normalize(String stem) => stem
+      // Half episodes first, before their point becomes a word break.
+      .replaceAllMapped(
+        _protectFractional,
+        (m) => '${m.group(1) ?? m.group(2)}${_point}5',
+      )
       // Audio channel layouts (`DTS-5.1`, `AAC2.0`) before dots become
       // spaces, or `5.1` would read as two numbers.
       .replaceAll(

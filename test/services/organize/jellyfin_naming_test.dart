@@ -147,6 +147,26 @@ void main() {
       );
     });
 
+    test('a half episode keeps its label in season 00', () {
+      final plan = JellyfinNaming.plan(
+        single([
+          'Show/Show - 18.mkv',
+          'Show/Show - 18.5 Recap.mkv',
+          'Show/Show - 19.mkv',
+        ]),
+        show,
+      );
+
+      // Jellyfin reads S01E18.5 as a second episode 18, and its docs ask for a
+      // descriptive name in Season 00 for a special the metadata source lacks.
+      expect(targetsOf(plan), {
+        'Show/Show - 18.mkv': 'Shows/Show (2020)/Season 01/Show S01E18.mkv',
+        'Show/Show - 18.5 Recap.mkv':
+            'Shows/Show (2020)/Season 00/Show - 18.5 Recap.mkv',
+        'Show/Show - 19.mkv': 'Shows/Show (2020)/Season 01/Show S01E19.mkv',
+      });
+    });
+
     test('the episode offset renumbers regular episodes only', () {
       final plan = JellyfinNaming.plan(
         single(['Show/Show - 13.mkv', 'Show/Show SP02.mkv']),
