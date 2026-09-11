@@ -136,12 +136,12 @@
 
 `ThinkingControl` 描述"家族能不能关、怎么关"，与 `serverKind` 组合决定实际发什么：
 
-| 服务端 | 关闭思考的方式（按优先级尝试，均需实测验证） |
+| 服务端 | 关闭思考的方式（按优先级尝试，均以响应证据判定） |
 |---|---|
 | llama.cpp（需 `--jinja`） | `chat_template_kwargs: {"enable_thinking": false}`；`reasoning_effort: "none"` |
 | vLLM | `chat_template_kwargs: {"enable_thinking": false}`；`reasoning_effort: "none"` |
 | Ollama `/v1` | `reasoning_effort: "none"` |
-| LM Studio `/v1` | **官方文档没有给出方式**；已知问题：`reasoning_effort` 在 0.3.25 被忽略（以 UI 的模型设置为准，[#988](https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/988)）。待实测的候选：① `chat_template_kwargs.enable_thinking=false` ② `reasoning_effort: "none"` ③ 仅 Qwen3 混合思考：在 system prompt 末尾追加 `/no_think` ④ LM Studio 原生 `/api/v1/chat` 的 `reasoning: "off"`（需要单独的请求适配，且其工具调用支持待核实，作为最后手段） |
+| LM Studio `/v1` | **已实测（见 1.6）：`reasoning_effort: "none"` 有效，`chat_template_kwargs.enable_thinking=false` 与 `/no_think` 均无效。** 这与 [#988](https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/988) 记录的"0.3.25 忽略 `reasoning_effort`"相反——该问题应已修复，或与版本 / 模型有关。**顺序仍不写死**：按上表逐个发、以"回复里是否还有推理"判定，命中后按 endpoint + model 记住；候选 ④（原生 `/api/v1/chat` 的 `reasoning: "off"`）没用上 |
 | 其他 / 未知 | 家族声明了模板开关时发 `chat_template_kwargs`；否则不发 |
 
 - **必须验证关闭是否真的生效**（静默失败）：连接测试在思考关闭时检查响应的 `reasoning_content` / `completion_tokens_details.reasoning_tokens`；仍在思考 → 设置页显示"思考未能关闭：请在 LM Studio 的模型设置中关闭 Enable Thinking"，任务照常运行，不伪装成功。验证结果按 endpoint + model 缓存。
@@ -160,11 +160,12 @@
 
 ### 1.6 验证
 - 单测：预设匹配**顺序**（`qwen3.8-27b-uncensored` → Qwen3.8、`deepseek-r1-distill-qwen-14b` → DeepSeek-R1、`deepseek-r1-0528-qwen3-8b` → Qwen3、`sakura-14b-qwen2.5-v1.0` → Sakura、`qwen2.5-coder-7b` → Qwen2.5-Coder）、覆盖优先级、思考模式切换选参、中性值显式发送、旧档案迁移、400 降级、关思考候选依次降级（`MockClient`）。
-- **LM Studio 实测**（模型需处于加载状态）：
-  1. 各采样字段是否被接受：重点是 `min_p` 与未知字段。
-  2. 关思考候选 ①–④ 逐个试，以 `reasoning_tokens` 是否为 0 判定。
-  3. 同一个 30 文件夹对比 A 现状（温度 0.2、思考开）/ B 预设 + 思考关（新默认）/ C 预设 + 思考开：耗时、completion / reasoning token、解析是否成功、是否出现重复段落。
-  结果写入 PR 描述。
+- **LM Studio 实测**（2026-09-11，LM Studio + `qwen3.8-27b-uncensored` IQ3_XXS，加载上下文 32000 / 上限 262144）：
+  1. **采样字段全部被接受**：`temperature` / `top_p` / `top_k` / `min_p` / `presence_penalty` / `repeat_penalty` 一起发，200，无一被 400 点名。
+  2. **关思考候选**：① `chat_template_kwargs.enable_thinking=false` **无效**（仍有 18 个推理 token）；② `reasoning_effort: "none"` **有效**（`reasoning_content` 为空、`reasoning_tokens` 为 0）；③ `/no_think` **无效**。降级阶梯因此落在 ②，与文档原先的假设相反（见 1.4）。
+  3. **工具调用可用**（D4 的硬门槛）：非流式 `finish_reason: tool_calls`、参数为合法 JSON；流式下第一个 delta 带 `index`/`id`/`name`，第二个只带 `arguments`，正是按 index 累积所处理的形状。`/api/v0/models` 也报告 `capabilities: ["tool_use"]`。
+  4. **整理 agent 实跑**（6 文件 / 2 组，合成文件名）：2 轮、4896 token、约 10 秒；分组、字幕跟随剧集与语言标签、`poster.jpg` 标 needsReview 均符合预期。另发现模型会把 `Frieren` 补全成正式全名，已收紧提示词修正（另见对应 PR）。
+  5. **待做**：同一个 30 文件夹的 A / B / C 对比（耗时、completion / reasoning token、解析成功率、是否出现重复段落），以及 GUI 侧的取消续跑与预览修正回写。
 
 **交付：PR 1，同时版本升至 0.20.0+16（D5）。**
 
@@ -303,7 +304,7 @@ lib/services/ai/
 
 ## 风险
 
-- **LM Studio `/v1` 可能无法关闭思考**：官方文档无方式、已知 `reasoning_effort` 被忽略。缓解：按 1.4 候选逐个实测；都不行则如实提示用户在 LM Studio 模型设置里关闭，不伪装。
+- **~~LM Studio `/v1` 可能无法关闭思考~~（已实测解决）**：`reasoning_effort: "none"` 有效，模板开关与 `/no_think` 无效（1.6）。机制保持不变——逐个候选发、以响应里是否还有推理判定、按 endpoint + model 记住；万一某个版本三种都不行，仍如实提示用户去 LM Studio 的模型设置里关闭，不伪装成功。
 - **微调版与基座行为不同**（`-uncensored` 等）：按基座家族匹配只是启发式；设置页显示匹配结果，用户可覆盖。
 - **小模型工具调用格式不稳**（参数 JSON 非法、调用不存在的工具）：错误回给模型重试；同一批连续失败达阈值 → 该批标记 failed 并在任务卡片提示"模型工具调用不稳定，建议换模型或开启思考"。无单发回退（D4）。
 - **分组算法误分**：提供 `split_group`；预览仍是最终闸门。
