@@ -260,6 +260,40 @@ void main() {
       expect(f.special, isTrue);
       expect(f.episode, 1);
     });
+
+    test('a half episode is a special named by what the release says', () {
+      final f = parse(
+        '[FLsnow][Star-Detective_Precure][18.5]'
+        '[Collabo_Detective_Conan-20060606][1080p].mkv',
+      );
+
+      // Jellyfin cannot number it, so it carries a label instead.
+      expect(f.special, isTrue);
+      expect(f.episode, isNull);
+      expect(f.specialLabel, '18.5 Collabo Detective Conan-20060606');
+      expect(f.titleGuess, 'Star-Detective Precure');
+      // It must still group with the whole episodes around it.
+      expect(
+        f.seriesKey,
+        parse('[FLsnow][Star-Detective_Precure][18][1080p].mkv').seriesKey,
+      );
+    });
+
+    test('a dashed half episode keeps the words after it', () {
+      final f = parse('Show - 12.5 Recap [1080p].mkv');
+
+      expect(f.special, isTrue);
+      expect(f.episode, isNull);
+      expect(f.specialLabel, '12.5 Recap');
+      expect(f.titleGuess, 'Show');
+    });
+
+    test('audio layouts are not half episodes', () {
+      expect(parse('Movie Name (2019) DTS-5.1 1080p.mkv').specialLabel, isNull);
+      final episode = parse('[Group] Show - 03 [AAC 2.0].mkv');
+      expect(episode.specialLabel, isNull);
+      expect(episode.episode, 3);
+    });
   });
 
   group('extras', () {
