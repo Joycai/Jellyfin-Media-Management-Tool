@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,10 +15,81 @@ import '../glass/glass_panel.dart';
 /// Left navigation: Favorites (user-pinned folders), Recent (auto-tracked) and
 /// Locations (home + drives/volumes), with the AI status card pinned to the
 /// bottom.
-class AppSidebar extends StatelessWidget {
+class AppSidebar extends StatefulWidget {
   const AppSidebar({super.key});
 
-  void _open(BuildContext context, String path) {
+  @override
+  State<AppSidebar> createState() => _AppSidebarState();
+}
+
+class _AppSidebarState extends State<AppSidebar> {
+  /// Home plus whatever the mount scan has found so far.
+  ///
+  /// Home comes out of the environment, which is already in memory, so it is
+  /// there on the first frame. The volumes need a directory scan, and that is
+  /// the part that used to happen inside `build`: on the UI isolate, and again
+  /// on *every* sidebar rebuild -- which is every file-list reload and every
+  /// selection change, because the sidebar watches both services. On macOS
+  /// `/Volumes` holds an entry per mounted volume and a NAS that has gone to
+  /// sleep can take seconds to answer for one of them, which was a stalled
+  /// frame each time.
+  List<_Location> _locations = _initialLocations();
+
+  static List<_Location> _initialLocations() {
+    final home =
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    if (home == null || home.isEmpty) return const [];
+    return [_Location(Icons.home_rounded, 'Home', home)];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadVolumes());
+  }
+
+  /// Appends the mounted volumes once the scan finishes.
+  ///
+  /// Returns before any `await` on platforms with no mount root to scan, so
+  /// `setState` is never reached during `initState` -- calling it there is a
+  /// framework error, not a no-op.
+  Future<void> _loadVolumes() async {
+    final String? root;
+    if (Platform.isMacOS) {
+      root = '/Volumes';
+    } else if (Platform.isLinux) {
+      root = '/mnt';
+    } else {
+      root = null;
+    }
+    if (root == null) return;
+
+    final volumes = <_Location>[];
+    try {
+      final dir = Directory(root);
+      if (await dir.exists()) {
+        await for (final entity in dir.list()) {
+          if (entity is Directory) {
+            volumes.add(
+              _Location(
+                Icons.storage_rounded,
+                p.basename(entity.path),
+                entity.path,
+              ),
+            );
+          }
+        }
+      }
+    } catch (_) {
+      // An unreadable mount root means fewer shortcuts, not a broken sidebar;
+      // there is nothing the user could do about it from here.
+    }
+
+    if (!mounted || volumes.isEmpty) return;
+    setState(() => _locations = [..._locations, ...volumes]);
+  }
+
+  void _open(String path) {
     context.read<FileBrowserService>().setCurrentDirectory(path);
     context.read<SettingsService>().pushRecent(path);
   }
@@ -55,7 +127,7 @@ class AppSidebar extends StatelessWidget {
                       icon: Icons.star_rounded,
                       label: p.basename(path).isEmpty ? path : p.basename(path),
                       selected: path == current,
-                      onTap: () => _open(context, path),
+                      onTap: () => _open(path),
                     ),
                   ),
                 const SizedBox(height: 20),
@@ -68,17 +140,17 @@ class AppSidebar extends StatelessWidget {
                       icon: Icons.history_rounded,
                       label: p.basename(path).isEmpty ? path : p.basename(path),
                       selected: path == current,
-                      onTap: () => _open(context, path),
+                      onTap: () => _open(path),
                     ),
                   ),
                 const SizedBox(height: 20),
                 _SectionHeader(l10n.locations),
-                ..._locations().map(
+                ..._locations.map(
                   (loc) => _NavTile(
                     icon: loc.icon,
                     label: loc.label,
                     selected: loc.path == current,
-                    onTap: () => _open(context, loc.path),
+                    onTap: () => _open(loc.path),
                   ),
                 ),
               ],
@@ -91,33 +163,6 @@ class AppSidebar extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  List<_Location> _locations() {
-    final locations = <_Location>[];
-    final home =
-        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-    if (home != null && home.isNotEmpty) {
-      locations.add(_Location(Icons.home_rounded, 'Home', home));
-    }
-    try {
-      if (Platform.isMacOS && Directory('/Volumes').existsSync()) {
-        for (final v in Directory(
-          '/Volumes',
-        ).listSync().whereType<Directory>()) {
-          locations.add(
-            _Location(Icons.storage_rounded, p.basename(v.path), v.path),
-          );
-        }
-      } else if (Platform.isLinux && Directory('/mnt').existsSync()) {
-        for (final v in Directory('/mnt').listSync().whereType<Directory>()) {
-          locations.add(
-            _Location(Icons.storage_rounded, p.basename(v.path), v.path),
-          );
-        }
-      }
-    } catch (_) {}
-    return locations;
   }
 }
 
