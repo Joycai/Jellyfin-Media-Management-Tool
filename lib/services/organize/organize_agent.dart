@@ -284,9 +284,12 @@ left, reply in one short sentence without calling a tool.
 How to decide:
 - mediaType "series" when the videos are episodes, "movie" for one feature
   (possibly split into parts).
-- title: the real title as the names, folder or NFO give it, in the same
-  language and script. Remove release groups, resolutions, codecs and other
-  tags. Do not translate. Do not invent a title nothing suggests.
+- title: only words that appear in the file names, the folder name or an NFO,
+  in the same language and script. Remove release groups, resolutions, codecs
+  and other tags. Do not translate, transliterate, or complete a shortened
+  title from your own knowledge: if the names say "Frieren", the title is
+  "Frieren", not the full broadcast title. A title the files never carried is
+  a guess, and it files the whole group under a folder nothing asked for.
 - year: only when a name, the folder or an NFO states it. Otherwise omit it.
 - season: only for files whose names carry no season, e.g. a folder named
   "Season 2" or "第二季". Omit it for season 1.
@@ -1031,7 +1034,9 @@ class _SubmitGroupTool extends AgentTool<OrganizeState> {
           'type': 'string',
           'description':
               'The real title, in the language the names use, without '
-              'release tags.',
+              'release tags. Use only words that appear in the names, the '
+              'folder or an NFO; never complete a shortened title from your '
+              'own knowledge.',
         },
         'year': {
           'type': 'integer',
