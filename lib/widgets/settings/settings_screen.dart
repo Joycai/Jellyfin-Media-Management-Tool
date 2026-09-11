@@ -1342,12 +1342,12 @@ class _ScrapingSectionState extends State<_ScrapingSection> {
     final messenger = ScaffoldMessenger.of(context);
     final store = _cookies;
 
-    final picked = await FilePicker.pickFiles(
+    final picked = await FilePicker.pickFile(
       dialogTitle: l10n.settingsScrapeImportCookies,
       type: FileType.custom,
       allowedExtensions: const ['txt'],
     );
-    final path = picked?.files.singleOrNull?.path;
+    final path = picked?.path;
     if (path == null) return;
 
     List<NetscapeCookie> parsed;
