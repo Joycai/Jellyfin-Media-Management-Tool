@@ -82,7 +82,9 @@ class HistoryService extends ChangeNotifier {
     for (final f in stale) {
       try {
         await f.delete();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('History: could not delete expired manifest ${f.path}: $e');
+      }
     }
     await _pruneBlobs(dir, cutoff);
   }
@@ -102,7 +104,12 @@ class HistoryService extends ChangeNotifier {
         if ((await _newestWrite(entity)).isBefore(cutoff)) {
           await entity.delete(recursive: true);
         }
-      } catch (_) {}
+      } catch (e) {
+        // A backup folder that cannot be deleted is disk the 7-day promise no
+        // longer bounds, and nothing in the UI shows it. The log is the only
+        // place a silently growing undo directory can surface at all.
+        debugPrint('History: could not prune backup ${entity.path}: $e');
+      }
     }
   }
 
@@ -222,7 +229,15 @@ class HistoryService extends ChangeNotifier {
     if (result.isComplete) {
       try {
         await _fs.file(entry.manifestPath).delete();
-      } catch (_) {}
+      } catch (e) {
+        // The undo itself already succeeded, so a manifest that survives it
+        // offers a second undo of the same batch -- which would fail, or
+        // worse, move files that have since been organized again.
+        debugPrint(
+          'History: undo completed but the manifest stayed at '
+          '${entry.manifestPath}: $e',
+        );
+      }
       await _deleteBackupDir(entry);
       _entries = _entries
           .where((e) => e.manifestPath != entry.manifestPath)
@@ -362,7 +377,9 @@ class HistoryService extends ChangeNotifier {
       if (!PathSafety.isWithin(undoDir, path, context: _fs.path)) return;
       final dir = _fs.directory(path);
       if (await dir.exists()) await dir.delete(recursive: true);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('History: could not delete backup dir $path: $e');
+    }
   }
 
   /// Reverses each move in [entry] by renaming target → source. A pre-existing
@@ -440,7 +457,11 @@ class HistoryService extends ChangeNotifier {
       } catch (_) {
         try {
           await _fs.file(targetPath).delete();
-        } catch (_) {}
+        } catch (e) {
+          // Neither half of the cross-volume move could be rolled back, so the
+          // file is now in both places and the rethrow below will not say so.
+          debugPrint('History: rollback left a copy at $targetPath: $e');
+        }
         rethrow;
       }
     }
