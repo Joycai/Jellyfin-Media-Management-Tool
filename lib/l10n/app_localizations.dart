@@ -1130,6 +1130,12 @@ abstract class AppLocalizations {
   /// **'Active'**
   String get statusActive;
 
+  /// No description provided for @useThisService.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this service'**
+  String get useThisService;
+
   /// No description provided for @statusStandby.
   ///
   /// In en, this message translates to:

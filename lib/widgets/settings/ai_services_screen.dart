@@ -528,6 +528,21 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     _persist();
   }
 
+  /// Makes this profile the one every AI task uses.
+  ///
+  /// The list marked which profile was active but offered no way to change
+  /// it, so a second profile could be added, edited and tested yet never
+  /// actually run. Persist first: the stored active id and the live config
+  /// must not disagree if the app closes between the two.
+  Future<void> _activate() async {
+    _persist();
+    final profiles = context.read<AiProfilesService>();
+    final ai = context.read<AiService>();
+    await profiles.setActive(widget.profile.id);
+    if (!mounted) return;
+    ai.updateConfig(profiles.aiConfig);
+  }
+
   Future<void> _delete() async {
     final l10n = AppLocalizations.of(context)!;
     final profiles = context.read<AiProfilesService>();
@@ -594,6 +609,20 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                 ],
               ),
             ),
+            if (!widget.isActive) ...[
+              OutlinedButton.icon(
+                onPressed: _activate,
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label: Text(l10n.useThisService),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
             OutlinedButton.icon(
               onPressed: _delete,
               icon: const Icon(Icons.delete_outline, size: 18),
