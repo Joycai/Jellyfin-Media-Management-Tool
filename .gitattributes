@@ -1,0 +1,39 @@
+# Line endings are decided here, not by each machine's core.autocrlf.
+#
+# Without this file the checked-in generated files (the Flutter plugin
+# registrants, the l10n output) sat permanently "modified" in `git status`
+# while hashing identically to the index: Git stored them with CRLF, the
+# Flutter tooling rewrote them with LF, and neither side was wrong.
+#
+# Every text file is stored with LF in the repository and checked out with
+# LF, which is what the Dart/Flutter toolchain writes and what CI formats
+# against. Windows-native files that tooling prefers with CRLF are listed
+# below.
+
+* text=auto eol=lf
+
+# Read by Windows tooling (Inno Setup, the resource compiler) and by hand on
+# Windows; keep them CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.iss text eol=crlf
+*.rc  text eol=crlf
+
+# Never convert these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.pdf binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
