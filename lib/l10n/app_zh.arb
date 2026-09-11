@@ -171,6 +171,7 @@
   "addAnotherEndpoint": "添加另一个端点",
   "newServiceName": "新服务",
   "statusActive": "活跃",
+  "useThisService": "使用此服务",
   "statusStandby": "备用",
   "statusOffline": "离线",
   "endpointProtocol": "端点协议",

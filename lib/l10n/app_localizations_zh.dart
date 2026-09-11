@@ -575,6 +575,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusActive => '活跃';
 
   @override
+  String get useThisService => '使用此服务';
+
+  @override
   String get statusStandby => '备用';
 
   @override

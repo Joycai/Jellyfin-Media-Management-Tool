@@ -578,6 +578,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusActive => 'Active';
 
   @override
+  String get useThisService => 'Use this service';
+
+  @override
   String get statusStandby => 'Standby';
 
   @override

@@ -171,6 +171,7 @@
   "addAnotherEndpoint": "Add another endpoint",
   "newServiceName": "New Service",
   "statusActive": "Active",
+  "useThisService": "Use this service",
   "statusStandby": "Standby",
   "statusOffline": "Offline",
   "endpointProtocol": "Endpoint protocol",
