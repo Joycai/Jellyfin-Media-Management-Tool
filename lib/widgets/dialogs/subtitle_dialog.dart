@@ -55,8 +55,12 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // isExpanded: the button sizes itself to its widest item otherwise,
+          // and 'Traditional Chinese . zh-Hant' is wider than a 420px dialog
+          // minus its padding -- the row overflowed by 150px on the right.
           DropdownButtonFormField<File>(
             initialValue: _selectedVideo,
+            isExpanded: true,
             decoration: InputDecoration(labelText: l10n.video),
             items: widget.videoFiles.map((v) {
               return DropdownMenuItem(
@@ -74,6 +78,7 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _selectedLang,
+            isExpanded: true,
             decoration: InputDecoration(labelText: l10n.languageLabel),
             items: _langCodes.map((code) {
               return DropdownMenuItem(
@@ -86,13 +91,21 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
             },
           ),
           const SizedBox(height: 16),
-          CheckboxListTile(
-            title: Text(l10n.isDefault),
-            value: _isDefault,
-            onChanged: (val) {
-              if (val != null) setState(() => _isDefault = val);
-            },
-            controlAffinity: ListTileControlAffinity.leading,
+          // A ListTile paints its background and its ink on the nearest
+          // Material, and the glass dialog surface is a DecoratedBox with a
+          // fill of its own -- so without a Material in between the splash is
+          // invisible and the framework says so with an assertion the moment
+          // the dialog opens.
+          Material(
+            type: MaterialType.transparency,
+            child: CheckboxListTile(
+              title: Text(l10n.isDefault),
+              value: _isDefault,
+              onChanged: (val) {
+                if (val != null) setState(() => _isDefault = val);
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
           ),
         ],
       ),
