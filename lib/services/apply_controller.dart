@@ -48,12 +48,22 @@ class ApplyController extends ChangeNotifier {
   final int totalBytes;
   final HistoryService? history;
 
+  /// Default for [maxLogEntries]: enough scrollback to investigate a large
+  /// library, small enough that the log stops being the job's memory footprint.
+  static const int defaultMaxLogEntries = 5000;
+
+  /// How many of the newest activity-log entries to retain. Older ones are
+  /// dropped from the front; the aggregate counts ([done], [failed], [skipped])
+  /// are kept separately and stay exact either way.
+  final int maxLogEntries;
+
   ApplyController({
     required this.plan,
     required this.baseDir,
     required this.backup,
     required this.totalBytes,
     this.history,
+    this.maxLogEntries = defaultMaxLogEntries,
   });
 
   ApplyStatus _status = ApplyStatus.running;
@@ -62,7 +72,17 @@ class ApplyController extends ChangeNotifier {
   int _skipped = 0;
   int _inProgress = 0;
   int _bytesDone = 0;
+
+  /// Retained activity-log entries, oldest first. Bounded by [maxLogEntries]:
+  /// a 100k-action job would otherwise hold 100k [LogEntry] objects -- each
+  /// carrying three strings -- for a panel that only ever shows the tail.
   final List<LogEntry> _log = [];
+
+  /// Every entry ever appended, including the ones trimming has dropped.
+  /// Consumers walk the log by this absolute index (see [logAt]), so a trim at
+  /// the front cannot shift entries they have already seen.
+  int _logAppended = 0;
+
   final List<Map<String, String>> _moves = [];
   final Stopwatch _sw = Stopwatch();
   Completer<void>? _pauseGate;
@@ -115,7 +135,35 @@ class ApplyController extends ChangeNotifier {
       (total - _done - _failed - _skipped - _inProgress).clamp(0, total);
   int get bytesDone => _bytesDone;
   int get bytesTotal => totalBytes;
+
+  /// A snapshot of the retained log, oldest first.
+  ///
+  /// Kept for diagnostics and tests. A UI that redraws as the job runs should
+  /// walk [logStart] / [logLength] / [logAt] instead, so a rebuild costs what
+  /// arrived since the last one rather than a copy of the whole list.
   List<LogEntry> get log => List.unmodifiable(_log);
+
+  /// Absolute index of the oldest entry [logAt] can still return; equals the
+  /// number of entries trimming has dropped from the front.
+  int get logStart => _logAppended - _log.length;
+
+  /// Absolute number of entries appended, including trimmed ones.
+  int get logLength => _logAppended;
+
+  /// The entry at absolute index [index], which must be at least [logStart].
+  ///
+  /// Index-based rather than handing out the list: the progress screen appends
+  /// to its own filtered view as entries arrive, so a rebuild costs what showed
+  /// up since the last one instead of copying the whole log.
+  LogEntry logAt(int index) => _log[index - logStart];
+
+  void _addLog(LogEntry entry) {
+    _log.add(entry);
+    _logAppended++;
+    if (_log.length > maxLogEntries) {
+      _log.removeRange(0, _log.length - maxLogEntries);
+    }
+  }
 
   double get fraction =>
       total == 0 ? 0 : ((_done + _failed + _skipped) / total).clamp(0.0, 1.0);
@@ -148,7 +196,7 @@ class ApplyController extends ChangeNotifier {
     if (_started) return;
     _started = true;
     _sw.start();
-    _log.add(LogEntry(LogKind.started, level: LogLevel.info, count: total));
+    _addLog(LogEntry(LogKind.started, level: LogLevel.info, count: total));
     _notifyNow();
 
     // Pace very fast (same-volume rename) jobs so progress is perceptible,
@@ -164,7 +212,7 @@ class ApplyController extends ChangeNotifier {
 
       if (a.status == ActionStatus.needsReview) {
         _skipped++;
-        _log.add(
+        _addLog(
           LogEntry(
             LogKind.skipped,
             level: LogLevel.warn,
@@ -188,7 +236,7 @@ class ApplyController extends ChangeNotifier {
         if (outcome.fromPath != null && outcome.toPath != null) {
           _moves.add({'from': outcome.fromPath!, 'to': outcome.toPath!});
         }
-        _log.add(
+        _addLog(
           LogEntry(
             LogKind.moved,
             level: LogLevel.info,
@@ -198,7 +246,7 @@ class ApplyController extends ChangeNotifier {
         );
       } else {
         _failed++;
-        _log.add(
+        _addLog(
           LogEntry(
             LogKind.failed,
             level: LogLevel.warn,
@@ -227,7 +275,7 @@ class ApplyController extends ChangeNotifier {
 
     _sw.stop();
     _status = _stopRequested ? ApplyStatus.stopped : ApplyStatus.done;
-    _log.add(
+    _addLog(
       LogEntry(
         _stopRequested ? LogKind.stopped : LogKind.finished,
         level: LogLevel.info,

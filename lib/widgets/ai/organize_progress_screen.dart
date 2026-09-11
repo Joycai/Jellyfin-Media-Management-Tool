@@ -39,22 +39,41 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   final _scroll = ScrollController();
   final Set<LogLevel> _levels = {LogLevel.info, LogLevel.warn, LogLevel.debug};
 
+  /// The level-filtered log, appended to as entries arrive.
+  ///
+  /// This used to be rebuilt inside `build` from the controller's whole log,
+  /// which copied it twice per frame -- once for the unmodifiable snapshot, once
+  /// for `.where().toList()` -- at up to 20 rebuilds a second, on a list that
+  /// grows by one entry per action. A 10k-action job spent ~400k element copies
+  /// a second drawing a terminal.
+  final List<LogEntry> _visible = [];
+
+  /// Absolute log index [_visible] is synced up to.
+  int _syncedTo = 0;
+
   /// Guards against stacking auto-scroll animations: the controller can tick
   /// many times per frame, and a fresh `animateTo` per tick chains animations
   /// that fight each other.
   bool _autoScrollPending = false;
 
+  /// Held from [initState] because [dispose] runs after this element has been
+  /// deactivated, and an ancestor lookup from there throws ("Looking up a
+  /// deactivated widget's ancestor is unsafe"). Reading the provider once up
+  /// front is also what keeps the listener removal pointed at the same
+  /// controller the listener was added to.
+  late final ApplyController _controller;
+
   @override
   void initState() {
     super.initState();
-    final controller = context.read<ApplyController>();
-    controller.addListener(_autoScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.start());
+    _controller = context.read<ApplyController>();
+    _controller.addListener(_autoScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _controller.start());
   }
 
   @override
   void dispose() {
-    context.read<ApplyController>().removeListener(_autoScroll);
+    _controller.removeListener(_autoScroll);
     _scroll.dispose();
     super.dispose();
   }
@@ -306,8 +325,27 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   }
 
   // ── Activity log (terminal) ────────────────────────────────────────────────
+  /// Appends whatever the controller logged since the last call.
+  ///
+  /// Cheap enough to call from `build`: after the first sync it walks only the
+  /// entries that arrived. A trim at the front of the controller's log is
+  /// detected through [ApplyController.logStart], so dropped indices are never
+  /// re-read as if they were still there.
+  void _syncLog(ApplyController c) {
+    if (_syncedTo < c.logStart) {
+      _visible.clear();
+      _syncedTo = c.logStart;
+    }
+    for (var i = _syncedTo; i < c.logLength; i++) {
+      final entry = c.logAt(i);
+      if (_levels.contains(entry.level)) _visible.add(entry);
+    }
+    _syncedTo = c.logLength;
+  }
+
   Widget _logPanel(ApplyController c) {
-    final entries = c.log.where((e) => _levels.contains(e.level)).toList();
+    _syncLog(c);
+    final entries = _visible;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFF0E1117),
@@ -380,8 +418,19 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     final on = _levels.contains(level);
     return InkWell(
       borderRadius: BorderRadius.circular(7),
-      onTap: () =>
-          setState(() => on ? _levels.remove(level) : _levels.add(level)),
+      onTap: () => setState(() {
+        if (on) {
+          _levels.remove(level);
+        } else {
+          _levels.add(level);
+        }
+        // The filter itself changed, so the synced view is stale in both
+        // directions -- entries it dropped may now qualify and vice versa.
+        // Rewind the cursor and let the next _syncLog rebuild from what the
+        // controller still retains.
+        _visible.clear();
+        _syncedTo = 0;
+      }),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
