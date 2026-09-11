@@ -210,24 +210,6 @@ class AppearanceSection extends StatelessWidget {
           child: Column(
             children: [
               _ToggleRow(
-                label: l10n.behaviorAutoConnect,
-                value: settings.autoConnectAi,
-                onChanged: settings.setAutoConnectAi,
-              ),
-              SettingsDivider(),
-              _ToggleRow(
-                label: l10n.behaviorAlwaysPreview,
-                value: settings.alwaysShowPreview,
-                onChanged: settings.setAlwaysShowPreview,
-              ),
-              SettingsDivider(),
-              _ToggleRow(
-                label: l10n.behaviorLowConfSuggest,
-                value: settings.lowConfidenceSuggestOnly,
-                onChanged: settings.setLowConfidenceSuggestOnly,
-              ),
-              SettingsDivider(),
-              _ToggleRow(
                 label: l10n.behaviorVideoThumbnails,
                 value: settings.showVideoThumbnails,
                 onChanged: settings.setShowVideoThumbnails,

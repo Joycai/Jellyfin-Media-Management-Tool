@@ -1083,16 +1083,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get behavior => 'Behavior';
 
   @override
-  String get behaviorAutoConnect => 'Auto-connect to AI service on launch';
-
-  @override
-  String get behaviorAlwaysPreview => 'Always show preview before applying';
-
-  @override
-  String get behaviorLowConfSuggest =>
-      'Only suggest (don\'t auto-apply) when confidence < 60%';
-
-  @override
   String get behaviorVideoThumbnails =>
       'Show video thumbnails in the file list';
 

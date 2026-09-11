@@ -249,8 +249,6 @@ ARB files at `lib/l10n/app_en.arb` and `lib/l10n/app_zh.arb`. `flutter: generate
 
 `lib/widgets/dialogs/{tv_show,part,subtitle}_dialog.dart` look like leftovers from that same manual workflow and are not. `EditActionDialog` builds all three -- `PartDialog`, `TVShowDialog`, `SubtitleDialog` -- whenever a rule needs input beyond the base name, and the organize preview reaches it from its per-action edit menu. They are live code on the AI path, so editing them edits the preview dialog. Do not delete them as dead.
 
-Three persisted settings toggles — `autoConnectAi`, `alwaysShowPreview`, `lowConfidenceSuggestOnly` — are read only by the settings UI and have **no effect on runtime behavior**. The preview is always shown; low-confidence handling is hardcoded in `OrganizeAction`.
-
 ## Conventions
 
 - All path manipulation goes through the `path` package — never string concatenation. Required for cross-platform correctness.

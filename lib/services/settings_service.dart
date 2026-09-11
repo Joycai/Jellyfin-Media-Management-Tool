@@ -36,9 +36,6 @@ class SettingsService extends ChangeNotifier {
   // Appearance + behavior, surfaced on the Settings screen.
   double _glassIntensity = 70; // 0–100
   int? _accentColor; // ARGB int; null = default theme accent
-  bool _autoConnectAi = true;
-  bool _alwaysShowPreview = true;
-  bool _lowConfidenceSuggestOnly = false;
   bool _showVideoThumbnails = true;
   bool _performanceMode = false;
   bool _onboardingSeen = false;
@@ -70,9 +67,6 @@ class SettingsService extends ChangeNotifier {
   List<String> get recent => List.unmodifiable(_recent);
   double get glassIntensity => _glassIntensity;
   int? get accentColor => _accentColor;
-  bool get autoConnectAi => _autoConnectAi;
-  bool get alwaysShowPreview => _alwaysShowPreview;
-  bool get lowConfidenceSuggestOnly => _lowConfidenceSuggestOnly;
   bool get showVideoThumbnails => _showVideoThumbnails;
 
   /// Drop the blur and the large drop shadows from the glass chrome.
@@ -145,16 +139,6 @@ class SettingsService extends ChangeNotifier {
           if (data['accent_color'] is int) {
             _accentColor = data['accent_color'] as int;
           }
-          if (data['auto_connect_ai'] is bool) {
-            _autoConnectAi = data['auto_connect_ai'] as bool;
-          }
-          if (data['always_show_preview'] is bool) {
-            _alwaysShowPreview = data['always_show_preview'] as bool;
-          }
-          if (data['low_confidence_suggest_only'] is bool) {
-            _lowConfidenceSuggestOnly =
-                data['low_confidence_suggest_only'] as bool;
-          }
           if (data['show_video_thumbnails'] is bool) {
             _showVideoThumbnails = data['show_video_thumbnails'] as bool;
           }
@@ -226,9 +210,6 @@ class SettingsService extends ChangeNotifier {
         'last_search_site_index': _lastSearchSiteIndex,
         'glass_intensity': _glassIntensity,
         'accent_color': _accentColor,
-        'auto_connect_ai': _autoConnectAi,
-        'always_show_preview': _alwaysShowPreview,
-        'low_confidence_suggest_only': _lowConfidenceSuggestOnly,
         'show_video_thumbnails': _showVideoThumbnails,
         'performance_mode': _performanceMode,
         'onboarding_seen': _onboardingSeen,
@@ -323,24 +304,6 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setAccentColor(int? argb) async {
     _accentColor = argb;
-    _scheduleSave();
-    notifyListeners();
-  }
-
-  Future<void> setAutoConnectAi(bool v) async {
-    _autoConnectAi = v;
-    _scheduleSave();
-    notifyListeners();
-  }
-
-  Future<void> setAlwaysShowPreview(bool v) async {
-    _alwaysShowPreview = v;
-    _scheduleSave();
-    notifyListeners();
-  }
-
-  Future<void> setLowConfidenceSuggestOnly(bool v) async {
-    _lowConfidenceSuggestOnly = v;
     _scheduleSave();
     notifyListeners();
   }

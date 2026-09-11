@@ -1964,24 +1964,6 @@ abstract class AppLocalizations {
   /// **'Behavior'**
   String get behavior;
 
-  /// No description provided for @behaviorAutoConnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-connect to AI service on launch'**
-  String get behaviorAutoConnect;
-
-  /// No description provided for @behaviorAlwaysPreview.
-  ///
-  /// In en, this message translates to:
-  /// **'Always show preview before applying'**
-  String get behaviorAlwaysPreview;
-
-  /// No description provided for @behaviorLowConfSuggest.
-  ///
-  /// In en, this message translates to:
-  /// **'Only suggest (don\'t auto-apply) when confidence < 60%'**
-  String get behaviorLowConfSuggest;
-
   /// No description provided for @behaviorVideoThumbnails.
   ///
   /// In en, this message translates to:
