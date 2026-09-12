@@ -508,7 +508,8 @@ class _DashDropTarget extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.55),
                       fontSize: AppTypeScale.sizeCaption,
-                      fontFamily: 'monospace',
+                      fontFamily: AppTypeScale.mono,
+                      fontFamilyFallback: AppTypeScale.monoFallback,
                     ),
                   ),
                 ),

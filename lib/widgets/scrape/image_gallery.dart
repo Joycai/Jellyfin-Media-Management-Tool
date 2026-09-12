@@ -186,7 +186,8 @@ class ImageGallery extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: AppTypeScale.sizeMono,
-                  fontFamily: 'monospace',
+                  fontFamily: AppTypeScale.mono,
+                  fontFamilyFallback: AppTypeScale.monoFallback,
                   color: scheme.onSurfaceVariant,
                 ),
               ),
@@ -380,7 +381,8 @@ class _Tile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: AppTypeScale.sizeLabel,
-                          fontFamily: 'monospace',
+                          fontFamily: AppTypeScale.mono,
+                          fontFamilyFallback: AppTypeScale.monoFallback,
                           color: Colors.white.withValues(alpha: 0.55),
                         ),
                       ),

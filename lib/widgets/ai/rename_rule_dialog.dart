@@ -272,7 +272,8 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
           input,
           style: const TextStyle(
             fontSize: AppTypeScale.sizeCaption,
-            fontFamily: 'monospace',
+            fontFamily: AppTypeScale.mono,
+            fontFamilyFallback: AppTypeScale.monoFallback,
           ),
         ),
         Padding(
@@ -299,7 +300,8 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
               text,
               style: TextStyle(
                 fontSize: AppTypeScale.sizeCaption,
-                fontFamily: 'monospace',
+                fontFamily: AppTypeScale.mono,
+                fontFamilyFallback: AppTypeScale.monoFallback,
                 fontWeight: depth == 1 ? FontWeight.w700 : FontWeight.w400,
                 color: switch (depth) {
                   0 => scheme.onSurfaceVariant,
@@ -327,7 +329,8 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
     text,
     style: TextStyle(
       fontSize: AppTypeScale.sizeBody,
-      fontFamily: 'monospace',
+      fontFamily: AppTypeScale.mono,
+      fontFamilyFallback: AppTypeScale.monoFallback,
       color: scheme.onSurfaceVariant,
     ),
   );
@@ -353,7 +356,8 @@ class _VarChip extends StatelessWidget {
       name,
       style: TextStyle(
         fontSize: AppTypeScale.sizeCaption,
-        fontFamily: 'monospace',
+        fontFamily: AppTypeScale.mono,
+        fontFamilyFallback: AppTypeScale.monoFallback,
         fontWeight: FontWeight.w600,
         color: color,
       ),

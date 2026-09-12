@@ -1083,7 +1083,7 @@ class _FooterBar extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: t.stroke)),
       ),
-      child: DefaultTextStyle(
+      child: DefaultTextStyle.merge(
         style: AppTypeScale.caption.copyWith(color: t.textSecondary),
         child: Row(
           children: [

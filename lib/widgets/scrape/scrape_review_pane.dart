@@ -332,7 +332,8 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTypeScale.sizeLabel,
-                                fontFamily: 'monospace',
+                                fontFamily: AppTypeScale.mono,
+                                fontFamilyFallback: AppTypeScale.monoFallback,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
@@ -664,7 +665,8 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                   controller: _targetDir,
                   style: const TextStyle(
                     fontSize: AppTypeScale.sizeControl,
-                    fontFamily: 'monospace',
+                    fontFamily: AppTypeScale.mono,
+                    fontFamilyFallback: AppTypeScale.monoFallback,
                   ),
                   decoration: InputDecoration(
                     isDense: true,
@@ -680,7 +682,8 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                   controller: _nfoName,
                   style: const TextStyle(
                     fontSize: AppTypeScale.sizeControl,
-                    fontFamily: 'monospace',
+                    fontFamily: AppTypeScale.mono,
+                    fontFamilyFallback: AppTypeScale.monoFallback,
                   ),
                   decoration: InputDecoration(
                     isDense: true,

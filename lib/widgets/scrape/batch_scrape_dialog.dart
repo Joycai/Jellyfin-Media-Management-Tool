@@ -139,7 +139,8 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTypeScale.sizeMono,
-                                fontFamily: 'monospace',
+                                fontFamily: AppTypeScale.mono,
+                                fontFamilyFallback: AppTypeScale.monoFallback,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
