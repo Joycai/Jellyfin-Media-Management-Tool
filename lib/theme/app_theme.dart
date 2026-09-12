@@ -25,26 +25,22 @@ class AppTheme {
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
-    bool reduceEffects = false,
   }) => _build(
     Brightness.light,
     accent: accent,
     glassIntensity: glassIntensity,
     fontFamily: fontFamily,
-    reduceEffects: reduceEffects,
   );
 
   static ThemeData dark({
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
-    bool reduceEffects = false,
   }) => _build(
     Brightness.dark,
     accent: accent,
     glassIntensity: glassIntensity,
     fontFamily: fontFamily,
-    reduceEffects: reduceEffects,
   );
 
   /// 每个亮度记住上一次构建的结果。
@@ -63,10 +59,8 @@ class AppTheme {
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
-    bool reduceEffects = false,
   }) {
-    final key =
-        '${accent?.toARGB32()}|$glassIntensity|$fontFamily|$reduceEffects';
+    final key = '${accent?.toARGB32()}|$glassIntensity|$fontFamily';
     final cached = _memo[brightness];
     if (cached != null && cached.$1 == key) return cached.$2;
     final built = _buildUncached(
@@ -74,7 +68,6 @@ class AppTheme {
       accent: accent,
       glassIntensity: glassIntensity,
       fontFamily: fontFamily,
-      reduceEffects: reduceEffects,
     );
     _memo[brightness] = (key, built);
     return built;
@@ -85,13 +78,11 @@ class AppTheme {
     Color? accent,
     double? glassIntensity,
     String? fontFamily,
-    bool reduceEffects = false,
   }) {
     final t = AppTokens.build(
       brightness: brightness,
       accent: accent,
       glassIntensity: glassIntensity ?? 70,
-      reduceEffects: reduceEffects,
       uiFont: fontFamily,
     );
     final isDark = t.isDark;

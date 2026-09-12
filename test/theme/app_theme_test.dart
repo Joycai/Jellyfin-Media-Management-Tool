@@ -55,21 +55,25 @@ void main() {
     });
   });
 
-  group('performance mode', () {
+  group('glass intensity 0 is the reduced-effects step', () {
     test('is part of the memo key', () {
-      // The whole toggle is silent if it is not: MyApp asks for the theme on
+      // The whole step is silent if it is not: MyApp asks for the theme on
       // every settings notification, so the first call after startup would
       // seed the slot and every later one would serve that same theme back.
-      final normal = AppTheme.light();
-      final reduced = AppTheme.light(reduceEffects: true);
+      final normal = AppTheme.light(glassIntensity: 70);
+      final reduced = AppTheme.light(glassIntensity: 0);
       expect(identical(normal, reduced), isFalse);
-      expect(identical(AppTheme.light(), normal), isFalse, reason: 'evicted');
+      expect(
+        identical(AppTheme.light(glassIntensity: 70), normal),
+        isFalse,
+        reason: 'evicted',
+      );
     });
 
     test('zeroes the blur and flattens the fills in both brightnesses', () {
       for (final tokens in [
-        AppTheme.light(reduceEffects: true).extension<AppTokens>()!,
-        AppTheme.dark(reduceEffects: true).extension<AppTokens>()!,
+        AppTheme.light(glassIntensity: 0).extension<AppTokens>()!,
+        AppTheme.dark(glassIntensity: 0).extension<AppTokens>()!,
       ]) {
         expect(tokens.reduceEffects, isTrue);
         expect(tokens.blurTopBar, 0);
@@ -83,12 +87,15 @@ void main() {
       }
     });
 
-    test('overrides the glass intensity slider rather than combining', () {
-      final tokens = AppTheme.dark(
-        glassIntensity: 100,
-        reduceEffects: true,
-      ).extension<AppTokens>()!;
-      expect(tokens.blurPanel, 0);
+    test('the opaque swap is tied to 0, not to a separate flag', () {
+      // The bug this replaced: intensity 0 dropped the blur but kept the
+      // translucent fills, which is exactly the ~2:1 contrast state the old
+      // "performance mode" toggle existed to prevent — and it was reachable
+      // without ever touching that toggle.
+      final barelyOn = AppTheme.dark(glassIntensity: 1).extension<AppTokens>()!;
+      expect(barelyOn.reduceEffects, isFalse);
+      expect(barelyOn.blurPanel, greaterThan(0));
+      expect(barelyOn.panelFill.a, lessThan(1.0));
     });
 
     test('leaves the normal theme frosted', () {

@@ -65,14 +65,6 @@ class AppearanceSection extends StatelessWidget {
               value: settings.showVideoThumbnails,
               onChanged: settings.setShowVideoThumbnails,
             ),
-            // 排在玻璃强度之后是因为它覆盖玻璃强度：滑块调模糊的量，这个把模糊
-            // 整个拿掉。
-            SettingsToggleRow(
-              label: l10n.performanceMode,
-              subtitle: l10n.performanceModeDesc,
-              value: settings.performanceMode,
-              onChanged: settings.setPerformanceMode,
-            ),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -377,6 +369,15 @@ class _GlassCard extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+          // 这条注解替掉了从前那个独立的「性能模式」开关。它必须在这儿，因为
+          // 0 这一档是整个设置页唯一影响性能的选择，而滑块本身长得完全不像一个
+          // 性能控件 —— 强度 50 → 100 只差 2%，关不关差 46ms。
+          //
+          // 两种状态都渲染（而不是只在 0 时才出现一行），否则跨过 0 的那一刻
+          // 卡片会长高一行，把并排的强调色卡一起顶动。
+          SettingsFootnote(
+            settings.glassIntensity <= 0 ? l10n.glassOffHint : l10n.glassOnHint,
           ),
         ],
       ),

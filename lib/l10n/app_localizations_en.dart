@@ -923,7 +923,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get glassIntensity => 'Glass intensity';
 
   @override
-  String get glassNone => 'None';
+  String get glassNone => 'Off';
 
   @override
   String get glassSoft => 'Soft';
@@ -932,11 +932,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get glassStrong => 'Strong';
 
   @override
-  String get performanceMode => 'Performance mode';
+  String get glassOffHint =>
+      'Blur is off: panels use opaque fills. This is the cheapest the interface can draw.';
 
   @override
-  String get performanceModeDesc =>
-      'Turn off the backdrop blur and the large shadows. Worth it on integrated graphics or a high-resolution display, where the blur is redrawn over every pixel each frame.';
+  String get glassOnHint =>
+      'Drag to 0 to turn the blur off. That is the only step here that changes performance — the strength itself barely does.';
 
   @override
   String get accentColor => 'Accent color';

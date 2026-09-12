@@ -7,24 +7,28 @@ import 'glass_cover.dart';
 
 /// 全应用**唯一**一处 `BackdropFilter`。
 ///
-/// 三条来自实测的规矩都锁在这里，而不是散在每个面板上：
+/// 五条来自实测的规矩都锁在这里，而不是散在每个面板上：
 ///
 /// * **底色不透明时不加模糊。** `BackdropFilter` 是把子节点画在被模糊的背景之上
 ///   的，子节点不透明就等于把模糊结果整块盖掉 —— 浅色主题的中央表格渐变正是
 ///   这种情况。跳过它省下的是一整块、按设备分辨率逐帧重跑的多通道 GPU 滤镜。
 ///   所以 `blur: true` 不是拿到模糊的保证；把底色调成不透明也就是决定放弃那层
 ///   毛玻璃。
-/// * **性能模式整块跳过滤镜，而不是传 0。** 零 sigma 的滤镜照样会结束一个渲染
-///   通道并回读整个目标，代价正在那里。
+/// * **玻璃强度 0 整块跳过滤镜，而不是传 sigma 0。** 零 sigma 的滤镜照样会结束
+///   一个渲染通道并回读整个目标，代价正在那里。
+/// * **代价按滤镜个数算，不按半径算。** Impeller 先降采样再模糊，所以半径几乎
+///   不影响耗时：最大化 4K 下强度 50 是 82.0ms、强度 100 是 83.8ms（+2%），而
+///   把滤镜拿掉省 46ms。滑块是**观感**控制，只有 0 那一档是性能控制。
+/// * **同一平面上的多个滤镜共用一次背景快照。** 见 build 里的 [BackdropGroup]。
 /// * **模糊只在有裁剪的地方开。** 没有 `ClipRRect` 的 `BackdropFilter` 会采样到
 ///   圆角之外。
 /// * **被不透明路由盖住时不加模糊。** 看不见的那层照样每帧回读整块背景；推开
 ///   设置页的 300ms 里，主页那 6 个滤镜一个都没人看得到。见 [GlassCoverScope]。
 ///
-/// 在 3840×2160（devicePixelRatio 2.0）上实测：最大化切分区，p50 光栅
-/// 61.5 ms → 23.9 ms、12.5 → 24.8 fps。代价是面积 × dpr²，而且超线性 —— 同一层
-/// 模糊在小窗口里几乎免费，最大化时是灾难，所以任何前后对比都必须在投诉发生的
-/// 那个尺寸上测。
+/// 在 3840×2064（devicePixelRatio 2.0）的 AMD 核显上实测，Files 分区最大化、
+/// 背景已烘焙：四个滤镜 **~46ms**，占整帧 57%；把它们拿掉，整个 UI 剩 1.7ms。
+/// 代价是面积 × dpr²，而且超线性 —— 同一层模糊在小窗口里几乎免费，最大化时是
+/// 灾难，所以任何前后对比都必须在投诉发生的那个尺寸上测。
 class GlassSurface extends StatelessWidget {
   /// 玻璃底色。不透明时模糊被自动丢弃。
   final Color fill;
@@ -101,12 +105,18 @@ class GlassSurface extends StatelessWidget {
     }
 
     if (wantsBlur) {
+      final filter = ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur);
+      // 有 BackdropGroup 就并进去，共用一次背景快照；没有就照旧自己快照一次。
+      // 判断依据是「祖先里有没有组」而不是一个参数，因为这恰好把该分组的和
+      // 不该分组的分开了：外壳那几块在 AppShell 的组里，而对话框 / 菜单 /
+      // 浮层都是 push 上来的 route，不在这棵子树内 —— 它们盖在面板之上、要
+      // 模糊到面板本身，同组会让重叠处看起来只应用了一层模糊。
+      final grouped = BackdropGroup.of(context) != null;
       content = ClipRRect(
         borderRadius: radius,
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: content,
-        ),
+        child: grouped
+            ? BackdropFilter.grouped(filter: filter, child: content)
+            : BackdropFilter(filter: filter, child: content),
       );
     } else if (radius != BorderRadius.zero) {
       content = ClipRRect(borderRadius: radius, child: content);

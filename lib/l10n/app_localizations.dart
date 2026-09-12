@@ -1673,7 +1673,7 @@ abstract class AppLocalizations {
   /// No description provided for @glassNone.
   ///
   /// In en, this message translates to:
-  /// **'None'**
+  /// **'Off'**
   String get glassNone;
 
   /// No description provided for @glassSoft.
@@ -1688,17 +1688,17 @@ abstract class AppLocalizations {
   /// **'Strong'**
   String get glassStrong;
 
-  /// No description provided for @performanceMode.
+  /// No description provided for @glassOffHint.
   ///
   /// In en, this message translates to:
-  /// **'Performance mode'**
-  String get performanceMode;
+  /// **'Blur is off: panels use opaque fills. This is the cheapest the interface can draw.'**
+  String get glassOffHint;
 
-  /// No description provided for @performanceModeDesc.
+  /// No description provided for @glassOnHint.
   ///
   /// In en, this message translates to:
-  /// **'Turn off the backdrop blur and the large shadows. Worth it on integrated graphics or a high-resolution display, where the blur is redrawn over every pixel each frame.'**
-  String get performanceModeDesc;
+  /// **'Drag to 0 to turn the blur off. That is the only step here that changes performance — the strength itself barely does.'**
+  String get glassOnHint;
 
   /// No description provided for @accentColor.
   ///

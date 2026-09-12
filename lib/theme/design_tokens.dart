@@ -819,19 +819,27 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// 构建一套令牌。
   ///
   /// [glassIntensity] 0–100，映射到三档模糊半径；70 是设计稿的默认值，对应
-  /// 稿面上的 28 / 40 / 20。[reduceEffects] 时三档全部归零，玻璃层换成
-  /// 2.4 给出的不透明实色常量。
+  /// 稿面上的 28 / 40 / 20。
+  ///
+  /// **0 同时意味着 `reduceEffects`**，这不是两个开关。滑块拉到 0 时不建
+  /// `BackdropFilter`，而没有模糊衬托，2.4 那套半透明玻璃底会掉到约 2:1 的
+  /// 对比度、分隔线也不再读作边 —— 所以 0 这一档必须一并换成 2.4 给出的不透明
+  /// 实色常量、把发丝线不透明度 x1.4、并压平大投影。
+  ///
+  /// 从前这是一个独立的「性能模式」开关，于是「性能模式开 + 强度 50」这种说不
+  /// 清的状态是可达的，而强度 0 反倒只关模糊、不修对比度 —— 正好制造出那个开关
+  /// 存在的理由却不带修复。现在它由强度推导，两者不可能再打架。
   factory AppTokens.build({
     required Brightness brightness,
     Color? accent,
     double glassIntensity = 70,
-    bool reduceEffects = false,
     String? uiFont,
     TargetPlatform? platform,
   }) {
     final isDark = brightness == Brightness.dark;
     final a = accent ?? AppPalette.accent;
     final scale = (glassIntensity / 70).clamp(0.0, 1.6);
+    final reduceEffects = scale <= 0;
 
     // 强调色可以是用户任意选的色相，浅底上的文字变体必须重新推导，
     // 否则换成亮黄就再也读不清了。
@@ -918,7 +926,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// 橙色强调的窗口底仍然泛蓝。
   static Gradient _backdrop(Color accent, {required bool isDark}) {
     final base = isDark ? AppPalette.darkBase : AppPalette.lightBase;
-    return _RadialPairGradient(
+    return RadialPairGradient(
       base: base,
       first: accent.withValues(alpha: isDark ? 0.28 : 0.30),
       firstCenter: const Alignment(-0.6, -1.0),
@@ -1100,17 +1108,17 @@ class AppTokens extends ThemeExtension<AppTokens> {
 /// 要的形状，所以这里做一个自绘的 [Gradient]：`createShader` 里没法叠两个
 /// shader，于是用 [ImageShader] 之外最省的一条路 —— 把两层烘进一个
 /// [SweepGradient] 是不行的，因此实现为「底色 + 一层最强的径向」，第二层交给
-/// [AppBackdrop] 以一个额外的 `DecoratedBox` 叠加。这个类只负责第一层与底色，
-/// 但把两层的取值都带在身上，供 [AppBackdrop] 读取。
+/// `AppBackdrop` 叠加。这个类只负责第一层与底色，但把两层的取值都带在身上，
+/// 供 `AppBackdrop`（`lib/widgets/ui/app_backdrop.dart`）读取并烘焙。
 @immutable
-class _RadialPairGradient extends Gradient {
+class RadialPairGradient extends Gradient {
   final Color base;
   final Color first;
   final Alignment firstCenter;
   final Color second;
   final Alignment secondCenter;
 
-  _RadialPairGradient({
+  RadialPairGradient({
     required this.base,
     required this.first,
     required this.firstCenter,
@@ -1127,7 +1135,7 @@ class _RadialPairGradient extends Gradient {
       ).createShader(rect, textDirection: textDirection);
 
   @override
-  Gradient withOpacity(double opacity) => _RadialPairGradient(
+  Gradient withOpacity(double opacity) => RadialPairGradient(
     base: base.withValues(alpha: opacity),
     first: first.withValues(alpha: opacity),
     firstCenter: firstCenter,
@@ -1136,7 +1144,7 @@ class _RadialPairGradient extends Gradient {
   );
 
   @override
-  Gradient scale(double factor) => _RadialPairGradient(
+  Gradient scale(double factor) => RadialPairGradient(
     base: Color.lerp(null, base, factor)!,
     first: Color.lerp(null, first, factor)!,
     firstCenter: firstCenter,
@@ -1146,70 +1154,27 @@ class _RadialPairGradient extends Gradient {
 
   @override
   Gradient? lerpFrom(Gradient? a, double t) {
-    if (a is _RadialPairGradient) return _lerp(a, this, t);
+    if (a is RadialPairGradient) return _lerp(a, this, t);
     return super.lerpFrom(a, t);
   }
 
   @override
   Gradient? lerpTo(Gradient? b, double t) {
-    if (b is _RadialPairGradient) return _lerp(this, b, t);
+    if (b is RadialPairGradient) return _lerp(this, b, t);
     return super.lerpTo(b, t);
   }
 
-  static _RadialPairGradient _lerp(
-    _RadialPairGradient a,
-    _RadialPairGradient b,
+  static RadialPairGradient _lerp(
+    RadialPairGradient a,
+    RadialPairGradient b,
     double t,
-  ) => _RadialPairGradient(
+  ) => RadialPairGradient(
     base: Color.lerp(a.base, b.base, t)!,
     first: Color.lerp(a.first, b.first, t)!,
     firstCenter: Alignment.lerp(a.firstCenter, b.firstCenter, t)!,
     second: Color.lerp(a.second, b.second, t)!,
     secondCenter: Alignment.lerp(a.secondCenter, b.secondCenter, t)!,
   );
-}
-
-/// 窗口底：纯色 + 两层径向渐变。
-///
-/// 铺在 [Scaffold] 之下、所有玻璃面板之上游 —— 玻璃的模糊取样的就是它。
-class AppBackdrop extends StatelessWidget {
-  final Widget child;
-
-  const AppBackdrop({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppTokens.of(context);
-    final g = t.backdrop;
-    if (g is! _RadialPairGradient) {
-      return DecoratedBox(
-        decoration: BoxDecoration(gradient: g),
-        child: child,
-      );
-    }
-    return ColoredBox(
-      color: g.base,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: g.firstCenter,
-            radius: 1.15,
-            colors: [g.first, g.first.withValues(alpha: 0)],
-          ),
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: g.secondCenter,
-              radius: 1.05,
-              colors: [g.second, g.second.withValues(alpha: 0)],
-            ),
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
 }
 
 /// `context.tokens` —— 全 UI 唯一合法的取色入口。

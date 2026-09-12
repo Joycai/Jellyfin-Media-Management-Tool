@@ -909,7 +909,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get glassIntensity => '玻璃质感强度';
 
   @override
-  String get glassNone => '无';
+  String get glassNone => '关闭';
 
   @override
   String get glassSoft => '柔和';
@@ -918,11 +918,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get glassStrong => '强烈';
 
   @override
-  String get performanceMode => '性能模式';
+  String get glassOffHint => '毛玻璃已关闭：面板改用不透明底色。这是界面最省的一档。';
 
   @override
-  String get performanceModeDesc =>
-      '关闭背景高斯模糊与大范围阴影。核显或高分辨率屏幕上值得开启——模糊每帧都要在全部像素上重算一遍。';
+  String get glassOnHint => '拖到 0 可关闭毛玻璃。这里唯一影响性能的是关不关，强度本身几乎不影响。';
 
   @override
   String get accentColor => '强调色';
