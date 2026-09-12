@@ -721,11 +721,13 @@ class _PendingCall {
 
   void add(Map<dynamic, dynamic> fragment) {
     final id = fragment['id'];
-    if (id is String && id.isNotEmpty && id != _id) _id += id;
+    if (id is String && id.isNotEmpty) _id = _mergeFragment(_id, id);
     final function = fragment['function'];
     if (function is! Map) return;
     final name = function['name'];
-    if (name is String && name.isNotEmpty && name != _name) _name += name;
+    if (name is String && name.isNotEmpty) {
+      _name = _mergeFragment(_name, name);
+    }
     final arguments = function['arguments'];
     if (arguments is String) {
       _arguments.write(arguments);
@@ -739,4 +741,16 @@ class _PendingCall {
     name: _name,
     arguments: _arguments.isEmpty ? '{}' : _arguments.toString(),
   );
+
+  /// Providers vary between delta fragments and cumulative values. Keep the
+  /// longest useful prefix instead of duplicating a cumulative value (or
+  /// appending a new suffix to an already-complete value).
+  static String _mergeFragment(String current, String fragment) {
+    if (current.isEmpty || fragment == current) {
+      return current.isEmpty ? fragment : current;
+    }
+    if (fragment.startsWith(current)) return fragment;
+    if (current.startsWith(fragment)) return current;
+    return '$current$fragment';
+  }
 }

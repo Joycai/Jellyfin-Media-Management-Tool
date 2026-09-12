@@ -117,6 +117,24 @@ void main() {
   });
 
   group('HistoryService.recordScrape', () {
+    test('rapid records keep distinct manifest files', () async {
+      final first = await svc.recordScrape(
+        baseDir: baseDir,
+        created: const ['/work/first.nfo'],
+        restored: const {},
+      );
+      final second = await svc.recordScrape(
+        baseDir: baseDir,
+        created: const ['/work/second.nfo'],
+        restored: const {},
+      );
+
+      expect(first, isNotNull);
+      expect(second, isNotNull);
+      expect(first!.manifestPath, isNot(second!.manifestPath));
+      expect(svc.entries, hasLength(2));
+    });
+
     test('does not record an entry when nothing is reversible', () async {
       final entry = await svc.recordScrape(
         baseDir: baseDir,

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/history_entry.dart';
+import '../utils/ids.dart';
 import 'path_safety.dart';
 
 /// Stores and exposes the operation history (one manifest file per operation in
@@ -142,9 +143,7 @@ class HistoryService extends ChangeNotifier {
   }) async {
     final dir = await _dir();
     final createdAt = DateTime.now();
-    final file = _fs.file(
-      _fs.path.join(dir.path, 'op-${createdAt.millisecondsSinceEpoch}.json'),
-    );
+    final file = _manifestFile(dir);
     final manifest = HistoryEntry.buildManifest(
       kind: kind,
       createdAt: createdAt,
@@ -182,9 +181,7 @@ class HistoryService extends ChangeNotifier {
 
     final dir = await _dir();
     final createdAt = DateTime.now();
-    final file = _fs.file(
-      _fs.path.join(dir.path, 'op-${createdAt.millisecondsSinceEpoch}.json'),
-    );
+    final file = _manifestFile(dir);
     final manifest = HistoryEntry.buildManifest(
       kind: HistoryKind.metadataRefresh,
       createdAt: createdAt,
@@ -205,6 +202,12 @@ class HistoryService extends ChangeNotifier {
     notifyListeners();
     return entry;
   }
+
+  /// Generates a collision-resistant manifest name. Millisecond timestamps
+  /// can collide when two short operations finish in the same event-loop turn,
+  /// which would silently replace the first undo entry.
+  File _manifestFile(Directory dir) =>
+      _fs.file(_fs.path.join(dir.path, 'op-${newId()}.json'));
 
   /// Reverses [entry]: moves back, created files deleted, overwritten files
   /// restored from their backup.

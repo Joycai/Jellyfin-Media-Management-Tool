@@ -54,6 +54,13 @@ void main() {
       };
       expect(StructuredData.isSiteWideTemplate(og, _pageUrl), isTrue);
     });
+
+    test('a cross-origin og:url is not treated as self-referencing', () {
+      final og = {
+        'og:url': 'https://attacker.example/product/index.php?product_id=7743',
+      };
+      expect(StructuredData.isSiteWideTemplate(og, _pageUrl), isTrue);
+    });
   });
 
   group('OpenGraph extraction', () {
