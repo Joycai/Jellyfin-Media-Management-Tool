@@ -646,6 +646,13 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final Color controlFillHover;
   final Color controlFillActive;
 
+  /// 铺在**任意**底上的一层悬停：浅色主题压暗，深色主题提亮。
+  ///
+  /// 幽灵按钮自己没有底，它悬停时出的那层底盖在什么上面是不确定的 —— 卡、面板、
+  /// 顶栏都有可能。[controlFill] 在浅色主题里是一层白（white 72%），盖在同样是
+  /// 白的卡（white 85%）上，合成结果和卡差不到 4/255：悬停等于什么也没发生。
+  final Color hoverOverlay;
+
   /// 描边：hairline 与稍重的分组线。
   final Color stroke;
   final Color strokeStrong;
@@ -707,6 +714,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.controlFill,
     required this.controlFillHover,
     required this.controlFillActive,
+    required this.hoverOverlay,
     required this.stroke,
     required this.strokeStrong,
     required this.selectionFill,
@@ -865,6 +873,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
       controlFillActive: reduceEffects
           ? (isDark ? const Color(0xFF323853) : const Color(0xFFD2DAEC))
           : (isDark ? white(0.14) : white(1.0)),
+      // 不随性能模式变：这是一层叠加，不是玻璃底，没有模糊可省。
+      hoverOverlay: isDark ? white(0.08) : inkA(0.05),
       // 性能模式下分隔线不透明度 × 1.4，否则没有模糊衬托就看不见了。
       stroke: isDark
           ? white(reduceEffects ? 0.098 : 0.07)
@@ -962,6 +972,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     Color? controlFill,
     Color? controlFillHover,
     Color? controlFillActive,
+    Color? hoverOverlay,
     Color? stroke,
     Color? strokeStrong,
     Color? selectionFill,
@@ -998,6 +1009,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     controlFill: controlFill ?? this.controlFill,
     controlFillHover: controlFillHover ?? this.controlFillHover,
     controlFillActive: controlFillActive ?? this.controlFillActive,
+    hoverOverlay: hoverOverlay ?? this.hoverOverlay,
     stroke: stroke ?? this.stroke,
     strokeStrong: strokeStrong ?? this.strokeStrong,
     selectionFill: selectionFill ?? this.selectionFill,
@@ -1056,6 +1068,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       controlFill: c(controlFill, other.controlFill),
       controlFillHover: c(controlFillHover, other.controlFillHover),
       controlFillActive: c(controlFillActive, other.controlFillActive),
+      hoverOverlay: c(hoverOverlay, other.hoverOverlay),
       stroke: c(stroke, other.stroke),
       strokeStrong: c(strokeStrong, other.strokeStrong),
       selectionFill: c(selectionFill, other.selectionFill),

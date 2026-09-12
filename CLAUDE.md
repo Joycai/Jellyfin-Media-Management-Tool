@@ -240,6 +240,10 @@ It is split three ways on purpose:
 - `AppTokens` is the extension — colours, gradients, shadows, blur — read as `context.tokens`.
 - `AppPalette` holds the five semantic hues, which are identical in both themes. Icons, dots, badges and progress fills reference it directly; only text on a light ground swaps to an ink variant (`t.successText`, `t.accentText`). Vendor marks (OpenAI, Google) live there too and are the deliberate exception to theming: if they tracked the user's accent nobody could tell which provider a card belongs to.
 
+**Never animate a colour to or from `Colors.transparent`.** It is transparent *black*, and `Color.lerp` does not premultiply — it walks r, g and b independently, so a fade from it to any light fill passes through 50% mid-grey. In an `AnimatedContainer` that is a visible dark flash on the way in and on the way out. Write the target colour at `withValues(alpha: 0)` instead; the About page's links, the list rows and the segmented control all had it.
+
+**A hover fill has to know what it is landing on.** `controlFill` is a *white wash* in the light theme (white 72%), so it reads as a raised control over the page ground and as nothing at all over a card that is already white 85% — the About links moved their ground by 4/255. `AppTokens.hoverOverlay` is the fill for a control that brings no ground of its own (ghost buttons): it darkens in light and lightens in dark, so it works wherever it is put.
+
 **The accent is user-replaceable, so nothing derived from it is written down.** The tab fill, the task badge, the focus ring and the window backdrop are all opacity-derived, and the light-theme ink variant is found by pushing luminance under a threshold rather than by a fixed darken factor — a fixed factor is not enough for a yellow or cyan accent. The task badge is the only accent-solid + white-text pair in the design, so `AppTokens.badgeText` flips to ink above 0.72 luminance.
 
 `AppTypeScale.size*` exists so there cannot be a ninth type step. Spec 1.2 defines eight; the pre-redesign tree had 13.5, 15.5, 17 and 18 alongside them, each one making "is this a title or is this body text?" a little less answerable.

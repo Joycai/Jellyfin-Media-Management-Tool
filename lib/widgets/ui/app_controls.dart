@@ -197,8 +197,13 @@ class _AppButtonState extends State<AppButton> {
             const <BoxShadow>[],
           );
         }
+        // 静止态是**同一个颜色的 alpha 0**，不是 `Colors.transparent`：那是
+        // 透明的**黑**，而 `Color.lerp` 不做预乘，逐通道从 (0,0,0,0) 补到目标
+        // 色的中途就是 50% 的中灰 —— 浅色主题下悬停会先闪一下深灰，再落到一个
+        // 几乎看不出来的底上，看着就像「亮了一下又没了」。
+        final on = _hover || _pressed;
         return (
-          _hover || _pressed ? t.controlFill : Colors.transparent,
+          on ? t.hoverOverlay : t.hoverOverlay.withValues(alpha: 0),
           null,
           t.textSecondary,
           const <BoxShadow>[],
@@ -899,7 +904,9 @@ class _AppListRowState extends State<AppListRow> {
         null,
       ),
       _ when _hover => (t.controlFill, null),
-      _ => (Colors.transparent, null),
+      // alpha 0 的同色，不是 `Colors.transparent`（透明的黑）—— 见幽灵按钮那段
+      // 注释：补间会从中灰穿过去。
+      _ => (t.controlFill.withValues(alpha: 0), null),
     };
 
     Widget row = AnimatedContainer(

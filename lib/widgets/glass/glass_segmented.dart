@@ -48,15 +48,18 @@ class GlassSegmented<T> extends StatelessWidget {
                     horizontal: AppSpacing.md12,
                     vertical: AppSpacing.xxs,
                   ),
+                  // 未选中态用的是**同色的 alpha 0**，不是 `Colors.transparent`
+                  // ——「透明」在 Flutter 里是透明的黑，而 `Color.lerp` 不做预乘，
+                  // 逐通道补间会从中灰穿过去：切换分段时先闪一下深灰。
                   decoration: BoxDecoration(
                     color: item.value == value
                         ? t.selectionFill
-                        : Colors.transparent,
+                        : t.selectionFill.withValues(alpha: 0),
                     borderRadius: BorderRadius.circular(AppRadii.tiny),
                     border: Border.all(
                       color: item.value == value
                           ? t.selectionStroke
-                          : Colors.transparent,
+                          : t.selectionStroke.withValues(alpha: 0),
                     ),
                   ),
                   child: Row(
