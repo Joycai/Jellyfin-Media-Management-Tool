@@ -48,7 +48,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   _Section _section = _Section.appearance;
 
-  static const String _appVersion = '0.21.0';
+  static const String _appVersion = '0.21.1';
 
   @override
   Widget build(BuildContext context) {
