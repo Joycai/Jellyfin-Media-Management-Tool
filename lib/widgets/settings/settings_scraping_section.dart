@@ -8,6 +8,7 @@ import '../../models/scrape_recipe.dart';
 import '../../services/scrape/cookie_store.dart';
 import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
+import '../../theme/design_tokens.dart';
 import 'settings_controls.dart';
 
 /// Cookie management and the recipe list.
@@ -76,7 +77,10 @@ class _ScrapingSectionState extends State<ScrapingSection> {
     final domains = byDomain.keys.toList()..sort();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl24,
+        vertical: AppSpacing.xl,
+      ),
       children: [
         SettingsSectionTitle(l10n.settingsScrapeCookies),
         SettingsCard(
@@ -96,7 +100,7 @@ class _ScrapingSectionState extends State<ScrapingSection> {
                     child: Text(
                       l10n.settingsScrapeCookieWarning,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: AppTypeScale.sizeControl,
                         height: 1.4,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -125,7 +129,7 @@ class _ScrapingSectionState extends State<ScrapingSection> {
                 Text(
                   l10n.settingsScrapeCookieEmpty,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTypeScale.sizeBody,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -175,14 +179,17 @@ class _CookieDomainRow extends StatelessWidget {
               child: Text(
                 domain,
                 style: const TextStyle(
-                  fontSize: 13.5,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             Text(
               l10n.settingsScrapeCookieCount(cookies.length),
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeCaption,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(width: 8),
             TextButton(
@@ -201,12 +208,12 @@ class _CookieDomainRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadii.tiny),
                 ),
                 child: Text(
                   '${c.name}=••••',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: AppTypeScale.sizeCaption,
                     fontFamily: 'monospace',
                     color: scheme.onSurfaceVariant,
                   ),
@@ -247,7 +254,7 @@ class _RecipeList extends StatelessWidget {
                       Text(
                         recipes[i].domain,
                         style: const TextStyle(
-                          fontSize: 13.5,
+                          fontSize: AppTypeScale.sizeBody,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -257,7 +264,7 @@ class _RecipeList extends StatelessWidget {
                             ? l10n.settingsScrapeRecipeAnyPath
                             : recipes[i].pathPattern,
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: AppTypeScale.sizeCaption,
                           fontFamily: 'monospace',
                           color: scheme.onSurfaceVariant,
                         ),
@@ -271,7 +278,7 @@ class _RecipeList extends StatelessWidget {
                     recipes[i].failCount,
                   ),
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: AppTypeScale.sizeCaption,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -310,7 +317,7 @@ class _RecipeBadge extends StatelessWidget {
             ),
             RecipeOrigin.llm => (
               l10n.settingsScrapeRecipeLearned,
-              const Color(0xFFE0852C),
+              AppPalette.warning,
             ),
             RecipeOrigin.user => (
               l10n.settingsScrapeRecipeUser,
@@ -322,12 +329,12 @@ class _RecipeBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadii.tiny),
       ),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: AppTypeScale.sizeMono,
           fontWeight: FontWeight.w600,
           color: color,
         ),

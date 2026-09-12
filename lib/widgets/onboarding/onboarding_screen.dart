@@ -11,7 +11,7 @@ import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 
 /// 3-step first-run guide: welcome → pick library root → choose AI protocol.
 ///
@@ -31,9 +31,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? _pickedRoot;
   AiProviderType? _pickedProvider;
 
-  static const _blue = Color(0xFF3B6FF5);
-  static const _teal = Color(0xFF22C9A9);
-  static const _violet = Color(0xFF8B5CF6);
+  static const _blue = AppPalette.accent;
+  static const _teal = AppPalette.success;
+  static const _violet = AppPalette.ai;
 
   Color get _accent => switch (_step) {
     0 => _blue,
@@ -90,13 +90,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06070D),
+      backgroundColor: AppPalette.darkBase,
       body: Stack(
         fit: StackFit.expand,
         children: [
           // Per-step radial backdrop, cross-faded between steps.
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 480),
+            duration: AppMotion.progress,
             child: Container(
               key: ValueKey(_step),
               decoration: BoxDecoration(gradient: _backdropFor(_step)),
@@ -109,7 +109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 gradient: RadialGradient(
                   center: Alignment.center,
                   radius: 1.2,
-                  colors: [Colors.transparent, Color(0xCC000000)],
+                  colors: [Colors.transparent, AppPalette.scrim],
                   stops: [0.55, 1.0],
                 ),
               ),
@@ -123,7 +123,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               l10n.onboardingStepCounter(_step + 1, 3),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.55),
-                fontSize: 13,
+                fontSize: AppTypeScale.sizeBody,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.6,
               ),
@@ -131,7 +131,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           SafeArea(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 360),
+              duration: AppMotion.progress,
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, anim) {
@@ -185,27 +185,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  /// 三步各自的窗口底（6.3）。
+  ///
+  /// 设计稿给每一步配了一个色相：欢迎用强调色、选目录用成功青、接 AI 用紫。
+  /// 这里从令牌把它们**混出来**而不是写死三组九个色值 —— 用户换了强调色，
+  /// 第一步的底也应该跟着换，否则引导页会是全应用里唯一一处还泛着旧蓝的地方。
   Gradient _backdropFor(int step) {
-    return switch (step) {
-      0 => const RadialGradient(
-        center: Alignment(-0.2, -0.4),
-        radius: 1.1,
-        colors: [Color(0xFF1F2161), Color(0xFF12122E), Color(0xFF07081A)],
-        stops: [0.0, 0.55, 1.0],
-      ),
-      1 => const RadialGradient(
-        center: Alignment(-0.4, -0.5),
-        radius: 1.2,
-        colors: [Color(0xFF124441), Color(0xFF0A2730), Color(0xFF05121E)],
-        stops: [0.0, 0.5, 1.0],
-      ),
-      _ => const RadialGradient(
-        center: Alignment(0.2, -0.4),
-        radius: 1.2,
-        colors: [Color(0xFF35216A), Color(0xFF1B143E), Color(0xFF080820)],
-        stops: [0.0, 0.55, 1.0],
-      ),
+    final tint = switch (step) {
+      0 => context.tokens.accent,
+      1 => AppPalette.success,
+      _ => AppPalette.ai,
     };
+    final center = switch (step) {
+      0 => const Alignment(-0.2, -0.4),
+      1 => const Alignment(-0.4, -0.5),
+      _ => const Alignment(0.2, -0.4),
+    };
+    return RadialGradient(
+      center: center,
+      radius: 1.15,
+      colors: [
+        Color.alphaBlend(tint.withValues(alpha: 0.34), AppPalette.darkBase),
+        Color.alphaBlend(tint.withValues(alpha: 0.14), AppPalette.darkBase),
+        AppPalette.darkBase,
+      ],
+      stops: const [0.0, 0.55, 1.0],
+    );
   }
 }
 
@@ -236,7 +241,7 @@ class _StepWelcome extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 38,
+                  fontSize: AppTypeScale.sizeDisplay,
                   height: 1.15,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.5,
@@ -248,7 +253,7 @@ class _StepWelcome extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.72),
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   height: 1.6,
                 ),
               ),
@@ -261,7 +266,7 @@ class _StepWelcome extends StatelessWidget {
                   _PrimaryButton(
                     label: l10n.onboardingStart,
                     onTap: onStart,
-                    accent: const Color(0xFF3B6FF5),
+                    accent: AppPalette.accent,
                   ),
                 ],
               ),
@@ -293,8 +298,8 @@ class _GlowingOrb extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  const Color(0xFF8B7BFF).withValues(alpha: 0.45),
-                  const Color(0xFF8B7BFF).withValues(alpha: 0.0),
+                  AppPalette.ai.withValues(alpha: 0.45),
+                  AppPalette.ai.withValues(alpha: 0.0),
                 ],
                 stops: const [0.35, 1.0],
               ),
@@ -310,16 +315,16 @@ class _GlowingOrb extends StatelessWidget {
                 center: Alignment(-0.3, -0.4),
                 radius: 0.95,
                 colors: [
-                  Color(0xFFD9CFFF),
-                  Color(0xFFA38BFF),
-                  Color(0xFF6E5BFF),
-                  Color(0xFF4D3FCC),
+                  AppPalette.ai,
+                  AppPalette.ai,
+                  AppPalette.ai,
+                  AppPalette.aiInk,
                 ],
                 stops: [0.0, 0.35, 0.7, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6E5BFF).withValues(alpha: 0.55),
+                  color: AppPalette.ai.withValues(alpha: 0.55),
                   blurRadius: 60,
                   spreadRadius: 8,
                 ),
@@ -338,7 +343,7 @@ class _GlowingOrb extends StatelessWidget {
               width: 36,
               height: 18,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(AppRadii.panel),
                 gradient: LinearGradient(
                   colors: [
                     Colors.white.withValues(alpha: 0.7),
@@ -352,7 +357,7 @@ class _GlowingOrb extends StatelessWidget {
             'J',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 72,
+              fontSize: AppTypeScale.sizeDisplay,
               fontWeight: FontWeight.w700,
               height: 1,
             ),
@@ -391,8 +396,8 @@ class _StepRoot extends StatelessWidget {
               Text(
                 l10n.onboardingStep1Eyebrow,
                 style: const TextStyle(
-                  color: Color(0xFF22C9A9),
-                  fontSize: 13,
+                  color: AppPalette.success,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                 ),
@@ -403,7 +408,7 @@ class _StepRoot extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 34,
+                  fontSize: AppTypeScale.sizeDisplay,
                   height: 1.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -414,7 +419,7 @@ class _StepRoot extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   height: 1.55,
                 ),
               ),
@@ -446,15 +451,15 @@ class _DashDropTarget extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return _onboardingFrost(
       context: context,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       builder: (alphaScale) => Container(
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.04 * alphaScale),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
         ),
         child: CustomPaint(
           painter: _DashedRRectPainter(
-            color: const Color(0xFF22C9A9).withValues(alpha: 0.55),
+            color: AppPalette.success.withValues(alpha: 0.55),
             radius: 20,
           ),
           child: Padding(
@@ -469,7 +474,7 @@ class _DashDropTarget extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: AppTypeScale.sizeSubheading,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -480,7 +485,7 @@ class _DashDropTarget extends StatelessWidget {
                   l10n.onboardingOr,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 13,
+                    fontSize: AppTypeScale.sizeBody,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -493,7 +498,7 @@ class _DashDropTarget extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.28),
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(AppRadii.chip),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.06),
                     ),
@@ -502,7 +507,7 @@ class _DashDropTarget extends StatelessWidget {
                     l10n.onboardingRootHint,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.55),
-                      fontSize: 12,
+                      fontSize: AppTypeScale.sizeCaption,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -526,18 +531,29 @@ class _FolderIcon extends StatelessWidget {
       width: 88,
       height: 88,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: picked
-              ? const [Color(0xFF1FA897), Color(0xFF177D6F)]
-              : const [Color(0xFF1F584F), Color(0xFF153F39)],
+              ? const [AppPalette.success, AppPalette.successInk]
+              // 未选中：同一个色相压暗，而不是另换两个绿 —— 它讲的是同一件事
+              // 的「还没发生」。
+              : [
+                  Color.alphaBlend(
+                    AppPalette.success.withValues(alpha: 0.30),
+                    AppPalette.darkBase,
+                  ),
+                  Color.alphaBlend(
+                    AppPalette.successInk.withValues(alpha: 0.40),
+                    AppPalette.darkBase,
+                  ),
+                ],
         ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF22C9A9).withValues(alpha: 0.32),
+            color: AppPalette.success.withValues(alpha: 0.32),
             blurRadius: 26,
             spreadRadius: -2,
             offset: const Offset(0, 8),
@@ -612,8 +628,8 @@ class _StepAi extends StatelessWidget {
               Text(
                 l10n.onboardingStep2Eyebrow,
                 style: const TextStyle(
-                  color: Color(0xFF8B5CF6),
-                  fontSize: 13,
+                  color: AppPalette.ai,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                 ),
@@ -624,7 +640,7 @@ class _StepAi extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 34,
+                  fontSize: AppTypeScale.sizeDisplay,
                   fontWeight: FontWeight.w700,
                   height: 1.2,
                 ),
@@ -635,7 +651,7 @@ class _StepAi extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   height: 1.55,
                 ),
               ),
@@ -644,7 +660,7 @@ class _StepAi extends StatelessWidget {
                 title: l10n.onboardingProviderOpenAi,
                 subtitle: 'OpenAI · DeepSeek · LM Studio · Ollama…',
                 badge: 'O',
-                badgeColor: const Color(0xFF1FA66E),
+                badgeColor: AppPalette.success,
                 selected: picked == AiProviderType.openAi,
                 onTap: () => onPick(AiProviderType.openAi),
               ),
@@ -653,7 +669,7 @@ class _StepAi extends StatelessWidget {
                 title: 'Google GenAI',
                 subtitle: 'Gemini 2.0 Flash · Pro',
                 badge: 'G',
-                badgeColor: const Color(0xFF4285F4),
+                badgeColor: AppPalette.vendorGoogle.first,
                 selected: picked == AiProviderType.googleGenAi,
                 onTap: () => onPick(AiProviderType.googleGenAi),
               ),
@@ -669,7 +685,7 @@ class _StepAi extends StatelessWidget {
                   _PrimaryButton(
                     label: l10n.onboardingEnterWorkspace,
                     onTap: onEnter,
-                    accent: const Color(0xFF6E5BFF),
+                    accent: AppPalette.ai,
                   ),
                 ],
               ),
@@ -706,14 +722,14 @@ class _ProviderCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         child: _onboardingFrost(
           context: context,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           builder: (alphaScale) => AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: AppMotion.panel,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadii.panel),
               color: selected
                   ? Colors.white.withValues(alpha: 0.08 * alphaScale)
                   : Colors.white.withValues(alpha: 0.04 * alphaScale),
@@ -727,7 +743,7 @@ class _ProviderCard extends StatelessWidget {
                   height: 46,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -746,7 +762,7 @@ class _ProviderCard extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
-                      fontSize: 20,
+                      fontSize: AppTypeScale.sizeHeading,
                     ),
                   ),
                 ),
@@ -759,7 +775,7 @@ class _ProviderCard extends StatelessWidget {
                         title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: AppTypeScale.sizeSubheading,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -768,7 +784,7 @@ class _ProviderCard extends StatelessWidget {
                         subtitle,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 13,
+                          fontSize: AppTypeScale.sizeBody,
                         ),
                       ),
                     ],
@@ -806,14 +822,14 @@ class _PageDots extends StatelessWidget {
       children: List.generate(3, (i) {
         final isActive = i == active;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
+          duration: AppMotion.progress,
           curve: Curves.easeOutCubic,
           width: isActive ? 28 : 6,
           height: 6,
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: isActive ? accent : Colors.white.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(AppRadii.chip),
           ),
         );
       }),
@@ -832,19 +848,19 @@ class _GhostButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.card),
             border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: Text(
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: AppTypeScale.sizeBody,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -870,7 +886,7 @@ class _PrimaryButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
           decoration: BoxDecoration(
@@ -879,7 +895,7 @@ class _PrimaryButton extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [accent, accent.withValues(alpha: 0.82)],
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.card),
             boxShadow: [
               BoxShadow(
                 color: accent.withValues(alpha: 0.55),
@@ -893,7 +909,7 @@ class _PrimaryButton extends StatelessWidget {
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: AppTypeScale.sizeBody,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -919,7 +935,7 @@ Widget _onboardingFrost({
   required BorderRadius borderRadius,
   required Widget Function(double alphaScale) builder,
 }) {
-  final flat = Theme.of(context).extension<GlassTheme>()!.reduceEffects;
+  final flat = context.tokens.reduceEffects;
   final content = builder(flat ? 2.5 : 1.0);
   return ClipRRect(
     borderRadius: borderRadius,

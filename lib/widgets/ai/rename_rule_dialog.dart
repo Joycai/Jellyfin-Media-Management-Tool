@@ -13,7 +13,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 
 class RenameRuleDialog extends StatefulWidget {
@@ -75,20 +75,23 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
       children: [
         Text(
           l10n.ruleEditorTitle,
-          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: AppTypeScale.sizeTitle,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(width: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: scheme.secondary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadii.tiny),
             border: Border.all(color: scheme.secondary.withValues(alpha: 0.3)),
           ),
           child: Text(
             l10n.ruleEditorRecommended,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppTypeScale.sizeMono,
               fontWeight: FontWeight.w600,
               color: scheme.secondary,
             ),
@@ -112,7 +115,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   // ── Left: templates ───────────────────────────────────────────────────────
 
   Widget _templates(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
       child: Column(
@@ -160,21 +163,24 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: const Color(0xFFE0852C).withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
+              color: AppPalette.warning.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppRadii.field),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.info_outline_rounded,
                   size: 15,
-                  color: Color(0xFFE0852C),
+                  color: AppPalette.warning,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     l10n.ruleEditorComingSoon,
-                    style: const TextStyle(fontSize: 12, height: 1.4),
+                    style: const TextStyle(
+                      fontSize: AppTypeScale.sizeCaption,
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
@@ -185,13 +191,13 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
     );
   }
 
-  Widget _templateBox(GlassTheme glass, List<Widget> parts) => Container(
+  Widget _templateBox(AppTokens glass, List<Widget> parts) => Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
     decoration: BoxDecoration(
-      color: glass.panelFill,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: glass.panelStroke),
+      color: glass.cardFill,
+      borderRadius: BorderRadius.circular(AppRadii.field),
+      border: Border.all(color: glass.stroke),
     ),
     child: Wrap(
       spacing: 6,
@@ -204,7 +210,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   // ── Right: live preview ───────────────────────────────────────────────────
 
   Widget _preview(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Column(
@@ -243,7 +249,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   }
 
   Widget _previewCard(
-    GlassTheme glass,
+    AppTokens glass,
     ColorScheme scheme, {
     required String input,
     required String outputLabel,
@@ -253,9 +259,9 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
     width: double.infinity,
     padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
     decoration: BoxDecoration(
-      color: glass.panelFill,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: glass.panelStroke),
+      color: glass.cardFill,
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      border: Border.all(color: glass.stroke),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +270,10 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
         const SizedBox(height: 4),
         Text(
           input,
-          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          style: const TextStyle(
+            fontSize: AppTypeScale.sizeCaption,
+            fontFamily: 'monospace',
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -276,7 +285,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
         Text(
           outputLabel,
           style: TextStyle(
-            fontSize: 10.5,
+            fontSize: AppTypeScale.sizeLabel,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.4,
             color: outputColor,
@@ -289,7 +298,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
             child: Text(
               text,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTypeScale.sizeCaption,
                 fontFamily: 'monospace',
                 fontWeight: depth == 1 ? FontWeight.w700 : FontWeight.w400,
                 color: switch (depth) {
@@ -307,7 +316,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   Widget _label(String text, ColorScheme scheme) => Text(
     text,
     style: TextStyle(
-      fontSize: 11,
+      fontSize: AppTypeScale.sizeMono,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.4,
       color: scheme.onSurfaceVariant,
@@ -317,7 +326,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   Widget _mono(String text, ColorScheme scheme) => Text(
     text,
     style: TextStyle(
-      fontSize: 13,
+      fontSize: AppTypeScale.sizeBody,
       fontFamily: 'monospace',
       color: scheme.onSurfaceVariant,
     ),
@@ -337,13 +346,13 @@ class _VarChip extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.tiny),
       border: Border.all(color: color.withValues(alpha: 0.35)),
     ),
     child: Text(
       name,
       style: TextStyle(
-        fontSize: 12,
+        fontSize: AppTypeScale.sizeCaption,
         fontFamily: 'monospace',
         fontWeight: FontWeight.w600,
         color: color,

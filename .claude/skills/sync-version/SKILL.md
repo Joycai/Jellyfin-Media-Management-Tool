@@ -120,7 +120,7 @@ hotfix going straight out, or a release-prep branch.
 Updates these hardcoded copies:
 
 - `pubspec.yaml` — `version: X.Y.Z+N` (the source of truth; full string)
-- `lib/widgets/settings/settings_screen.dart` — `_appVersion = 'X.Y.Z'` (About screen; name only)
+- `lib/widgets/settings/settings_screen.dart` — `_appVersion = 'X.Y.Z+N'` (About screen splits it into version and build rows; full string)
 - `scripts/inno_setup.iss` — `#define MyAppVersion "X.Y.Z"` (installer default; name only)
 - `CLAUDE.md` — the `Current app version:` doc line (full string)
 

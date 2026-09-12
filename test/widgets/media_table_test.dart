@@ -109,6 +109,8 @@ Future<(_ProbeSettings, FileBrowserService)> _pumpTable(
             searchQuery: '',
             onOrganize: () {},
             onPickFolder: () {},
+            panelOpen: false,
+            onTogglePanel: _ignore,
           ),
         ),
       ),
@@ -213,3 +215,5 @@ void main() {
     expect(find.text('alpha.txt'), findsNothing);
   });
 }
+
+void _ignore() {}

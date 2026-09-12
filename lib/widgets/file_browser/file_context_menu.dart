@@ -5,19 +5,19 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
-import 'media_table.dart';
-
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/file_label_service.dart';
 import '../../shortcuts/app_shortcuts.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../dialogs/input_dialog.dart';
 import '../dialogs/preview_dialog.dart';
 import '../glass/glass_dialog.dart';
 import '../glass/glass_menu.dart';
 import '../scrape/scrape_flow.dart';
+import 'media_table.dart';
 
 enum _MenuAction {
   preview,
@@ -97,7 +97,7 @@ Future<void> showFileContextMenu(
         icon: Icons.folder_outlined,
         // The design codes this row by its subject: the amber of a folder
         // icon, the same hue the file table uses for folders.
-        iconColor: const Color(0xFFE0A030),
+        iconColor: AppPalette.warning,
         label: l10n.menuRevealInFileManager,
       ),
       glassMenuItem(
@@ -267,14 +267,18 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
               width: 84,
               child: Text(
                 k,
-                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: AppTypeScale.sizeBody,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
             Expanded(child: v),
           ],
         ),
       );
-      Text value(String s) => Text(s, style: const TextStyle(fontSize: 13.5));
+      Text value(String s) =>
+          Text(s, style: const TextStyle(fontSize: AppTypeScale.sizeBody));
 
       return GlassAlertDialog(
         title: Row(
@@ -293,7 +297,7 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
                 entry.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(fontSize: AppTypeScale.sizeSubheading),
               ),
             ),
           ],
@@ -320,7 +324,10 @@ Future<void> _showProperties(BuildContext context, FileEntry entry) async {
                 l10n.propPath,
                 SelectableText(
                   entry.path,
-                  style: const TextStyle(fontSize: 12.5, height: 1.35),
+                  style: const TextStyle(
+                    fontSize: AppTypeScale.sizeControl,
+                    height: 1.35,
+                  ),
                 ),
               ),
             ],

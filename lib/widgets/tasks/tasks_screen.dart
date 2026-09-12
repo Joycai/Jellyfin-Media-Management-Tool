@@ -4,66 +4,78 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/apply_controller.dart';
 import '../../services/task_service.dart';
+import '../../theme/design_tokens.dart';
 import '../ai/organize_progress_screen.dart';
-import '../glass/glass_panel.dart';
+import '../ui/app_controls.dart';
+import '../ui/glass_surface.dart';
 
-/// The body shown when the user picks the Tasks tab. Lists every analyze /
-/// apply task in reverse-chronological order; apply tasks expose pause/stop
-/// and a "view details" entry that re-opens the live progress screen.
+/// 任务分区。列出所有分析 / 应用任务，倒序；应用任务带暂停 / 停止与「查看详情」。
+///
+/// 版式沿用 5.2「执行与日志」的语言：标题条 h48、总进度卡、语义色编码的状态角标。
 class TasksScreen extends StatelessWidget {
   const TasksScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     final tasks = context.watch<TaskService>();
 
     return Padding(
-      padding: const EdgeInsets.all(12),
-      child: GlassPanel(
-        radius: 24,
-        elevated: true,
+      padding: const EdgeInsets.all(AppSizes.contentPaddingH),
+      child: GlassSurface(
+        fill: t.cardFill,
+        blur: t.blurPanel,
+        saturate: true,
+        borderRadius: BorderRadius.circular(AppRadii.panel + 2),
+        border: Border.all(color: t.stroke),
+        shadow: t.elevation.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 18, 14),
+            Container(
+              height: AppSizes.topBar,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.contentPaddingH,
+              ),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: t.stroke)),
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.bolt_rounded, size: 22, color: scheme.primary),
-                  const SizedBox(width: 10),
+                  Icon(Icons.bolt_rounded, size: 15, color: t.accent),
+                  const SizedBox(width: AppSpacing.md),
                   Text(
                     l10n.tasksTitle,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                    style: AppTypeScale.title.copyWith(
+                      fontSize: AppTypeScale.sizeBody,
+                      color: t.textTitle,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  if (tasks.runningCount > 0)
+                  if (tasks.runningCount > 0) ...[
+                    const SizedBox(width: AppSpacing.md12),
                     _RunningPill(count: tasks.runningCount),
+                  ],
                   const Spacer(),
                   if (tasks.tasks.any((t) => t.isFinished))
-                    TextButton.icon(
-                      onPressed: () => tasks.clearFinished(),
-                      icon: const Icon(Icons.delete_sweep_outlined, size: 18),
-                      label: Text(l10n.tasksClearFinished),
+                    AppButton(
+                      label: l10n.tasksClearFinished,
+                      icon: Icons.delete_sweep_outlined,
+                      kind: AppButtonKind.ghost,
+                      height: AppSizes.controlSm,
+                      onPressed: tasks.clearFinished,
                     ),
                 ],
               ),
             ),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
-            ),
             Expanded(
               child: tasks.tasks.isEmpty
-                  ? _Empty(l10n: l10n, scheme: scheme)
+                  ? const _Empty()
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       itemCount: tasks.tasks.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.md),
                       itemBuilder: (_, i) => _TaskCard(task: tasks.tasks[i]),
                     ),
             ),
@@ -75,30 +87,30 @@ class TasksScreen extends StatelessWidget {
 }
 
 class _Empty extends StatelessWidget {
-  final AppLocalizations l10n;
-  final ColorScheme scheme;
-  const _Empty({required this.l10n, required this.scheme});
+  const _Empty();
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final t = context.tokens;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.inbox_outlined,
-            size: 56,
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
+            size: 40,
+            color: t.textMuted.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 14),
           Text(
             l10n.tasksEmpty,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            style: AppTypeScale.title.copyWith(color: t.textTitle),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             l10n.tasksEmptyHint,
-            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+            style: AppTypeScale.caption.copyWith(color: t.textSecondary),
           ),
         ],
       ),
@@ -112,13 +124,14 @@ class _RunningPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      height: AppSizes.controlXs,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.35)),
+        color: t.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadii.tiny),
+        border: Border.all(color: t.accent.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -126,18 +139,14 @@ class _RunningPill extends StatelessWidget {
           SizedBox(
             width: 10,
             height: 10,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation(scheme.primary),
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, color: t.accent),
           ),
           const SizedBox(width: 7),
           Text(
             '$count',
-            style: TextStyle(
-              color: scheme.primary,
-              fontSize: 12,
+            style: AppTypeScale.monoTiny.copyWith(
               fontWeight: FontWeight.w700,
+              color: t.accentText,
             ),
           ),
         ],
@@ -152,21 +161,19 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     // Live-rebuild on the controller's tick when this is an apply task; for
     // analyze tasks the parent's TaskService.notifyListeners is enough.
     final controller = task.controller;
-    if (controller == null) {
-      return _buildCard(context, scheme);
-    }
+    if (controller == null) return _buildCard(context);
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, _) => _buildCard(context, scheme),
+      builder: (_, _) => _buildCard(context),
     );
   }
 
-  Widget _buildCard(BuildContext context, ColorScheme scheme) {
+  Widget _buildCard(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = context.tokens;
     final controller = task.controller;
 
     final progress =
@@ -174,24 +181,13 @@ class _TaskCard extends StatelessWidget {
         task.progress ??
         (task.status == TaskStatus.done ? 1.0 : null);
 
-    final (icon, accent) = switch ((task.kind, task.status)) {
-      (TaskKind.analyze, TaskStatus.running) => (
-        Icons.auto_awesome,
-        scheme.primary,
-      ),
-      (TaskKind.analyze, _) => (Icons.auto_awesome, const Color(0xFF8B5CF6)),
-      (TaskKind.apply, _) => (
-        Icons.drive_file_move_outlined,
-        const Color(0xFF22C9A9),
-      ),
-      (TaskKind.scrape, _) => (
-        Icons.travel_explore_outlined,
-        const Color(0xFF3B82F6),
-      ),
-      (TaskKind.scrapeCommit, _) => (
-        Icons.sim_card_download_outlined,
-        const Color(0xFF3B82F6),
-      ),
+    // 一屏最多两种语义色（1.1）：这里按任务**种类**而不是按状态取色，状态由
+    // 右侧角标单独表达，否则一列混合任务会同时点亮四种色相。
+    final (icon, accent) = switch (task.kind) {
+      TaskKind.analyze => (Icons.auto_awesome, t.ai),
+      TaskKind.apply => (Icons.drive_file_move_outlined, t.accent),
+      TaskKind.scrape => (Icons.travel_explore_outlined, t.success),
+      TaskKind.scrapeCommit => (Icons.sim_card_download_outlined, t.success),
     };
 
     final title = switch (task.kind) {
@@ -201,29 +197,24 @@ class _TaskCard extends StatelessWidget {
       TaskKind.scrapeCommit => l10n.tasksScrapeCommitLabel(task.label),
     };
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 30,
+                height: 30,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadii.button),
                 ),
-                child: Icon(icon, size: 18, color: accent),
+                child: Icon(icon, size: 14, color: accent),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,48 +223,48 @@ class _TaskCard extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                      style: AppTypeScale.bodyStrong.copyWith(
+                        color: t.textTitle,
                       ),
                     ),
-                    const SizedBox(height: 2),
                     Text(
                       _statusLine(l10n, controller),
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 12,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypeScale.monoSmall.copyWith(
+                        color: t.textMuted,
                       ),
                     ),
                   ],
                 ),
               ),
-              _StatusBadge(status: task.status, accent: accent, l10n: l10n),
+              const SizedBox(width: AppSpacing.sm),
+              _StatusBadge(status: task.status, l10n: l10n),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md12),
           ClipRRect(
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(AppRadii.chip),
             child: _ProgressBar(
               // A failed task shows an empty bar; anything else with no
               // fraction yet (analyze, a commit before its first download)
               // is indeterminate.
               value: task.status == TaskStatus.failed ? 0 : progress,
-              color: task.status == TaskStatus.failed ? scheme.error : accent,
-              background: scheme.outlineVariant.withValues(alpha: 0.4),
+              color: task.status == TaskStatus.failed ? t.danger : accent,
+              background: t.strokeStrong,
             ),
           ),
           if (task.error != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.md),
             Text(
               task.error!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: scheme.error, fontSize: 12),
+              style: AppTypeScale.caption.copyWith(color: t.dangerText),
             ),
           ],
           if (controller != null || task.isFinished || task.isCancellable) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 // Analyze tasks have no controller — their stop goes through
@@ -300,15 +291,16 @@ class _TaskCard extends StatelessWidget {
                   ),
                 if (controller != null &&
                     task.status == TaskStatus.running) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.xs),
                   _SmallButton(
                     icon: Icons.stop_rounded,
                     label: l10n.stop,
+                    danger: true,
                     onTap: controller.stop,
                   ),
                 ],
                 if (controller != null) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.xs),
                   _SmallButton(
                     icon: Icons.visibility_outlined,
                     label: l10n.tasksViewDetail,
@@ -384,7 +376,7 @@ class _ProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget bar(double? v) => LinearProgressIndicator(
       value: v,
-      minHeight: 6,
+      minHeight: 4,
       backgroundColor: background,
       valueColor: AlwaysStoppedAnimation(color),
     );
@@ -393,8 +385,9 @@ class _ProgressBar extends StatelessWidget {
     if (target == null) return bar(null);
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(end: target),
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
+      // 进度条更新 240ms linear（1.4f）。
+      duration: AppMotion.respecting(context, AppMotion.progress),
+      curve: Curves.linear,
       builder: (context, v, _) => bar(v),
     );
   }
@@ -402,78 +395,42 @@ class _ProgressBar extends StatelessWidget {
 
 class _StatusBadge extends StatelessWidget {
   final TaskStatus status;
-  final Color accent;
   final AppLocalizations l10n;
-  const _StatusBadge({
-    required this.status,
-    required this.accent,
-    required this.l10n,
-  });
+  const _StatusBadge({required this.status, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     final (text, color) = switch (status) {
-      TaskStatus.running => (l10n.tasksRunning, accent),
-      TaskStatus.done => (l10n.tasksDone, const Color(0xFF34C759)),
-      TaskStatus.failed => (l10n.tasksFailed, scheme.error),
-      TaskStatus.stopped => (l10n.statusStopped, scheme.onSurfaceVariant),
+      TaskStatus.running => (l10n.tasksRunning, t.accent),
+      TaskStatus.done => (l10n.tasksDone, t.success),
+      TaskStatus.failed => (l10n.tasksFailed, t.danger),
+      TaskStatus.stopped => (l10n.statusStopped, t.warning),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+    return AppTag(label: text, color: color);
   }
 }
 
+/// 行内小按钮：h24（1.3c）。
 class _SmallButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool danger;
+
   const _SmallButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.danger = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: scheme.onSurface),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AppButton(
+    label: label,
+    icon: icon,
+    height: AppSizes.controlXs,
+    kind: danger ? AppButtonKind.danger : AppButtonKind.ghost,
+    onPressed: onTap,
+  );
 }

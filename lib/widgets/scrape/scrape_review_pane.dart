@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/media_metadata.dart';
 import '../../services/metadata/nfo_merge.dart';
-import '../../services/scrape/image_cache.dart';
-import '../../services/scrape/image_role.dart';
-import '../../services/scrape/image_downloader.dart';
-import '../../services/scrape/scrape_service.dart';
 import '../../services/metadata/nfo_writer.dart';
-import '../../theme/app_theme.dart';
+import '../../services/scrape/image_cache.dart';
+import '../../services/scrape/image_downloader.dart';
+import '../../services/scrape/image_role.dart';
+import '../../services/scrape/scrape_service.dart';
+import '../../theme/design_tokens.dart';
 import '../dialogs/input_dialog.dart';
 import '../glass/glass_dialog.dart';
 import 'image_gallery.dart';
@@ -290,7 +290,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                   gradient: LinearGradient(
                     colors: [scheme.tertiary, scheme.primary],
                   ),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadii.field),
                 ),
                 child: const Icon(
                   Icons.travel_explore_outlined,
@@ -308,7 +308,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: AppTypeScale.sizeTitle,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -318,7 +318,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                         Text(
                           l10n.scrapePreviewSubtitle(_rows.length, imageCount),
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: AppTypeScale.sizeCaption,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -331,7 +331,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: AppTypeScale.sizeLabel,
                                 fontFamily: 'monospace',
                                 color: scheme.onSurfaceVariant,
                               ),
@@ -446,7 +446,10 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
         const SizedBox(width: 12),
         Text(
           l10n.scrapeWillWrite(_writeCount),
-          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppTypeScale.sizeMono,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
       ],
     ),
@@ -512,7 +515,10 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
             l10n.scrapeConflictLegend,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeLabel,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],
@@ -657,7 +663,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                 child: TextField(
                   controller: _targetDir,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: AppTypeScale.sizeControl,
                     fontFamily: 'monospace',
                   ),
                   decoration: InputDecoration(
@@ -673,7 +679,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                 child: TextField(
                   controller: _nfoName,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: AppTypeScale.sizeControl,
                     fontFamily: 'monospace',
                   ),
                   decoration: InputDecoration(
@@ -698,7 +704,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                   child: Text(
                     l10n.scrapeSaveRecipe(widget.result.learnedRecipe!.domain),
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: AppTypeScale.sizeControl,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -718,7 +724,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                 child: Text(
                   l10n.scrapeWriteBackup,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: AppTypeScale.sizeControl,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -757,7 +763,7 @@ const double _decisionWidth = 200;
 
 /// Local value present and different from the scrape — the rows worth a real
 /// look. Same amber as the LLM origin badge.
-const Color _conflictColor = Color(0xFFE0B23C);
+const Color _conflictColor = AppPalette.warning;
 
 class _ColumnHeader extends StatelessWidget {
   final AppLocalizations l10n;
@@ -767,7 +773,7 @@ class _ColumnHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final style = TextStyle(
-      fontSize: 10.5,
+      fontSize: AppTypeScale.sizeLabel,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.5,
       color: scheme.onSurfaceVariant,
@@ -874,7 +880,7 @@ class _FieldRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: AppTypeScale.sizeCaption,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -937,21 +943,25 @@ class _Value extends StatelessWidget {
       return Text(
         '—',
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppTypeScale.sizeCaption,
           color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
         ),
       );
     }
     return Tooltip(
       message: text,
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: AppMotion.progress,
       child: Text(
         text,
         // Three lines is enough to tell a full synopsis from a truncated one
         // without letting one field push the rest of the table off screen.
         maxLines: 3,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontSize: 12, height: 1.4, color: color),
+        style: TextStyle(
+          fontSize: AppTypeScale.sizeCaption,
+          height: 1.4,
+          color: color,
+        ),
       ),
     );
   }
@@ -969,9 +979,9 @@ class _OriginBadge extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final color = switch (origin) {
-      FieldOrigin.llm => const Color(0xFFE0852C),
-      FieldOrigin.recipe => const Color(0xFF8E6FE8),
-      FieldOrigin.derived => const Color(0xFF3AA885),
+      FieldOrigin.llm => AppPalette.warning,
+      FieldOrigin.recipe => AppPalette.ai,
+      FieldOrigin.derived => AppPalette.success,
       FieldOrigin.manual => scheme.primary,
       _ => scheme.onSurfaceVariant,
     };
@@ -981,14 +991,14 @@ class _OriginBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(AppRadii.chip),
       ),
       child: Text(
         fieldOriginLabel(l10n, origin),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppTypeScale.sizeLabel,
           fontWeight: FontWeight.w600,
           color: color,
         ),
@@ -1013,31 +1023,31 @@ class _PresetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Semantics(
       selected: selected,
       button: true,
       label: label,
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.button),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: selected
                 ? scheme.primary.withValues(alpha: 0.14)
-                : glass.panelFill,
-            borderRadius: BorderRadius.circular(8),
+                : glass.cardFill,
+            borderRadius: BorderRadius.circular(AppRadii.button),
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.4)
-                  : glass.panelStroke,
+                  : glass.stroke,
             ),
           ),
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: AppTypeScale.sizeCaption,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               color: selected ? scheme.primary : scheme.onSurfaceVariant,
             ),
@@ -1065,7 +1075,7 @@ class _DecisionPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final scheme = Theme.of(context).colorScheme;
 
     final options = <(MergeDecision, String)>[
@@ -1078,9 +1088,9 @@ class _DecisionPicker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         children: [
@@ -1092,9 +1102,9 @@ class _DecisionPicker extends StatelessWidget {
                     : decision == MergeDecision.keep
                     ? scheme.surfaceContainerHighest
                     : scheme.primary,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(AppRadii.tiny),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadii.tiny),
                   onTap: () => onChanged(decision),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1104,7 +1114,7 @@ class _DecisionPicker extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppTypeScale.sizeMono,
                         fontWeight: decision == value
                             ? FontWeight.w700
                             : FontWeight.w500,
@@ -1131,14 +1141,14 @@ class _RecipeChip extends StatelessWidget {
   final String text;
   const _RecipeChip({required this.text});
 
-  static const _purple = Color(0xFF8E6FE8);
+  static const _purple = AppPalette.ai;
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     decoration: BoxDecoration(
       color: _purple.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: BorderRadius.circular(AppRadii.chip),
       border: Border.all(color: _purple.withValues(alpha: 0.3)),
     ),
     child: Text(
@@ -1146,7 +1156,7 @@ class _RecipeChip extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: const TextStyle(
-        fontSize: 10,
+        fontSize: AppTypeScale.sizeLabel,
         fontWeight: FontWeight.w600,
         color: _purple,
       ),
@@ -1160,12 +1170,12 @@ class _NoteBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const amber = Color(0xFFE0852C);
+    const amber = AppPalette.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: amber.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.button),
       ),
       child: Row(
         children: [
@@ -1174,7 +1184,10 @@ class _NoteBanner extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 12, height: 1.3),
+              style: const TextStyle(
+                fontSize: AppTypeScale.sizeCaption,
+                height: 1.3,
+              ),
             ),
           ),
         ],

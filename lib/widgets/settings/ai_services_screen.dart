@@ -9,8 +9,10 @@ import '../../services/ai/ai_provider.dart';
 import '../../services/ai/connection_check.dart';
 import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
+import '../ui/app_controls.dart';
+import 'model_parameters_page.dart';
 
 /// Header-less two-pane AI services manager (list + detail). Designed for
 /// embedding inside the Settings shell.
@@ -23,6 +25,10 @@ class AiServicesView extends StatefulWidget {
 
 class _AiServicesViewState extends State<AiServicesView> {
   String? _selectedId;
+
+  /// 模型参数展开页占满内容区（03b）：滑块要一整条轨道，挤在详情右半边里九个
+  /// 刻度会叠在一起。所以展开时服务列表让位。
+  bool _parametersOpen = false;
 
   @override
   void initState() {
@@ -55,16 +61,17 @@ class _AiServicesViewState extends State<AiServicesView> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 360,
-          child: _ServiceList(
-            services: services,
-            selectedId: selected?.id,
-            activeId: profiles.activeId,
-            onSelect: (id) => setState(() => _selectedId = id),
-            onAdd: _addService,
+        if (!_parametersOpen)
+          SizedBox(
+            width: 360,
+            child: _ServiceList(
+              services: services,
+              selectedId: selected?.id,
+              activeId: profiles.activeId,
+              onSelect: (id) => setState(() => _selectedId = id),
+              onAdd: _addService,
+            ),
           ),
-        ),
         Expanded(
           child: selected == null
               ? _EmptyDetail(onAdd: _addService)
@@ -72,6 +79,8 @@ class _AiServicesViewState extends State<AiServicesView> {
                   key: ValueKey(selected.id),
                   profile: selected,
                   isActive: selected.id == profiles.activeId,
+                  showParameters: _parametersOpen,
+                  onShowParameters: (v) => setState(() => _parametersOpen = v),
                 ),
         ),
       ],
@@ -83,10 +92,13 @@ class _AiServicesViewState extends State<AiServicesView> {
 ({Color color, String glyph}) _badge(AiProviderType provider) =>
     switch (provider) {
       AiProviderType.googleGenAi => (
-        color: const Color(0xFF4285F4),
+        color: AppPalette.vendorGoogle.first,
         glyph: 'G',
       ),
-      AiProviderType.openAi => (color: const Color(0xFF10A37F), glyph: '◆'),
+      AiProviderType.openAi => (
+        color: AppPalette.vendorOpenAi.first,
+        glyph: '◆',
+      ),
     };
 
 String _protocolLabel(BuildContext context, AiProviderType p) {
@@ -118,44 +130,34 @@ class _ServiceList extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 12, 20),
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.only(top: 4, bottom: 12),
-              itemCount: services.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (_, i) {
-                final s = services[i];
-                return _ServiceCard(
-                  profile: s,
-                  selected: s.id == selectedId,
-                  active: s.id == activeId,
-                  onTap: () => onSelect(s.id),
-                );
-              },
-            ),
-          ),
-          // Dashed "add another endpoint" affordance.
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
+    // 6.1：列表 `padding 18 14` · gap 10，虚线「添加另一个端点」是**列表的最后
+    // 一张卡**，不是钉在底边的按钮 —— 钉在底边时，两张服务卡的下面会空出半屏，
+    // 那颗按钮看起来就不像「再加一个」而像「这一栏的操作」。
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md12,
+        vertical: AppSpacing.lg,
+      ),
+      itemCount: services.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+      itemBuilder: (_, i) {
+        if (i == services.length) {
+          return InkWell(
+            borderRadius: BorderRadius.circular(AppRadii.panel),
             onTap: onAdd,
             child: DottedBorderBox(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 18),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
                 child: Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, size: 18, color: scheme.onSurfaceVariant),
-                      const SizedBox(width: 8),
+                      Icon(Icons.add, size: 16, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: AppSpacing.sm),
                       Text(
                         l10n.addAnotherEndpoint,
-                        style: TextStyle(
+                        style: AppTypeScale.control.copyWith(
                           color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -163,9 +165,16 @@ class _ServiceList extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          );
+        }
+        final s = services[i];
+        return _ServiceCard(
+          profile: s,
+          selected: s.id == selectedId,
+          active: s.id == activeId,
+          onTap: () => onSelect(s.id),
+        );
+      },
     );
   }
 }
@@ -186,24 +195,22 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final badge = _badge(profile.provider);
 
     return Material(
-      color: selected
-          ? scheme.primary.withValues(alpha: 0.16)
-          : glass.panelFill,
-      borderRadius: BorderRadius.circular(16),
+      color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.cardFill,
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadii.panel),
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.6)
-                  : glass.panelStroke,
+                  : glass.stroke,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -225,7 +232,7 @@ class _ServiceCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 15,
+                            fontSize: AppTypeScale.sizeTitle,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -235,7 +242,7 @@ class _ServiceCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'monospace',
-                            fontSize: 12,
+                            fontSize: AppTypeScale.sizeCaption,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -282,19 +289,23 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final (Color c, String label) = !profile.isComplete
-        ? (const Color(0xFFE0A030), l10n.statusOffline)
+        ? (AppPalette.warning, l10n.statusOffline)
         : active
-        ? (const Color(0xFF34C759), l10n.statusActive)
+        ? (AppPalette.success, l10n.statusActive)
         : (Theme.of(context).colorScheme.onSurfaceVariant, l10n.statusStandby);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.button),
       ),
       child: Text(
         label,
-        style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: c,
+          fontSize: AppTypeScale.sizeCaption,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -305,10 +316,17 @@ class _StatusBadge extends StatelessWidget {
 class _ServiceDetail extends StatefulWidget {
   final AiServiceProfile profile;
   final bool isActive;
+
+  /// 模型参数展开页是否占着内容区。状态挂在父级，因为展开时要连服务列表一起收。
+  final bool showParameters;
+  final ValueChanged<bool> onShowParameters;
+
   const _ServiceDetail({
     super.key,
     required this.profile,
     required this.isActive,
+    required this.showParameters,
+    required this.onShowParameters,
   });
 
   @override
@@ -575,11 +593,41 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     }
   }
 
+  /// 上下文窗口，读自它自己的控制器 —— 滑块和输入框共用同一份真值。
+  int? get _contextTokens => AiConfig.tokenCount(_contextWindow.text);
+
+  void _setContextTokens(int? tokens) {
+    setState(() => _contextWindow.text = tokens?.toString() ?? '');
+    _persist();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final badge = _badge(_provider);
+
+    if (widget.showParameters) {
+      return ModelParametersPage(
+        serviceName: _name.text.isEmpty ? l10n.newServiceName : _name.text,
+        model: _model.text.trim(),
+        contextWindow: _contextTokens,
+        onContextWindow: _setContextTokens,
+        maxOutput: _maxOutput,
+        onMaxOutputChanged: _persist,
+        detectedCeiling: _detected?.contextWindow,
+        onCollapse: () => widget.onShowParameters(false),
+        sampling: _SamplingSection(
+          preset: SamplingPresets.forModel(_model.text),
+          controllers: _sampling,
+          thinking: _thinking,
+          lastCheck: _lastCheck,
+          onChanged: _persist,
+          onThinkingChanged: _setThinking,
+          onReset: _resetSampling,
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 24, 24),
@@ -598,7 +646,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: AppTypeScale.sizeHeading,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -606,7 +654,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                   Text(
                     l10n.aiServiceDetailHint,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppTypeScale.sizeBody,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -662,7 +710,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                 child: Text(
                   tools ? l10n.toolsSupported : l10n.toolsUnsupported,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTypeScale.sizeBody,
                     color: tools ? scheme.onSurfaceVariant : scheme.error,
                   ),
                 ),
@@ -729,7 +777,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                     _obscureKey ? l10n.showKey : l10n.hideKey,
                     style: TextStyle(
                       color: scheme.primary,
-                      fontSize: 13,
+                      fontSize: AppTypeScale.sizeBody,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -753,32 +801,16 @@ class _ServiceDetailState extends State<_ServiceDetail> {
         ),
         const SizedBox(height: 16),
 
-        // Token budget: the context the model is loaded with, and its cap.
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _Field(
-                label: l10n.contextWindow,
-                controller: _contextWindow,
-                mono: true,
-                digitsOnly: true,
-                hint: l10n.contextWindowHint,
-                onChanged: (_) => _persist(),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _Field(
-                label: l10n.maxOutputTokens,
-                controller: _maxOutput,
-                mono: true,
-                digitsOnly: true,
-                hint: l10n.maxOutputTokensHint,
-                onChanged: (_) => _persist(),
-              ),
-            ),
-          ],
+        // 6.1 的「模型参数」摘要行：上下文、最大输出与采样都收进展开页，详情页
+        // 只留一行摘要。展开页要一整条滑轨（03b），所以它占满内容区。
+        ModelParametersSummary(
+          contextWindow: AiConfig.tokenCount(_contextWindow.text),
+          maxOutput: AiConfig.tokenCount(_maxOutput.text),
+          presetLabel:
+              SamplingPresets.forModel(_model.text)?.label ??
+              l10n.samplingNoPreset,
+          thinking: _thinking,
+          onExpand: () => widget.onShowParameters(true),
         ),
         const SizedBox(height: 10),
         if (_detected case final detected?)
@@ -786,26 +818,6 @@ class _ServiceDetailState extends State<_ServiceDetail> {
             limits: detected,
             onUse: () => _useDetected(detected),
           ),
-        Text(
-          l10n.contextWindowNote,
-          style: TextStyle(
-            fontSize: 12,
-            height: 1.4,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Sampling: the family preset, the user's overrides, and reasoning.
-        _SamplingSection(
-          preset: SamplingPresets.forModel(_model.text),
-          controllers: _sampling,
-          thinking: _thinking,
-          lastCheck: _lastCheck,
-          onChanged: _persist,
-          onThinkingChanged: _setThinking,
-          onReset: _resetSampling,
-        ),
         const SizedBox(height: 24),
 
         // Usage stats (live for the active service).
@@ -895,7 +907,7 @@ class _MiniChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: scheme.onSurface.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadii.button),
       ),
       child: Text(
         text,
@@ -903,7 +915,7 @@ class _MiniChip extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         softWrap: false,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppTypeScale.sizeCaption,
           fontFamily: mono ? 'monospace' : null,
           color: scheme.onSurfaceVariant,
         ),
@@ -921,7 +933,7 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 12.5,
+        fontSize: AppTypeScale.sizeControl,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.3,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -948,6 +960,10 @@ class _Field extends StatelessWidget {
   /// Accept a non-negative decimal, for sampling values.
   final bool decimal;
 
+  /// 值域，右对齐在标签行上（6.1 的采样参数格）。知道「0 – 2」比知道字段叫什么
+  /// 更能决定该填多少。
+  final String? range;
+
   const _Field({
     required this.label,
     required this.controller,
@@ -958,22 +974,34 @@ class _Field extends StatelessWidget {
     this.hint,
     this.digitsOnly = false,
     this.decimal = false,
+    this.range,
   });
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FieldLabel(label),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(child: _FieldLabel(label)),
+              if (range != null)
+                Text(
+                  range!,
+                  style: AppTypeScale.monoTiny.copyWith(color: glass.textMuted),
+                ),
+            ],
+          ),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -994,7 +1022,7 @@ class _Field extends StatelessWidget {
                       FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                   ],
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: AppTypeScale.sizeTitle,
                     fontFamily: mono ? 'monospace' : null,
                   ),
                   decoration: InputDecoration(
@@ -1049,7 +1077,10 @@ class _DetectedLimits extends StatelessWidget {
           Expanded(
             child: Text(
               found ? parts.join(' · ') : l10n.limitsNotDetected,
-              style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeControl,
+                color: scheme.onSurface,
+              ),
             ),
           ),
           if (found)
@@ -1098,13 +1129,13 @@ class _SamplingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final preset = this.preset;
     final reasons = preset?.reasons(requested: thinking) ?? thinking;
     final values = preset?.valuesFor(thinking: reasons);
     final status = _thinkingStatus(l10n, reasons);
     final note = TextStyle(
-      fontSize: 12,
+      fontSize: AppTypeScale.sizeCaption,
       height: 1.4,
       color: scheme.onSurfaceVariant,
     );
@@ -1134,11 +1165,22 @@ class _SamplingSection extends StatelessWidget {
       return value == null ? l10n.samplingDefault : '$value';
     }
 
+    // 6.1 给的六个值域。它们是模型这一侧的约定，不随语言变，所以不进 ARB。
+    const ranges = {
+      _Sampling.temperature: '0 – 2',
+      _Sampling.topP: '0 – 1',
+      _Sampling.topK: '1 – 200',
+      _Sampling.minP: '0 – 1',
+      _Sampling.presencePenalty: '-2 – 2',
+      _Sampling.repeatPenalty: '1 – 2',
+    };
+
     Widget field(_Sampling which) => _Field(
       label: label(which),
       controller: controllers[which]!,
       mono: true,
       hint: placeholder(which),
+      range: ranges[which],
       digitsOnly: which == _Sampling.topK,
       decimal: which != _Sampling.topK,
       onChanged: (_) => onChanged(),
@@ -1147,9 +1189,9 @@ class _SamplingSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1166,20 +1208,26 @@ class _SamplingSection extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: AppTypeScale.sizeControl,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
               ),
               if (preset != null)
-                TextButton(
+                AppButton.ghost(
+                  label: l10n.samplingPresetSource,
+                  height: AppSizes.controlSm,
                   onPressed: () => launchUrl(
                     Uri.parse(preset.source),
                     mode: LaunchMode.externalApplication,
                   ),
-                  child: Text(l10n.samplingPresetSource),
                 ),
-              TextButton(onPressed: onReset, child: Text(l10n.samplingReset)),
+              const SizedBox(width: AppSpacing.xs),
+              AppButton.ghost(
+                label: l10n.samplingReset,
+                height: AppSizes.controlSm,
+                onPressed: onReset,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1192,7 +1240,7 @@ class _SamplingSection extends StatelessWidget {
                     Text(
                       l10n.thinkingMode,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: AppTypeScale.sizeBody,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1202,8 +1250,11 @@ class _SamplingSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Switch(
+              // 6.1 的 38 x 22 开关，不是 Material 的 Switch。
+              AppToggle(
                 value: reasons,
+                width: 38,
+                height: 22,
                 // Only a family whose reasoning really can be switched gets a
                 // live control; anything else would be a switch that does
                 // nothing.
@@ -1282,13 +1333,13 @@ class _ProtocolSegmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         children: [
@@ -1310,9 +1361,9 @@ class _ProtocolSegmented extends StatelessWidget {
     return Expanded(
       child: Material(
         color: on ? scheme.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadii.field),
           onTap: () => onChanged(p),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1347,9 +1398,9 @@ class _TestButton extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         gradient: const LinearGradient(
-          colors: [Color(0xFF22C9A9), Color(0xFF2FA98A)],
+          colors: [AppPalette.success, AppPalette.success],
         ),
       ),
       child: FilledButton.icon(
@@ -1388,7 +1439,7 @@ class _UsageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final ai = context.watch<AiService>();
 
     final tokens = active ? '${ai.totalTokens}' : '—';
@@ -1400,9 +1451,9 @@ class _UsageCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -1430,12 +1481,18 @@ class _UsageCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppTypeScale.sizeControl,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            fontSize: AppTypeScale.sizeHeading,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -1468,7 +1525,7 @@ class _Sparkline extends StatelessWidget {
                     end: Alignment.topCenter,
                     colors: [scheme.primary, scheme.tertiary],
                   ),
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(AppRadii.chip),
                 ),
               ),
             ),

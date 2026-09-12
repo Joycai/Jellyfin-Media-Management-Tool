@@ -1,35 +1,25 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
+import '../ui/glass_surface.dart';
 
-/// The app's modal surface: the same liquid-glass language as `GlassPanel`,
-/// tuned for a dialog floating over busy content.
+/// 对话框（1.4e）。
 ///
-/// Material's own `Dialog` paints `surfaceContainerHigh` washed with the seed
-/// color's surface tint — a flat, tinted slab that matches nothing else in the
-/// app. This surface instead blurs whatever is behind the dialog and lays a
-/// **near-opaque** wash of the theme surface over it, with the glass hairline
-/// stroke and a deep drop shadow. Near-opaque rather than `GlassPanel`'s
-/// translucency because a dialog's job is to be read, and full glass over a
-/// busy file table makes text swim; the ~8% that remains transparent is what
-/// lets the backdrop's color breathe through and keeps it feeling like glass.
-/// Drop-in replacement for [AlertDialog] on the glass surface.
+/// 圆角 12、描边、投影 L4，最大宽 **560**，超过内容自身滚动；标题 14/600，
+/// 正文 12/1.7；底部操作条 white 3% + 顶部描边，内距 `12 18`，按钮右对齐，
+/// **主操作永远在最右**。
 ///
-/// Mirrors the [AlertDialog] parameters the app actually uses — [icon],
-/// [title], [content], [actions] — so a migration is a class-name swap. The
-/// layout follows the design language of the larger panels instead of
-/// Material's: icon and title share a header row, and the whole card sits on
-/// [GlassDialogSurface] rather than the tinted Material slab.
+/// Material 自己的 `Dialog` 画的是被 seed 色染过的 `surfaceContainerHigh`，
+/// 一块和应用里其它任何东西都不搭的平板。这里换成近乎不透明的主题表面色 +
+/// 背景模糊 —— 近乎不透明是刻意的：对话框的职责是被读，纯玻璃压在文件表格上
+/// 会让文字游泳；剩下的约 8% 透明度才是它还叫玻璃的原因。
 class GlassAlertDialog extends StatelessWidget {
   final Widget? icon;
   final Widget? title;
   final Widget? content;
   final List<Widget>? actions;
 
-  /// Outer cap on the card. Content narrower than this sizes the card down,
-  /// same as [AlertDialog].
+  /// 卡片外宽上限。内容更窄时卡片跟着缩，和 [AlertDialog] 一样。
   final double maxWidth;
 
   const GlassAlertDialog({
@@ -38,74 +28,124 @@ class GlassAlertDialog extends StatelessWidget {
     this.title,
     this.content,
     this.actions,
-    this.maxWidth = 560,
+    this.maxWidth = AppSizes.dialogMaxWidth,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxl40,
+        vertical: AppSpacing.xl24,
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: GlassDialogSurface(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (title != null || icon != null) ...[
-                  Row(
-                    children: [
-                      if (icon != null) ...[icon!, const SizedBox(width: 12)],
-                      if (title != null)
-                        Expanded(
-                          // merge, not replace: a plain DefaultTextStyle here
-                          // would drop the ambient fontFamily (the user's UI
-                          // font) along with everything else it doesn't set.
-                          child: DefaultTextStyle.merge(
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: scheme.onSurface,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  18,
+                  AppSpacing.lg,
+                  18,
+                  AppSpacing.md12,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (title != null || icon != null)
+                      Row(
+                        children: [
+                          if (icon != null) ...[
+                            icon!,
+                            const SizedBox(width: AppSpacing.md12),
+                          ],
+                          if (title != null)
+                            Expanded(
+                              // merge, not replace: a plain DefaultTextStyle
+                              // here would drop the ambient fontFamily (the
+                              // user's UI font) along with everything else it
+                              // doesn't set.
+                              child: DefaultTextStyle.merge(
+                                style: TextStyle(
+                                  fontSize: AppTypeScale.sizeBody,
+                                  fontWeight: FontWeight.w600,
+                                  color: t.textTitle,
+                                ),
+                                child: title!,
+                              ),
                             ),
-                            child: title!,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                if (content != null)
-                  Flexible(
-                    child: DefaultTextStyle.merge(
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        height: 1.45,
-                        color: scheme.onSurfaceVariant,
+                        ],
                       ),
-                      child: content!,
-                    ),
-                  ),
-                if (actions != null && actions!.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  OverflowBar(
-                    alignment: MainAxisAlignment.end,
-                    spacing: 8,
-                    overflowSpacing: 8,
-                    overflowAlignment: OverflowBarAlignment.end,
-                    children: actions!,
-                  ),
-                ],
-              ],
-            ),
+                    if (content != null) ...[
+                      if (title != null || icon != null)
+                        const SizedBox(height: AppSpacing.xs),
+                      Flexible(
+                        child: DefaultTextStyle.merge(
+                          style: TextStyle(
+                            fontSize: AppTypeScale.sizeCaption,
+                            height: AppTypeScale.leadingBody,
+                            color: t.textSecondary,
+                          ),
+                          child: content!,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (actions != null && actions!.isNotEmpty)
+                DialogActionBar(children: actions!),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 底部操作条：white 3% + 顶部 1px 描边，内距 `12 18`，右对齐。
+///
+/// 主操作永远在最右 —— 传进来的顺序就是从左到右的顺序。
+class DialogActionBar extends StatelessWidget {
+  final List<Widget> children;
+
+  /// 左侧可放一个次要入口（设计稿 4.1 的「直接询问模型」）。
+  final Widget? leading;
+
+  const DialogActionBar({super.key, required this.children, this.leading});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: AppSpacing.md12,
+      ),
+      decoration: BoxDecoration(
+        color: t.isDark
+            ? Colors.white.withValues(alpha: 0.03)
+            : AppPalette.ink.withValues(alpha: 0.02),
+        border: Border(top: BorderSide(color: t.stroke)),
+      ),
+      child: Row(
+        children: [
+          ?leading,
+          const Spacer(),
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppSpacing.sm),
+            children[i],
+          ],
+        ],
       ),
     );
   }
@@ -115,93 +155,78 @@ class GlassDialogSurface extends StatelessWidget {
   final Widget child;
   final double radius;
 
-  const GlassDialogSurface({super.key, required this.child, this.radius = 18});
+  const GlassDialogSurface({
+    super.key,
+    required this.child,
+    this.radius = AppRadii.card,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final t = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderRadius = BorderRadius.circular(radius);
 
-    // Near-opaque already, so performance mode loses very little by going the
-    // rest of the way: the wash becomes solid, the filter is skipped, and the
-    // 60px shadow — the most expensive thing here, drawn over a footprint
-    // larger than the dialog — shrinks to something that still lifts the
-    // surface off the page.
-    final flat = glass.reduceEffects;
+    // 已经近乎不透明，性能模式再走完剩下那一点几乎不损失什么：wash 变实色、
+    // 滤镜跳过，而最贵的那层 60px 投影（画在比对话框还大的范围上）缩到仍然
+    // 能把面抬起来的程度。
+    final flat = t.reduceEffects;
     final wash = scheme.surface.withValues(
       alpha: flat
           ? 1.0
-          : isDark
-          ? 0.92
+          : t.isDark
+          ? 0.94
           : 0.97,
     );
 
-    final surface = DecoratedBox(
-      decoration: BoxDecoration(
-        color: wash,
-        borderRadius: borderRadius,
-        border: Border.all(color: glass.panelStroke),
-      ),
+    return GlassSurface(
+      fill: wash,
+      blur: t.blurDialog,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: t.strokeStrong),
+      shadow: t.elevation.window,
       child: child,
-    );
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: flat ? (isDark ? 0.34 : 0.12) : (isDark ? 0.5 : 0.18),
-            ),
-            blurRadius: flat ? 12 : 60,
-            spreadRadius: flat ? -2 : -12,
-            offset: Offset(0, flat ? 4 : 24),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: flat
-            ? surface
-            : BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: glass.blurSigma,
-                  sigmaY: glass.blurSigma,
-                ),
-                child: surface,
-              ),
-      ),
     );
   }
 }
 
-/// 全应用模态对话框的唯一入口,与 [showGlassMenu] 对称:统一入场动画
-/// (fade + 0.96→1 缩放),调用点不再各自决定转场。
+/// 全应用模态对话框的唯一入口，与 [showGlassMenu] 对称。
+///
+/// 出现 120ms 向下 4px 淡入，关闭 100ms 向上 4px 淡出。设计稿 1.4f 明确写了
+/// 「不做缩放、不做弹性曲线」，所以这里没有 `ScaleTransition`。
 Future<T?> showGlassDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool barrierDismissible = true,
   Color? barrierColor,
 }) {
+  final reduced = MediaQuery.disableAnimationsOf(context);
   return showGeneralDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: barrierColor ?? Colors.black54,
-    transitionDuration: const Duration(milliseconds: 220),
-    pageBuilder: (ctx, animation, secondaryAnimation) => builder(ctx),
+    // showGeneralDialog 只有一个时长参数，出入用同一个；120 与 100 的差值在
+    // 这里不值得为它自己搭一条 route。
+    transitionDuration: reduced ? Duration.zero : AppMotion.overlayIn,
+    // 透明 Material：`showGeneralDialog` 之下没有 Material 祖先，缺省文本样式
+    // 会让每个 Text 画出黄色双下划线的调试提示。内容本身已经是 Dialog 时这一层
+    // 什么也不画，代价为零。
+    pageBuilder: (ctx, animation, secondaryAnimation) =>
+        Material(type: MaterialType.transparency, child: builder(ctx)),
     transitionBuilder: (ctx, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeOutCubic,
+        curve: AppMotion.standard,
+        reverseCurve: AppMotion.standard,
       );
       return FadeTransition(
         opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+        child: SlideTransition(
+          // 只动 4px 以内的位移。
+          position: Tween<Offset>(
+            begin: const Offset(0, -0.012),
+            end: Offset.zero,
+          ).animate(curved),
           child: child,
         ),
       );

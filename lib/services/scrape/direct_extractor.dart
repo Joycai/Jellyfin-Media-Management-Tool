@@ -24,15 +24,13 @@ library;
 
 import 'dart:convert';
 
-import 'scrape_transform.dart';
-
-import 'package:html/dom.dart';
-
 import '../../models/media_metadata.dart';
 import '../agent/agent_runtime.dart';
 import '../ai/ai_cancel_token.dart';
 import '../ai/ai_provider.dart';
+import 'package:html/dom.dart';
 import 'page_tools.dart';
+import 'scrape_transform.dart';
 
 /// What the model read off one page.
 class DirectExtraction {

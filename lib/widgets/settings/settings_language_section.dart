@@ -6,7 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../l10n/app_localizations_en.dart';
 import '../../l10n/app_localizations_zh.dart';
 import '../../services/settings_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import 'ai_services_screen.dart';
 
 /// One row in the language list. Only languages whose ARB exists are listed —
@@ -35,14 +35,21 @@ class LanguageSection extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+      // 6.x 内容区内距，与其余六页同一套骨架。
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl24,
+        vertical: AppSpacing.xl,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Trilingual title + subtitle (mirrors the mockup's section header).
           RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                fontSize: AppTypeScale.sizeHeading,
+                fontWeight: FontWeight.w800,
+              ),
               children: [
                 TextSpan(
                   text: '语言',
@@ -70,7 +77,10 @@ class LanguageSection extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             l10n.langHeaderSubtitle,
-            style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeBody,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 18),
           Expanded(
@@ -121,7 +131,7 @@ class _LanguageList extends StatelessWidget {
         const SizedBox(height: 14),
         // Dashed "import .arb" placeholder.
         InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           onTap: () => ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(l10n.langImportSoon))),
@@ -166,30 +176,31 @@ class _LanguageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
 
     return Material(
-      color: selected
-          ? scheme.primary.withValues(alpha: 0.16)
-          : glass.panelFill,
-      borderRadius: BorderRadius.circular(14),
+      color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.cardFill,
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.panel),
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.6)
-                  : glass.panelStroke,
+                  : glass.stroke,
               width: selected ? 1.4 : 1,
             ),
           ),
           child: Row(
             children: [
-              Text(lang.flag, style: const TextStyle(fontSize: 22)),
+              Text(
+                lang.flag,
+                style: const TextStyle(fontSize: AppTypeScale.sizeHeading),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -198,7 +209,7 @@ class _LanguageCard extends StatelessWidget {
                     Text(
                       lang.name,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: AppTypeScale.sizeTitle,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -206,7 +217,7 @@ class _LanguageCard extends StatelessWidget {
                     Text(
                       selected ? '${lang.tag} · ${l10n.langCurrent}' : lang.tag,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: AppTypeScale.sizeControl,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -249,7 +260,7 @@ class _LanguagePreview extends StatelessWidget {
           child: Text(
             l10n.langPreviewTitle,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppTypeScale.sizeBody,
               color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
@@ -292,25 +303,28 @@ class _PreviewPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Text(flag, style: const TextStyle(fontSize: 18)),
+              Text(
+                flag,
+                style: const TextStyle(fontSize: AppTypeScale.sizeSubheading),
+              ),
               const SizedBox(width: 8),
               Text(
                 name,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -328,7 +342,7 @@ class _PreviewPanel extends StatelessWidget {
             context,
             title: loc.previewConfidenceLabel,
             body: '96% · ${loc.previewConfidenceHigh}',
-            bodyColor: const Color(0xFF34C759),
+            bodyColor: AppPalette.success,
           ),
           const SizedBox(height: 10),
           _previewItem(
@@ -352,13 +366,13 @@ class _PreviewPanel extends StatelessWidget {
     Color? bodyColor,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: glass.panelStroke),
+        borderRadius: BorderRadius.circular(AppRadii.field),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,7 +393,7 @@ class _PreviewPanel extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppTypeScale.sizeBody,
               color: bodyColor ?? scheme.onSurface,
               fontFamily: bodyMono ? 'monospace' : null,
               fontWeight: emphasised
@@ -398,13 +412,13 @@ class _PreviewHintBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         children: [
@@ -414,7 +428,7 @@ class _PreviewHintBanner extends StatelessWidget {
             child: Text(
               l10n.langPreviewHint,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: AppTypeScale.sizeControl,
                 color: scheme.onSurfaceVariant,
                 height: 1.4,
               ),
@@ -429,7 +443,7 @@ class _PreviewHintBanner extends StatelessWidget {
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              side: BorderSide(color: glass.panelStroke),
+              side: BorderSide(color: glass.stroke),
             ),
             child: Text(l10n.langLearnMore),
           ),

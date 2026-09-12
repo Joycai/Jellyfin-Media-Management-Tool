@@ -2032,4 +2032,375 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ruleEditorComingSoon =>
       'Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention.';
+
+  @override
+  String get windowMinimize => 'Minimize';
+
+  @override
+  String get windowMaximize => 'Maximize';
+
+  @override
+  String get windowRestore => 'Restore';
+
+  @override
+  String get windowClose => 'Close';
+
+  @override
+  String get togglePanel => 'Show or hide the side panel';
+
+  @override
+  String get toggleSidebar => 'Show or hide the sidebar';
+
+  @override
+  String get searchHintShort => 'Search…';
+
+  @override
+  String statusTotalSize(String size) {
+    return '$size total';
+  }
+
+  @override
+  String get planReady => 'Plan ready';
+
+  @override
+  String get dropFoldersTitle => 'Drop folders here to start';
+
+  @override
+  String get dropFoldersHint =>
+      'Drag one or more folders into the window · video, subtitles, posters and metadata are scanned together';
+
+  @override
+  String get orSeparator => 'or';
+
+  @override
+  String get connectNas => 'Connect NAS';
+
+  @override
+  String get historyAllRecords => 'All records';
+
+  @override
+  String get historyIrreversible => 'Cannot be undone';
+
+  @override
+  String get historyToday => 'Today';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get pathsLibraryRoots => 'Library roots';
+
+  @override
+  String get pathsRootMovies => 'Movies';
+
+  @override
+  String get pathsRootShows => 'Shows';
+
+  @override
+  String get pathsRootExample => '/Volumes/Media/Movies';
+
+  @override
+  String get pathsMounted => 'Connected';
+
+  @override
+  String get pathsUnmounted => 'Not mounted';
+
+  @override
+  String get pathsChange => 'Change';
+
+  @override
+  String get pathsAddRoot => 'Add root';
+
+  @override
+  String get pathsRescan => 'Rescan';
+
+  @override
+  String get pathsRootsPlaceholder =>
+      'This app organizes one folder at a time. Multiple roots, mount state and rescanning are not implemented yet.';
+
+  @override
+  String get pathsDefaults => 'Default locations';
+
+  @override
+  String get pathsOrganizeOutput => 'Organize output';
+
+  @override
+  String get pathsOrganizeOutputValue => 'Follows the source folder';
+
+  @override
+  String get pathsChoose => 'Choose…';
+
+  @override
+  String get pathsTempDir => 'Temporary & downloads';
+
+  @override
+  String get pathsTempDirValue => 'System temporary folder';
+
+  @override
+  String get pathsDefaultsPlaceholder =>
+      'Organized files always land beside their source; a separate output or temporary folder is not implemented yet.';
+
+  @override
+  String get pathsFavorites => 'Favorite paths';
+
+  @override
+  String get pathsFavoritesHint =>
+      'Reordering by drag is not implemented yet. This list is the sidebar\'s Favorites group.';
+
+  @override
+  String get pathsRecent => 'Recent';
+
+  @override
+  String get pathsClearRecent => 'Clear';
+
+  @override
+  String pathsRecentHint(Object count) {
+    return 'The last $count folders you opened. The star at the end of a row adds one to Favorites.';
+  }
+
+  @override
+  String get pathsAddFavorite => 'Add to favorites';
+
+  @override
+  String get privacyLocations => 'Config & data';
+
+  @override
+  String get privacyConfigFolder => 'Config folder';
+
+  @override
+  String get privacyBrowse => 'Browse';
+
+  @override
+  String get privacyCopyPath => 'Copy';
+
+  @override
+  String get privacyCopied => 'Path copied';
+
+  @override
+  String get privacyDataFiles => 'Data files';
+
+  @override
+  String get privacyDataFilesValue =>
+      'config.json · ai_profiles.json · sites.json · scrapers.json';
+
+  @override
+  String get privacyCaches => 'Caches';
+
+  @override
+  String get privacyClear => 'Clear';
+
+  @override
+  String get privacyClearAll => 'Clear all';
+
+  @override
+  String get privacyTotal => 'Total';
+
+  @override
+  String get privacyCacheThumbnails => 'Thumbnail cache';
+
+  @override
+  String get privacyCacheThumbnailsHint =>
+      'Poster frames rendered for the file table';
+
+  @override
+  String get privacyCacheUndo => 'Undo backups';
+
+  @override
+  String privacyCacheUndoHint(Object count, Object days) {
+    return 'Real copies of overwritten files, kept $days days · $count operations';
+  }
+
+  @override
+  String get privacyCacheAgent => 'Organize memory';
+
+  @override
+  String get privacyCacheAgentHint =>
+      'Decided groups and corrections you applied';
+
+  @override
+  String get privacyCacheNote =>
+      'Clearing removes local caches only. NFOs and images already written to the library are untouched, and the next run regenerates what it needs. Undo backups have no Clear: deleting them would turn undo records that have not expired into empty promises.';
+
+  @override
+  String get privacySection => 'Privacy';
+
+  @override
+  String get privacyTelemetry => 'Send anonymous usage statistics';
+
+  @override
+  String get privacyTelemetryHint => 'No file names or paths';
+
+  @override
+  String get privacyCrashReports => 'Crash reports';
+
+  @override
+  String get privacyCrashReportsHint => 'Stack traces and device model only';
+
+  @override
+  String get privacyLogAiBodies => 'Log AI request and reply bodies';
+
+  @override
+  String get privacyLogAiBodiesHint =>
+      'For troubleshooting only — logs grow quickly';
+
+  @override
+  String get privacyClearTempOnExit => 'Empty the temporary folder on exit';
+
+  @override
+  String get privacyNoTelemetry =>
+      'This app collects no telemetry of any kind and has no log file, so these switches have nothing to turn off yet.';
+
+  @override
+  String get privacyDanger => 'Danger zone';
+
+  @override
+  String get privacyReset => 'Reset all data';
+
+  @override
+  String get privacyResetBody =>
+      'Clears AI services, recipes, history and every cache, returning the app to its first-launch state. Media files on disk are not deleted, and NFOs and images already written are kept.';
+
+  @override
+  String get privacyResetAction => 'Reset…';
+
+  @override
+  String get privacyResetPlaceholder =>
+      'Not implemented yet. Until it is, delete the config folder by hand — an irreversible reset should not ship half-built.';
+
+  @override
+  String get shortcutsSearchHint => 'Search a command or a key…';
+
+  @override
+  String get shortcutsRestoreDefaults => 'Restore defaults';
+
+  @override
+  String get shortcutsRebindHint =>
+      'Rebinding is not implemented yet — what is listed here is what is actually bound.';
+
+  @override
+  String get shortcutsNoMatch => 'No command matches';
+
+  @override
+  String get shortcutsPlatformNote =>
+      'On Windows and Linux ⌘ is Ctrl, ⌥ is Alt and ⌫ is Delete.';
+
+  @override
+  String get aboutChangelog => 'Changelog';
+
+  @override
+  String get aboutCheckUpdates => 'Check for updates';
+
+  @override
+  String get aboutBuildInfo => 'Build info';
+
+  @override
+  String get aboutVersion => 'Version';
+
+  @override
+  String get aboutBuildNumber => 'Build';
+
+  @override
+  String get aboutCommit => 'Commit';
+
+  @override
+  String get aboutBranch => 'Branch';
+
+  @override
+  String get aboutRuntime => 'Runtime';
+
+  @override
+  String get aboutBuildInfoPlaceholder =>
+      'Commit and branch are stamped in at package time, which this build does not do yet.';
+
+  @override
+  String get aboutSystem => 'System';
+
+  @override
+  String get aboutOs => 'OS';
+
+  @override
+  String get aboutArch => 'Architecture';
+
+  @override
+  String get aboutOpenSource => 'Open source';
+
+  @override
+  String get aboutLicense => 'License';
+
+  @override
+  String get aboutRepository => 'Repository';
+
+  @override
+  String get aboutIssues => 'Report an issue';
+
+  @override
+  String get aboutCopyright => 'Copyright';
+
+  @override
+  String get aboutCopyrightValue => '© 2026 contributors';
+
+  @override
+  String get aboutGraphics => 'Graphics adapter';
+
+  @override
+  String get aboutGpuRunning => 'In use';
+
+  @override
+  String get aboutGpuShared => 'Shared memory';
+
+  @override
+  String get accentPickerTitle => 'Accent color';
+
+  @override
+  String get accentRestoreDefault => 'Restore the default blue';
+
+  @override
+  String get accentRecents => 'Recently used';
+
+  @override
+  String get accentRecentsEmpty => 'Nothing yet';
+
+  @override
+  String get accentEyedropper => 'Pick a color from the screen';
+
+  @override
+  String accentContrastOk(Object dark, Object light) {
+    return 'Contrast against the dark and light window bases: $dark:1 · $light:1';
+  }
+
+  @override
+  String accentContrastWeak(Object dark, Object light) {
+    return 'Contrast $dark:1 · $light:1 — below 3:1, so use it as a fill only';
+  }
+
+  @override
+  String get modelParameters => 'Model parameters';
+
+  @override
+  String get modelParametersExpand => 'Expand';
+
+  @override
+  String get modelParametersCollapse => 'Collapse';
+
+  @override
+  String get contextWindowScaleHint => 'tokens · 8k – 1M · step 1k';
+
+  @override
+  String get contextWindowFootnote =>
+      'The ticks are evenly spaced segments and each segment is continuous, so the handle can stop on any 1k. Slider and field follow each other; blank means no limit.';
+
+  @override
+  String contextWindowOverDetected(Object limit) {
+    return 'Above the $limit the server reported. Still saved.';
+  }
+
+  @override
+  String get maxOutputStep => 'step 256';
+
+  @override
+  String get maxOutputFootnote =>
+      'Capped at half the context window; anything larger is clamped.';
+
+  @override
+  String get pathsRootExampleShows => '/Volumes/Media/Shows';
 }

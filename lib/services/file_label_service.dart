@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/design_tokens.dart';
+
 class FileLabelService {
   static final Map<String, String> _extensionToLabel = {
     '.mkv': 'Video',
@@ -53,24 +55,25 @@ class FileLabelService {
     }
   }
 
+  /// 类型图标色，取自设计稿 3.1（见 [AppPalette] 的 `type*`）。
+  ///
+  /// 只有视频、影像与音频拿到色相；字幕、元数据、文本这些「陪跑文件」留在
+  /// 中性档 —— 它们在一个文件夹里数量最多，给它们上色等于给整列上色。
   static Color getIconColor(String label, bool isDirectory) {
-    if (isDirectory) return Colors.amber.shade700;
+    if (isDirectory) return AppPalette.typeFolder;
 
     switch (label) {
       case 'Video':
-        return Colors.blue.shade600;
-      case 'Subtitle':
-        return Colors.teal.shade600;
+        return AppPalette.typeVideo;
       case 'Image':
-        return Colors.orange.shade600;
-      case 'Metadata':
-        return Colors.grey.shade600;
+        return AppPalette.typeImage;
       case 'Audio':
-        return Colors.pink.shade600;
+        return AppPalette.typeSeries;
+      case 'Subtitle':
+      case 'Metadata':
       case 'Text':
-        return Colors.brown.shade600;
       default:
-        return Colors.blueGrey.shade400;
+        return AppPalette.typeNeutral;
     }
   }
 

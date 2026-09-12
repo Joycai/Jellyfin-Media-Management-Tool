@@ -82,7 +82,47 @@ void main() {
           matching: find.byType(Container),
         ),
       );
-      expect(container.padding, const EdgeInsets.all(20));
+      // 1.3a 的卡片内距，不是一个就近取的数字。
+      expect(container.padding, const EdgeInsets.all(AppSpacing.lg));
+    });
+
+    testWidgets('a rows card puts a hairline between rows, not around them', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const SettingsRowsCard(
+          children: [
+            SettingsRow(title: 'first'),
+            SettingsRow(title: 'second'),
+            SettingsRow(title: 'third'),
+          ],
+        ),
+      );
+
+      // Three rows means two dividers: a line above the first or below the
+      // last would double up with the card's own border.
+      expect(find.byType(SettingsRow), findsNWidgets(3));
+      expect(find.byType(Divider), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a placeholder is drawn but cannot be interacted with', (
+      tester,
+    ) async {
+      var taps = 0;
+      await _pump(
+        tester,
+        SettingsPlaceholder(
+          child: SettingsMiniButton('Add root', onPressed: () => taps++),
+        ),
+      );
+
+      // Drawn — the label is on screen, so the capability is visibly planned.
+      expect(find.text('Add root'), findsOneWidget);
+      await tester.tap(find.text('Add root'), warnIfMissed: false);
+      await tester.pump();
+      expect(taps, 0);
     });
 
     testWidgets('a divider paints without a child', (tester) async {

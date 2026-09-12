@@ -6,23 +6,31 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../services/ai_service.dart';
 import '../services/file_browser_service.dart';
+import '../services/history_service.dart';
 import '../services/settings_service.dart';
 import '../services/task_service.dart';
 import '../shortcuts/app_shortcuts.dart';
-import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
+import '../utils/format.dart';
 import '../widgets/ai/ai_assistant_panel.dart';
+import '../widgets/ai/history_popover.dart';
+import '../widgets/ai/organize_history_screen.dart';
 import '../widgets/dialogs/title_hint_dialog.dart';
 import '../widgets/file_browser/file_context_menu.dart';
 import '../widgets/file_browser/media_table.dart';
-import '../widgets/ai/organize_history_screen.dart';
-import '../widgets/glass/glass_panel.dart';
 import '../widgets/scrape/scrape_flow.dart';
 import '../widgets/settings/settings_screen.dart';
+import '../widgets/shell/app_shell.dart';
+import '../widgets/shell/app_title_bar.dart';
+import '../widgets/shell/window_state.dart';
 import '../widgets/sidebar/app_sidebar.dart';
 import '../widgets/tasks/tasks_screen.dart';
+import '../widgets/ui/glass_surface.dart';
 
-/// App shell under the native title bar: a full-width header (brand · section
-/// tabs · search · actions) over the three glass panes.
+/// 应用外壳：一条 48px 统一顶栏之下的三栏骨架（2.6）。
+///
+/// `48 顶栏 / 244 侧栏 / flex 主内容 / 352 右面板 / 28 状态栏`，两个断点：
+/// < 1180 侧栏折叠成 64 图标栏，< 1400 右面板默认收起改为浮层。
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -30,13 +38,27 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-enum _Section { files, library, tasks }
-
 class _HomeScreenState extends State<HomeScreen> {
   String _search = '';
-  _Section _section = _Section.files;
+  AppSection _section = AppSection.files;
   final _searchFocus = FocusNode();
   final _searchController = TextEditingController();
+
+  /// 右面板的显隐**按分区记忆**（2.6）。宽度断点只决定默认值。
+  final Map<AppSection, bool?> _panelOpen = {};
+
+  /// 侧栏被用户手动折叠；null = 跟随断点。
+  bool? _sidebarCollapsed;
+
+  /// 历史角标只在「最近一条操作可撤销且用户尚未打开过浮层」时出现，
+  /// 打开即消失，不做数字计数（5.4）。
+  bool _historySeen = false;
+
+  /// 顶栏历史按钮的位置，浮层锚在它下方。
+  final _historyButtonKey = GlobalKey();
+
+  /// 浮层打开中 —— 按钮保持强调色底，与其他动作按钮区分（5.4）。
+  bool _historyOpen = false;
 
   @override
   void dispose() {
@@ -100,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
         persist: false,
         action: SnackBarAction(
           label: l10n.tabTasks,
-          onPressed: () => setState(() => _section = _Section.tasks),
+          onPressed: () => setState(() => _section = AppSection.tasks),
         ),
       ),
     );
@@ -127,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // this only supplies the callbacks. Ids with no entry here stay unbound.
 
   /// Shortcuts that act on the file table are no-ops outside the Files tab.
-  bool get _onFiles => _section == _Section.files;
+  bool get _onFiles => _section == AppSection.files;
 
   void _selectAll() {
     if (!_onFiles) return;
@@ -175,6 +197,24 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<SettingsService>().toggleFavorite(dir);
   }
 
+  Future<void> _openHistory() async {
+    final box =
+        _historyButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      // 顶栏不在场（例如从别处触发快捷键）时退回到独立窗口，而不是把浮层
+      // 钉在屏幕角落。
+      OrganizeHistoryScreen.show(context);
+      return;
+    }
+    final origin = box.localToGlobal(Offset.zero);
+    setState(() {
+      _historySeen = true;
+      _historyOpen = true;
+    });
+    await showHistoryPopover(context, anchor: origin & box.size);
+    if (mounted) setState(() => _historyOpen = false);
+  }
+
   Map<AppShortcutId, VoidCallback> _shortcutHandlers() {
     final browser = context.read<FileBrowserService>();
     return {
@@ -189,20 +229,24 @@ class _HomeScreenState extends State<HomeScreen> {
       AppShortcutId.organize: _organize,
       AppShortcutId.scrape: _scrape,
       AppShortcutId.toggleFavorite: _toggleFavorite,
-      AppShortcutId.history: () => OrganizeHistoryScreen.show(context),
+      AppShortcutId.history: _openHistory,
       AppShortcutId.settings: () => SettingsScreen.show(context),
       AppShortcutId.sectionFiles: () =>
-          setState(() => _section = _Section.files),
+          setState(() => _section = AppSection.files),
       AppShortcutId.sectionLibrary: () =>
-          setState(() => _section = _Section.library),
+          setState(() => _section = AppSection.library),
       AppShortcutId.sectionTasks: () =>
-          setState(() => _section = _Section.tasks),
+          setState(() => _section = AppSection.tasks),
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    // 顶栏与状态栏都要跟着窗口状态重画，所以这里订阅一次。
+    WindowStateScope.of(context);
+    final hasUndoable = context.select<HistoryService, bool>(
+      (h) => h.entries.isNotEmpty,
+    );
 
     return Scaffold(
       body: CallbackShortcuts(
@@ -214,364 +258,160 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Focus(
           autofocus: true,
           skipTraversal: true,
-          child: Container(
-            decoration: BoxDecoration(gradient: glass.backdrop),
-            child: Column(
-              children: [
-                _Header(
-                  section: _section,
-                  onSection: (s) => setState(() => _section = s),
-                  searchFocus: _searchFocus,
-                  searchController: _searchController,
-                  onSearch: (v) => setState(() => _search = v),
-                ),
-                Expanded(child: _body()),
-              ],
+          child: AppShell(
+            titleBar: AppTitleBar(
+              section: _section,
+              onSection: (s) => setState(() => _section = s),
+              runningTasks: context.select<TaskService, int>(
+                (t) => t.runningCount,
+              ),
+              searchFocus: _searchFocus,
+              searchController: _searchController,
+              onSearch: (v) => setState(() => _search = v),
+              searchShortcut: shortcutLabel(AppShortcutId.focusSearch),
+              onHistory: _openHistory,
+              historyButtonKey: _historyButtonKey,
+              onRefresh: context.read<FileBrowserService>().refresh,
+              onSettings: () => SettingsScreen.show(context),
+              historyHasNews: hasUndoable && !_historySeen,
+              historyOpen: _historyOpen,
+              historyEmpty: !hasUndoable,
             ),
+            statusBar: _statusBar(),
+            body: LayoutBuilder(builder: (context, c) => _body(c.maxWidth)),
           ),
         ),
       ),
     );
   }
 
-  Widget _body() {
+  Widget _body(double width) {
     switch (_section) {
-      case _Section.files:
+      case AppSection.files:
+        // 断点只决定默认值；用户在这个分区做过的选择一直有效。
+        final collapsed =
+            _sidebarCollapsed ?? (width < AppSizes.breakpointCompact);
+        final panelOpen =
+            _panelOpen[_section] ?? (width >= AppSizes.breakpointPanel);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(width: 244, child: AppSidebar()),
+            AppSidebar(
+              collapsed: collapsed,
+              onToggleCollapsed: () =>
+                  setState(() => _sidebarCollapsed = !collapsed),
+            ),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: MediaTable(
-                  searchQuery: _search,
-                  onOrganize: _organize,
-                  onPickFolder: _pickFolder,
-                ),
+              child: MediaTable(
+                searchQuery: _search,
+                onOrganize: _organize,
+                onPickFolder: _pickFolder,
+                panelOpen: panelOpen,
+                onTogglePanel: () =>
+                    setState(() => _panelOpen[_section] = !panelOpen),
               ),
             ),
-            const SizedBox(width: 352, child: AiAssistantPanel()),
+            // 180ms ease-in-out —— 抽屉与面板的统一时长（1.4f）。
+            AnimatedContainer(
+              duration: AppMotion.respecting(context, AppMotion.panel),
+              curve: AppMotion.panelCurve,
+              width: panelOpen ? AppSizes.rightPanel : 0,
+              child: panelOpen
+                  ? const AiAssistantPanel()
+                  : const SizedBox.shrink(),
+            ),
           ],
         );
-      case _Section.library:
-        return _ComingSoon(
-          icon: Icons.video_library_rounded,
-          label: AppLocalizations.of(context)!.tabLibrary,
-        );
-      case _Section.tasks:
+      case AppSection.library:
+        return const _LibraryPlaceholder();
+      case AppSection.tasks:
         return const TasksScreen();
     }
   }
-}
 
-class _Header extends StatelessWidget {
-  final _Section section;
-  final ValueChanged<_Section> onSection;
-  final FocusNode searchFocus;
-  final TextEditingController searchController;
-  final ValueChanged<String> onSearch;
-
-  const _Header({
-    required this.section,
-    required this.onSection,
-    required this.searchFocus,
-    required this.searchController,
-    required this.onSearch,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  /// 状态栏 h28 · 仅文字与进度，无按钮。
+  Widget _statusBar() {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
-
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: glass.sidebarFill,
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
-          ),
+    final t = context.tokens;
+    if (_section != AppSection.files) {
+      return AppStatusBar(leading: [Text(_sectionLabel(l10n))]);
+    }
+    final browser = context.watch<FileBrowserService>();
+    final visible = MediaTable.visibleFiles(browser.files, _search);
+    final bytes = visible.fold<int>(0, (sum, e) => sum + e.size);
+    final ai = context.watch<AiService>();
+    // 计数与选中数由列表面板自己的页脚讲（3.1）；状态栏讲的是「这个文件夹有多
+    // 大、AI 走到哪一步了」。两个地方都写「已选 N 项」的时候它们还会打架 ——
+    // 面板把聚焦行算作 1，状态栏只算显式多选。
+    return AppStatusBar(
+      leading: [
+        Text(
+          l10n.statusTotalSize(formatBytes(bytes, zero: '0 B')),
+          style: AppTypeScale.monoSmall.copyWith(color: t.textMuted),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [scheme.primary, scheme.tertiary],
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: const Text(
-              'J',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-              ),
-            ),
+      ],
+      trailing: [
+        if (ai.currentPlan != null)
+          StatusDot(color: t.success, label: l10n.planReady)
+        else if (browser.currentDirectory != null)
+          StatusDot(
+            color: t.textMuted,
+            label: p.basename(browser.currentDirectory!),
           ),
-          const SizedBox(width: 10),
-          // NOT Flexible: a loose flex child here would claim half the Row's
-          // free space (splitting it with the search Expanded) and dump its
-          // unused allocation as trailing space AFTER the last icon button,
-          // pushing the right-side icons away from the window edge.
-          // 300 fits the full product name at this size; the ellipsis is a
-          // backstop for a wider UI font, not the expected rendering.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 300),
-            child: Text(
-              l10n.appBrand,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 15.5,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 1,
-            height: 22,
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
-          ),
-          const SizedBox(width: 8),
-          _NavTab(
-            icon: Icons.folder_rounded,
-            label: l10n.tabFiles,
-            selected: section == _Section.files,
-            onTap: () => onSection(_Section.files),
-          ),
-          _NavTab(
-            icon: Icons.video_library_rounded,
-            label: l10n.tabLibrary,
-            selected: section == _Section.library,
-            onTap: () => onSection(_Section.library),
-          ),
-          _NavTab(
-            icon: Icons.bolt_rounded,
-            label: l10n.tabTasks,
-            selected: section == _Section.tasks,
-            onTap: () => onSection(_Section.tasks),
-            badge: context.watch<TaskService>().runningCount,
-          ),
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: SizedBox(
-                  height: 36,
-                  child: TextField(
-                    focusNode: searchFocus,
-                    controller: searchController,
-                    onChanged: onSearch,
-                    // A deliberate 36px compact variant of the themed field:
-                    // the header row is shallower than the standard 44, so it
-                    // opts out of the theme's borders and icon box explicitly
-                    // (the theme's enabled/focused borders would otherwise
-                    // override its borderless look).
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      prefixIconConstraints: const BoxConstraints(
-                        minWidth: 38,
-                        minHeight: 36,
-                        maxHeight: 36,
-                      ),
-                      hintText: l10n.searchHint,
-                      filled: true,
-                      fillColor: scheme.surface.withValues(alpha: 0.35),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: scheme.primary.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: Text(
-                          shortcutLabel(AppShortcutId.focusSearch),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      suffixIconConstraints: const BoxConstraints(minWidth: 0),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip:
-                '${l10n.historyTitle}  ${shortcutLabel(AppShortcutId.history)}',
-            onPressed: () => OrganizeHistoryScreen.show(context),
-            icon: const Icon(Icons.history_rounded),
-            style: IconButton.styleFrom(
-              backgroundColor: scheme.surface.withValues(alpha: 0.5),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: '${l10n.refresh}  ${shortcutLabel(AppShortcutId.refresh)}',
-            onPressed: context.read<FileBrowserService>().refresh,
-            icon: const Icon(Icons.refresh_rounded),
-            style: IconButton.styleFrom(
-              backgroundColor: scheme.surface.withValues(alpha: 0.5),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip:
-                '${l10n.settings}  ${shortcutLabel(AppShortcutId.settings)}',
-            onPressed: () => SettingsScreen.show(context),
-            icon: const Icon(Icons.settings_outlined),
-            style: IconButton.styleFrom(
-              backgroundColor: scheme.surface.withValues(alpha: 0.5),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
+
+  String _sectionLabel(AppLocalizations l10n) => switch (_section) {
+    AppSection.files => l10n.tabFiles,
+    AppSection.library => l10n.tabLibrary,
+    AppSection.tasks => l10n.tabTasks,
+  };
 }
 
-class _NavTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  /// Small running-task count rendered as a pill next to the label. 0 hides it.
-  final int badge;
-
-  const _NavTab({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.badge = 0,
-  });
+/// 媒体库分区还没有实现（03 的网格 / 详情稿）。
+///
+/// 按任务要求：**先以设计稿的「占位」方式完成**，能力本身进 backlog
+/// （`docs/spec/ui-redesign/backlog.md`）。占位仍然走完整的令牌与卡片规范，
+/// 这样它接上真实数据时不需要再改一遍样式。
+class _LibraryPlaceholder extends StatelessWidget {
+  const _LibraryPlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Material(
-        color: selected
-            ? scheme.surface.withValues(alpha: 0.55)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected
-                        ? scheme.onSurface
-                        : scheme.onSurfaceVariant,
-                  ),
-                ),
-                if (badge > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '$badge',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ComingSoon extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _ComingSoon({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
+    final t = context.tokens;
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.all(12),
-      child: GlassPanel(
-        radius: 24,
-        elevated: true,
+      padding: const EdgeInsets.all(AppSizes.contentPaddingH),
+      child: AppCard(
+        padding: const EdgeInsets.all(AppSpacing.xxl40),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 56,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: t.aiSurface,
+                  borderRadius: BorderRadius.circular(AppRadii.panel),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.video_library_rounded,
+                  size: 24,
+                  color: t.aiText,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                l10n.tabLibrary,
+                style: AppTypeScale.heading.copyWith(color: t.textTitle),
+              ),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 l10n.comingSoon,
-                style: TextStyle(color: scheme.onSurfaceVariant),
+                style: AppTypeScale.caption.copyWith(color: t.textSecondary),
               ),
             ],
           ),

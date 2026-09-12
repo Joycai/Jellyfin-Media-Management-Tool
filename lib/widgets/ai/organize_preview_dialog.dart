@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
 import '../../services/file_label_service.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../../utils/path_tree.dart';
 import '../glass/glass_dialog.dart';
@@ -144,7 +145,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
               gradient: LinearGradient(
                 colors: [scheme.primary, scheme.tertiary],
               ),
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(AppRadii.card),
             ),
             child: const Icon(
               Icons.auto_awesome,
@@ -160,7 +161,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                 Text(
                   l10n.previewTitle(_actions.length),
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: AppTypeScale.sizeHeading,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -173,7 +174,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                     formatBytes(widget.totalBytes, zero: '—'),
                   ),
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: AppTypeScale.sizeBody,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -187,7 +188,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: scheme.secondary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.button),
               border: Border.all(
                 color: scheme.secondary.withValues(alpha: 0.3),
               ),
@@ -207,7 +208,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                 Text(
                   l10n.previewDryRun,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: AppTypeScale.sizeCaption,
                     fontWeight: FontWeight.w600,
                     color: scheme.secondary,
                   ),
@@ -252,7 +253,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
                 Text(
                   '${l10n.showOnly}:',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTypeScale.sizeBody,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -287,7 +288,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
           _count(
             context,
             Icons.warning_amber_rounded,
-            const Color(0xFFE0A030),
+            AppPalette.warning,
             l10n.countConflicts(_conflicts.length),
           ),
         ],
@@ -309,7 +310,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: AppTypeScale.sizeControl,
             fontWeight: FontWeight.w600,
             color: Theme.of(
               context,
@@ -353,7 +354,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
     child: Text(
       l10n.previewFilterEmpty,
       style: TextStyle(
-        fontSize: 13.5,
+        fontSize: AppTypeScale.sizeBody,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     ),
@@ -417,7 +418,10 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
           Expanded(
             child: Text(
               l10n.recordUndoHistory,
-              style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeBody,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
           ),
           TextButton(
@@ -468,7 +472,7 @@ class _TreeCompare extends StatelessWidget {
           child: _TreePane(
             label: l10n.beforeLabel,
             path: baseDir,
-            accent: const Color(0xFFE08A3C),
+            accent: AppPalette.warning,
             lines: buildPathTree(pending.map((a) => a.source).toList()),
             conflicts: conflicts,
             isAfter: false,
@@ -510,7 +514,7 @@ class _TreeCompare extends StatelessWidget {
                 child: Text(
                   l10n.aiOrganizeVertical,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppTypeScale.sizeMono,
                     letterSpacing: 1.5,
                     color: scheme.onSurfaceVariant,
                   ),
@@ -523,7 +527,7 @@ class _TreeCompare extends StatelessWidget {
           child: _TreePane(
             label: l10n.afterLabel,
             path: baseDir,
-            accent: const Color(0xFF34A06B),
+            accent: AppPalette.success,
             lines: buildPathTree(pending.map((a) => a.target).toList()),
             conflicts: conflicts,
             isAfter: true,
@@ -571,14 +575,14 @@ class _TreePane extends StatelessWidget {
               Flexible(
                 child: Tooltip(
                   message: path,
-                  waitDuration: const Duration(milliseconds: 350),
+                  waitDuration: AppMotion.progress,
                   child: Text(
                     path,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 12.5,
+                      fontSize: AppTypeScale.sizeControl,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -610,7 +614,7 @@ class _TreePane extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadii.button),
       ),
       child: Row(
         children: [
@@ -627,14 +631,14 @@ class _TreePane extends StatelessWidget {
           Flexible(
             child: Tooltip(
               message: line.isDir ? '${line.name}/' : line.name,
-              waitDuration: const Duration(milliseconds: 350),
+              waitDuration: AppMotion.progress,
               child: Text(
                 line.isDir ? '${line.name}/' : line.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 13,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: line.depth <= 1 && line.isDir
                       ? FontWeight.w700
                       : FontWeight.w400,
@@ -655,7 +659,7 @@ class _TreePane extends StatelessWidget {
     OrganizeAction c,
     AppLocalizations l10n,
   ) {
-    const orange = Color(0xFFE0852C);
+    const orange = AppPalette.warning;
     final name = p.basename(isAfter ? c.target : c.source);
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -670,14 +674,14 @@ class _TreePane extends StatelessWidget {
           Flexible(
             child: Tooltip(
               message: isAfter ? c.target : c.source,
-              waitDuration: const Duration(milliseconds: 350),
+              waitDuration: AppMotion.progress,
               child: Text(
                 isAfter ? '$name · ${l10n.needsReviewSuffix}' : '$name ⚠',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 13,
+                  fontSize: AppTypeScale.sizeBody,
                   color: orange,
                 ),
               ),
@@ -740,7 +744,7 @@ class _DiffRow extends StatefulWidget {
 }
 
 class _DiffRowState extends State<_DiffRow> {
-  static const _amber = Color(0xFFE0852C);
+  static const _amber = AppPalette.warning;
   bool _hover = false;
 
   @override
@@ -755,7 +759,7 @@ class _DiffRowState extends State<_DiffRow> {
       onExit: (_) => setState(() => _hover = false),
       child: InkWell(
         onTap: widget.onEdit,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.button),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           child: Row(
@@ -810,12 +814,16 @@ class _DiffRowState extends State<_DiffRow> {
 
   Widget _path(String value, {required Color color}) => Tooltip(
     message: value,
-    waitDuration: const Duration(milliseconds: 350),
+    waitDuration: AppMotion.progress,
     child: Text(
       value,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: color),
+      style: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: AppTypeScale.sizeBody,
+        color: color,
+      ),
     ),
   );
 }
@@ -830,11 +838,15 @@ class _Badge extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.tiny),
     ),
     child: Text(
       label,
-      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+      style: TextStyle(
+        fontSize: AppTypeScale.sizeMono,
+        fontWeight: FontWeight.w600,
+        color: color,
+      ),
     ),
   );
 }
@@ -856,16 +868,16 @@ class _FilterChip extends StatelessWidget {
       color: selected
           ? scheme.primary.withValues(alpha: 0.16)
           : Colors.transparent,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadii.button),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.button),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppTypeScale.sizeBody,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               color: selected ? scheme.primary : scheme.onSurfaceVariant,
             ),

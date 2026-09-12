@@ -5,9 +5,11 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/history_entry.dart';
 import '../../services/history_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../glass/glass_dialog.dart';
+import '../shell/app_shell.dart';
+import '../shell/secondary_title_bar.dart';
 
 /// Operation history: a vertical list of recorded operations with undo +
 /// "view list" affordances, plus a 7-day retention notice.
@@ -37,95 +39,69 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final t = context.tokens;
     final history = context.watch<HistoryService>();
-    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: glass.backdrop),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _header(context, l10n),
-              Expanded(
-                child: history.entries.isEmpty
-                    ? _empty(context, l10n)
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        itemCount: history.entries.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (_, i) =>
-                            _HistoryCard(entry: history.entries[i]),
+      body: AppShell(
+        titleBar: SecondaryTitleBar(
+          backLabel: l10n.back,
+          onBack: () => Navigator.of(context).pop(),
+          title: l10n.historyTitle,
+          subtitle: l10n.historyRetention(HistoryService.retentionDays),
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: history.entries.isEmpty
+                  ? _empty(context, l10n)
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
                       ),
-              ),
-              if (history.entries.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0A030).withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFFE0A030).withValues(alpha: 0.25),
+                      itemCount: history.entries.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) =>
+                          _HistoryCard(entry: history.entries[i]),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        size: 18,
-                        color: Color(0xFFE0A030),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          l10n.historyUndoFootnote,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
+            ),
+            if (history.entries.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppPalette.warning.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(AppRadii.card),
+                  border: Border.all(
+                    color: AppPalette.warning.withValues(alpha: 0.25),
                   ),
                 ),
-            ],
-          ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 18,
+                      color: AppPalette.warning,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        l10n.historyUndoFootnote,
+                        style: AppTypeScale.caption.copyWith(
+                          color: t.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context, AppLocalizations l10n) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 24, 8),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_rounded),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            l10n.historyTitle,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          const Spacer(),
-          Text(
-            l10n.historyRetention(HistoryService.retentionDays),
-            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-          ),
-        ],
       ),
     );
   }
@@ -160,19 +136,18 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         gradient: LinearGradient(
           colors: [
-            glass.panelFill,
-            Color.lerp(glass.panelFill, scheme.primary, 0.05) ??
-                glass.panelFill,
+            glass.cardFill,
+            Color.lerp(glass.cardFill, scheme.primary, 0.05) ?? glass.cardFill,
           ],
         ),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
@@ -192,7 +167,7 @@ class _HistoryCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: AppTypeScale.sizeSubheading,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -202,7 +177,7 @@ class _HistoryCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: AppTypeScale.sizeBody,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -212,7 +187,10 @@ class _HistoryCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 _relativeTime(l10n, entry.createdAt),
-                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: AppTypeScale.sizeBody,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -231,7 +209,7 @@ class _HistoryCard extends StatelessWidget {
                       horizontal: 14,
                       vertical: 10,
                     ),
-                    side: BorderSide(color: glass.panelStroke),
+                    side: BorderSide(color: glass.stroke),
                     foregroundColor: scheme.onSurface,
                   ),
                 ),
@@ -323,7 +301,7 @@ class _UndoButtonState extends State<_UndoButton> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    const orange = Color(0xFFE0852C);
+    const orange = AppPalette.warning;
     return OutlinedButton.icon(
       onPressed: _busy ? null : _undo,
       icon: _busy
@@ -351,23 +329,23 @@ class _KindBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (Color a, Color b, IconData icon) = switch (kind) {
       HistoryKind.aiOrganize => (
-        const Color(0xFF6F69FF),
-        const Color(0xFFA56BFF),
+        AppPalette.ai,
+        AppPalette.ai,
         Icons.auto_awesome,
       ),
       HistoryKind.manualRename => (
-        const Color(0xFF5A6173),
-        const Color(0xFF7E8497),
+        AppPalette.onTerminalFaint,
+        AppPalette.onTerminalMuted,
         Icons.drive_file_rename_outline,
       ),
       HistoryKind.metadataRefresh => (
-        const Color(0xFF3B82F6),
-        const Color(0xFF60A5FA),
+        AppPalette.accent,
+        AppPalette.accent,
         Icons.sync_rounded,
       ),
       HistoryKind.batchImport => (
-        const Color(0xFF6F69FF),
-        const Color(0xFFA56BFF),
+        AppPalette.ai,
+        AppPalette.ai,
         Icons.cloud_download_outlined,
       ),
     };
@@ -380,7 +358,7 @@ class _KindBadge extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [a, b],
         ),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
       ),
       child: Icon(icon, color: Colors.white, size: 18),
     );
@@ -453,7 +431,7 @@ class _MovesDialog extends StatelessWidget {
                     Text(
                       l10n.movesListTitle(rows.length),
                       style: const TextStyle(
-                        fontSize: 17,
+                        fontSize: AppTypeScale.sizeSubheading,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -486,7 +464,7 @@ class _MovesDialog extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontFamily: 'monospace',
-                              fontSize: 13,
+                              fontSize: AppTypeScale.sizeBody,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -506,7 +484,7 @@ class _MovesDialog extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontFamily: 'monospace',
-                                    fontSize: 13,
+                                    fontSize: AppTypeScale.sizeBody,
                                     color: scheme.onSurface,
                                   ),
                                 ),

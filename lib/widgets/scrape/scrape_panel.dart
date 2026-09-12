@@ -42,7 +42,7 @@ import '../../services/scrape/recipe_learner.dart';
 import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/settings_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 import '../glass/glass_segmented.dart';
 import 'scrape_review_pane.dart';
@@ -487,7 +487,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
           // instead of being squeezed through the intermediate sizes.
           final reviewSize = available.constrain(const Size(1280, 860));
           return AnimatedContainer(
-            duration: const Duration(milliseconds: 280),
+            duration: AppMotion.progress,
             curve: Curves.easeInOutCubic,
             // Setting a scrape up is a short form, running one is a card of
             // steps, and reviewing one is a table beside a picture grid. The
@@ -501,7 +501,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
               // The content swap is faster than the resize so the incoming
               // stage is already readable while the window is still settling.
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
+                duration: AppMotion.panel,
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeOutCubic,
                 child: KeyedSubtree(
@@ -571,7 +571,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
           height: 36,
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [scheme.tertiary, scheme.primary]),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.field),
           ),
           child: const Icon(
             Icons.travel_explore_outlined,
@@ -587,7 +587,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
               Text(
                 l10n.scrapePanelTitle,
                 style: const TextStyle(
-                  fontSize: 15.5,
+                  fontSize: AppTypeScale.sizeTitle,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -597,7 +597,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: AppTypeScale.sizeCaption,
                   fontFamily: 'monospace',
                   color: scheme.onSurfaceVariant,
                 ),
@@ -619,7 +619,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
   // ── Working stage ─────────────────────────────────────────────────────────
 
   Widget _working(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final stageIndex = switch (_scrapeStage) {
       null => 0,
       ScrapeStage.fetching => 0,
@@ -650,9 +650,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             decoration: BoxDecoration(
-              color: glass.panelFill,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: glass.panelStroke),
+              color: glass.cardFill,
+              borderRadius: BorderRadius.circular(AppRadii.panel),
+              border: Border.all(color: glass.stroke),
             ),
             child: Column(
               children: [
@@ -675,7 +675,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppTypeScale.sizeMono,
               fontFamily: 'monospace',
               color: scheme.onSurfaceVariant,
             ),
@@ -700,7 +700,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
         Text(
           l10n.scrapeAskLlmHint,
           style: TextStyle(
-            fontSize: 11.5,
+            fontSize: AppTypeScale.sizeCaption,
             height: 1.4,
             color: scheme.onSurfaceVariant,
           ),
@@ -712,7 +712,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
   }
 
   Widget _source(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final sites = context.watch<SettingsService>().searchSites;
     final keyword = widget.suggestedKeyword;
     final recipe = _parsedUrl() == null
@@ -754,7 +754,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
               prefixIcon: const Icon(Icons.link_rounded, size: 18),
               errorText: _error,
             ),
-            style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+            style: const TextStyle(
+              fontSize: AppTypeScale.sizeBody,
+              fontFamily: 'monospace',
+            ),
             onChanged: (_) => setState(() => _error = null),
             onSubmitted: (_) => _run(askLlm: false),
           ),
@@ -767,7 +770,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                 Text(
                   '${l10n.scrapeRecipeName}: ${recipe.domain}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppTypeScale.sizeCaption,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -789,23 +792,26 @@ class _ScrapePanelState extends State<ScrapePanel> {
               hintText: l10n.scrapeSearchKeyword,
               prefixIcon: const Icon(Icons.search_rounded, size: 18),
             ),
-            style: const TextStyle(fontSize: 13),
+            style: const TextStyle(fontSize: AppTypeScale.sizeBody),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 10),
           if (sites.isEmpty)
             Text(
               l10n.scrapeSearchNoSites,
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeCaption,
+                color: scheme.onSurfaceVariant,
+              ),
             )
           else
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               decoration: BoxDecoration(
-                color: glass.panelFill,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: glass.panelStroke),
+                color: glass.cardFill,
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                border: Border.all(color: glass.stroke),
               ),
               child: Wrap(
                 spacing: 8,
@@ -824,7 +830,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
             ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(fontSize: 12, color: scheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeCaption,
+                color: scheme.error,
+              ),
+            ),
           ],
         ],
       ],
@@ -846,7 +858,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
     padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
     decoration: BoxDecoration(
       color: scheme.primary.withValues(alpha: 0.07),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadii.field),
       border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
     ),
     child: Row(
@@ -856,7 +868,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
             l10n.scrapeDetectedCode(keyword),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: AppTypeScale.sizeControl,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -890,11 +905,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
           foregroundColor: scheme.primary,
           minimumSize: const Size(0, 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.button),
+          ),
           // Derived, not written fresh: a bare TextStyle in ButtonStyle
           // replaces the theme's and silently drops the user's UI font.
           textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontSize: 11.5,
+            fontSize: AppTypeScale.sizeCaption,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -924,7 +941,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-        fontSize: 11.5,
+        fontSize: AppTypeScale.sizeCaption,
         fontWeight: FontWeight.w500,
       ),
     ),
@@ -933,7 +950,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
   /// Where it lands. Auto-detected from what was right-clicked, because that
   /// is right almost every time, but never a dead end.
   Widget _nfoSection(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -949,9 +966,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
           // 7 + 30-px button + 7 = the same 44 every field in the panel uses.
           padding: const EdgeInsets.fromLTRB(12, 7, 7, 7),
           decoration: BoxDecoration(
-            color: glass.panelFill,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: glass.panelStroke),
+            color: glass.cardFill,
+            borderRadius: BorderRadius.circular(AppRadii.field),
+            border: Border.all(color: glass.stroke),
           ),
           child: Row(
             children: [
@@ -966,7 +983,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
                   p.join(_targetDir, _nfoFileName),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                  style: const TextStyle(
+                    fontSize: AppTypeScale.sizeCaption,
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -977,10 +997,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
                   minimumSize: const Size(0, 30),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadii.button),
                   ),
                   textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontSize: 12,
+                    fontSize: AppTypeScale.sizeCaption,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1000,7 +1020,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
                   l10n.scrapeNfoAutoMatched(_nfoFileName),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, color: scheme.tertiary),
+                  style: TextStyle(
+                    fontSize: AppTypeScale.sizeCaption,
+                    color: scheme.tertiary,
+                  ),
                 ),
               ),
             ],
@@ -1026,7 +1049,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                 initialValue: _backend?.id,
                 isExpanded: true,
                 isDense: true,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadii.field),
                 decoration: InputDecoration(
                   helperText: profiles.isEmpty ? l10n.scrapeBackendNone : null,
                 ),
@@ -1044,7 +1067,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 12.5,
+                                fontSize: AppTypeScale.sizeControl,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -1083,7 +1106,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                 decoration: InputDecoration(
                   hintText: l10n.scrapeCustomPromptHint,
                 ),
-                style: const TextStyle(fontSize: 12.5),
+                style: const TextStyle(fontSize: AppTypeScale.sizeControl),
               ),
             ],
           ),
@@ -1095,17 +1118,17 @@ class _ScrapePanelState extends State<ScrapePanel> {
   /// Cookies and the HTML paste fallback: both are escape hatches, and putting
   /// them behind a disclosure keeps the common path to three fields.
   Widget _advanced(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: glass.panelStroke),
+        color: glass.cardFill,
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.card),
             onTap: () => setState(() => _showAdvanced = !_showAdvanced),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
@@ -1114,7 +1137,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                   Text(
                     l10n.scrapeAdvanced,
                     style: const TextStyle(
-                      fontSize: 12.5,
+                      fontSize: AppTypeScale.sizeControl,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1144,7 +1167,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                       prefixIcon: const Icon(Icons.cookie_outlined, size: 16),
                     ),
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: AppTypeScale.sizeCaption,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -1156,9 +1179,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
                       label: Text(l10n.scrapePasteHtml),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        textStyle: Theme.of(
-                          context,
-                        ).textTheme.labelLarge?.copyWith(fontSize: 12.5),
+                        textStyle: Theme.of(context).textTheme.labelLarge
+                            ?.copyWith(fontSize: AppTypeScale.sizeControl),
                       ),
                     )
                   else
@@ -1166,7 +1188,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                       controller: _html,
                       maxLines: 5,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: AppTypeScale.sizeCaption,
                         fontFamily: 'monospace',
                       ),
                       decoration: InputDecoration(
@@ -1260,7 +1282,7 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
     return Text(
       l10n.scrapeElapsed(widget.format(widget.elapsed.elapsed)),
       style: TextStyle(
-        fontSize: 11.5,
+        fontSize: AppTypeScale.sizeCaption,
         fontFamily: 'monospace',
         color: scheme.onSurfaceVariant,
       ),
@@ -1278,7 +1300,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: TextStyle(
-      fontSize: 11,
+      fontSize: AppTypeScale.sizeMono,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.4,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1302,13 +1324,13 @@ class _BackendAvatar extends StatelessWidget {
       height: 20,
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadii.tiny),
       ),
       alignment: Alignment.center,
       child: Text(
         initials.toUpperCase(),
         style: const TextStyle(
-          fontSize: 8,
+          fontSize: AppTypeScale.sizeLabel,
           fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
@@ -1354,7 +1376,7 @@ class _StepRow extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: AppTypeScale.sizeControl,
               fontWeight: state == _StepState.active
                   ? FontWeight.w600
                   : FontWeight.w400,

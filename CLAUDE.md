@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Flutter **desktop** app for Windows/macOS/Linux. `android/`/`ios/` are not present; the `web/` directory is a `flutter create` artifact and is not a supported target.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `0.21.1+18`.
+- Dart SDK `^3.10.4`. Current app version: `0.22.0+19`.
 
 ## Common commands
 
@@ -28,7 +28,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `lib/main.dart` initializes services then runs `MyApp` → `HomeScreen` (or `OnboardingScreen` until `settings.onboardingSeen`). There is **no router** (no `go_router`); full-page surfaces (Settings, History, task detail) are plain `Navigator.push`, and everything else is a dialog.
 
-[home_screen.dart](lib/screens/home_screen.dart) is the shell: a full-width header (brand · section tabs · search · actions) over a three-pane body — `AppSidebar` (244px) | `MediaTable` (flex) | `AiAssistantPanel` (352px). Three sections: Files, Library (placeholder), Tasks.
+**The OS title bar is gone.** `main()` calls `windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: <macOS only>)`, and one 48px bar carries the brand, the section tabs, the search field, the actions and — on Windows and Linux — our own 46x48 caption buttons ([caption_buttons.dart](lib/widgets/shell/caption_buttons.dart)). macOS keeps the system traffic lights and the bar reserves 84px for them. The window *frame* survives, so resize edges, the system shadow and the OS's own rounded corners still work: `AppShell` deliberately does not clip, because both OSes round a frameless window themselves and a `ClipRRect` on top would only expose Flutter's opaque backdrop in the corners.
+
+Two consequences to keep in mind:
+
+- **Every full-page route needs its own bar or the window loses its controls.** A `Navigator.push` covers the main bar, and with it every drag region and every window button. Settings, History and the apply-progress screen therefore wear [secondary_title_bar.dart](lib/widgets/shell/secondary_title_bar.dart) — the same 48px surface with the brand and search swapped for a back button and a breadcrumb. A new full-page surface must do the same.
+- **Window state is read once, centrally.** [window_state.dart](lib/widgets/shell/window_state.dart) holds focus / maximized / full-screen in one `WindowStateNotifier` behind a `WindowStateScope`; `window_manager` dispatches every event to every registered listener, so ten widgets each attaching a `WindowListener` would compute the same answer ten times. With no scope in context it falls back to an inert "focused, never maximized" instance rather than asserting — the honest answer in a widget test, and it saves every shell-adjacent test a scaffold.
+
+[home_screen.dart](lib/screens/home_screen.dart) is the shell under that bar: `AppSidebar` (244px) | `MediaTable` (flex) | `AiAssistantPanel` (352px), over a 28px status bar. Three sections: Files, Library (placeholder), Tasks. Two breakpoints from spec 2.6: below 1180 the sidebar collapses to a 64px icon rail and the product name is hidden (hidden, not ellipsized — half a product name is worse than none); below 1400 the right panel defaults to closed, and its open/closed state is remembered per section.
+
+**Snap Layouts is native.** Windows 11 pops its snap flyout only for a maximize button that returns `HTMAXBUTTON` from `WM_NCHITTEST` over a hit area of at least 46x32 — which is why the caption buttons are 46x48 and why no app content may sit in the top-right 138px. Claiming it costs something: Windows then routes mouse input over that rectangle as *non-client*, so Flutter sees neither hover nor click there. [flutter_window.cpp](windows/runner/flutter_window.cpp) therefore owns the whole interaction — it performs the maximize itself and forwards hover/pressed to Dart over the `jellyfin/window_caption` method channel so the button still lights up. It only upgrades a plain `HTCLIENT` result, leaving `DefWindowProc`'s resize borders to win, and only once `window_manager` has actually removed the caption.
+
+On macOS, [MainFlutterWindow.swift](macos/Runner/MainFlutterWindow.swift) re-places the traffic lights by hand: AppKit parks them for a ~28pt title bar and they float visibly high in a 48pt one, and there is no API for re-centring them. Every step is guarded — losing the window controls to a nil is far worse than a blemish.
 
 **`MediaTable` subscribes narrowly on purpose.** It takes one `context.select` per value rather than a `watch` per service, and each `_FileRow` watches its own selected/checked state, because clicking a row notifies `FileBrowserService` and a `watch` there rebuilt the table — and with it every visible row — for a change that concerns two of them. Dragging a column divider likewise stays local: the live weights live in a `ValueNotifier` inside the table's state and only the release commits to `SettingsService`. Writing through on every pointer move notified every listener in the app and re-armed the `config.json` save debounce, per pixel. Cancelling a drag commits too — the columns have already moved on screen, so discarding the pending width would snap them back under the pointer. `SettingsService.columnWeights` caches its sanitized map for the same reason: `context.select` compares with `==`, and a fresh map per read is never equal to the last one.
 
@@ -187,7 +198,7 @@ The preview's backup checkbox gates both halves of undo: the real copies into `<
 
 **NFO file names follow Jellyfin, not the video.** A folder scrape writes `movie.nfo`; a focused video also gets `movie.nfo` in its folder unless that folder holds other videos, in which case Jellyfin ignores `movie.nfo` entirely (a *mixed folder*) and only `<video>.nfo` works — `MetadataWriter.nfoNameFor` makes that call. The panel's Movie / TV show switch turns the name into `tvshow.nfo` and the root element into `<tvshow>`. A refresh passes no kind: `ScrapeService.commit` keeps the root element the file already has, then falls back to what its name says, so a batch never rewrites a `<tvshow>` as a `<movie>`.
 
-Not done yet: the Library section (still the `_ComingSoon` placeholder), recipe import/export, and feeding a scraped title/year into the organize agent as a hint.
+Not done yet: the Library section (a placeholder drawn to the design), recipe import/export, and feeding a scraped title/year into the organize agent as a hint. The full list of design-spec features the app cannot yet do is `docs/spec/ui-redesign/backlog.md`.
 
 ### Persistence
 
@@ -221,31 +232,53 @@ Platform quirks that shaped the code: Windows ignores the `height` argument (squ
 
 ### Theming
 
-[app_theme.dart](lib/theme/app_theme.dart) builds Material 3 light/dark themes from an optional user accent seed, and carries a `GlassTheme` `ThemeExtension` (backdrop gradient, sidebar fill, blur intensity) that the frosted panels read. Read glass values through `Theme.of(context).extension<GlassTheme>()!`, never by hardcoding colors.
+**[design_tokens.dart](lib/theme/design_tokens.dart) is the single source of every value the UI is allowed to paint with**, transcribed from the Claude Design project (`docs/spec/ui-redesign/`). A widget never writes a raw colour, radius, height, blur or duration of its own — and any number in a widget that is *not* a token is either a bug or a deliberate one-off that says which spec section it came from.
 
-**Control metrics live in the theme, not in widgets.** `AppTheme` defines one sizing system app-wide — 44px glass-filled inputs (`inputDecorationTheme`, including the prefix-icon constraint override that stops Material's 48px icon minimum from making two fields in one row disagree), 38px radius-10 buttons (`filledButtonTheme` / `elevatedButtonTheme` / `outlinedButtonTheme`), 34px text buttons. A widget writes **no size or border styling** on standard controls; `InputDecoration` carries only content (hint, label, icons, error). An explicit size override marks a deliberate compact variant (the 36px header search field in `home_screen.dart`, the 30px Browse button and 28px search-site chips in the scrape panel) and must opt out of the theme borders explicitly, as the search field does.
+It is split three ways on purpose:
 
-**The glass surface family** (`lib/widgets/glass/`) is the only sanctioned chrome for floating surfaces:
+- `AppSpacing` / `AppRadii` / `AppSizes` / `AppMotion` / `AppTypeScale` are `static const`: they do not vary with brightness, accent or performance mode, so putting them on a `ThemeExtension` would make every read pay for a `Theme.of` lookup that cannot return a different answer.
+- `AppTokens` is the extension — colours, gradients, shadows, blur — read as `context.tokens`.
+- `AppPalette` holds the five semantic hues, which are identical in both themes. Icons, dots, badges and progress fills reference it directly; only text on a light ground swaps to an ink variant (`t.successText`, `t.accentText`). Vendor marks (OpenAI, Google) live there too and are the deliberate exception to theming: if they tracked the user's accent nobody could tell which provider a card belongs to.
 
-- `GlassPanel` — page-level panes and cards (blur + translucent fill + hairline stroke). **The blur is dropped when the panel's own `fill`/`gradient` is fully opaque**, because a `BackdropFilter` paints its child over the blurred backdrop and an opaque child hides the result entirely — which is exactly what the light theme's centre-table gradient does. Skipping it removes a full-panel, multi-pass GPU filter that was re-running every frame at device resolution for an invisible result. Asking for `blur: true` is therefore not a guarantee of getting it; making a fill opaque is also a decision to give up its frost.
-- `GlassDialogSurface` — the modal surface: backdrop blur under a near-opaque wash of `scheme.surface`, hairline stroke, deep shadow. Near-opaque on purpose — a dialog's job is to be read; the ~8% translucency is what keeps it glass.
-- `GlassAlertDialog` — drop-in `AlertDialog` replacement (same `icon`/`title`/`content`/`actions` shape, plus `maxWidth`).
-- `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` — context menus; items are icon + label + optional monospace trailing hint, with a primary-tinted pill (not a radio) marking the current state.
+**The accent is user-replaceable, so nothing derived from it is written down.** The tab fill, the task badge, the focus ring and the window backdrop are all opacity-derived, and the light-theme ink variant is found by pushing luminance under a threshold rather than by a fixed darken factor — a fixed factor is not enough for a yellow or cyan accent. The task badge is the only accent-solid + white-text pair in the design, so `AppTokens.badgeText` flips to ink above 0.72 luminance.
 
-**Performance mode** (`SettingsService.performanceMode` → `AppTheme(reduceEffects:)` → `GlassTheme.reduceEffects`) is the escape hatch for weak GPUs. It rides the theme rather than a Provider lookup per panel, since every glass widget already reads `GlassTheme`. It **skips the `BackdropFilter` widget** rather than passing a zero sigma — a zero-sigma filter still ends the render pass and reads back the whole target, which is where the cost is — and `_flatten` composites the translucent fills onto the backdrop gradient with `Color.alphaBlend` so the panels stay readable without one. The large `elevated` / dialog drop shadows go too. Note `GlassTheme.lerp` snaps `reduceEffects` at t = 0.5: `MaterialApp` animates a theme swap over `kThemeAnimationDuration`, and fading the blur out would mean running it on every frame of that fade.
+`AppTypeScale.size*` exists so there cannot be a ninth type step. Spec 1.2 defines eight; the pre-redesign tree had 13.5, 15.5, 17 and 18 alongside them, each one making "is this a title or is this body text?" a little less answerable.
+
+**Control metrics live in the theme, not in widgets.** `AppTheme` configures Material's own control themes from the tokens — 32px inputs and buttons at radius 8/10, 28px text buttons, 30px menu rows — so even an unmigrated Material control lands inside the design system instead of on a seed palette. A widget writes **no size or border styling** on standard controls; `InputDecoration` carries only content (hint, label, icons, error). An explicit size marks a deliberate compact variant and must opt out of the theme borders explicitly.
+
+**`GlassSurface` ([glass_surface.dart](lib/widgets/ui/glass_surface.dart)) is the app's only `BackdropFilter`.** Three measured rules live there and nowhere else:
+
+- **The filter is dropped when the fill is opaque.** A `BackdropFilter` paints its child over the blurred backdrop, so an opaque child hides the result entirely — which is exactly what the light theme's centre-table gradient does. Asking for blur is therefore not a guarantee of getting it; making a fill opaque is also a decision to give up its frost.
+- **Performance mode skips the widget rather than passing sigma 0.** A zero-sigma filter still ends the render pass and reads back the whole target, which is where the cost is.
+- **No blur without a clip**, or it samples past the rounded corner.
+
+### The settings screen
+
+`SettingsScreen` is a 200px nav plus one detail pane, and each of the eight sections is its own library under `lib/widgets/settings/`. They all assemble out of the same blocks in [settings_controls.dart](lib/widgets/settings/settings_controls.dart) — `SettingsPage`, `SettingsSectionTitle`, `SettingsCard`, `SettingsRowsCard`, `SettingsRow`, `SettingsToggleRow`, `SettingsColumns`, `SettingsMiniButton`, `SettingsFootnote` — because eight pages each writing their own row height is exactly how a design system rots. Spec 06 values that sit between two steps of the 1.3 scale (18, 26, 9) snap to the nearest step there; the file says so at the top.
+
+`SettingsPlaceholder` is the convention for a block the design describes and the app cannot do: it is drawn to spec, dimmed and made inert, and its group title carries a `SettingsSoonTag`. Dropping such a block reads as "not planned" and faking it is worse. Every one of them is listed in `docs/spec/ui-redesign/backlog.md`.
+
+Two things in there that are load-bearing rather than cosmetic:
+
+- **Undo backups have no Clear button.** They hold the real copies undo restores, so emptying them turns unexpired undo records into empty promises; `HistoryService` already prunes them at 7 days, and the cache table only reports their size.
+- **The accent picker previews live** ([accent_picker.dart](lib/widgets/settings/accent_picker.dart)) — the accent bleeds into the tab fill, focus ring, task badge and window backdrop, so a 34px chip tells you nothing. That makes cancelling a real rollback (the panel records the original on open) and makes `SettingsService.setAccentColor(remember:)` necessary: only Apply enters the recents list, or one drag across a hue fills all six slots.
+
+**The context-window slider's arithmetic is a separate pure library** ([context_window_scale.dart](lib/widgets/settings/context_window_scale.dart)) so it can be tested. 8k–1M is a 128x range, so a linear track squashes 8k–32k — where local models sit — into the leftmost 2%; the design's answer is eight evenly spaced segments, linear within each. Typed input aligns *down* to 1k: the number has to match what the server was loaded with, and guessing high means prompts overrun the window and get truncated from the front, where the system prompt is.
+
+`lib/widgets/ui/` holds the spec-1.4 primitives built on it — `AppButton`, `AppIconButton`, `AppTextField`, `AppTag`, `AppCountBadge`, `AppSegmented`, `AppToggle`, `AppListRow`, `AppColumnHeader`, `AppCard`, `AppGlassPane`. `lib/widgets/glass/` keeps the overlay family (`GlassAlertDialog`, `GlassDialogSurface`, `DialogActionBar`, `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` / `glassMenuDivider`, `showGlassDialog`).
+
+**Motion is 1.4f and nothing else**: 80ms hover, 120/100ms overlays, 180ms panels, 240ms linear progress, no section transition. Only opacity, fill and 4px or less of movement — **no scaling, no elastic curves**. `AppMotion.respecting(context, ...)` returns `Duration.zero` when the system asks for reduced motion.
+
+**Performance mode** (`SettingsService.performanceMode` → `AppTheme(reduceEffects:)` → `AppTokens.reduceEffects`) is the escape hatch for weak GPUs. It rides the theme rather than a Provider lookup per panel, since every surface already reads the tokens. Beyond skipping the filters it swaps the glass layers for the **opaque pre-mixed constants** spec 2.4 gives (`#171A2B` / `#F4F6FB` for the bar, `#21253A` / `#E7EBF4` for controls) and multiplies the hairline opacity by 1.4 — without a blur behind them the translucent fills drop to roughly 2:1 contrast and the hairlines stop reading as edges. The large drop shadows go too. Note `AppTokens.lerp` snaps `reduceEffects` and `brightness` at t = 0.5: `MaterialApp` animates a theme swap over `kThemeAnimationDuration`, and fading the blur out would mean running the most expensive layer on every frame of that fade.
 
 Measured on a Ryzen 9 9900X iGPU driving 3840x2160 (devicePixelRatio 2.0), switching sections with the window maximized: p50 raster **61.5 ms → 23.9 ms** and **12.5 → 24.8 fps**. Two things that measurement settled and that guesswork got wrong:
 
 - **The cost is area x devicePixelRatio squared, and superlinear past that.** The same blur is nearly free in a small window and catastrophic maximized, so any before/after has to be measured at the size the complaint came from.
-- **`BackdropGroup` / `backdropKey` buys nothing here.** Only one `BackdropFilterLayer` is ever live — the sidebar and the AI panel pass `blur: false` — so there is no second filter to share a backdrop snapshot with.
-
-Note the **dark theme pays for a near-fullscreen blur that the light theme does not**: the centre table's gradient is opaque in light (so `_fillHidesBackdrop` drops the filter) and translucent in dark (so it runs, over the whole centre pane).
+- **`BackdropGroup` / `backdropKey` buys nothing here.** Only one `BackdropFilterLayer` is ever live, so there is no second filter to share a backdrop snapshot with.
 
 Performance mode is not the whole story. With the blur gone, a maximized 4K frame still spends ~17.5 ms in `FlutterCompositorPresentLayers` against 0.73 ms of Flutter-side command encoding, scaling linearly with pixel count — Impeller's OpenGL ES (ANGLE) backend running ~10 full-size render passes per frame against shared system memory. That floor caps the app near 57 fps at 4K regardless of what the widget tree does.
 
-`dialogTheme` / `popupMenuTheme` in `AppTheme` are fallbacks in the same palette so an unmigrated surface degrades to matching colors — they cannot add the backdrop blur, so they are a safety net, not an alternative.
-
-**`AppTheme.light` / `.dark` memoize one `ThemeData` per brightness**, keyed by accent + glass intensity + font family. `MyApp.build` asks for both on every `SettingsService` / `FontService` notification — a favourite toggled, a recent pushed — and rebuilding them handed `MaterialApp` a fresh identity each time, rebuilding everything under `Theme.of`. One slot per brightness is the right size: the repeated calls are identical so they hit, while a real change (dragging the intensity slider) misses and costs what it always cost. A map keyed by the inputs would grow an entry per slider pixel instead.
+**`AppTheme.light` / `.dark` memoize one `ThemeData` per brightness**, keyed by accent + glass intensity + font family + performance mode. `MyApp.build` asks for both on every `SettingsService` / `FontService` notification — a favourite toggled, a recent pushed — and rebuilding them handed `MaterialApp` a fresh identity each time, rebuilding everything under `Theme.of`. One slot per brightness is the right size: the repeated calls are identical so they hit, while a real change (dragging the intensity slider) misses and costs what it always cost. A map keyed by the inputs would grow an entry per slider pixel instead.
 
 ### Localization
 
@@ -264,9 +297,11 @@ ARB files at `lib/l10n/app_en.arb` and `lib/l10n/app_zh.arb`. `flutter: generate
 - Every user-facing string must use `AppLocalizations.of(context)!.<key>` and must be added to **both** `app_en.arb` and `app_zh.arb`.
 - New keyboard shortcuts go in `lib/shortcuts/app_shortcuts.dart` — do not add a bare `SingleActivator` in a widget.
 - Failures are reported via `ScaffoldMessenger`; batch operations report counts, not just the first error.
-- UI is Material 3; respect light/dark themes, the accent seed, and `GlassTheme`.
-- Dialogs use `GlassAlertDialog` (or `GlassDialogSurface` inside a transparent `Dialog` for large/custom ones); context menus use `showGlassMenu` with `glassMenuItem`/`glassMenuHeader`. Never a bare `AlertDialog` or `showMenu` — the Material surfaces don't match the liquid-glass style (see Theming).
-- Standard controls (inputs, dropdowns, buttons, sliders) take their size from the theme — do not restate heights, paddings or border shapes per widget. An explicit size is a deliberate compact variant and must opt out of the theme borders explicitly (see Theming).
+- **No literal colours, radii, control heights, font sizes or durations in a widget.** Read `context.tokens` / `AppSpacing` / `AppRadii` / `AppSizes` / `AppMotion` / `AppTypeScale`. A one-off value (the 680x340 drop zone, the 46x5 confidence bar) must name the spec section it came from in a comment. The spec lives in `docs/spec/ui-redesign/`.
+- Build from the `lib/widgets/ui/` primitives rather than styling a bare Material control. Dialogs use `GlassAlertDialog` (or `GlassDialogSurface` inside a transparent `Dialog` for large/custom ones) with `DialogActionBar` for the footer; context menus use `showGlassMenu` with `glassMenuItem`/`glassMenuHeader`. Never a bare `AlertDialog` or `showMenu`.
+- Never write a second `BackdropFilter` — use `GlassSurface` (see Theming for why).
+- A new full-page `Navigator.push` surface must include `SecondaryTitleBar`, or the window has no drag region and no window buttons while it is open.
+- Design-spec features the app cannot yet do ship as the design's own placeholder (drawn, disabled, labelled) and go in `docs/spec/ui-redesign/backlog.md` — not silently omitted, and not faked.
 - No `freezed` / `json_serializable` / `build_runner` in this project — JSON is hand-rolled in the services. Don't introduce codegen without a reason.
 
 ## Platform-specific notes

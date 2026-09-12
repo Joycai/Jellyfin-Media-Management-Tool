@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/scrape/image_downloader.dart';
 import '../../services/scrape/scrape_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 
 /// What the user confirmed for a folder-wide refresh.
@@ -55,7 +55,7 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final empty = widget.targets.isEmpty;
 
     return GlassAlertDialog(
@@ -76,7 +76,7 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
               ? Text(
                   l10n.batchScrapeEmpty,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTypeScale.sizeBody,
                     color: scheme.onSurfaceVariant,
                   ),
                 )
@@ -87,7 +87,7 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
                     Text(
                       l10n.batchScrapeFound(widget.targets.length),
                       style: const TextStyle(
-                        fontSize: 13.5,
+                        fontSize: AppTypeScale.sizeBody,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -95,14 +95,14 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: glass.panelFill,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: glass.panelStroke),
+                        color: glass.cardFill,
+                        borderRadius: BorderRadius.circular(AppRadii.field),
+                        border: Border.all(color: glass.stroke),
                       ),
                       child: Text(
                         l10n.batchScrapePolicy,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppTypeScale.sizeCaption,
                           height: 1.4,
                           color: scheme.onSurfaceVariant,
                         ),
@@ -129,14 +129,16 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
                               t.label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13),
+                              style: const TextStyle(
+                                fontSize: AppTypeScale.sizeBody,
+                              ),
                             ),
                             subtitle: Text(
                               t.sourceUrl,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: AppTypeScale.sizeMono,
                                 fontFamily: 'monospace',
                                 color: scheme.onSurfaceVariant,
                               ),
@@ -153,12 +155,12 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
                       onChanged: (v) => setState(() => _artwork = v ?? false),
                       title: Text(
                         l10n.batchScrapeArtwork,
-                        style: const TextStyle(fontSize: 13),
+                        style: const TextStyle(fontSize: AppTypeScale.sizeBody),
                       ),
                       subtitle: Text(
                         l10n.batchScrapeArtworkHint,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppTypeScale.sizeMono,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -170,7 +172,7 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
                       onChanged: (v) => setState(() => _backup = v ?? true),
                       title: Text(
                         l10n.scrapeWriteBackup,
-                        style: const TextStyle(fontSize: 13),
+                        style: const TextStyle(fontSize: AppTypeScale.sizeBody),
                       ),
                     ),
                   ],

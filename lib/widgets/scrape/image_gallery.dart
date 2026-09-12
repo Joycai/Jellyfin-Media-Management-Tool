@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/scrape/image_cache.dart';
 import '../../services/scrape/image_role.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_menu.dart';
 
 /// One image on offer.
@@ -76,7 +76,10 @@ class ImageGallery extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 24),
         child: Text(
           l10n.scrapeImageNone,
-          style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppTypeScale.sizeBody,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -89,7 +92,7 @@ class ImageGallery extends StatelessWidget {
         Text(
           l10n.scrapeImageRoleHint,
           style: TextStyle(
-            fontSize: 10.5,
+            fontSize: AppTypeScale.sizeLabel,
             height: 1.3,
             color: scheme.onSurfaceVariant,
           ),
@@ -147,7 +150,7 @@ class ImageGallery extends StatelessWidget {
         child: Text(
           l10n.scrapeSaveImagesHint,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: AppTypeScale.sizeMono,
             height: 1.3,
             color: scheme.onSurfaceVariant,
           ),
@@ -170,7 +173,7 @@ class ImageGallery extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -182,7 +185,7 @@ class ImageGallery extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: AppTypeScale.sizeMono,
                   fontFamily: 'monospace',
                   color: scheme.onSurfaceVariant,
                 ),
@@ -205,7 +208,7 @@ class ImageGallery extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: AppTypeScale.sizeCaption,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -273,28 +276,28 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final marked = selected && role != ImageRole.original;
 
     return Tooltip(
       message: image.url,
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: AppMotion.progress,
       child: InkWell(
         onTap: onTap,
         onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
         // Long-press mirrors right-click, the way the file table's own context
         // menu does.
         onLongPress: () => _menu(context, null),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: AppMotion.overlayIn,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.field),
             border: Border.all(
               color: selected
                   ? scheme.tertiary.withValues(alpha: 0.7)
-                  : glass.panelStroke,
+                  : glass.stroke,
               width: selected ? 1.5 : 1,
             ),
             boxShadow: selected
@@ -319,11 +322,16 @@ class _Tile extends StatelessWidget {
                 bottom: 0,
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(8, 16, 8, 6),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
+                    // 压在缩略图上的字幕条：渐隐到窗口底色，两套主题都用深色，
+                    // 因为它盖的是图片而不是主题表面。
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xE6111420)],
+                      colors: [
+                        Colors.transparent,
+                        AppPalette.darkBase.withValues(alpha: 0.9),
+                      ],
                     ),
                   ),
                   child: Column(
@@ -351,7 +359,7 @@ class _Tile extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: AppTypeScale.sizeLabel,
                                 fontWeight: selected
                                     ? FontWeight.w600
                                     : FontWeight.w400,
@@ -371,7 +379,7 @@ class _Tile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: AppTypeScale.sizeLabel,
                           fontFamily: 'monospace',
                           color: Colors.white.withValues(alpha: 0.55),
                         ),
@@ -444,7 +452,7 @@ class _Tile extends StatelessWidget {
   static Color? _roleIconColor(ImageRole role, ColorScheme scheme) =>
       switch (role) {
         ImageRole.poster => scheme.primary,
-        ImageRole.fanart => const Color(0xFFE0852C),
+        ImageRole.fanart => AppPalette.warning,
         _ => null,
       };
 

@@ -3625,6 +3625,690 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention.'**
   String get ruleEditorComingSoon;
+
+  /// No description provided for @windowMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize'**
+  String get windowMinimize;
+
+  /// No description provided for @windowMaximize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximize'**
+  String get windowMaximize;
+
+  /// No description provided for @windowRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get windowRestore;
+
+  /// No description provided for @windowClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get windowClose;
+
+  /// No description provided for @togglePanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show or hide the side panel'**
+  String get togglePanel;
+
+  /// No description provided for @toggleSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Show or hide the sidebar'**
+  String get toggleSidebar;
+
+  /// No description provided for @searchHintShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Search…'**
+  String get searchHintShort;
+
+  /// No description provided for @statusTotalSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} total'**
+  String statusTotalSize(String size);
+
+  /// No description provided for @planReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan ready'**
+  String get planReady;
+
+  /// No description provided for @dropFoldersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop folders here to start'**
+  String get dropFoldersTitle;
+
+  /// No description provided for @dropFoldersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag one or more folders into the window · video, subtitles, posters and metadata are scanned together'**
+  String get dropFoldersHint;
+
+  /// No description provided for @orSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get orSeparator;
+
+  /// No description provided for @connectNas.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect NAS'**
+  String get connectNas;
+
+  /// No description provided for @historyAllRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'All records'**
+  String get historyAllRecords;
+
+  /// No description provided for @historyIrreversible.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be undone'**
+  String get historyIrreversible;
+
+  /// No description provided for @historyToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get historyToday;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
+  /// No description provided for @pathsLibraryRoots.
+  ///
+  /// In en, this message translates to:
+  /// **'Library roots'**
+  String get pathsLibraryRoots;
+
+  /// No description provided for @pathsRootMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get pathsRootMovies;
+
+  /// No description provided for @pathsRootShows.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows'**
+  String get pathsRootShows;
+
+  /// No description provided for @pathsRootExample.
+  ///
+  /// In en, this message translates to:
+  /// **'/Volumes/Media/Movies'**
+  String get pathsRootExample;
+
+  /// No description provided for @pathsMounted.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get pathsMounted;
+
+  /// No description provided for @pathsUnmounted.
+  ///
+  /// In en, this message translates to:
+  /// **'Not mounted'**
+  String get pathsUnmounted;
+
+  /// No description provided for @pathsChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get pathsChange;
+
+  /// No description provided for @pathsAddRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Add root'**
+  String get pathsAddRoot;
+
+  /// No description provided for @pathsRescan.
+  ///
+  /// In en, this message translates to:
+  /// **'Rescan'**
+  String get pathsRescan;
+
+  /// No description provided for @pathsRootsPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'This app organizes one folder at a time. Multiple roots, mount state and rescanning are not implemented yet.'**
+  String get pathsRootsPlaceholder;
+
+  /// No description provided for @pathsDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Default locations'**
+  String get pathsDefaults;
+
+  /// No description provided for @pathsOrganizeOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize output'**
+  String get pathsOrganizeOutput;
+
+  /// No description provided for @pathsOrganizeOutputValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows the source folder'**
+  String get pathsOrganizeOutputValue;
+
+  /// No description provided for @pathsChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose…'**
+  String get pathsChoose;
+
+  /// No description provided for @pathsTempDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporary & downloads'**
+  String get pathsTempDir;
+
+  /// No description provided for @pathsTempDirValue.
+  ///
+  /// In en, this message translates to:
+  /// **'System temporary folder'**
+  String get pathsTempDirValue;
+
+  /// No description provided for @pathsDefaultsPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Organized files always land beside their source; a separate output or temporary folder is not implemented yet.'**
+  String get pathsDefaultsPlaceholder;
+
+  /// No description provided for @pathsFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite paths'**
+  String get pathsFavorites;
+
+  /// No description provided for @pathsFavoritesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reordering by drag is not implemented yet. This list is the sidebar\'s Favorites group.'**
+  String get pathsFavoritesHint;
+
+  /// No description provided for @pathsRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get pathsRecent;
+
+  /// No description provided for @pathsClearRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get pathsClearRecent;
+
+  /// No description provided for @pathsRecentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The last {count} folders you opened. The star at the end of a row adds one to Favorites.'**
+  String pathsRecentHint(Object count);
+
+  /// No description provided for @pathsAddFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get pathsAddFavorite;
+
+  /// No description provided for @privacyLocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Config & data'**
+  String get privacyLocations;
+
+  /// No description provided for @privacyConfigFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Config folder'**
+  String get privacyConfigFolder;
+
+  /// No description provided for @privacyBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get privacyBrowse;
+
+  /// No description provided for @privacyCopyPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get privacyCopyPath;
+
+  /// No description provided for @privacyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Path copied'**
+  String get privacyCopied;
+
+  /// No description provided for @privacyDataFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Data files'**
+  String get privacyDataFiles;
+
+  /// No description provided for @privacyDataFilesValue.
+  ///
+  /// In en, this message translates to:
+  /// **'config.json · ai_profiles.json · sites.json · scrapers.json'**
+  String get privacyDataFilesValue;
+
+  /// No description provided for @privacyCaches.
+  ///
+  /// In en, this message translates to:
+  /// **'Caches'**
+  String get privacyCaches;
+
+  /// No description provided for @privacyClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get privacyClear;
+
+  /// No description provided for @privacyClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get privacyClearAll;
+
+  /// No description provided for @privacyTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get privacyTotal;
+
+  /// No description provided for @privacyCacheThumbnails.
+  ///
+  /// In en, this message translates to:
+  /// **'Thumbnail cache'**
+  String get privacyCacheThumbnails;
+
+  /// No description provided for @privacyCacheThumbnailsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster frames rendered for the file table'**
+  String get privacyCacheThumbnailsHint;
+
+  /// No description provided for @privacyCacheUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo backups'**
+  String get privacyCacheUndo;
+
+  /// No description provided for @privacyCacheUndoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Real copies of overwritten files, kept {days} days · {count} operations'**
+  String privacyCacheUndoHint(Object count, Object days);
+
+  /// No description provided for @privacyCacheAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize memory'**
+  String get privacyCacheAgent;
+
+  /// No description provided for @privacyCacheAgentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Decided groups and corrections you applied'**
+  String get privacyCacheAgentHint;
+
+  /// No description provided for @privacyCacheNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Clearing removes local caches only. NFOs and images already written to the library are untouched, and the next run regenerates what it needs. Undo backups have no Clear: deleting them would turn undo records that have not expired into empty promises.'**
+  String get privacyCacheNote;
+
+  /// No description provided for @privacySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get privacySection;
+
+  /// No description provided for @privacyTelemetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Send anonymous usage statistics'**
+  String get privacyTelemetry;
+
+  /// No description provided for @privacyTelemetryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No file names or paths'**
+  String get privacyTelemetryHint;
+
+  /// No description provided for @privacyCrashReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Crash reports'**
+  String get privacyCrashReports;
+
+  /// No description provided for @privacyCrashReportsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stack traces and device model only'**
+  String get privacyCrashReportsHint;
+
+  /// No description provided for @privacyLogAiBodies.
+  ///
+  /// In en, this message translates to:
+  /// **'Log AI request and reply bodies'**
+  String get privacyLogAiBodies;
+
+  /// No description provided for @privacyLogAiBodiesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For troubleshooting only — logs grow quickly'**
+  String get privacyLogAiBodiesHint;
+
+  /// No description provided for @privacyClearTempOnExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the temporary folder on exit'**
+  String get privacyClearTempOnExit;
+
+  /// No description provided for @privacyNoTelemetry.
+  ///
+  /// In en, this message translates to:
+  /// **'This app collects no telemetry of any kind and has no log file, so these switches have nothing to turn off yet.'**
+  String get privacyNoTelemetry;
+
+  /// No description provided for @privacyDanger.
+  ///
+  /// In en, this message translates to:
+  /// **'Danger zone'**
+  String get privacyDanger;
+
+  /// No description provided for @privacyReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all data'**
+  String get privacyReset;
+
+  /// No description provided for @privacyResetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Clears AI services, recipes, history and every cache, returning the app to its first-launch state. Media files on disk are not deleted, and NFOs and images already written are kept.'**
+  String get privacyResetBody;
+
+  /// No description provided for @privacyResetAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset…'**
+  String get privacyResetAction;
+
+  /// No description provided for @privacyResetPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Not implemented yet. Until it is, delete the config folder by hand — an irreversible reset should not ship half-built.'**
+  String get privacyResetPlaceholder;
+
+  /// No description provided for @shortcutsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search a command or a key…'**
+  String get shortcutsSearchHint;
+
+  /// No description provided for @shortcutsRestoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults'**
+  String get shortcutsRestoreDefaults;
+
+  /// No description provided for @shortcutsRebindHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebinding is not implemented yet — what is listed here is what is actually bound.'**
+  String get shortcutsRebindHint;
+
+  /// No description provided for @shortcutsNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No command matches'**
+  String get shortcutsNoMatch;
+
+  /// No description provided for @shortcutsPlatformNote.
+  ///
+  /// In en, this message translates to:
+  /// **'On Windows and Linux ⌘ is Ctrl, ⌥ is Alt and ⌫ is Delete.'**
+  String get shortcutsPlatformNote;
+
+  /// No description provided for @aboutChangelog.
+  ///
+  /// In en, this message translates to:
+  /// **'Changelog'**
+  String get aboutChangelog;
+
+  /// No description provided for @aboutCheckUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get aboutCheckUpdates;
+
+  /// No description provided for @aboutBuildInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Build info'**
+  String get aboutBuildInfo;
+
+  /// No description provided for @aboutVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get aboutVersion;
+
+  /// No description provided for @aboutBuildNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Build'**
+  String get aboutBuildNumber;
+
+  /// No description provided for @aboutCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit'**
+  String get aboutCommit;
+
+  /// No description provided for @aboutBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch'**
+  String get aboutBranch;
+
+  /// No description provided for @aboutRuntime.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime'**
+  String get aboutRuntime;
+
+  /// No description provided for @aboutBuildInfoPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit and branch are stamped in at package time, which this build does not do yet.'**
+  String get aboutBuildInfoPlaceholder;
+
+  /// No description provided for @aboutSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get aboutSystem;
+
+  /// No description provided for @aboutOs.
+  ///
+  /// In en, this message translates to:
+  /// **'OS'**
+  String get aboutOs;
+
+  /// No description provided for @aboutArch.
+  ///
+  /// In en, this message translates to:
+  /// **'Architecture'**
+  String get aboutArch;
+
+  /// No description provided for @aboutOpenSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source'**
+  String get aboutOpenSource;
+
+  /// No description provided for @aboutLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get aboutLicense;
+
+  /// No description provided for @aboutRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository'**
+  String get aboutRepository;
+
+  /// No description provided for @aboutIssues.
+  ///
+  /// In en, this message translates to:
+  /// **'Report an issue'**
+  String get aboutIssues;
+
+  /// No description provided for @aboutCopyright.
+  ///
+  /// In en, this message translates to:
+  /// **'Copyright'**
+  String get aboutCopyright;
+
+  /// No description provided for @aboutCopyrightValue.
+  ///
+  /// In en, this message translates to:
+  /// **'© 2026 contributors'**
+  String get aboutCopyrightValue;
+
+  /// No description provided for @aboutGraphics.
+  ///
+  /// In en, this message translates to:
+  /// **'Graphics adapter'**
+  String get aboutGraphics;
+
+  /// No description provided for @aboutGpuRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'In use'**
+  String get aboutGpuRunning;
+
+  /// No description provided for @aboutGpuShared.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared memory'**
+  String get aboutGpuShared;
+
+  /// No description provided for @accentPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get accentPickerTitle;
+
+  /// No description provided for @accentRestoreDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore the default blue'**
+  String get accentRestoreDefault;
+
+  /// No description provided for @accentRecents.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently used'**
+  String get accentRecents;
+
+  /// No description provided for @accentRecentsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get accentRecentsEmpty;
+
+  /// No description provided for @accentEyedropper.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a color from the screen'**
+  String get accentEyedropper;
+
+  /// No description provided for @accentContrastOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Contrast against the dark and light window bases: {dark}:1 · {light}:1'**
+  String accentContrastOk(Object dark, Object light);
+
+  /// No description provided for @accentContrastWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Contrast {dark}:1 · {light}:1 — below 3:1, so use it as a fill only'**
+  String accentContrastWeak(Object dark, Object light);
+
+  /// No description provided for @modelParameters.
+  ///
+  /// In en, this message translates to:
+  /// **'Model parameters'**
+  String get modelParameters;
+
+  /// No description provided for @modelParametersExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get modelParametersExpand;
+
+  /// No description provided for @modelParametersCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get modelParametersCollapse;
+
+  /// No description provided for @contextWindowScaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'tokens · 8k – 1M · step 1k'**
+  String get contextWindowScaleHint;
+
+  /// No description provided for @contextWindowFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'The ticks are evenly spaced segments and each segment is continuous, so the handle can stop on any 1k. Slider and field follow each other; blank means no limit.'**
+  String get contextWindowFootnote;
+
+  /// No description provided for @contextWindowOverDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Above the {limit} the server reported. Still saved.'**
+  String contextWindowOverDetected(Object limit);
+
+  /// No description provided for @maxOutputStep.
+  ///
+  /// In en, this message translates to:
+  /// **'step 256'**
+  String get maxOutputStep;
+
+  /// No description provided for @maxOutputFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Capped at half the context window; anything larger is clamped.'**
+  String get maxOutputFootnote;
+
+  /// No description provided for @pathsRootExampleShows.
+  ///
+  /// In en, this message translates to:
+  /// **'/Volumes/Media/Shows'**
+  String get pathsRootExampleShows;
 }
 
 class _AppLocalizationsDelegate

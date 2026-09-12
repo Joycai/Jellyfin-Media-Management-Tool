@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../l10n/app_localizations.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 
 class TVShowDialog extends StatefulWidget {
@@ -71,7 +73,7 @@ class _TVShowDialogState extends State<TVShowDialog> {
                   _formatNum(_episode),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: AppTypeScale.sizeSubheading,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

@@ -36,6 +36,7 @@ class SettingsService extends ChangeNotifier {
   // Appearance + behavior, surfaced on the Settings screen.
   double _glassIntensity = 70; // 0–100
   int? _accentColor; // ARGB int; null = default theme accent
+  List<int> _accentRecents = [];
   bool _showVideoThumbnails = true;
   bool _performanceMode = false;
   bool _onboardingSeen = false;
@@ -57,7 +58,8 @@ class SettingsService extends ChangeNotifier {
     ),
   ];
 
-  static const int _maxRecent = 8;
+  /// 最近访问保留的条数。设置页的说明文案引用它，免得两处各写一个数字。
+  static const int maxRecent = 8;
 
   ThemeMode get themeMode => _themeMode;
   Locale? get locale => _locale;
@@ -67,6 +69,11 @@ class SettingsService extends ChangeNotifier {
   List<String> get recent => List.unmodifiable(_recent);
   double get glassIntensity => _glassIntensity;
   int? get accentColor => _accentColor;
+
+  /// 取色浮层的「最近使用」：应用过的自定义强调色，先进先出，最多
+  /// [maxAccentRecents] 个（6.2）。预设色不入列 —— 它们本来就一直在那儿。
+  List<int> get accentRecents => List.unmodifiable(_accentRecents);
+  static const int maxAccentRecents = 6;
   bool get showVideoThumbnails => _showVideoThumbnails;
 
   /// Drop the blur and the large drop shadows from the glass chrome.
@@ -79,11 +86,19 @@ class SettingsService extends ChangeNotifier {
   bool get onboardingSeen => _onboardingSeen;
   String get fontChoice => _fontChoice;
 
+  /// Where everything this app persists lives, once something has asked for it
+  /// (`init()` does, on the first frame). Null before that: the privacy page
+  /// shows a placeholder rather than blocking a frame on a disk call, and this
+  /// is a label — nothing reads or writes through it.
+  String? get configPath => _configPath;
+  String? _configPath;
+
   Future<Directory> get _configDir async {
     final directory = await getApplicationSupportDirectory();
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
+    _configPath = directory.path;
     return directory;
   }
 
@@ -138,6 +153,12 @@ class SettingsService extends ChangeNotifier {
           }
           if (data['accent_color'] is int) {
             _accentColor = data['accent_color'] as int;
+          }
+          if (data['accent_recents'] is List) {
+            _accentRecents = [
+              for (final v in data['accent_recents'] as List)
+                if (v is int) v,
+            ];
           }
           if (data['show_video_thumbnails'] is bool) {
             _showVideoThumbnails = data['show_video_thumbnails'] as bool;
@@ -210,6 +231,7 @@ class SettingsService extends ChangeNotifier {
         'last_search_site_index': _lastSearchSiteIndex,
         'glass_intensity': _glassIntensity,
         'accent_color': _accentColor,
+        'accent_recents': _accentRecents,
         'show_video_thumbnails': _showVideoThumbnails,
         'performance_mode': _performanceMode,
         'onboarding_seen': _onboardingSeen,
@@ -302,8 +324,20 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setAccentColor(int? argb) async {
+  /// 换强调色。
+  ///
+  /// [remember] 只在用户**确认**取色时为真：拖动取色器会一路调用这个方法做实时
+  /// 预览，把每一个中间色都记进「最近使用」，六个格子在一次拖动里就被同一条色相
+  /// 上的邻居填满了。
+  Future<void> setAccentColor(int? argb, {bool remember = false}) async {
     _accentColor = argb;
+    if (remember && argb != null) {
+      _accentRecents.remove(argb);
+      _accentRecents.insert(0, argb);
+      if (_accentRecents.length > maxAccentRecents) {
+        _accentRecents = _accentRecents.sublist(0, maxAccentRecents);
+      }
+    }
     _scheduleSave();
     notifyListeners();
   }
@@ -346,12 +380,12 @@ class SettingsService extends ChangeNotifier {
   }
 
   /// Records [path] as the most recently opened folder, de-duplicated and
-  /// capped at [_maxRecent].
+  /// capped at [maxRecent].
   Future<void> pushRecent(String path) async {
     _recent.remove(path);
     _recent.insert(0, path);
-    if (_recent.length > _maxRecent) {
-      _recent = _recent.sublist(0, _maxRecent);
+    if (_recent.length > maxRecent) {
+      _recent = _recent.sublist(0, maxRecent);
     }
     _scheduleSave();
     notifyListeners();

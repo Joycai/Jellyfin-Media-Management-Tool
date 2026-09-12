@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/apply_controller.dart';
 import '../../services/organize_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
-import '../glass/glass_panel.dart';
+import '../shell/app_shell.dart';
+import '../shell/secondary_title_bar.dart';
+import '../ui/app_controls.dart';
+import '../ui/glass_surface.dart';
 
 /// Live progress view shown while an organize plan is applied: an overall
 /// progress card plus a terminal-style activity log, with pause/stop controls.
@@ -91,7 +94,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       if (pos.maxScrollExtent - pos.pixels > 120) return;
       _scroll.animateTo(
         pos.maxScrollExtent,
-        duration: const Duration(milliseconds: 180),
+        duration: AppMotion.panel,
         curve: Curves.easeOut,
       );
     });
@@ -99,113 +102,76 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final l10n = AppLocalizations.of(context)!;
     final c = context.watch<ApplyController>();
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: glass.backdrop),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(c),
-                const SizedBox(height: 18),
-                _progressCard(c),
-                const SizedBox(height: 18),
-                Expanded(child: _logPanel(c)),
-              ],
-            ),
+      // 整页路由盖住主顶栏，窗口按钮与拖拽区必须由这一条带回来。
+      body: AppShell(
+        titleBar: SecondaryTitleBar(
+          backLabel: l10n.back,
+          onBack: () => Navigator.of(context).pop(),
+          title: _title(c, l10n),
+          subtitle: c.status == ApplyStatus.running && c.eta != null
+              ? l10n.etaRemaining(c.eta!.inMinutes, c.eta!.inSeconds % 60)
+              : null,
+          actions: _controls(c, l10n),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(AppSizes.contentPaddingH),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _progressCard(c),
+              const SizedBox(height: AppSpacing.lg),
+              Expanded(child: _logPanel(c)),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
-  Widget _header(ApplyController c) {
-    final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-    final running = c.status == ApplyStatus.running;
+  String _title(ApplyController c, AppLocalizations l10n) => switch (c.status) {
+    ApplyStatus.running => l10n.organizing(c.total),
+    ApplyStatus.paused => l10n.statusPaused,
+    ApplyStatus.done => l10n.statusDone,
+    ApplyStatus.stopped => l10n.statusStopped,
+  };
+
+  /// 5.3 把暂停 / 停止放在标题条右侧，正文里只剩进度与日志。
+  List<Widget> _controls(ApplyController c, AppLocalizations l10n) {
     final paused = c.status == ApplyStatus.paused;
     final finished =
         c.status == ApplyStatus.done || c.status == ApplyStatus.stopped;
-
-    final (Color dot, String title) = switch (c.status) {
-      ApplyStatus.running => (
-        const Color(0xFF34C759),
-        l10n.organizing(c.total),
+    if (finished) {
+      return [
+        AppButton.primary(
+          label: l10n.doneClose,
+          icon: Icons.check_rounded,
+          height: AppSizes.controlSm,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        const SizedBox(width: AppSpacing.md12),
+      ];
+    }
+    return [
+      AppButton(
+        label: paused ? l10n.resume : l10n.pause,
+        icon: paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+        height: AppSizes.controlSm,
+        onPressed: () => paused ? c.resume() : c.pause(),
       ),
-      ApplyStatus.paused => (const Color(0xFFE0A030), l10n.statusPaused),
-      ApplyStatus.done => (const Color(0xFF34C759), l10n.statusDone),
-      ApplyStatus.stopped => (scheme.onSurfaceVariant, l10n.statusStopped),
-    };
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 11,
-            height: 11,
-            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(width: 14),
-          if (running && c.eta != null)
-            Text(
-              l10n.etaRemaining(c.eta!.inMinutes, c.eta!.inSeconds % 60),
-              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-            ),
-          const Spacer(),
-          if (finished)
-            FilledButton.icon(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.check, size: 18),
-              label: Text(l10n.doneClose),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 16,
-                ),
-              ),
-            )
-          else ...[
-            OutlinedButton.icon(
-              onPressed: () => paused ? c.resume() : c.pause(),
-              icon: Icon(paused ? Icons.play_arrow : Icons.pause, size: 18),
-              label: Text(paused ? l10n.resume : l10n.pause),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 15,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            FilledButton.icon(
-              onPressed: c.stop,
-              icon: const Icon(Icons.stop, size: 18),
-              label: Text(l10n.stop),
-              style: FilledButton.styleFrom(
-                backgroundColor: scheme.error.withValues(alpha: 0.16),
-                foregroundColor: scheme.error,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 15,
-                ),
-              ),
-            ),
-          ],
-        ],
+      const SizedBox(width: AppSpacing.xs),
+      AppButton(
+        label: l10n.stop,
+        icon: Icons.stop_rounded,
+        kind: AppButtonKind.danger,
+        height: AppSizes.controlSm,
+        onPressed: c.stop,
       ),
-    );
+      const SizedBox(width: AppSpacing.md12),
+    ];
   }
 
   // ── Progress card ──────────────────────────────────────────────────────────
@@ -213,10 +179,14 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
-    return GlassPanel(
-      radius: 22,
-      elevated: true,
-      padding: const EdgeInsets.fromLTRB(28, 24, 28, 22),
+    final t = context.tokens;
+    return GlassSurface(
+      fill: t.cardFill,
+      blur: t.blurPanel,
+      borderRadius: BorderRadius.circular(AppRadii.panel),
+      border: Border.all(color: t.stroke),
+      shadow: t.elevation.card,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -229,7 +199,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
                     TextSpan(
                       text: '${c.done}',
                       style: const TextStyle(
-                        fontSize: 44,
+                        fontSize: AppTypeScale.sizeDisplay,
                         fontWeight: FontWeight.w800,
                         height: 1,
                       ),
@@ -237,7 +207,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
                     TextSpan(
                       text: '/${c.total}',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: AppTypeScale.sizeHeading,
                         fontWeight: FontWeight.w700,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -249,7 +219,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
               Text(
                 '${formatBytes(c.bytesDone)} / ${formatBytes(c.bytesTotal)} · ${_speed(c.speedBytesPerSec)}',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   color: scheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
@@ -261,13 +231,13 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              _legend(const Color(0xFF34C759), l10n.legendDone, c.done),
+              _legend(AppPalette.success, l10n.legendDone, c.done),
               const Spacer(),
               _legend(scheme.primary, l10n.legendInProgress, c.inProgress),
               const Spacer(),
               _legend(scheme.onSurfaceVariant, l10n.legendQueued, c.queued),
               const Spacer(),
-              _legend(const Color(0xFFE0A030), l10n.legendSkipped, c.skipped),
+              _legend(AppPalette.warning, l10n.legendSkipped, c.skipped),
             ],
           ),
         ],
@@ -278,7 +248,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   Widget _bar(double fraction) {
     final scheme = Theme.of(context).colorScheme;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadii.button),
       child: Stack(
         children: [
           Container(
@@ -314,11 +284,17 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
         const SizedBox(width: 8),
         Text(
           '$label  ',
-          style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppTypeScale.sizeBody,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
         Text(
           '$count',
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: AppTypeScale.sizeBody,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
@@ -348,8 +324,8 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     final entries = _visible;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1117),
-        borderRadius: BorderRadius.circular(18),
+        color: AppPalette.terminalBase,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
@@ -376,15 +352,15 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: const BoxDecoration(
-        color: Color(0xFF161A22),
+        color: AppPalette.terminalChrome,
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       child: Row(
         children: [
           for (final col in const [
-            Color(0xFFFF5F57),
-            Color(0xFFFEBC2E),
-            Color(0xFF28C840),
+            AppPalette.macClose,
+            AppPalette.macMinimize,
+            AppPalette.macZoom,
           ]) ...[
             Container(
               width: 11,
@@ -398,26 +374,32 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
             'activity.log',
             style: TextStyle(
               fontFamily: 'monospace',
-              fontSize: 13,
-              color: Color(0xFF9AA4B2),
+              fontSize: AppTypeScale.sizeBody,
+              color: AppPalette.onTerminalMuted,
               fontWeight: FontWeight.w600,
             ),
           ),
           const Spacer(),
-          _levelPill('INFO', LogLevel.info, const Color(0xFF34C759)),
+          _levelPill('INFO', LogLevel.info, AppPalette.success),
           const SizedBox(width: 6),
-          _levelPill('WARN', LogLevel.warn, const Color(0xFFE0A030)),
+          _levelPill('WARN', LogLevel.warn, AppPalette.warning),
           const SizedBox(width: 6),
-          _levelPill('DEBUG', LogLevel.debug, const Color(0xFF8A93A2)),
+          _levelPill('DEBUG', LogLevel.debug, _debugLevel),
         ],
       ),
     );
   }
 
+  /// 日志面板在**两套主题里都是深色**（5.3），所以它内部的文字色不能跟着
+  /// 主题走 —— 浅色主题下的 ink 墨色压在这块深底上就看不见了。这两个常量是
+  /// 这块终端自己的中性档。
+  static const _debugLevel = AppPalette.onTerminalMuted;
+  static const _mutedOnTerminal = AppPalette.onTerminalFaint;
+
   Widget _levelPill(String label, LogLevel level, Color color) {
     final on = _levels.contains(level);
     return InkWell(
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadii.button),
       onTap: () => setState(() {
         if (on) {
           _levels.remove(level);
@@ -437,15 +419,15 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           color: on
               ? color.withValues(alpha: 0.18)
               : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadii.button),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontFamily: 'monospace',
-            fontSize: 11.5,
+            fontSize: AppTypeScale.sizeCaption,
             fontWeight: FontWeight.w700,
-            color: on ? color : const Color(0xFF6B7280),
+            color: on ? color : _mutedOnTerminal,
           ),
         ),
       ),
@@ -454,9 +436,9 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
 
   Widget _logLine(LogEntry e, bool isLast) {
     final levelColor = switch (e.level) {
-      LogLevel.info => const Color(0xFF34C759),
-      LogLevel.warn => const Color(0xFFE0A030),
-      LogLevel.debug => const Color(0xFF8A93A2),
+      LogLevel.info => AppPalette.success,
+      LogLevel.warn => AppPalette.warning,
+      LogLevel.debug => _debugLevel,
     };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -464,13 +446,13 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
         TextSpan(
           style: const TextStyle(
             fontFamily: 'monospace',
-            fontSize: 13.5,
+            fontSize: AppTypeScale.sizeBody,
             height: 1.3,
           ),
           children: [
             TextSpan(
               text: '${_clock(e.time)} ',
-              style: const TextStyle(color: Color(0xFF6B7280)),
+              style: const TextStyle(color: _mutedOnTerminal),
             ),
             TextSpan(
               text: '${e.level.name.toUpperCase()} ',
@@ -478,12 +460,12 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
             ),
             TextSpan(
               text: _message(e),
-              style: const TextStyle(color: Color(0xFFD3D8E0)),
+              style: const TextStyle(color: AppPalette.onTerminal),
             ),
             if (isLast)
               const TextSpan(
                 text: ' ▌',
-                style: TextStyle(color: Color(0xFF6B83F5)),
+                style: TextStyle(color: AppPalette.accent),
               ),
           ],
         ),

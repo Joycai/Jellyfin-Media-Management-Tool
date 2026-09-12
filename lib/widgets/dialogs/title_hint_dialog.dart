@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 
 /// What the user tells us this folder contains. The model treats `movie` /
@@ -78,7 +79,7 @@ class _TitleHintDialogState extends State<_TitleHintDialog> {
               l10n.aiHintSubtitle,
               style: TextStyle(
                 color: scheme.onSurfaceVariant,
-                fontSize: 13,
+                fontSize: AppTypeScale.sizeBody,
                 height: 1.4,
               ),
             ),
@@ -87,7 +88,7 @@ class _TitleHintDialogState extends State<_TitleHintDialog> {
               l10n.aiHintKindLabel,
               style: TextStyle(
                 color: scheme.onSurfaceVariant,
-                fontSize: 12,
+                fontSize: AppTypeScale.sizeCaption,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,
               ),
@@ -175,7 +176,7 @@ class _KindChip extends StatelessWidget {
         fontWeight: FontWeight.w500,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         side: BorderSide(
           color: selected ? Colors.transparent : scheme.outlineVariant,
         ),

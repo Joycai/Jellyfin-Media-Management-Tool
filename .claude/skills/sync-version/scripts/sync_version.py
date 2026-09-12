@@ -38,11 +38,13 @@ TARGETS = [
         re.compile(r"(?m)^(\s*msix_version:\s*)(\S+)$"),
         "msix",
     ),
-    # About screen, shown to users. Name only — no build number on the UI.
+    # About screen, shown to users. Full string: 6.4 shows the version name
+    # and the build number on separate rows, and the title bar splits the name
+    # back off — one slot, so the two can't disagree.
     (
         "lib/widgets/settings/settings_screen.dart",
         re.compile(r"(_appVersion\s*=\s*')([^']*)(')"),
-        "name",
+        "full",
     ),
     # Inno Setup installer default (CI overrides via /DMyAppVersion, but local
     # `iscc` runs fall back to this literal). Name only.

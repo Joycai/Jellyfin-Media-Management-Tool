@@ -7,6 +7,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_label_service.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../glass/glass_dialog.dart';
 
@@ -152,14 +153,17 @@ class _TitleBar extends StatelessWidget {
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
-                fontSize: 14,
+                fontSize: AppTypeScale.sizeBody,
               ),
             ),
           ),
           const SizedBox(width: 12),
           Text(
             formatBytes(entry.size),
-            style: const TextStyle(color: Colors.white54, fontSize: 12.5),
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: AppTypeScale.sizeControl,
+            ),
           ),
           const SizedBox(width: 4),
           IconButton(
