@@ -269,6 +269,7 @@
   "logFailed": "Failed {name} · {error}",
   "logFinished": "Done · {done} organized, {skipped} skipped",
   "logStopped": "Stopped · {done} organized, {skipped} skipped",
+  "logUndoLost": "Undo unavailable · {error}",
   "historyTitle": "Operation history",
   "historyRetention": "Kept {days} days",
   "historyEmpty": "No history yet",

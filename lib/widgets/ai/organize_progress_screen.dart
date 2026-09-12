@@ -503,6 +503,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       ), // alpha order: error, name
       LogKind.finished => l10n.logFinished(e.done, e.skipped),
       LogKind.stopped => l10n.logStopped(e.done, e.skipped),
+      LogKind.undoLost => l10n.logUndoLost(e.error),
     };
   }
 

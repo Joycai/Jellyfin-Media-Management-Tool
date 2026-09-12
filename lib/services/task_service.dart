@@ -489,6 +489,11 @@ class TaskService extends ChangeNotifier {
       : '${r.succeeded} files';
 
   String _applySummary(ApplyController c) {
+    // Ahead of the counts: a batch that cannot be undone is the one thing
+    // here the user has to act on.
+    if (c.undoError != null) {
+      return '${c.done}/${c.total} · no undo';
+    }
     if (c.status == ApplyStatus.stopped) {
       return '${c.done}/${c.total} · stopped';
     }

@@ -269,6 +269,7 @@
   "logFailed": "失败 {name} · {error}",
   "logFinished": "整理完成 · 完成 {done}，跳过 {skipped}",
   "logStopped": "已停止 · 完成 {done}，跳过 {skipped}",
+  "logUndoLost": "无法撤销 · {error}",
   "historyTitle": "操作历史",
   "historyRetention": "保留 {days} 天",
   "historyEmpty": "暂无历史记录",
