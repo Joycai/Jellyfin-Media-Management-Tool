@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import '../ai/ai_cancel_token.dart';
@@ -125,6 +126,20 @@ abstract final class AgentRuntime {
     var completionTokens = 0;
     var nudges = 0;
     var erraticRounds = 0;
+    // Tool schemas are sent on every request but live outside `messages`, so
+    // the budget has to be told about them or it under-counts by the size of
+    // the whole tool list — which for organize is seven schemas.
+    final toolOverhead = definitions.fold(
+      0,
+      (sum, tool) =>
+          sum +
+          16 +
+          TokenBudget.estimate(tool.name) +
+          TokenBudget.estimate(tool.description) +
+          TokenBudget.estimate(jsonEncode(tool.parameters)),
+    );
+    // Messages that exist for exactly one request — see the retraction below.
+    var pendingNudge = const <ChatMessage>[];
 
     AgentRunResult finish(AgentOutcome outcome, int rounds) => AgentRunResult(
       outcome: outcome,
@@ -136,13 +151,35 @@ abstract final class AgentRuntime {
     for (var round = 1; round <= maxRounds; round++) {
       cancelToken?.throwIfCancelled();
       onEvent?.call(AgentRoundStarted(round));
-      if (contextWindow != null) trimHistory(messages, contextWindow);
+      if (contextWindow != null) {
+        trimHistory(messages, contextWindow, overhead: toolOverhead);
+      }
 
-      final reply = await provider.chat(
-        messages: messages,
-        tools: definitions,
-        cancelToken: cancelToken,
-      );
+      final ChatResult reply;
+      try {
+        reply = await provider.chat(
+          messages: messages,
+          tools: definitions,
+          cancelToken: cancelToken,
+        );
+      } finally {
+        // A reminder is for the turn it was sent in and no longer. Left in the
+        // history it becomes a standing instruction, and this one carries
+        // state — "still undecided: g3, g7" is wrong the moment g3 is decided,
+        // and the model obliges by submitting it again.
+        //
+        // The model's own "I am finished" turn goes with it. Retracting only
+        // the reminder would leave that assistant turn answering a question
+        // no longer in the history — and, once the model resumes calling
+        // tools, two assistant turns in a row, which Gemini does not accept.
+        // Neither message carries anything the loop needs, so the whole
+        // exchange leaves no trace and the next round resumes from the last
+        // tool result.
+        for (final message in pendingNudge) {
+          messages.remove(message);
+        }
+        pendingNudge = const [];
+      }
       promptTokens += reply.promptTokens;
       completionTokens += reply.completionTokens;
 
@@ -151,10 +188,13 @@ abstract final class AgentRuntime {
         final reminder = nudges < maxNudges ? nudge?.call() : null;
         if (reminder == null) return finish(AgentOutcome.stopped, round);
         nudges++;
-        if (reply.text.trim().isNotEmpty) {
-          messages.add(AssistantMessage(content: reply.text));
-        }
-        messages.add(UserMessage(reminder));
+        // Retracted in the next round's `finally`, once it has been sent.
+        pendingNudge = [
+          if (reply.text.trim().isNotEmpty)
+            AssistantMessage(content: reply.text),
+          UserMessage(reminder),
+        ];
+        messages.addAll(pendingNudge);
         continue;
       }
 
@@ -239,13 +279,21 @@ abstract final class AgentRuntime {
   /// call unanswered, which every provider rejects. System and user messages
   /// are never touched — if those alone overflow, that is a budgeting bug
   /// upstream, not something to hide here.
+  ///
+  /// [overhead] is what the request carries besides the messages — the tool
+  /// schemas — and [reserve] what the reply needs. Both come off the ceiling,
+  /// because the window has to hold the prompt *and* the answer: a budget that
+  /// counts only the messages fits them exactly and then watches the server
+  /// drop the front of the prompt to make room for the generation.
   static int trimHistory(
     List<ChatMessage> messages,
     int contextWindow, {
     int reserve = 2048,
+    int overhead = 0,
   }) {
     final ceiling =
-        (contextWindow * 0.9).floor() - math.min(reserve, contextWindow ~/ 2);
+        (contextWindow * 0.9).floor() -
+        math.min(reserve + overhead, contextWindow ~/ 2);
     var total = messages.fold(0, (sum, m) => sum + estimate(m));
     var shrunk = 0;
     for (var i = 0; i < messages.length && total > ceiling; i++) {
