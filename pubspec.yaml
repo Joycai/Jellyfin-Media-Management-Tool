@@ -16,13 +16,11 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
-  cupertino_icons: ^1.0.8
   http: ^1.2.2
   file_picker: ^12.2.0
   path: ^1.9.1
   path_provider: ^2.1.5
   url_launcher: ^6.3.2
-  shared_preferences: ^2.5.4
   provider: ^6.1.5
   file: ^7.0.0
   # In-app image/video preview (video playback via libmpv).

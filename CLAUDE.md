@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-- Flutter **desktop** app for Windows/macOS/Linux. `android/`/`ios/` are not present; the `web/` directory is a `flutter create` artifact and is not a supported target.
+- Flutter **desktop** app for Windows/macOS/Linux. There are no `android/`, `ios/` or `web/` directories — those targets are not supported, and `flutter create` scaffolding for them should not be re-added.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
 - Dart SDK `^3.10.4`. Current app version: `0.22.0+19`.
@@ -280,7 +280,7 @@ Two things in there that are load-bearing rather than cosmetic:
 
 **The context-window slider's arithmetic is a separate pure library** ([context_window_scale.dart](lib/widgets/settings/context_window_scale.dart)) so it can be tested. 8k–1M is a 128x range, so a linear track squashes 8k–32k — where local models sit — into the leftmost 2%; the design's answer is eight evenly spaced segments, linear within each. Typed input aligns *down* to 1k: the number has to match what the server was loaded with, and guessing high means prompts overrun the window and get truncated from the front, where the system prompt is.
 
-`lib/widgets/ui/` holds the spec-1.4 primitives built on it — `AppButton`, `AppIconButton`, `AppTextField`, `AppTag`, `AppCountBadge`, `AppSegmented`, `AppToggle`, `AppListRow`, `AppColumnHeader`, `AppCard`, `AppGlassPane`. `lib/widgets/glass/` keeps the overlay family (`GlassAlertDialog`, `GlassDialogSurface`, `DialogActionBar`, `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` / `glassMenuDivider`, `showGlassDialog`).
+`lib/widgets/ui/` holds the spec-1.4 primitives built on it — `AppButton`, `AppIconButton`, `AppTextField`, `AppTag`, `AppCountBadge`, `AppToggle`, `AppListRow`, `AppColumnHeader`, `AppCard`, `AppGlassPane`. `lib/widgets/glass/` keeps the overlay family (`GlassAlertDialog`, `GlassDialogSurface`, `DialogActionBar`, `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` / `glassMenuDivider`, `showGlassDialog`).
 
 **Motion is 1.4f and nothing else**: 80ms hover, 120/100ms overlays, 180ms panels, 240ms linear progress, no section transition. Full-page routes go through `AppPageRoute` ([app_theme.dart](lib/theme/app_theme.dart)), which exists only to override `MaterialPageRoute`'s hard-coded 300ms — the duration is not themeable, and a page transition is the most expensive moment in the app because both trees paint at once. Only opacity, fill and 4px or less of movement — **no scaling, no elastic curves**. `AppMotion.respecting(context, ...)` returns `Duration.zero` when the system asks for reduced motion.
 

@@ -3,8 +3,9 @@
 ///
 /// Every row cites its source, and a family with no published recommendation
 /// is deliberately absent: an invented preset is worse than the server's
-/// default, because it looks authoritative. The research behind each row is
-/// in `docs/spec/local-model-agent-plan.md` §1.3.
+/// default, because it looks authoritative. A new family arrives with the URL
+/// its values came from: `SamplingPreset.source` is that record, and the UI
+/// links it so a user can check the numbers against the model card itself.
 library;
 
 /// How a model family's reasoning can be controlled.

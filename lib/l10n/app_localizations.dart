@@ -98,12 +98,6 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
-  /// No description provided for @appTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Jellyfin Media Management Tool'**
-  String get appTitle;
-
   /// No description provided for @manager.
   ///
   /// In en, this message translates to:
@@ -116,77 +110,17 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
-  /// No description provided for @mediaManager.
-  ///
-  /// In en, this message translates to:
-  /// **'Media Manager'**
-  String get mediaManager;
-
-  /// No description provided for @pickDirectory.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick Directory'**
-  String get pickDirectory;
-
-  /// No description provided for @openDirectory.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Directory'**
-  String get openDirectory;
-
   /// No description provided for @parentFolder.
   ///
   /// In en, this message translates to:
   /// **'Parent Folder'**
   String get parentFolder;
 
-  /// No description provided for @createNewFolder.
-  ///
-  /// In en, this message translates to:
-  /// **'Create New Folder'**
-  String get createNewFolder;
-
   /// No description provided for @refresh.
   ///
   /// In en, this message translates to:
   /// **'Refresh'**
   String get refresh;
-
-  /// No description provided for @sortBy.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort By'**
-  String get sortBy;
-
-  /// No description provided for @sortByName.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort by Name'**
-  String get sortByName;
-
-  /// No description provided for @sortByType.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort by Type'**
-  String get sortByType;
-
-  /// No description provided for @sortByDate.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort by Date'**
-  String get sortByDate;
-
-  /// No description provided for @sortBySize.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort by Size'**
-  String get sortBySize;
-
-  /// No description provided for @ascending.
-  ///
-  /// In en, this message translates to:
-  /// **'Ascending'**
-  String get ascending;
 
   /// No description provided for @descending.
   ///
@@ -223,18 +157,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Folder Name'**
   String get folderName;
-
-  /// No description provided for @playVideo.
-  ///
-  /// In en, this message translates to:
-  /// **'Play Video'**
-  String get playVideo;
-
-  /// No description provided for @openFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Open File'**
-  String get openFile;
 
   /// No description provided for @renameFile.
   ///
@@ -284,24 +206,6 @@ abstract class AppLocalizations {
   /// **'Jellyfin Subtitle...'**
   String get jellyfinSubtitle;
 
-  /// No description provided for @confirmRename.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm Rename'**
-  String get confirmRename;
-
-  /// No description provided for @renameFrom.
-  ///
-  /// In en, this message translates to:
-  /// **'From:'**
-  String get renameFrom;
-
-  /// No description provided for @renameTo.
-  ///
-  /// In en, this message translates to:
-  /// **'To:'**
-  String get renameTo;
-
   /// No description provided for @themeMode.
   ///
   /// In en, this message translates to:
@@ -332,53 +236,11 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get language;
 
-  /// No description provided for @searchFromWeb.
-  ///
-  /// In en, this message translates to:
-  /// **'Search from Web'**
-  String get searchFromWeb;
-
-  /// No description provided for @searchKeyword.
-  ///
-  /// In en, this message translates to:
-  /// **'Search Keyword'**
-  String get searchKeyword;
-
-  /// No description provided for @searchSite.
-  ///
-  /// In en, this message translates to:
-  /// **'Search Site'**
-  String get searchSite;
-
   /// No description provided for @search.
   ///
   /// In en, this message translates to:
   /// **'Search'**
   String get search;
-
-  /// No description provided for @editSearchSites.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit Search Sites'**
-  String get editSearchSites;
-
-  /// No description provided for @siteName.
-  ///
-  /// In en, this message translates to:
-  /// **'Site Name'**
-  String get siteName;
-
-  /// No description provided for @searchUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Search URL'**
-  String get searchUrl;
-
-  /// No description provided for @addSite.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Site'**
-  String get addSite;
 
   /// No description provided for @delete.
   ///
@@ -398,41 +260,11 @@ abstract class AppLocalizations {
   /// **'Open Configuration Folder'**
   String get openConfigFolder;
 
-  /// No description provided for @areYouSure.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure?'**
-  String get areYouSure;
-
   /// No description provided for @sizeLabel.
   ///
   /// In en, this message translates to:
   /// **'Size: {size}'**
   String sizeLabel(Object size);
-
-  /// No description provided for @durationLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Duration: {duration}'**
-  String durationLabel(Object duration);
-
-  /// No description provided for @resolutionLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Resolution: {resolution}'**
-  String resolutionLabel(Object resolution);
-
-  /// No description provided for @noDirectorySelected.
-  ///
-  /// In en, this message translates to:
-  /// **'No directory selected'**
-  String get noDirectorySelected;
-
-  /// No description provided for @pleaseSelectDirectory.
-  ///
-  /// In en, this message translates to:
-  /// **'Please select a directory'**
-  String get pleaseSelectDirectory;
 
   /// No description provided for @noPreviewAvailable.
   ///
@@ -440,35 +272,11 @@ abstract class AppLocalizations {
   /// **'No preview available'**
   String get noPreviewAvailable;
 
-  /// No description provided for @directoriesCannotBePreviewed.
-  ///
-  /// In en, this message translates to:
-  /// **'Directories cannot be previewed'**
-  String get directoriesCannotBePreviewed;
-
-  /// No description provided for @errorAccessingDirectory.
-  ///
-  /// In en, this message translates to:
-  /// **'Error accessing directory: {error}'**
-  String errorAccessingDirectory(Object error);
-
-  /// No description provided for @errorCreatingFolder.
-  ///
-  /// In en, this message translates to:
-  /// **'Error creating folder: {error}'**
-  String errorCreatingFolder(Object error);
-
   /// No description provided for @errorRenaming.
   ///
   /// In en, this message translates to:
   /// **'Error renaming: {error}'**
   String errorRenaming(Object error);
-
-  /// No description provided for @noSearchSitesConfigured.
-  ///
-  /// In en, this message translates to:
-  /// **'No search sites configured in Settings'**
-  String get noSearchSitesConfigured;
 
   /// No description provided for @season.
   ///
@@ -812,12 +620,6 @@ abstract class AppLocalizations {
   /// **'Open Folder'**
   String get openFolder;
 
-  /// No description provided for @noFolderOpen.
-  ///
-  /// In en, this message translates to:
-  /// **'Open a folder to begin'**
-  String get noFolderOpen;
-
   /// No description provided for @folderEmpty.
   ///
   /// In en, this message translates to:
@@ -992,18 +794,6 @@ abstract class AppLocalizations {
   /// **'{tokens} tokens'**
   String tokensLabel(Object tokens);
 
-  /// No description provided for @confirmApplyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Apply organization?'**
-  String get confirmApplyTitle;
-
-  /// No description provided for @confirmApplyBody.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} files will be moved and renamed into the Jellyfin structure.'**
-  String confirmApplyBody(Object count);
-
   /// No description provided for @applyDone.
   ///
   /// In en, this message translates to:
@@ -1016,35 +806,11 @@ abstract class AppLocalizations {
   /// **'Organized {succeeded}, {failed} failed'**
   String applyPartial(Object failed, Object succeeded);
 
-  /// No description provided for @analyzeFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed: {error}'**
-  String analyzeFailed(Object error);
-
-  /// No description provided for @aiSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'AI Service'**
-  String get aiSettings;
-
   /// No description provided for @provider.
   ///
   /// In en, this message translates to:
   /// **'Provider'**
   String get provider;
-
-  /// No description provided for @providerOpenAi.
-  ///
-  /// In en, this message translates to:
-  /// **'OpenAI-compatible'**
-  String get providerOpenAi;
-
-  /// No description provided for @providerGoogle.
-  ///
-  /// In en, this message translates to:
-  /// **'Google GenAI'**
-  String get providerGoogle;
 
   /// No description provided for @endpoint.
   ///
@@ -1070,12 +836,6 @@ abstract class AppLocalizations {
   /// **'Test Connection'**
   String get testConnection;
 
-  /// No description provided for @connectionOk.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection successful'**
-  String get connectionOk;
-
   /// No description provided for @connectionFailed.
   ///
   /// In en, this message translates to:
@@ -1087,18 +847,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Appearance'**
   String get appearance;
-
-  /// No description provided for @aiServicesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'AI Services'**
-  String get aiServicesTitle;
-
-  /// No description provided for @aiServicesSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Configure the language models used to organize media'**
-  String get aiServicesSubtitle;
 
   /// No description provided for @aiServiceDetailHint.
   ///
@@ -1880,12 +1628,6 @@ abstract class AppLocalizations {
   /// **'Paths'**
   String get secPaths;
 
-  /// No description provided for @breadcrumbPaths.
-  ///
-  /// In en, this message translates to:
-  /// **'Paths'**
-  String get breadcrumbPaths;
-
   /// No description provided for @secAiServices.
   ///
   /// In en, this message translates to:
@@ -1975,30 +1717,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show video thumbnails in the file list'**
   String get behaviorVideoThumbnails;
-
-  /// No description provided for @privacyStorage.
-  ///
-  /// In en, this message translates to:
-  /// **'Local storage'**
-  String get privacyStorage;
-
-  /// No description provided for @privacyConfigBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings, AI keys and undo manifests are stored on this device only.'**
-  String get privacyConfigBody;
-
-  /// No description provided for @privacyClearHistory.
-  ///
-  /// In en, this message translates to:
-  /// **'Undo all {count} entries'**
-  String privacyClearHistory(Object count);
-
-  /// No description provided for @privacyClearThumbnails.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear thumbnail cache ({size})'**
-  String privacyClearThumbnails(Object size);
 
   /// No description provided for @shortcutGroupNavigation.
   ///
@@ -2131,12 +1849,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Jellyfin naming guide'**
   String get aboutJellyfinNaming;
-
-  /// No description provided for @aboutGpu.
-  ///
-  /// In en, this message translates to:
-  /// **'Graphics adapter'**
-  String get aboutGpu;
 
   /// No description provided for @aboutGpuHint.
   ///
@@ -2522,12 +2234,6 @@ abstract class AppLocalizations {
   /// **'Refresh metadata'**
   String get batchScrapeTitle;
 
-  /// No description provided for @batchScrapeScanning.
-  ///
-  /// In en, this message translates to:
-  /// **'Looking for titles to refresh…'**
-  String get batchScrapeScanning;
-
   /// No description provided for @batchScrapeFound.
   ///
   /// In en, this message translates to:
@@ -2588,30 +2294,6 @@ abstract class AppLocalizations {
   /// **'Scrape metadata for the focused item'**
   String get shortcutScrape;
 
-  /// No description provided for @scrapeUrlTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Scrape metadata'**
-  String get scrapeUrlTitle;
-
-  /// No description provided for @scrapeUrlSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Metadata will be written next to {target}'**
-  String scrapeUrlSubtitle(Object target);
-
-  /// No description provided for @scrapeUrlLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Product page URL'**
-  String get scrapeUrlLabel;
-
-  /// No description provided for @scrapeUrlHint.
-  ///
-  /// In en, this message translates to:
-  /// **'https://example.com/product/12345'**
-  String get scrapeUrlHint;
-
   /// No description provided for @scrapeUrlInvalid.
   ///
   /// In en, this message translates to:
@@ -2624,12 +2306,6 @@ abstract class AppLocalizations {
   /// **'Detected code: {code}'**
   String scrapeDetectedCode(Object code);
 
-  /// No description provided for @scrapeSearchOnSite.
-  ///
-  /// In en, this message translates to:
-  /// **'Search on {site}'**
-  String scrapeSearchOnSite(Object site);
-
   /// No description provided for @scrapePasteHtml.
   ///
   /// In en, this message translates to:
@@ -2641,54 +2317,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste the page source here'**
   String get scrapePasteHtmlHint;
-
-  /// No description provided for @scrapePasteNeedsUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'The URL is still required — relative links in the pasted HTML are resolved against it.'**
-  String get scrapePasteNeedsUrl;
-
-  /// No description provided for @scrapeCookieBuiltIn.
-  ///
-  /// In en, this message translates to:
-  /// **'This site has a built-in access cookie.'**
-  String get scrapeCookieBuiltIn;
-
-  /// No description provided for @scrapeCookieMissing.
-  ///
-  /// In en, this message translates to:
-  /// **'No cookies configured for this site. If the fetch fails, import a cookies.txt under Settings → Scraping.'**
-  String get scrapeCookieMissing;
-
-  /// No description provided for @scrapeStart.
-  ///
-  /// In en, this message translates to:
-  /// **'Scrape'**
-  String get scrapeStart;
-
-  /// No description provided for @scrapeStarted.
-  ///
-  /// In en, this message translates to:
-  /// **'Scrape started — see Tasks for progress'**
-  String get scrapeStarted;
-
-  /// No description provided for @scrapeFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Scrape failed: {error}'**
-  String scrapeFailed(Object error);
-
-  /// No description provided for @scrapeReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Scrape finished — review the result'**
-  String get scrapeReady;
-
-  /// No description provided for @scrapeReview.
-  ///
-  /// In en, this message translates to:
-  /// **'Review'**
-  String get scrapeReview;
 
   /// No description provided for @scrapeNoFolder.
   ///
@@ -2773,12 +2401,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recipe'**
   String get scrapeRecipeName;
-
-  /// No description provided for @scrapeRecipeNone.
-  ///
-  /// In en, this message translates to:
-  /// **'none'**
-  String get scrapeRecipeNone;
 
   /// No description provided for @scrapeColumnField.
   ///
@@ -2905,12 +2527,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NFO file name'**
   String get scrapeNfoFileName;
-
-  /// No description provided for @scrapeWrite.
-  ///
-  /// In en, this message translates to:
-  /// **'Write'**
-  String get scrapeWrite;
 
   /// No description provided for @scrapeEditValue.
   ///
@@ -3284,12 +2900,6 @@ abstract class AppLocalizations {
   /// **'TV show'**
   String get scrapeKindTvShow;
 
-  /// No description provided for @scrapeNfoAutoDetected.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-detected from {name}'**
-  String scrapeNfoAutoDetected(Object name);
-
   /// No description provided for @scrapePanelTitle.
   ///
   /// In en, this message translates to:
@@ -3313,12 +2923,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back'**
   String get scrapeBackToSetup;
-
-  /// No description provided for @scrapeRetry.
-  ///
-  /// In en, this message translates to:
-  /// **'Try again'**
-  String get scrapeRetry;
 
   /// No description provided for @scrapeAdvanced.
   ///
@@ -3578,18 +3182,6 @@ abstract class AppLocalizations {
   /// **'Available variables'**
   String get ruleEditorVariables;
 
-  /// No description provided for @ruleEditorAiFill.
-  ///
-  /// In en, this message translates to:
-  /// **'AI smart fill'**
-  String get ruleEditorAiFill;
-
-  /// No description provided for @ruleEditorAiFillHint.
-  ///
-  /// In en, this message translates to:
-  /// **'When a file name cannot be parsed, ask the AI to infer the title, year and language.'**
-  String get ruleEditorAiFillHint;
-
   /// No description provided for @ruleEditorPreview.
   ///
   /// In en, this message translates to:
@@ -3655,12 +3247,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show or hide the side panel'**
   String get togglePanel;
-
-  /// No description provided for @toggleSidebar.
-  ///
-  /// In en, this message translates to:
-  /// **'Show or hide the sidebar'**
-  String get toggleSidebar;
 
   /// No description provided for @searchHintShort.
   ///
@@ -4189,18 +3775,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'System'**
   String get aboutSystem;
-
-  /// No description provided for @aboutOs.
-  ///
-  /// In en, this message translates to:
-  /// **'OS'**
-  String get aboutOs;
-
-  /// No description provided for @aboutArch.
-  ///
-  /// In en, this message translates to:
-  /// **'Architecture'**
-  String get aboutArch;
 
   /// No description provided for @aboutOpenSource.
   ///

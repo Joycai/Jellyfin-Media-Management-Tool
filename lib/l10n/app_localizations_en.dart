@@ -9,49 +9,16 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Jellyfin Media Management Tool';
-
-  @override
   String get manager => 'Manager';
 
   @override
   String get settings => 'Settings';
 
   @override
-  String get mediaManager => 'Media Manager';
-
-  @override
-  String get pickDirectory => 'Pick Directory';
-
-  @override
-  String get openDirectory => 'Open Directory';
-
-  @override
   String get parentFolder => 'Parent Folder';
 
   @override
-  String get createNewFolder => 'Create New Folder';
-
-  @override
   String get refresh => 'Refresh';
-
-  @override
-  String get sortBy => 'Sort By';
-
-  @override
-  String get sortByName => 'Sort by Name';
-
-  @override
-  String get sortByType => 'Sort by Type';
-
-  @override
-  String get sortByDate => 'Sort by Date';
-
-  @override
-  String get sortBySize => 'Sort by Size';
-
-  @override
-  String get ascending => 'Ascending';
 
   @override
   String get descending => 'Descending';
@@ -70,12 +37,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get folderName => 'Folder Name';
-
-  @override
-  String get playVideo => 'Play Video';
-
-  @override
-  String get openFile => 'Open File';
 
   @override
   String get renameFile => 'Rename File';
@@ -102,15 +63,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jellyfinSubtitle => 'Jellyfin Subtitle...';
 
   @override
-  String get confirmRename => 'Confirm Rename';
-
-  @override
-  String get renameFrom => 'From:';
-
-  @override
-  String get renameTo => 'To:';
-
-  @override
   String get themeMode => 'Theme Mode';
 
   @override
@@ -126,28 +78,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get language => 'Language';
 
   @override
-  String get searchFromWeb => 'Search from Web';
-
-  @override
-  String get searchKeyword => 'Search Keyword';
-
-  @override
-  String get searchSite => 'Search Site';
-
-  @override
   String get search => 'Search';
-
-  @override
-  String get editSearchSites => 'Edit Search Sites';
-
-  @override
-  String get siteName => 'Site Name';
-
-  @override
-  String get searchUrl => 'Search URL';
-
-  @override
-  String get addSite => 'Add Site';
 
   @override
   String get delete => 'Delete';
@@ -159,53 +90,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openConfigFolder => 'Open Configuration Folder';
 
   @override
-  String get areYouSure => 'Are you sure?';
-
-  @override
   String sizeLabel(Object size) {
     return 'Size: $size';
   }
 
   @override
-  String durationLabel(Object duration) {
-    return 'Duration: $duration';
-  }
-
-  @override
-  String resolutionLabel(Object resolution) {
-    return 'Resolution: $resolution';
-  }
-
-  @override
-  String get noDirectorySelected => 'No directory selected';
-
-  @override
-  String get pleaseSelectDirectory => 'Please select a directory';
-
-  @override
   String get noPreviewAvailable => 'No preview available';
-
-  @override
-  String get directoriesCannotBePreviewed => 'Directories cannot be previewed';
-
-  @override
-  String errorAccessingDirectory(Object error) {
-    return 'Error accessing directory: $error';
-  }
-
-  @override
-  String errorCreatingFolder(Object error) {
-    return 'Error creating folder: $error';
-  }
 
   @override
   String errorRenaming(Object error) {
     return 'Error renaming: $error';
   }
-
-  @override
-  String get noSearchSitesConfigured =>
-      'No search sites configured in Settings';
 
   @override
   String get season => 'Season';
@@ -401,9 +296,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openFolder => 'Open Folder';
 
   @override
-  String get noFolderOpen => 'Open a folder to begin';
-
-  @override
   String get folderEmpty => 'This folder is empty';
 
   @override
@@ -497,14 +389,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get confirmApplyTitle => 'Apply organization?';
-
-  @override
-  String confirmApplyBody(Object count) {
-    return '$count files will be moved and renamed into the Jellyfin structure.';
-  }
-
-  @override
   String applyDone(Object count) {
     return 'Organized $count files';
   }
@@ -515,21 +399,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String analyzeFailed(Object error) {
-    return 'Failed: $error';
-  }
-
-  @override
-  String get aiSettings => 'AI Service';
-
-  @override
   String get provider => 'Provider';
-
-  @override
-  String get providerOpenAi => 'OpenAI-compatible';
-
-  @override
-  String get providerGoogle => 'Google GenAI';
 
   @override
   String get endpoint => 'Endpoint';
@@ -544,22 +414,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testConnection => 'Test Connection';
 
   @override
-  String get connectionOk => 'Connection successful';
-
-  @override
   String connectionFailed(Object error) {
     return 'Connection failed: $error';
   }
 
   @override
   String get appearance => 'Appearance';
-
-  @override
-  String get aiServicesTitle => 'AI Services';
-
-  @override
-  String get aiServicesSubtitle =>
-      'Configure the language models used to organize media';
 
   @override
   String get aiServiceDetailHint =>
@@ -1042,9 +902,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get secPaths => 'Paths';
 
   @override
-  String get breadcrumbPaths => 'Paths';
-
-  @override
   String get secAiServices => 'AI Services';
 
   @override
@@ -1090,23 +947,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get behaviorVideoThumbnails =>
       'Show video thumbnails in the file list';
-
-  @override
-  String get privacyStorage => 'Local storage';
-
-  @override
-  String get privacyConfigBody =>
-      'Settings, AI keys and undo manifests are stored on this device only.';
-
-  @override
-  String privacyClearHistory(Object count) {
-    return 'Undo all $count entries';
-  }
-
-  @override
-  String privacyClearThumbnails(Object size) {
-    return 'Clear thumbnail cache ($size)';
-  }
 
   @override
   String get shortcutGroupNavigation => 'Navigation';
@@ -1174,9 +1014,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutJellyfinNaming => 'Jellyfin naming guide';
-
-  @override
-  String get aboutGpu => 'Graphics adapter';
 
   @override
   String get aboutGpuHint =>
@@ -1395,9 +1232,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get batchScrapeTitle => 'Refresh metadata';
 
   @override
-  String get batchScrapeScanning => 'Looking for titles to refresh…';
-
-  @override
   String batchScrapeFound(Object count) {
     return '$count titles record where they were scraped from.';
   }
@@ -1440,20 +1274,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcutScrape => 'Scrape metadata for the focused item';
 
   @override
-  String get scrapeUrlTitle => 'Scrape metadata';
-
-  @override
-  String scrapeUrlSubtitle(Object target) {
-    return 'Metadata will be written next to $target';
-  }
-
-  @override
-  String get scrapeUrlLabel => 'Product page URL';
-
-  @override
-  String get scrapeUrlHint => 'https://example.com/product/12345';
-
-  @override
   String get scrapeUrlInvalid =>
       'Enter a full URL, including http:// or https://';
 
@@ -1463,43 +1283,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String scrapeSearchOnSite(Object site) {
-    return 'Search on $site';
-  }
-
-  @override
   String get scrapePasteHtml => 'Paste the page HTML instead';
 
   @override
   String get scrapePasteHtmlHint => 'Paste the page source here';
-
-  @override
-  String get scrapePasteNeedsUrl =>
-      'The URL is still required — relative links in the pasted HTML are resolved against it.';
-
-  @override
-  String get scrapeCookieBuiltIn => 'This site has a built-in access cookie.';
-
-  @override
-  String get scrapeCookieMissing =>
-      'No cookies configured for this site. If the fetch fails, import a cookies.txt under Settings → Scraping.';
-
-  @override
-  String get scrapeStart => 'Scrape';
-
-  @override
-  String get scrapeStarted => 'Scrape started — see Tasks for progress';
-
-  @override
-  String scrapeFailed(Object error) {
-    return 'Scrape failed: $error';
-  }
-
-  @override
-  String get scrapeReady => 'Scrape finished — review the result';
-
-  @override
-  String get scrapeReview => 'Review';
 
   @override
   String get scrapeNoFolder => 'Open a folder first';
@@ -1555,9 +1342,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapeRecipeName => 'Recipe';
-
-  @override
-  String get scrapeRecipeNone => 'none';
 
   @override
   String get scrapeColumnField => 'Field';
@@ -1623,9 +1407,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapeNfoFileName => 'NFO file name';
-
-  @override
-  String get scrapeWrite => 'Write';
 
   @override
   String scrapeEditValue(Object field) {
@@ -1839,11 +1620,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrapeKindTvShow => 'TV show';
 
   @override
-  String scrapeNfoAutoDetected(Object name) {
-    return 'Auto-detected from $name';
-  }
-
-  @override
   String get scrapePanelTitle => 'Scrape metadata';
 
   @override
@@ -1854,9 +1630,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapeBackToSetup => 'Back';
-
-  @override
-  String get scrapeRetry => 'Try again';
 
   @override
   String get scrapeAdvanced => 'Advanced';
@@ -2008,13 +1781,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ruleEditorVariables => 'Available variables';
 
   @override
-  String get ruleEditorAiFill => 'AI smart fill';
-
-  @override
-  String get ruleEditorAiFillHint =>
-      'When a file name cannot be parsed, ask the AI to infer the title, year and language.';
-
-  @override
   String get ruleEditorPreview => 'Live preview';
 
   @override
@@ -2047,9 +1813,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get togglePanel => 'Show or hide the side panel';
-
-  @override
-  String get toggleSidebar => 'Show or hide the sidebar';
 
   @override
   String get searchHintShort => 'Search…';
@@ -2336,12 +2099,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutSystem => 'System';
-
-  @override
-  String get aboutOs => 'OS';
-
-  @override
-  String get aboutArch => 'Architecture';
 
   @override
   String get aboutOpenSource => 'Open source';

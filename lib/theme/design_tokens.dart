@@ -75,10 +75,6 @@ abstract final class AppRadii {
 
   /// 最大化时窗口圆角归零，内部不变。
   static const double windowMaximized = 0;
-
-  /// 内层圆角推导：外层 − 内距，最小 6。
-  static double nested(double outer, double padding) =>
-      (outer - padding).clamp(6.0, outer);
 }
 
 /// 1.3c 控件高度，以及 02 骨架的布局基准。
