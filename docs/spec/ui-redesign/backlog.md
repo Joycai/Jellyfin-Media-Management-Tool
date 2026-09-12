@@ -26,7 +26,7 @@
 | B12 | 06.4 | 关于页的**提交 / 分支 / 提交时间** | 构建号已有（从 `_appVersion` 的 `+N` 拆出）；提交与分支两行显示 `—` 并在卡底说明原因 | 需要构建期注入（`--dart-define` 或生成文件） |
 | B13 | 03.1 | 侧栏行尾的**条目计数**（「电影 238」） | 不显示 | 按目录计数要么每次进侧栏 stat 整棵树，要么维护一份会过期的缓存 —— 两者都比这个数字贵 |
 | B14 | 02.5 | macOS 交通灯**垂直居中于 48px 顶栏** | 已在 `MainFlutterWindow.swift` 手动摆放 | **未在 macOS 上实测过**（本次开发环境只有 Windows）。首次 mac 构建时需要核对 |
-| B15 | 02.2 | Windows **Snap Layouts** | 已实现（`WM_NCHITTEST` → `HTMAXBUTTON` + 悬停回传） | 已能编译，但弹出行为**未在真机上逐项验证**；需要在 Win11 上确认悬停 400ms 后确实弹出，且按钮点击仍然生效 |
+| B15 | 02.2 | Windows **Snap Layouts** | 代码写了，但 **2026-09-12 在 Win11 26200 真机上验证为不工作**：悬停 14 秒无浮层。判据可信 —— 同一脚本、同样的合成悬停下，msinfo32（系统标题栏）与 Windows Terminal（自绘标题栏）都能弹出 | 两个已定位的 bug 加一个未知。① `HasCustomTitleBar()` 判 `WS_CAPTION` 是否已清除，而 `window_manager` 的 `TitleBarStyle.hidden` **从不碰 `GWL_STYLE`**（它靠 `WM_NCCALCSIZE` 把客户区铺满窗口），所以该判断恒为假，整个 `WM_NCHITTEST` 分支是死代码 —— 实测原样构建 8 个探测点全 `HTCLIENT`，把判断短路成 `true` 后 `HTMAXBUTTON` 8/8。② `MaximizeButtonRect` 在非最大化态偏右 8px：`window_manager` 对客户区做 `right -= 8`（**物理像素，不随 DPI**），代码只在 `IsZoomed` 时补 inset，且补的是 `8 * scale`，而最大化时真实溢出量是 `window.left - workArea.left`（200% 下为 13）。③ 补上 ① 之后浮层**仍然不出现**，让 `WM_NCMOUSEMOVE` 落到 `DefWindowProc` 也无效，原因未明；最可疑的是 `MessageHandler` 里 `flutter_controller_->HandleTopLevelWindowProc()` 排在我们的 `switch` 之前，真实输入下可能已被引擎消费。**用户可见的症状只有「没有 Snap 浮层」**：原生路径全程失效，输入按普通客户区走，悬停高亮与点击由 Flutter 自己接管，都正常 |
 | B16 | 06.2 / 08b | 取色浮层的**透明度轨** | 画出来但不可拖 | 令牌层存的是一个**不透明**强调色，标签页底、焦点环、进度条都从它乘一个 alpha 推导出来。存一个自己就带 alpha 的强调色，等于每处推导再乘一次，对比度随之塌掉 |
 | B17 | 06.2 / 08b | 取色浮层的**屏幕吸管** `⌖` | 画出来但不可点 | 抓屏幕像素需要 Windows / macOS / Linux 各一套原生实现 |
 | B18 | 06.2 | 路径页的**收藏拖拽排序** `⋮⋮` 与「清除记录」 | 手柄与按钮画出来但不可用 | `SettingsService` 的 favorites / recents 没有重排与清空接口；加接口属于行为改动 |
