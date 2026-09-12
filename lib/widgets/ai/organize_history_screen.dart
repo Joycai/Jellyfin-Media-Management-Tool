@@ -334,13 +334,13 @@ class _KindBadge extends StatelessWidget {
         Icons.auto_awesome,
       ),
       HistoryKind.manualRename => (
-        const Color(0xFF5A6173),
-        const Color(0xFF7E8497),
+        AppPalette.onTerminalFaint,
+        AppPalette.onTerminalMuted,
         Icons.drive_file_rename_outline,
       ),
       HistoryKind.metadataRefresh => (
         AppPalette.accent,
-        const Color(0xFF60A5FA),
+        AppPalette.accent,
         Icons.sync_rounded,
       ),
       HistoryKind.batchImport => (

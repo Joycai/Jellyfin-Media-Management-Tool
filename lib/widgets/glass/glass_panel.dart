@@ -54,8 +54,10 @@ class GlassPanel extends StatelessWidget {
     if (gradient != null) {
       final opaque = gradient!.colors.every((c) => c.a >= 0.995);
       return GlassSurface(
-        fill: opaque ? const Color(0xFFFFFFFF) : Colors.transparent,
-        blur: opaque ? 0 : (blur ? t.blurPanel : 0),
+        // 渐变自己画在下面，所以外层不需要底色；不透明的渐变同样跳过模糊
+        // （理由和 GlassSurface 里那条一样：模糊结果会被整块盖住）。
+        fill: Colors.transparent,
+        blur: opaque || !blur ? 0 : t.blurPanel,
         borderRadius: borderRadius,
         shadow: elevated ? t.elevation.card : const [],
         child: DecoratedBox(

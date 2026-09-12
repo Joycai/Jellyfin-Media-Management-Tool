@@ -324,7 +324,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     final entries = _visible;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1117),
+        color: AppPalette.terminalBase,
         borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
@@ -352,15 +352,15 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: const BoxDecoration(
-        color: Color(0xFF161A22),
+        color: AppPalette.terminalChrome,
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       child: Row(
         children: [
           for (final col in const [
-            Color(0xFFFF5F57),
-            Color(0xFFFEBC2E),
-            Color(0xFF28C840),
+            AppPalette.macClose,
+            AppPalette.macMinimize,
+            AppPalette.macZoom,
           ]) ...[
             Container(
               width: 11,
@@ -375,7 +375,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
             style: TextStyle(
               fontFamily: 'monospace',
               fontSize: AppTypeScale.sizeBody,
-              color: Color(0xFF9AA4B2),
+              color: AppPalette.onTerminalMuted,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -384,11 +384,17 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           const SizedBox(width: 6),
           _levelPill('WARN', LogLevel.warn, AppPalette.warning),
           const SizedBox(width: 6),
-          _levelPill('DEBUG', LogLevel.debug, const Color(0xFF8A93A2)),
+          _levelPill('DEBUG', LogLevel.debug, _debugLevel),
         ],
       ),
     );
   }
+
+  /// 日志面板在**两套主题里都是深色**（5.3），所以它内部的文字色不能跟着
+  /// 主题走 —— 浅色主题下的 ink 墨色压在这块深底上就看不见了。这两个常量是
+  /// 这块终端自己的中性档。
+  static const _debugLevel = AppPalette.onTerminalMuted;
+  static const _mutedOnTerminal = AppPalette.onTerminalFaint;
 
   Widget _levelPill(String label, LogLevel level, Color color) {
     final on = _levels.contains(level);
@@ -421,7 +427,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
             fontFamily: 'monospace',
             fontSize: AppTypeScale.sizeCaption,
             fontWeight: FontWeight.w700,
-            color: on ? color : const Color(0xFF6B7280),
+            color: on ? color : _mutedOnTerminal,
           ),
         ),
       ),
@@ -432,7 +438,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     final levelColor = switch (e.level) {
       LogLevel.info => AppPalette.success,
       LogLevel.warn => AppPalette.warning,
-      LogLevel.debug => const Color(0xFF8A93A2),
+      LogLevel.debug => _debugLevel,
     };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -446,7 +452,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           children: [
             TextSpan(
               text: '${_clock(e.time)} ',
-              style: const TextStyle(color: Color(0xFF6B7280)),
+              style: const TextStyle(color: _mutedOnTerminal),
             ),
             TextSpan(
               text: '${e.level.name.toUpperCase()} ',
@@ -454,12 +460,12 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
             ),
             TextSpan(
               text: _message(e),
-              style: const TextStyle(color: Color(0xFFD3D8E0)),
+              style: const TextStyle(color: AppPalette.onTerminal),
             ),
             if (isLast)
               const TextSpan(
                 text: ' ▌',
-                style: TextStyle(color: Color(0xFF6B83F5)),
+                style: TextStyle(color: AppPalette.accent),
               ),
           ],
         ),

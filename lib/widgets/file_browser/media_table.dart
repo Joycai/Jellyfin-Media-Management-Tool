@@ -987,7 +987,7 @@ class _ConfidenceCell extends StatelessWidget {
     final high = v >= 0.6;
     final gradient = high
         ? [t.success, t.accent]
-        : [const Color(0xFFFF9A6C), const Color(0xFFFFD166)];
+        : [AppPalette.confidenceLowStart, AppPalette.confidenceLowEnd];
     final textColor = high ? t.successText : t.warningText;
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,

@@ -322,11 +322,16 @@ class _Tile extends StatelessWidget {
                 bottom: 0,
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(8, 16, 8, 6),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
+                    // 压在缩略图上的字幕条：渐隐到窗口底色，两套主题都用深色，
+                    // 因为它盖的是图片而不是主题表面。
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xE6111420)],
+                      colors: [
+                        Colors.transparent,
+                        AppPalette.darkBase.withValues(alpha: 0.9),
+                      ],
                     ),
                   ),
                   child: Column(

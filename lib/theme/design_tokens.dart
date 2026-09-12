@@ -378,6 +378,19 @@ abstract final class AppPalette {
   /// 4.3 「写入」主按钮的深墨字，压在成功色实底上。
   static const Color onSuccessSolid = Color(0xFF04211A);
 
+  /// 压在图片 / 海报上的字幕渐隐。与主题无关：它盖住的是内容，不是表面。
+  static const Color scrim = Color(0xCC000000);
+
+  /// 5.3 的日志面板。
+  ///
+  /// **两套主题里都是深色**：它模仿的是终端，而终端在浅色应用里也是深色的。
+  /// 所以它内部的层次不能走 [AppTokens]，那些墨色压在这块底上会消失。
+  static const Color terminalBase = Color(0xFF0E1117);
+  static const Color terminalChrome = Color(0xFF161A22);
+  static const Color onTerminal = Color(0xE6FFFFFF);
+  static const Color onTerminalMuted = Color(0x8CFFFFFF);
+  static const Color onTerminalFaint = Color(0x59FFFFFF);
+
   /// 3.1 的文件类型图标色。
   ///
   /// 设计稿只给了视频（橙）、剧集（青）、海报（紫）三种有色的，字幕与元数据是

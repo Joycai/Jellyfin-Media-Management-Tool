@@ -315,12 +315,15 @@ class _ThemePreview extends StatelessWidget {
         mode == ThemeMode.dark ||
         (mode == ThemeMode.system &&
             MediaQuery.platformBrightnessOf(context) == Brightness.dark);
-    final bg = isDark ? const Color(0xFF1A1A38) : Colors.white;
+    // 缩略图画的就是这两套主题本身，所以取的必须是它们真正的窗口底与强调色，
+    // 不是一组「看起来像」的颜色 —— 换了强调色之后这张卡还得说真话。
+    final t = context.tokens;
+    final bg = isDark ? AppPalette.darkBase : AppPalette.perfTopBarLight;
     final card = isDark
         ? Colors.white.withValues(alpha: 0.08)
-        : const Color(0xFFF0F2F6);
-    final bar1 = isDark ? const Color(0xFF6B7AFF) : const Color(0xFFC9CFEE);
-    final bar2 = isDark ? const Color(0xFF7B5BFF) : const Color(0xFFE6D5F5);
+        : AppPalette.ink.withValues(alpha: 0.05);
+    final bar1 = t.accent.withValues(alpha: isDark ? 0.7 : 0.35);
+    final bar2 = AppPalette.ai.withValues(alpha: isDark ? 0.6 : 0.3);
 
     final preview = Container(
       decoration: BoxDecoration(
@@ -398,9 +401,12 @@ class _ThemePreview extends StatelessWidget {
               child: Container(
                 height: 8,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    stops: [0.5, 0.5],
-                    colors: [Color(0xCCFFFFFF), Color(0x26FFFFFF)],
+                  gradient: LinearGradient(
+                    stops: const [0.5, 0.5],
+                    colors: [
+                      Colors.white.withValues(alpha: 0.8),
+                      Colors.white.withValues(alpha: 0.15),
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(AppRadii.chip),
                 ),

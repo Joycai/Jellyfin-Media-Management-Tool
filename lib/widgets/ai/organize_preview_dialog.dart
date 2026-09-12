@@ -472,7 +472,7 @@ class _TreeCompare extends StatelessWidget {
           child: _TreePane(
             label: l10n.beforeLabel,
             path: baseDir,
-            accent: const Color(0xFFE08A3C),
+            accent: AppPalette.warning,
             lines: buildPathTree(pending.map((a) => a.source).toList()),
             conflicts: conflicts,
             isAfter: false,
@@ -527,7 +527,7 @@ class _TreeCompare extends StatelessWidget {
           child: _TreePane(
             label: l10n.afterLabel,
             path: baseDir,
-            accent: const Color(0xFF34A06B),
+            accent: AppPalette.success,
             lines: buildPathTree(pending.map((a) => a.target).toList()),
             conflicts: conflicts,
             isAfter: true,

@@ -90,7 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06070D),
+      backgroundColor: AppPalette.darkBase,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -109,7 +109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 gradient: RadialGradient(
                   center: Alignment.center,
                   radius: 1.2,
-                  colors: [Colors.transparent, Color(0xCC000000)],
+                  colors: [Colors.transparent, AppPalette.scrim],
                   stops: [0.55, 1.0],
                 ),
               ),
@@ -185,27 +185,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  /// 三步各自的窗口底（6.3）。
+  ///
+  /// 设计稿给每一步配了一个色相：欢迎用强调色、选目录用成功青、接 AI 用紫。
+  /// 这里从令牌把它们**混出来**而不是写死三组九个色值 —— 用户换了强调色，
+  /// 第一步的底也应该跟着换，否则引导页会是全应用里唯一一处还泛着旧蓝的地方。
   Gradient _backdropFor(int step) {
-    return switch (step) {
-      0 => const RadialGradient(
-        center: Alignment(-0.2, -0.4),
-        radius: 1.1,
-        colors: [Color(0xFF1F2161), Color(0xFF12122E), Color(0xFF07081A)],
-        stops: [0.0, 0.55, 1.0],
-      ),
-      1 => const RadialGradient(
-        center: Alignment(-0.4, -0.5),
-        radius: 1.2,
-        colors: [Color(0xFF124441), Color(0xFF0A2730), Color(0xFF05121E)],
-        stops: [0.0, 0.5, 1.0],
-      ),
-      _ => const RadialGradient(
-        center: Alignment(0.2, -0.4),
-        radius: 1.2,
-        colors: [Color(0xFF35216A), Color(0xFF1B143E), Color(0xFF080820)],
-        stops: [0.0, 0.55, 1.0],
-      ),
+    final tint = switch (step) {
+      0 => context.tokens.accent,
+      1 => AppPalette.success,
+      _ => AppPalette.ai,
     };
+    final center = switch (step) {
+      0 => const Alignment(-0.2, -0.4),
+      1 => const Alignment(-0.4, -0.5),
+      _ => const Alignment(0.2, -0.4),
+    };
+    return RadialGradient(
+      center: center,
+      radius: 1.15,
+      colors: [
+        Color.alphaBlend(tint.withValues(alpha: 0.34), AppPalette.darkBase),
+        Color.alphaBlend(tint.withValues(alpha: 0.14), AppPalette.darkBase),
+        AppPalette.darkBase,
+      ],
+      stops: const [0.0, 0.55, 1.0],
+    );
   }
 }
 
@@ -310,10 +315,10 @@ class _GlowingOrb extends StatelessWidget {
                 center: Alignment(-0.3, -0.4),
                 radius: 0.95,
                 colors: [
-                  Color(0xFFD9CFFF),
-                  Color(0xFFA38BFF),
                   AppPalette.ai,
-                  Color(0xFF4D3FCC),
+                  AppPalette.ai,
+                  AppPalette.ai,
+                  AppPalette.aiInk,
                 ],
                 stops: [0.0, 0.35, 0.7, 1.0],
               ),
@@ -531,8 +536,19 @@ class _FolderIcon extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: picked
-              ? const [Color(0xFF1FA897), Color(0xFF177D6F)]
-              : const [Color(0xFF1F584F), Color(0xFF153F39)],
+              ? const [AppPalette.success, AppPalette.successInk]
+              // 未选中：同一个色相压暗，而不是另换两个绿 —— 它讲的是同一件事
+              // 的「还没发生」。
+              : [
+                  Color.alphaBlend(
+                    AppPalette.success.withValues(alpha: 0.30),
+                    AppPalette.darkBase,
+                  ),
+                  Color.alphaBlend(
+                    AppPalette.successInk.withValues(alpha: 0.40),
+                    AppPalette.darkBase,
+                  ),
+                ],
         ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         boxShadow: [
@@ -653,7 +669,7 @@ class _StepAi extends StatelessWidget {
                 title: 'Google GenAI',
                 subtitle: 'Gemini 2.0 Flash · Pro',
                 badge: 'G',
-                badgeColor: const Color(0xFF4285F4),
+                badgeColor: AppPalette.vendorGoogle.first,
                 selected: picked == AiProviderType.googleGenAi,
                 onTap: () => onPick(AiProviderType.googleGenAi),
               ),

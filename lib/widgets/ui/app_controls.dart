@@ -232,7 +232,7 @@ class _AppButtonState extends State<AppButton> {
               ? _shift(base, 0.08)
               : base,
           null,
-          const Color(0xFF04211A),
+          AppPalette.onSuccessSolid,
           const <BoxShadow>[],
         );
     }
@@ -503,7 +503,8 @@ class AppTag extends StatelessWidget {
   factory AppTag.neutral(String label, {bool mono = false}) =>
       AppTag(label: label, color: _neutral, bordered: false, mono: mono);
 
-  static const Color _neutral = Color(0x00000000);
+  /// 「用控件底、不用语义色」的哨兵值。
+  static const Color _neutral = Colors.transparent;
 
   @override
   Widget build(BuildContext context) {

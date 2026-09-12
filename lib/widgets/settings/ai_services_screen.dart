@@ -83,10 +83,13 @@ class _AiServicesViewState extends State<AiServicesView> {
 ({Color color, String glyph}) _badge(AiProviderType provider) =>
     switch (provider) {
       AiProviderType.googleGenAi => (
-        color: const Color(0xFF4285F4),
+        color: AppPalette.vendorGoogle.first,
         glyph: 'G',
       ),
-      AiProviderType.openAi => (color: const Color(0xFF10A37F), glyph: '◆'),
+      AiProviderType.openAi => (
+        color: AppPalette.vendorOpenAi.first,
+        glyph: '◆',
+      ),
     };
 
 String _protocolLabel(BuildContext context, AiProviderType p) {
