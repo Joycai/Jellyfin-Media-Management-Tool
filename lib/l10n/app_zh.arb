@@ -691,5 +691,13 @@
   "accentRecentsEmpty": "暂无",
   "accentEyedropper": "从屏幕取色",
   "accentContrastOk": "与深 / 浅两套底色对比 {dark}:1 · {light}:1",
-  "accentContrastWeak": "对比 {dark}:1 · {light}:1 —— 低于 3:1，仅建议用于底色"
+  "accentContrastWeak": "对比 {dark}:1 · {light}:1 —— 低于 3:1，仅建议用于底色",
+  "modelParameters": "模型参数",
+  "modelParametersExpand": "展开",
+  "modelParametersCollapse": "收起",
+  "contextWindowScaleHint": "tokens · 8k – 1M · 步进 1k",
+  "contextWindowFootnote": "刻度等距分段，段内连续，把手可停在任意 1k；输入与滑块双向联动。留空 = 不限制。",
+  "contextWindowOverDetected": "超过服务端上报的 {limit}，仍可保存。",
+  "maxOutputStep": "步进 256",
+  "maxOutputFootnote": "上限为上下文窗口的一半，超出即夹紧。"
 }

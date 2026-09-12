@@ -2313,4 +2313,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String accentContrastWeak(Object dark, Object light) {
     return '对比 $dark:1 · $light:1 —— 低于 3:1，仅建议用于底色';
   }
+
+  @override
+  String get modelParameters => '模型参数';
+
+  @override
+  String get modelParametersExpand => '展开';
+
+  @override
+  String get modelParametersCollapse => '收起';
+
+  @override
+  String get contextWindowScaleHint => 'tokens · 8k – 1M · 步进 1k';
+
+  @override
+  String get contextWindowFootnote =>
+      '刻度等距分段，段内连续，把手可停在任意 1k；输入与滑块双向联动。留空 = 不限制。';
+
+  @override
+  String contextWindowOverDetected(Object limit) {
+    return '超过服务端上报的 $limit，仍可保存。';
+  }
+
+  @override
+  String get maxOutputStep => '步进 256';
+
+  @override
+  String get maxOutputFootnote => '上限为上下文窗口的一半，超出即夹紧。';
 }

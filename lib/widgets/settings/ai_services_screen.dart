@@ -11,6 +11,7 @@ import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
+import 'model_parameters_page.dart';
 
 /// Header-less two-pane AI services manager (list + detail). Designed for
 /// embedding inside the Settings shell.
@@ -23,6 +24,10 @@ class AiServicesView extends StatefulWidget {
 
 class _AiServicesViewState extends State<AiServicesView> {
   String? _selectedId;
+
+  /// 模型参数展开页占满内容区（03b）：滑块要一整条轨道，挤在详情右半边里九个
+  /// 刻度会叠在一起。所以展开时服务列表让位。
+  bool _parametersOpen = false;
 
   @override
   void initState() {
@@ -55,16 +60,17 @@ class _AiServicesViewState extends State<AiServicesView> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 360,
-          child: _ServiceList(
-            services: services,
-            selectedId: selected?.id,
-            activeId: profiles.activeId,
-            onSelect: (id) => setState(() => _selectedId = id),
-            onAdd: _addService,
+        if (!_parametersOpen)
+          SizedBox(
+            width: 360,
+            child: _ServiceList(
+              services: services,
+              selectedId: selected?.id,
+              activeId: profiles.activeId,
+              onSelect: (id) => setState(() => _selectedId = id),
+              onAdd: _addService,
+            ),
           ),
-        ),
         Expanded(
           child: selected == null
               ? _EmptyDetail(onAdd: _addService)
@@ -72,6 +78,8 @@ class _AiServicesViewState extends State<AiServicesView> {
                   key: ValueKey(selected.id),
                   profile: selected,
                   isActive: selected.id == profiles.activeId,
+                  showParameters: _parametersOpen,
+                  onShowParameters: (v) => setState(() => _parametersOpen = v),
                 ),
         ),
       ],
@@ -310,10 +318,17 @@ class _StatusBadge extends StatelessWidget {
 class _ServiceDetail extends StatefulWidget {
   final AiServiceProfile profile;
   final bool isActive;
+
+  /// 模型参数展开页是否占着内容区。状态挂在父级，因为展开时要连服务列表一起收。
+  final bool showParameters;
+  final ValueChanged<bool> onShowParameters;
+
   const _ServiceDetail({
     super.key,
     required this.profile,
     required this.isActive,
+    required this.showParameters,
+    required this.onShowParameters,
   });
 
   @override
@@ -580,11 +595,41 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     }
   }
 
+  /// 上下文窗口，读自它自己的控制器 —— 滑块和输入框共用同一份真值。
+  int? get _contextTokens => AiConfig.tokenCount(_contextWindow.text);
+
+  void _setContextTokens(int? tokens) {
+    setState(() => _contextWindow.text = tokens?.toString() ?? '');
+    _persist();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final badge = _badge(_provider);
+
+    if (widget.showParameters) {
+      return ModelParametersPage(
+        serviceName: _name.text.isEmpty ? l10n.newServiceName : _name.text,
+        model: _model.text.trim(),
+        contextWindow: _contextTokens,
+        onContextWindow: _setContextTokens,
+        maxOutput: _maxOutput,
+        onMaxOutputChanged: _persist,
+        detectedCeiling: _detected?.contextWindow,
+        onCollapse: () => widget.onShowParameters(false),
+        sampling: _SamplingSection(
+          preset: SamplingPresets.forModel(_model.text),
+          controllers: _sampling,
+          thinking: _thinking,
+          lastCheck: _lastCheck,
+          onChanged: _persist,
+          onThinkingChanged: _setThinking,
+          onReset: _resetSampling,
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 24, 24),
@@ -758,32 +803,16 @@ class _ServiceDetailState extends State<_ServiceDetail> {
         ),
         const SizedBox(height: 16),
 
-        // Token budget: the context the model is loaded with, and its cap.
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _Field(
-                label: l10n.contextWindow,
-                controller: _contextWindow,
-                mono: true,
-                digitsOnly: true,
-                hint: l10n.contextWindowHint,
-                onChanged: (_) => _persist(),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _Field(
-                label: l10n.maxOutputTokens,
-                controller: _maxOutput,
-                mono: true,
-                digitsOnly: true,
-                hint: l10n.maxOutputTokensHint,
-                onChanged: (_) => _persist(),
-              ),
-            ),
-          ],
+        // 6.1 的「模型参数」摘要行：上下文、最大输出与采样都收进展开页，详情页
+        // 只留一行摘要。展开页要一整条滑轨（03b），所以它占满内容区。
+        ModelParametersSummary(
+          contextWindow: AiConfig.tokenCount(_contextWindow.text),
+          maxOutput: AiConfig.tokenCount(_maxOutput.text),
+          presetLabel:
+              SamplingPresets.forModel(_model.text)?.label ??
+              l10n.samplingNoPreset,
+          thinking: _thinking,
+          onExpand: () => widget.onShowParameters(true),
         ),
         const SizedBox(height: 10),
         if (_detected case final detected?)
@@ -791,26 +820,6 @@ class _ServiceDetailState extends State<_ServiceDetail> {
             limits: detected,
             onUse: () => _useDetected(detected),
           ),
-        Text(
-          l10n.contextWindowNote,
-          style: TextStyle(
-            fontSize: AppTypeScale.sizeCaption,
-            height: 1.4,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Sampling: the family preset, the user's overrides, and reasoning.
-        _SamplingSection(
-          preset: SamplingPresets.forModel(_model.text),
-          controllers: _sampling,
-          thinking: _thinking,
-          lastCheck: _lastCheck,
-          onChanged: _persist,
-          onThinkingChanged: _setThinking,
-          onReset: _resetSampling,
-        ),
         const SizedBox(height: 24),
 
         // Usage stats (live for the active service).

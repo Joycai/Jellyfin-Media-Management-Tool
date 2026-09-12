@@ -4255,6 +4255,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Contrast {dark}:1 · {light}:1 — below 3:1, so use it as a fill only'**
   String accentContrastWeak(Object dark, Object light);
+
+  /// No description provided for @modelParameters.
+  ///
+  /// In en, this message translates to:
+  /// **'Model parameters'**
+  String get modelParameters;
+
+  /// No description provided for @modelParametersExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get modelParametersExpand;
+
+  /// No description provided for @modelParametersCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get modelParametersCollapse;
+
+  /// No description provided for @contextWindowScaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'tokens · 8k – 1M · step 1k'**
+  String get contextWindowScaleHint;
+
+  /// No description provided for @contextWindowFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'The ticks are evenly spaced segments and each segment is continuous, so the handle can stop on any 1k. Slider and field follow each other; blank means no limit.'**
+  String get contextWindowFootnote;
+
+  /// No description provided for @contextWindowOverDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Above the {limit} the server reported. Still saved.'**
+  String contextWindowOverDetected(Object limit);
+
+  /// No description provided for @maxOutputStep.
+  ///
+  /// In en, this message translates to:
+  /// **'step 256'**
+  String get maxOutputStep;
+
+  /// No description provided for @maxOutputFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Capped at half the context window; anything larger is clamped.'**
+  String get maxOutputFootnote;
 }
 
 class _AppLocalizationsDelegate

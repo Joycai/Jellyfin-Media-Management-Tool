@@ -2372,4 +2372,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String accentContrastWeak(Object dark, Object light) {
     return 'Contrast $dark:1 · $light:1 — below 3:1, so use it as a fill only';
   }
+
+  @override
+  String get modelParameters => 'Model parameters';
+
+  @override
+  String get modelParametersExpand => 'Expand';
+
+  @override
+  String get modelParametersCollapse => 'Collapse';
+
+  @override
+  String get contextWindowScaleHint => 'tokens · 8k – 1M · step 1k';
+
+  @override
+  String get contextWindowFootnote =>
+      'The ticks are evenly spaced segments and each segment is continuous, so the handle can stop on any 1k. Slider and field follow each other; blank means no limit.';
+
+  @override
+  String contextWindowOverDetected(Object limit) {
+    return 'Above the $limit the server reported. Still saved.';
+  }
+
+  @override
+  String get maxOutputStep => 'step 256';
+
+  @override
+  String get maxOutputFootnote =>
+      'Capped at half the context window; anything larger is clamped.';
 }
