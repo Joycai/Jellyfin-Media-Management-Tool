@@ -151,5 +151,10 @@ void main() {
     expect(save.right, moreOrLessEquals(card.right, epsilon: 0.5));
     expect(save.left - collapse.right, moreOrLessEquals(AppSpacing.sm));
     expect(save.height, AppSizes.controlSm);
+
+    // 03b's two columns are grid cells: same row, same height. The right card
+    // holds one field and would otherwise stop well short of the slider card.
+    final left = tester.getRect(find.byType(SettingsCard).first);
+    expect(card.height, moreOrLessEquals(left.height, epsilon: 0.5));
   });
 }

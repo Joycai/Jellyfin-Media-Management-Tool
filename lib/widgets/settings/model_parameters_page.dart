@@ -71,6 +71,7 @@ class ModelParametersPage extends StatelessWidget {
               SettingsColumns(
                 // 设计稿 `1.9fr 1fr`：滑块要的是长度。
                 leftFlex: 190,
+                equalHeight: true,
                 left: _ContextCard(
                   value: contextWindow,
                   onChanged: onContextWindow,

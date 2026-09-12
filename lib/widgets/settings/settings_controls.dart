@@ -304,23 +304,38 @@ class SettingsColumns extends StatelessWidget {
   final int leftFlex;
   final int rightFlex;
 
+  /// 两列等高。设计稿的两列是 CSS grid，同一行的格子默认拉伸到等高 —— 一行里
+  /// 并排的两张卡下沿不齐，看上去就像右边那张画漏了。
+  ///
+  /// 用 `IntrinsicHeight` 而不是 `CrossAxisAlignment.stretch`：在 `ListView`
+  /// 里交叉轴是无界的，stretch 会直接抛，整页空掉而控制台一声不响。代价是列内
+  /// 每个子项都得答得出固有高度（`LayoutBuilder` 答不出，见
+  /// `ContextWindowSlider.height`）。
+  final bool equalHeight;
+
   const SettingsColumns({
     super.key,
     required this.left,
     required this.right,
     this.leftFlex = 112,
     this.rightFlex = 100,
+    this.equalHeight = false,
   });
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(flex: leftFlex, child: left),
-      const SizedBox(width: AppSpacing.lg),
-      Expanded(flex: rightFlex, child: right),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final row = Row(
+      crossAxisAlignment: equalHeight
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: leftFlex, child: left),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(flex: rightFlex, child: right),
+      ],
+    );
+    return equalHeight ? IntrinsicHeight(child: row) : row;
+  }
 }
 
 /// 卡底 / 分组底的一行说明：11.5px · 次要色。
