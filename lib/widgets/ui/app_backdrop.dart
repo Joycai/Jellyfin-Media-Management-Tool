@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/design_tokens.dart';
@@ -40,6 +41,27 @@ import '../../theme/design_tokens.dart';
 ///   它 —— 实测包一层 21.9ms → 22.7ms，等于没有。所以只能自己烘。
 ///
 /// 渐变本身是静态的（只随主题亮度与强调色变），逐帧重算它没有任何意义。
+///
+/// ## 顺带把毛玻璃也烘了（[AppTokens.bakedGlass]）
+///
+/// 背景静态还带来第二件事。外壳那几块玻璃 —— 顶栏 / 侧栏 / 中栏 / 右面板 /
+/// 状态栏 —— 是同一平面上互不重叠的瓦片，而它们**背后只有这张烘好的图**：面板
+/// 里的内容画在模糊之上，不在背后。既然输入是静态的，输出也是静态的。
+///
+/// 所以除了清晰版，这里再按主题用到的每档 sigma 各烘一张**模糊版**，
+/// [GlassSurface] 从中裁出自己那一块贴上去，`BackdropFilter` 就不必存在了：
+/// 四次全屏渲染目标回读换成四个贴图四边形，实测最大化 4K 下省 ~46ms。
+///
+/// 三件让它成立的事：
+///
+/// * **在 1/4 图上模糊，sigma 也要除以 [_downscale]。** 模糊本身就是低通，降
+///   采样带来的误差比清晰版还小。
+/// * **`TileMode.clamp`。** 边缘要延展而不是渐隐到透明，否则窗口四边会出现一圈
+///   暗边 —— 真 `BackdropFilter` 在屏幕边界上也是 clamp。
+/// * **这是一条结构约束，不是一个纯优化。** 它成立的前提是「面板背后只有这张
+///   图」。哪天谁在某块面板背后放了动态内容，模糊里就不会有它。嵌套的玻璃面由
+///   [BakedBackdropScope] 自动挡掉（见 [GlassSurface]），但同层的新东西挡不住 ——
+///   `test/widgets/baked_glass_test.dart` 钉的就是这条。
 class AppBackdrop extends StatefulWidget {
   const AppBackdrop({super.key, required this.child});
 
@@ -51,9 +73,15 @@ class AppBackdrop extends StatefulWidget {
 
 class _AppBackdropState extends State<AppBackdrop> {
   ui.Image? _image;
-  _BakeRequest? _baked;
+  Map<double, ui.Image> _blurred = const {};
+  BakedBackdrop? _baked;
+  _BakeRequest? _bakedFrom;
   _BakeRequest? _pending;
   Timer? _debounce;
+
+  /// 标记「这张图铺到哪块矩形上」，供 [GlassSurface] 把自己的位置换算成图上的
+  /// 采样区。用 [GlobalKey] 而不是假设背景就在窗口原点：整页路由各有各的一层。
+  final _area = GlobalKey();
 
   /// 拖强调色取色器是**实时预览**的，会一路调用 `setAccentColor`；不去抖的话
   /// 拖过一条色相就是每帧一次 `toImage`。底色是很淡的一层，滞后 120ms 看不出来。
@@ -70,8 +98,15 @@ class _AppBackdropState extends State<AppBackdrop> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _image?.dispose();
+    _disposeImages();
     super.dispose();
+  }
+
+  void _disposeImages() {
+    _image?.dispose();
+    for (final image in _blurred.values) {
+      image.dispose();
+    }
   }
 
   Size _bakeSizeFor(Size size) {
@@ -120,35 +155,94 @@ class _AppBackdropState extends State<AppBackdrop> {
     } finally {
       picture.dispose();
     }
+
+    final blurred = <double, ui.Image>{};
+    try {
+      for (final sigma in request.sigmas) {
+        blurred[sigma] = await _blurOf(image, sigma / _downscale);
+      }
+    } catch (_) {
+      // 一次失败就整批作废：拿一半的档位去配对会让某些面板悄悄换成另一种观感。
+      for (final partial in blurred.values) {
+        partial.dispose();
+      }
+      image.dispose();
+      rethrow;
+    }
+
     if (!mounted || _pending != request) {
+      for (final unused in blurred.values) {
+        unused.dispose();
+      }
       image.dispose();
       return;
     }
     setState(() {
-      _image?.dispose();
+      _disposeImages();
       _image = image;
-      _baked = request;
+      _blurred = blurred;
+      _bakedFrom = request;
+      _baked = blurred.isEmpty
+          ? null
+          : BakedBackdrop._(images: blurred, area: _area);
     });
+  }
+
+  /// 把烘好的背景再模糊一遍。[sigma] 已经换算到烘焙图的像素空间。
+  Future<ui.Image> _blurOf(ui.Image source, double sigma) async {
+    final recorder = ui.PictureRecorder();
+    Canvas(recorder).drawImage(
+      source,
+      Offset.zero,
+      Paint()
+        ..filterQuality = FilterQuality.low
+        // clamp 而不是默认的渐隐：源图就是整个窗口，边缘之外没有「空」可采样，
+        // 渐隐会在四边留一圈暗边。
+        ..imageFilter = ui.ImageFilter.blur(
+          sigmaX: sigma,
+          sigmaY: sigma,
+          tileMode: TileMode.clamp,
+        ),
+    );
+    final picture = recorder.endRecording();
+    try {
+      return await picture.toImage(source.width, source.height);
+    } finally {
+      picture.dispose();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final g = AppTokens.of(context).backdrop;
+    final t = AppTokens.of(context);
+    final g = t.backdrop;
     // 主题动画中途 `Gradient.lerp` 可能给回别的类型；那条路照旧逐帧画，它只在
     // 切主题的那几帧里存在。
     if (g is! RadialPairGradient) {
-      return DecoratedBox(
-        decoration: BoxDecoration(gradient: g),
-        child: widget.child,
+      return BakedBackdropScope(
+        backdrop: null,
+        child: DecoratedBox(
+          decoration: BoxDecoration(gradient: g),
+          child: widget.child,
+        ),
       );
     }
+
+    // 只烘外壳真正会用到的那两档。对话框 / 菜单是 push 上来的 route，够不到这棵
+    // 子树，给它们烘一张是白占显存。
+    final sigmas = t.bakedGlass
+        ? <double>{
+            if (t.blurTopBar > 0) t.blurTopBar,
+            if (t.blurPanel > 0) t.blurPanel,
+          }
+        : const <double>{};
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
         if (size.isFinite && !size.isEmpty) {
-          final request = _BakeRequest(_bakeSizeFor(size), g);
-          if (_baked != request) {
+          final request = _BakeRequest(_bakeSizeFor(size), g, sigmas);
+          if (_bakedFrom != request) {
             // build 里不能 setState，也不该起异步工作。
             WidgetsBinding.instance.addPostFrameCallback(
               (_) => _requestBake(request),
@@ -156,41 +250,98 @@ class _AppBackdropState extends State<AppBackdrop> {
           }
         }
         final image = _image;
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // 第一帧（以及每次重烘落地之前）退回纯底色，而不是空白：它是渐变的
-            // 基色，换上去的那一下看不出来。
-            if (image == null)
-              ColoredBox(color: g.base)
-            else
-              // filterQuality 必须给到 low 以上：默认 none 是最近邻，1/4 图放大
-              // 会直接暴露成色块。
-              RawImage(
-                image: image,
-                fit: BoxFit.fill,
-                filterQuality: FilterQuality.low,
-              ),
-            widget.child,
-          ],
+        return BakedBackdropScope(
+          backdrop: _baked,
+          child: Stack(
+            key: _area,
+            fit: StackFit.expand,
+            children: [
+              // 第一帧（以及每次重烘落地之前）退回纯底色，而不是空白：它是渐变的
+              // 基色，换上去的那一下看不出来。
+              if (image == null)
+                ColoredBox(color: g.base)
+              else
+                // filterQuality 必须给到 low 以上：默认 none 是最近邻，1/4 图放大
+                // 会直接暴露成色块。
+                RawImage(
+                  image: image,
+                  fit: BoxFit.fill,
+                  filterQuality: FilterQuality.low,
+                ),
+              widget.child,
+            ],
+          ),
         );
       },
     );
   }
 }
 
-/// 一次烘焙的完整输入。相等 = 可以复用已经烘好的那张图。
+/// 一份已经烘好的模糊背景，连同它铺在哪儿。
+///
+/// 身份即版本：每次重烘产生一个新实例，[BakedBackdropScope.updateShouldNotify]
+/// 就是靠这个把用它的面板叫起来重画的。
+@immutable
+class BakedBackdrop {
+  const BakedBackdrop._({
+    required Map<double, ui.Image> images,
+    required this.area,
+  }) : _images = images;
+
+  final Map<double, ui.Image> _images;
+
+  /// 指向铺满整个背景的那块 widget，用来把面板坐标换算到图上的采样区。
+  final GlobalKey area;
+
+  /// 对应 [sigma] 的那张预模糊图，没有烘过这一档就返回 null —— 调用方退回
+  /// 真 `BackdropFilter`，而不是拿一档不对的糊上去。
+  ui.Image? imageFor(double sigma) => _images[sigma];
+
+  /// 这个背景当前铺满的逻辑矩形尺寸，尚未布局时为 null。
+  Size? get areaSize {
+    final box = area.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.size;
+  }
+}
+
+/// 把 [BakedBackdrop] 递给下面的玻璃面。
+///
+/// `backdrop` 为 null 有两种意思，对使用者是同一件事：还没烘好，或者这块地方
+/// **不该**用烘好的图（[GlassSurface] 会给自己的子树挡一层 null，因为嵌套的玻璃
+/// 面背后就不只有背景了）。两种情况都退回真 `BackdropFilter`。
+class BakedBackdropScope extends InheritedWidget {
+  const BakedBackdropScope({
+    super.key,
+    required this.backdrop,
+    required super.child,
+  });
+
+  final BakedBackdrop? backdrop;
+
+  static BakedBackdrop? of(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<BakedBackdropScope>()
+      ?.backdrop;
+
+  @override
+  bool updateShouldNotify(BakedBackdropScope oldWidget) =>
+      !identical(oldWidget.backdrop, backdrop);
+}
+
+/// 一次烘焙的完整输入。相等 = 可以复用已经烘好的那批图。
 @immutable
 class _BakeRequest {
-  const _BakeRequest(this.size, this.gradient);
+  const _BakeRequest(this.size, this.gradient, this.sigmas);
 
   final Size size;
   final RadialPairGradient gradient;
+  final Set<double> sigmas;
 
   @override
   bool operator ==(Object other) =>
       other is _BakeRequest &&
       other.size == size &&
+      setEquals(other.sigmas, sigmas) &&
       other.gradient.base == gradient.base &&
       other.gradient.first == gradient.first &&
       other.gradient.firstCenter == gradient.firstCenter &&
@@ -200,6 +351,7 @@ class _BakeRequest {
   @override
   int get hashCode => Object.hash(
     size,
+    Object.hashAllUnordered(sigmas),
     gradient.base,
     gradient.first,
     gradient.firstCenter,

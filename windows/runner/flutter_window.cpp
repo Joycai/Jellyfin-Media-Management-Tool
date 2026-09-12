@@ -54,6 +54,9 @@ bool FlutterWindow::OnCreate() {
           flutter_controller_->engine()->messenger(), kCaptionChannel,
           &flutter::StandardMethodCodec::GetInstance());
 
+  thumbnail_channel_ = std::make_unique<ThumbnailChannel>(
+      flutter_controller_->engine()->messenger(), GetHandle());
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -67,6 +70,9 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  // Both channels go before the controller: their destructors answer whatever
+  // is still outstanding, and that needs a live engine.
+  thumbnail_channel_ = nullptr;
   caption_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
@@ -118,6 +124,14 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     if (result) {
       return *result;
     }
+  }
+
+  // Not a switch case: the value is registered at runtime, so it is not a
+  // compile-time constant.
+  if (thumbnail_channel_ != nullptr &&
+      message == ThumbnailChannel::CompletionMessage()) {
+    thumbnail_channel_->DrainCompletions();
+    return 0;
   }
 
   switch (message) {

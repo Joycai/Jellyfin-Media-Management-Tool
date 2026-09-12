@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../theme/design_tokens.dart';
+import 'app_backdrop.dart';
 import 'glass_cover.dart';
 
 /// 全应用**唯一**一处 `BackdropFilter`。
@@ -20,6 +21,8 @@ import 'glass_cover.dart';
 ///   不影响耗时：最大化 4K 下强度 50 是 82.0ms、强度 100 是 83.8ms（+2%），而
 ///   把滤镜拿掉省 46ms。滑块是**观感**控制，只有 0 那一档是性能控制。
 /// * **同一平面上的多个滤镜共用一次背景快照。** 见 build 里的 [BackdropGroup]。
+/// * **背景是静态的时候，模糊结果也是静态的 —— 直接贴预烘的那张。** 见
+///   [BakedBackdropScope]；这条把上一条剩下的 46ms 也拿掉了。
 /// * **模糊只在有裁剪的地方开。** 没有 `ClipRRect` 的 `BackdropFilter` 会采样到
 ///   圆角之外。
 /// * **被不透明路由盖住时不加模糊。** 看不见的那层照样每帧回读整块背景；推开
@@ -104,6 +107,30 @@ class GlassSurface extends StatelessWidget {
       );
     }
 
+    // 背景已经连模糊一起烘好了：裁一块贴上，不必再开滤镜。找不到（还没烘好、
+    // 开关关着、或者上层特意挡掉了）就走下面的真滤镜。
+    final baked = wantsBlur ? BakedBackdropScope.of(context) : null;
+    final bakedImage = baked?.imageFor(blur);
+    if (bakedImage != null) {
+      return _wrapShadow(
+        ClipRRect(
+          borderRadius: radius,
+          child: Stack(
+            fit: StackFit.passthrough,
+            children: [
+              Positioned.fill(
+                child: _BakedBlur(image: bakedImage, backdrop: baked!),
+              ),
+              // 挡掉作用域：嵌套在这块玻璃里的玻璃，背后就不只有背景了 ——
+              // 还有这一层的底色和内容。它必须退回真滤镜才能看到那些。
+              BakedBackdropScope(backdrop: null, child: content),
+            ],
+          ),
+        ),
+        radius,
+      );
+    }
+
     if (wantsBlur) {
       final filter = ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur);
       // 有 BackdropGroup 就并进去，共用一次背景快照；没有就照旧自己快照一次。
@@ -122,6 +149,10 @@ class GlassSurface extends StatelessWidget {
       content = ClipRRect(borderRadius: radius, child: content);
     }
 
+    return _wrapShadow(content, radius);
+  }
+
+  Widget _wrapShadow(Widget content, BorderRadius radius) {
     if (shadow.isEmpty) return content;
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -129,6 +160,79 @@ class GlassSurface extends StatelessWidget {
         boxShadow: shadow,
       ),
       child: content,
+    );
+  }
+}
+
+/// 把预烘的模糊背景中属于这块面板的那一片画出来。
+///
+/// 之所以要一个 render object 而不是 `Image` + `Alignment`：要画的是**这块面板
+/// 在整张背景图上对应的区域**，而面板并不知道自己在窗口里的位置。只有在 paint
+/// 时用 `localToGlobal` 换算才拿得到，而且窗口一改尺寸它就变了。
+class _BakedBlur extends LeafRenderObjectWidget {
+  const _BakedBlur({required this.image, required this.backdrop});
+
+  final ui.Image image;
+  final BakedBackdrop backdrop;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderBakedBlur(image, backdrop);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderBakedBlur renderObject) {
+    renderObject
+      ..image = image
+      ..backdrop = backdrop;
+  }
+}
+
+class _RenderBakedBlur extends RenderBox {
+  _RenderBakedBlur(this._image, this._backdrop);
+
+  ui.Image _image;
+  set image(ui.Image value) {
+    if (identical(value, _image)) return;
+    _image = value;
+    markNeedsPaint();
+  }
+
+  BakedBackdrop _backdrop;
+  set backdrop(BakedBackdrop value) {
+    if (identical(value, _backdrop)) return;
+    _backdrop = value;
+    markNeedsPaint();
+  }
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => constraints.biggest;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final area = _backdrop.areaSize;
+    final box = _backdrop.area.currentContext?.findRenderObject();
+    if (area == null || area.isEmpty || box is! RenderBox) return;
+    if (size.isEmpty) return;
+
+    // 面板左上角在背景那块矩形里的位置。绕一趟全局坐标是因为两者中间隔着
+    // Padding、Row、动画容器，没有直达的变换。
+    final origin = box.globalToLocal(localToGlobal(Offset.zero));
+    final scaleX = _image.width / area.width;
+    final scaleY = _image.height / area.height;
+    final source = Rect.fromLTWH(
+      origin.dx * scaleX,
+      origin.dy * scaleY,
+      size.width * scaleX,
+      size.height * scaleY,
+    );
+    context.canvas.drawImageRect(
+      _image,
+      source,
+      offset & size,
+      Paint()..filterQuality = FilterQuality.low,
     );
   }
 }

@@ -921,13 +921,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get glassOffHint => '毛玻璃已关闭：面板改用不透明底色。这是界面最省的一档。';
 
   @override
-  String get glassOnHint => '拖到 0 可关闭毛玻璃。这里唯一影响性能的是关不关，强度本身几乎不影响。';
+  String get glassOnHint => '拖到 0 可彻底关闭毛玻璃。强度本身几乎不影响性能；模糊怎么算在下面「行为」里选。';
 
   @override
   String get accentColor => '强调色';
 
   @override
   String get behavior => '行为';
+
+  @override
+  String get behaviorBakedGlass => '预渲染毛玻璃';
+
+  @override
+  String get behaviorBakedGlassDesc =>
+      '把窗口背景的模糊烘一次重复使用，而不是每帧重算。GPU 开销低得多，面板观感一致。';
+
+  @override
+  String get behaviorBakedGlassUnavailable => '毛玻璃已关闭，没有模糊可预渲染。';
 
   @override
   String get behaviorVideoThumbnails => '在文件列表中显示视频缩略图';

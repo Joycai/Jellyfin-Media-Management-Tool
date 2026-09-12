@@ -36,4 +36,34 @@ void main() {
       expect(high.glassIntensity, 100);
     });
   });
+
+  group('baked glass', () {
+    test('defaults on', () {
+      // Every config written before this setting existed has no key for it,
+      // and those users are the ones the default is for: it is worth ~46ms a
+      // frame maximized at 4K and the panels look the same either way.
+      final settings = SettingsService();
+      expect(settings.bakedGlass, isTrue);
+      settings.applyConfig({'glass_intensity': 70});
+      expect(settings.bakedGlass, isTrue);
+    });
+
+    test('a stored choice is honoured in both directions', () {
+      final off = SettingsService()..applyConfig({'baked_glass': false});
+      final on = SettingsService()..applyConfig({'baked_glass': true});
+      expect(off.bakedGlass, isFalse);
+      expect(on.bakedGlass, isTrue);
+    });
+
+    test('it is independent of the intensity slider', () {
+      // The two answer different questions — how much blur, and how to compute
+      // it — so neither may quietly overwrite the other's stored value. What
+      // reconciles them is AppTokens.build, which drops baking when there is
+      // no blur to bake; see baked_glass_test.dart.
+      final settings = SettingsService()
+        ..applyConfig({'glass_intensity': 0, 'baked_glass': true});
+      expect(settings.glassIntensity, 0);
+      expect(settings.bakedGlass, isTrue);
+    });
+  });
 }

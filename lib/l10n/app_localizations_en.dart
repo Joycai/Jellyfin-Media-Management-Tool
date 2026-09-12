@@ -937,13 +937,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get glassOnHint =>
-      'Drag to 0 to turn the blur off. That is the only step here that changes performance — the strength itself barely does.';
+      'Drag to 0 to turn the blur off entirely. The strength itself costs almost nothing — how the blur is computed is the setting under Behavior.';
 
   @override
   String get accentColor => 'Accent color';
 
   @override
   String get behavior => 'Behavior';
+
+  @override
+  String get behaviorBakedGlass => 'Pre-render the glass blur';
+
+  @override
+  String get behaviorBakedGlassDesc =>
+      'Blurs the window background once and reuses it instead of re-blurring every frame. Far cheaper on the GPU, and the panels look the same.';
+
+  @override
+  String get behaviorBakedGlassUnavailable =>
+      'Nothing to pre-render while the blur is off.';
 
   @override
   String get behaviorVideoThumbnails =>

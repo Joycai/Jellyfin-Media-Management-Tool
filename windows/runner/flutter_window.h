@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "thumbnail_channel.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -47,6 +48,10 @@ class FlutterWindow : public Win32Window {
 
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       caption_channel_;
+
+  // Video poster frames, extracted on worker threads. See thumbnail_channel.h
+  // for why this is not left to the plugin on Windows.
+  std::unique_ptr<ThumbnailChannel> thumbnail_channel_;
 
   bool maximize_hovered_ = false;
   bool maximize_pressed_ = false;

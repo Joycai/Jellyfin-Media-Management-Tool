@@ -61,6 +61,18 @@ class AppearanceSection extends StatelessWidget {
         SettingsRowsCard(
           children: [
             SettingsToggleRow(
+              label: l10n.behaviorBakedGlass,
+              // 强度 0 时没有模糊可烘，开关也就没有意义 —— 画出来但按不动，
+              // 比让它可切换却什么都不做诚实。
+              subtitle: settings.glassIntensity <= 0
+                  ? l10n.behaviorBakedGlassUnavailable
+                  : l10n.behaviorBakedGlassDesc,
+              value: settings.bakedGlass && settings.glassIntensity > 0,
+              onChanged: settings.glassIntensity <= 0
+                  ? null
+                  : settings.setBakedGlass,
+            ),
+            SettingsToggleRow(
               label: l10n.behaviorVideoThumbnails,
               value: settings.showVideoThumbnails,
               onChanged: settings.setShowVideoThumbnails,

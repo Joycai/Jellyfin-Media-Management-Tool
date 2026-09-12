@@ -690,6 +690,14 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// 回读整个目标，代价正在那里。
   final bool reduceEffects;
 
+  /// 是否用**预烘的模糊背景**代替逐帧 `BackdropFilter`。
+  ///
+  /// 和 [reduceEffects] 是两件事，别混：那个是「不要模糊」，这个是「模糊照给，
+  /// 但换一种算法」。外壳那几块玻璃背后只有 `AppBackdrop` 一张静态图，所以它们
+  /// 的模糊结果同样是静态的，可以连同背景一起烘出来、各自裁一块贴上，把四次
+  /// 全屏渲染目标回读换成四个贴图四边形。见 `AppBackdrop` 与 `GlassSurface`。
+  final bool bakedGlass;
+
   /// 等宽文本的回落链，含用户选的中文字体。见 [AppTypeScale.monoChain]。
   ///
   /// 等宽样式必须自带回落链（`JetBrains Mono` 哪儿都没装），而 `TextStyle`
@@ -733,6 +741,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.blurPanel,
     required this.blurDialog,
     required this.reduceEffects,
+    required this.bakedGlass,
     required this.monoFallback,
   });
 
@@ -829,10 +838,16 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// 从前这是一个独立的「性能模式」开关，于是「性能模式开 + 强度 50」这种说不
   /// 清的状态是可达的，而强度 0 反倒只关模糊、不修对比度 —— 正好制造出那个开关
   /// 存在的理由却不带修复。现在它由强度推导，两者不可能再打架。
+  ///
+  /// [bakedGlass] 是另一个维度，和强度不冲突：强度决定**模糊多少**，它决定
+  /// **怎么算这份模糊**。强度为 0 时没有模糊可算，所以它被强制关掉 —— 这样
+  /// `bakedGlass` 为真就恒等于「确实有一份烘好的模糊在用」，读它的地方不必再
+  /// 各自跟 `reduceEffects` 与一遍。
   factory AppTokens.build({
     required Brightness brightness,
     Color? accent,
     double glassIntensity = 70,
+    bool bakedGlass = true,
     String? uiFont,
     TargetPlatform? platform,
   }) {
@@ -912,6 +927,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       blurPanel: reduceEffects ? 0 : AppBlur.panel * scale,
       blurDialog: reduceEffects ? 0 : AppBlur.dialog * scale,
       reduceEffects: reduceEffects,
+      bakedGlass: bakedGlass && !reduceEffects,
       monoFallback: AppTypeScale.monoChain(
         uiFont,
         platform ?? defaultTargetPlatform,
@@ -999,6 +1015,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     double? blurPanel,
     double? blurDialog,
     bool? reduceEffects,
+    bool? bakedGlass,
     List<String>? monoFallback,
   }) => AppTokens(
     brightness: brightness ?? this.brightness,
@@ -1036,6 +1053,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     blurPanel: blurPanel ?? this.blurPanel,
     blurDialog: blurDialog ?? this.blurDialog,
     reduceEffects: reduceEffects ?? this.reduceEffects,
+    bakedGlass: bakedGlass ?? this.bakedGlass,
     monoFallback: monoFallback ?? this.monoFallback,
   );
 
@@ -1095,6 +1113,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       blurPanel: d(blurPanel, other.blurPanel),
       blurDialog: d(blurDialog, other.blurDialog),
       reduceEffects: t < 0.5 ? reduceEffects : other.reduceEffects,
+      bakedGlass: t < 0.5 ? bakedGlass : other.bakedGlass,
       // 字族名没有中间值。
       monoFallback: t < 0.5 ? monoFallback : other.monoFallback,
     );
