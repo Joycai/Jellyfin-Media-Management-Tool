@@ -45,6 +45,23 @@ class SecondaryTitleBar extends StatelessWidget {
     final window = WindowStateScope.of(context);
     final focused = window.isFocused;
 
+    return LayoutBuilder(
+      builder: (context, box) =>
+          _bar(context, t, window, focused, box.maxWidth),
+    );
+  }
+
+  Widget _bar(
+    BuildContext context,
+    AppTokens t,
+    WindowStateNotifier window,
+    bool focused,
+    double width,
+  ) {
+    // 窄窗口先丢面包屑，再让标题省略 —— 返回按钮和窗口按钮都不能压缩：
+    // 一个是唯一的出口，另一个是唯一的关窗方式。
+    final showSubtitle =
+        subtitle != null && width >= AppSizes.breakpointCompact;
     return GlassSurface(
       fill: focused ? t.topBarFill : t.topBarFillUnfocused,
       blur: t.blurTopBar,
@@ -69,37 +86,46 @@ class SecondaryTitleBar extends StatelessWidget {
                       ? AppSizes.macTrafficLightInset
                       : AppSizes.topBarLeftInset,
                 ),
-                Opacity(
-                  opacity: focused ? 1 : AppTokens.unfocusedOpacity,
-                  child: Row(
-                    children: [
-                      AppButton(
-                        label: backLabel,
-                        icon: Icons.arrow_back_rounded,
-                        height: AppSizes.controlSm,
-                        onPressed: onBack,
-                      ),
-                      const AppVerticalDivider(),
-                      Text(
-                        title,
-                        style: AppTypeScale.title.copyWith(
-                          fontSize: AppTypeScale.sizeBody,
-                          color: t.textTitle,
+                Expanded(
+                  child: Opacity(
+                    opacity: focused ? 1 : AppTokens.unfocusedOpacity,
+                    child: Row(
+                      children: [
+                        AppButton(
+                          label: backLabel,
+                          icon: Icons.arrow_back_rounded,
+                          height: AppSizes.controlSm,
+                          onPressed: onBack,
                         ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(width: AppSpacing.md12),
-                        Text(
-                          subtitle!,
-                          style: AppTypeScale.caption.copyWith(
-                            color: t.textSecondary,
+                        const AppVerticalDivider(),
+                        Flexible(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypeScale.title.copyWith(
+                              fontSize: AppTypeScale.sizeBody,
+                              color: t.textTitle,
+                            ),
                           ),
                         ),
+                        if (showSubtitle) ...[
+                          const SizedBox(width: AppSpacing.md12),
+                          Flexible(
+                            child: Text(
+                              subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypeScale.caption.copyWith(
+                                color: t.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-                const Spacer(),
                 Opacity(
                   opacity: focused ? 1 : AppTokens.unfocusedOpacity,
                   child: Row(mainAxisSize: MainAxisSize.min, children: actions),
