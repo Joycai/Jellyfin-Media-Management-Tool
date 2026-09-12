@@ -11,6 +11,7 @@ import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
+import '../ui/app_controls.dart';
 import 'model_parameters_page.dart';
 
 /// Header-less two-pane AI services manager (list + detail). Designed for
@@ -129,44 +130,34 @@ class _ServiceList extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 12, 20),
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.only(top: 4, bottom: 12),
-              itemCount: services.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (_, i) {
-                final s = services[i];
-                return _ServiceCard(
-                  profile: s,
-                  selected: s.id == selectedId,
-                  active: s.id == activeId,
-                  onTap: () => onSelect(s.id),
-                );
-              },
-            ),
-          ),
-          // Dashed "add another endpoint" affordance.
-          InkWell(
+    // 6.1：列表 `padding 18 14` · gap 10，虚线「添加另一个端点」是**列表的最后
+    // 一张卡**，不是钉在底边的按钮 —— 钉在底边时，两张服务卡的下面会空出半屏，
+    // 那颗按钮看起来就不像「再加一个」而像「这一栏的操作」。
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md12,
+        vertical: AppSpacing.lg,
+      ),
+      itemCount: services.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+      itemBuilder: (_, i) {
+        if (i == services.length) {
+          return InkWell(
             borderRadius: BorderRadius.circular(AppRadii.panel),
             onTap: onAdd,
             child: DottedBorderBox(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 18),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
                 child: Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, size: 18, color: scheme.onSurfaceVariant),
-                      const SizedBox(width: 8),
+                      Icon(Icons.add, size: 16, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: AppSpacing.sm),
                       Text(
                         l10n.addAnotherEndpoint,
-                        style: TextStyle(
+                        style: AppTypeScale.control.copyWith(
                           color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -174,9 +165,16 @@ class _ServiceList extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          );
+        }
+        final s = services[i];
+        return _ServiceCard(
+          profile: s,
+          selected: s.id == selectedId,
+          active: s.id == activeId,
+          onTap: () => onSelect(s.id),
+        );
+      },
     );
   }
 }
@@ -962,6 +960,10 @@ class _Field extends StatelessWidget {
   /// Accept a non-negative decimal, for sampling values.
   final bool decimal;
 
+  /// 值域，右对齐在标签行上（6.1 的采样参数格）。知道「0 – 2」比知道字段叫什么
+  /// 更能决定该填多少。
+  final String? range;
+
   const _Field({
     required this.label,
     required this.controller,
@@ -972,6 +974,7 @@ class _Field extends StatelessWidget {
     this.hint,
     this.digitsOnly = false,
     this.decimal = false,
+    this.range,
   });
 
   @override
@@ -987,7 +990,18 @@ class _Field extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FieldLabel(label),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(child: _FieldLabel(label)),
+              if (range != null)
+                Text(
+                  range!,
+                  style: AppTypeScale.monoTiny.copyWith(color: glass.textMuted),
+                ),
+            ],
+          ),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -1151,11 +1165,22 @@ class _SamplingSection extends StatelessWidget {
       return value == null ? l10n.samplingDefault : '$value';
     }
 
+    // 6.1 给的六个值域。它们是模型这一侧的约定，不随语言变，所以不进 ARB。
+    const ranges = {
+      _Sampling.temperature: '0 – 2',
+      _Sampling.topP: '0 – 1',
+      _Sampling.topK: '1 – 200',
+      _Sampling.minP: '0 – 1',
+      _Sampling.presencePenalty: '-2 – 2',
+      _Sampling.repeatPenalty: '1 – 2',
+    };
+
     Widget field(_Sampling which) => _Field(
       label: label(which),
       controller: controllers[which]!,
       mono: true,
       hint: placeholder(which),
+      range: ranges[which],
       digitsOnly: which == _Sampling.topK,
       decimal: which != _Sampling.topK,
       onChanged: (_) => onChanged(),
@@ -1189,14 +1214,20 @@ class _SamplingSection extends StatelessWidget {
                 ),
               ),
               if (preset != null)
-                TextButton(
+                AppButton.ghost(
+                  label: l10n.samplingPresetSource,
+                  height: AppSizes.controlSm,
                   onPressed: () => launchUrl(
                     Uri.parse(preset.source),
                     mode: LaunchMode.externalApplication,
                   ),
-                  child: Text(l10n.samplingPresetSource),
                 ),
-              TextButton(onPressed: onReset, child: Text(l10n.samplingReset)),
+              const SizedBox(width: AppSpacing.xs),
+              AppButton.ghost(
+                label: l10n.samplingReset,
+                height: AppSizes.controlSm,
+                onPressed: onReset,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1219,8 +1250,11 @@ class _SamplingSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Switch(
+              // 6.1 的 38 x 22 开关，不是 Material 的 Switch。
+              AppToggle(
                 value: reasons,
+                width: 38,
+                height: 22,
                 // Only a family whose reasoning really can be switched gets a
                 // live control; anything else would be a switch that does
                 // nothing.

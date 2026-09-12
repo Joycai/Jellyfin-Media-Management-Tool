@@ -211,9 +211,11 @@ class _CachesCard extends StatelessWidget {
         ),
         SettingsRow(
           title: l10n.privacyCacheUndo,
+          // gen_l10n 按占位符名字的字母序排参数，不是按它们在文案里的出现顺序：
+          // 这里是 (count, days)。
           subtitle: l10n.privacyCacheUndoHint(
-            HistoryService.retentionDays,
             history.entries.length,
+            HistoryService.retentionDays,
           ),
           subtitleMono: false,
           trailing: [value(sizes?.undoBlobs)],
@@ -267,15 +269,23 @@ class _CacheSizes {
   static Future<Directory> _agentDir() async =>
       Directory(p.join((await getApplicationSupportDirectory()).path, 'agent'));
 
+  static const empty = _CacheSizes(thumbnails: 0, undoBlobs: 0, agent: 0);
+
+  /// 量不出来就报零，整页照常显示。这是三个诊断数字，不值得为它们让设置页出错
+  /// —— 在没有 path_provider 的 widget 测试里，它本来就量不出来。
   static Future<_CacheSizes> measure() async {
-    final support = await getApplicationSupportDirectory();
-    return _CacheSizes(
-      thumbnails: await ThumbnailService.instance.cacheSizeOnDisk(),
-      undoBlobs: await _dirSize(
-        Directory(p.join(support.path, 'undo', 'blobs')),
-      ),
-      agent: await _dirSize(Directory(p.join(support.path, 'agent'))),
-    );
+    try {
+      final support = await getApplicationSupportDirectory();
+      return _CacheSizes(
+        thumbnails: await ThumbnailService.instance.cacheSizeOnDisk(),
+        undoBlobs: await _dirSize(
+          Directory(p.join(support.path, 'undo', 'blobs')),
+        ),
+        agent: await _dirSize(Directory(p.join(support.path, 'agent'))),
+      );
+    } catch (_) {
+      return empty;
+    }
   }
 
   /// 递归求和。任何一步失败都当作 0：这是个诊断数字，不该把设置页拖垮。

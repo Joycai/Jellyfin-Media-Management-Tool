@@ -35,7 +35,11 @@ class LanguageSection extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+      // 6.x 内容区内距，与其余六页同一套骨架。
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl24,
+        vertical: AppSpacing.xl,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

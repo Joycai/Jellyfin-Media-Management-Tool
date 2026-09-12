@@ -24,26 +24,31 @@ class AppearanceSection extends StatelessWidget {
     return SettingsPage(
       children: [
         SettingsSectionTitle(l10n.theme),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 顺序照设计稿（浅 / 深 / 跟随），不是 ThemeMode 的枚举顺序。
-            for (final mode in const [
-              ThemeMode.light,
-              ThemeMode.dark,
-              ThemeMode.system,
-            ]) ...[
-              Expanded(
-                child: _ThemeCard(
-                  mode: mode,
-                  selected: settings.themeMode == mode,
-                  onTap: () => settings.setThemeMode(mode),
+        // IntrinsicHeight：三张卡要等高，而 stretch 需要一个有界的交叉轴约束 ——
+        // 直接放进 ListView 的话 Row 拿到的是无限高，布局会直接抛出来（页面整个
+        // 空掉，控制台还不一定看得见）。
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 顺序照设计稿（浅 / 深 / 跟随），不是 ThemeMode 的枚举顺序。
+              for (final mode in const [
+                ThemeMode.light,
+                ThemeMode.dark,
+                ThemeMode.system,
+              ]) ...[
+                Expanded(
+                  child: _ThemeCard(
+                    mode: mode,
+                    selected: settings.themeMode == mode,
+                    onTap: () => settings.setThemeMode(mode),
+                  ),
                 ),
-              ),
-              if (mode != ThemeMode.system)
-                const SizedBox(width: AppSpacing.md12),
+                if (mode != ThemeMode.system)
+                  const SizedBox(width: AppSpacing.md12),
+              ],
             ],
-          ],
+          ),
         ),
         const SizedBox(height: AppSpacing.xl),
         SettingsColumns(
@@ -223,35 +228,36 @@ class _ThemePreview extends StatelessWidget {
       // 135° 硬分割：左上浅、右下深，取两套主题各自的窗口底色而不是纯黑白 ——
       // 这张卡是「这两个主题长什么样」的缩略图，用不属于任何一边的颜色画它，
       // 缩略图就不再是缩略图了。
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.field),
-        child: Stack(
+      //
+      // 用「两段式渐变」而不是裁一个三角形：裁三角是从角到角的斜边，在 3:1 的
+      // 扁盒子里那条线几乎躺平；渐变的硬分界永远垂直于对角轴、且过中心，看上去
+      // 才是设计稿里那道 135° 的斜切。
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.field),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            stops: [0.5, 0.5],
+            colors: [AppPalette.perfTopBarLight, AppPalette.darkBase],
+          ),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Positioned.fill(
-              child: ColoredBox(color: AppPalette.perfTopBarLight),
-            ),
-            ClipPath(
-              clipper: _DiagonalClipper(),
-              child: const ColoredBox(
-                color: AppPalette.darkBase,
-                child: SizedBox.expand(),
-              ),
-            ),
             // 顶栏提示条也跟着分割，否则右半边看起来像被切掉了一块。
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: Container(
-                height: AppSpacing.sm,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    stops: const [0.5, 0.5],
-                    colors: [
-                      Colors.white.withValues(alpha: 0.8),
-                      Colors.white.withValues(alpha: 0.15),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(AppRadii.chip),
+            Container(
+              height: AppSpacing.sm,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  stops: const [0.5, 0.5],
+                  colors: [
+                    Colors.white.withValues(alpha: 0.85),
+                    Colors.white.withValues(alpha: 0.15),
+                  ],
                 ),
+                borderRadius: BorderRadius.circular(AppRadii.chip),
               ),
             ),
           ],
@@ -313,18 +319,6 @@ class _ThemePreview extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DiagonalClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) => Path()
-    ..moveTo(size.width, 0)
-    ..lineTo(size.width, size.height)
-    ..lineTo(0, size.height)
-    ..close();
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
 // ── 玻璃质感强度 ────────────────────────────────────────────────────────────

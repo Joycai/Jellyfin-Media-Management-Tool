@@ -4217,7 +4217,7 @@ abstract class AppLocalizations {
   /// No description provided for @accentPickerTitle.
   ///
   /// In en, this message translates to:
-  /// **'Accent colour'**
+  /// **'Accent color'**
   String get accentPickerTitle;
 
   /// No description provided for @accentRestoreDefault.
@@ -4241,7 +4241,7 @@ abstract class AppLocalizations {
   /// No description provided for @accentEyedropper.
   ///
   /// In en, this message translates to:
-  /// **'Pick a colour from the screen'**
+  /// **'Pick a color from the screen'**
   String get accentEyedropper;
 
   /// No description provided for @accentContrastOk.
@@ -4303,6 +4303,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Capped at half the context window; anything larger is clamped.'**
   String get maxOutputFootnote;
+
+  /// No description provided for @pathsRootExampleShows.
+  ///
+  /// In en, this message translates to:
+  /// **'/Volumes/Media/Shows'**
+  String get pathsRootExampleShows;
 }
 
 class _AppLocalizationsDelegate

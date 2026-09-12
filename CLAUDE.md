@@ -252,6 +252,19 @@ It is split three ways on purpose:
 - **Performance mode skips the widget rather than passing sigma 0.** A zero-sigma filter still ends the render pass and reads back the whole target, which is where the cost is.
 - **No blur without a clip**, or it samples past the rounded corner.
 
+### The settings screen
+
+`SettingsScreen` is a 200px nav plus one detail pane, and each of the eight sections is its own library under `lib/widgets/settings/`. They all assemble out of the same blocks in [settings_controls.dart](lib/widgets/settings/settings_controls.dart) — `SettingsPage`, `SettingsSectionTitle`, `SettingsCard`, `SettingsRowsCard`, `SettingsRow`, `SettingsToggleRow`, `SettingsColumns`, `SettingsMiniButton`, `SettingsFootnote` — because eight pages each writing their own row height is exactly how a design system rots. Spec 06 values that sit between two steps of the 1.3 scale (18, 26, 9) snap to the nearest step there; the file says so at the top.
+
+`SettingsPlaceholder` is the convention for a block the design describes and the app cannot do: it is drawn to spec, dimmed and made inert, and its group title carries a `SettingsSoonTag`. Dropping such a block reads as "not planned" and faking it is worse. Every one of them is listed in `docs/spec/ui-redesign/backlog.md`.
+
+Two things in there that are load-bearing rather than cosmetic:
+
+- **Undo backups have no Clear button.** They hold the real copies undo restores, so emptying them turns unexpired undo records into empty promises; `HistoryService` already prunes them at 7 days, and the cache table only reports their size.
+- **The accent picker previews live** ([accent_picker.dart](lib/widgets/settings/accent_picker.dart)) — the accent bleeds into the tab fill, focus ring, task badge and window backdrop, so a 34px chip tells you nothing. That makes cancelling a real rollback (the panel records the original on open) and makes `SettingsService.setAccentColor(remember:)` necessary: only Apply enters the recents list, or one drag across a hue fills all six slots.
+
+**The context-window slider's arithmetic is a separate pure library** ([context_window_scale.dart](lib/widgets/settings/context_window_scale.dart)) so it can be tested. 8k–1M is a 128x range, so a linear track squashes 8k–32k — where local models sit — into the leftmost 2%; the design's answer is eight evenly spaced segments, linear within each. Typed input aligns *down* to 1k: the number has to match what the server was loaded with, and guessing high means prompts overrun the window and get truncated from the front, where the system prompt is.
+
 `lib/widgets/ui/` holds the spec-1.4 primitives built on it — `AppButton`, `AppIconButton`, `AppTextField`, `AppTag`, `AppCountBadge`, `AppSegmented`, `AppToggle`, `AppListRow`, `AppColumnHeader`, `AppCard`, `AppGlassPane`. `lib/widgets/glass/` keeps the overlay family (`GlassAlertDialog`, `GlassDialogSurface`, `DialogActionBar`, `showGlassMenu` + `glassMenuItem` / `glassMenuHeader` / `glassMenuDivider`, `showGlassDialog`).
 
 **Motion is 1.4f and nothing else**: 80ms hover, 120/100ms overlays, 180ms panels, 240ms linear progress, no section transition. Only opacity, fill and 4px or less of movement — **no scaling, no elastic curves**. `AppMotion.respecting(context, ...)` returns `Duration.zero` when the system asks for reduced motion.

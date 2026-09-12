@@ -2349,7 +2349,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutGpuShared => 'Shared memory';
 
   @override
-  String get accentPickerTitle => 'Accent colour';
+  String get accentPickerTitle => 'Accent color';
 
   @override
   String get accentRestoreDefault => 'Restore the default blue';
@@ -2361,7 +2361,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accentRecentsEmpty => 'Nothing yet';
 
   @override
-  String get accentEyedropper => 'Pick a colour from the screen';
+  String get accentEyedropper => 'Pick a color from the screen';
 
   @override
   String accentContrastOk(Object dark, Object light) {
@@ -2400,4 +2400,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get maxOutputFootnote =>
       'Capped at half the context window; anything larger is clamped.';
+
+  @override
+  String get pathsRootExampleShows => '/Volumes/Media/Shows';
 }

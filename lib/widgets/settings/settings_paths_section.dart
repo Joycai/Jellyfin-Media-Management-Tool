@@ -89,7 +89,7 @@ class _LibraryRootsPlaceholder extends StatelessWidget {
               SettingsRow(
                 leading: const SettingsRowIcon(Icons.live_tv_outlined),
                 title: l10n.pathsRootShows,
-                subtitle: l10n.pathsRootExample,
+                subtitle: l10n.pathsRootExampleShows,
                 trailing: [
                   AppTag(label: l10n.pathsUnmounted, color: t.warning),
                   SettingsMiniButton(l10n.pathsChange),

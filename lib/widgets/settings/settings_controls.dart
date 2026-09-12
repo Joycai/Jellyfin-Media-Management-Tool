@@ -43,19 +43,24 @@ class SettingsSectionTitle extends StatelessWidget {
     final t = context.tokens;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              style: AppTypeScale.columnHeader.copyWith(
-                fontWeight: FontWeight.w700,
-                color: t.textMuted,
+      child: SizedBox(
+        // 固定高度：带行动按钮和不带的标题必须一样高，否则并排两列的分组会错开
+        // 一个按钮的高度。
+        height: AppSizes.controlSm,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                text,
+                style: AppTypeScale.columnHeader.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: t.textMuted,
+                ),
               ),
             ),
-          ),
-          ?trailing,
-        ],
+            ?trailing,
+          ],
+        ),
       ),
     );
   }

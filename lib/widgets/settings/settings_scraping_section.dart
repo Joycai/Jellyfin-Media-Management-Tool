@@ -77,7 +77,10 @@ class _ScrapingSectionState extends State<ScrapingSection> {
     final domains = byDomain.keys.toList()..sort();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl24,
+        vertical: AppSpacing.xl,
+      ),
       children: [
         SettingsSectionTitle(l10n.settingsScrapeCookies),
         SettingsCard(

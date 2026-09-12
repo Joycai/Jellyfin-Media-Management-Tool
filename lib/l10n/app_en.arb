@@ -692,11 +692,11 @@
   "aboutGraphics": "Graphics adapter",
   "aboutGpuRunning": "In use",
   "aboutGpuShared": "Shared memory",
-  "accentPickerTitle": "Accent colour",
+  "accentPickerTitle": "Accent color",
   "accentRestoreDefault": "Restore the default blue",
   "accentRecents": "Recently used",
   "accentRecentsEmpty": "Nothing yet",
-  "accentEyedropper": "Pick a colour from the screen",
+  "accentEyedropper": "Pick a color from the screen",
   "accentContrastOk": "Contrast against the dark and light window bases: {dark}:1 · {light}:1",
   "accentContrastWeak": "Contrast {dark}:1 · {light}:1 — below 3:1, so use it as a fill only",
   "modelParameters": "Model parameters",
@@ -706,5 +706,6 @@
   "contextWindowFootnote": "The ticks are evenly spaced segments and each segment is continuous, so the handle can stop on any 1k. Slider and field follow each other; blank means no limit.",
   "contextWindowOverDetected": "Above the {limit} the server reported. Still saved.",
   "maxOutputStep": "step 256",
-  "maxOutputFootnote": "Capped at half the context window; anything larger is clamped."
+  "maxOutputFootnote": "Capped at half the context window; anything larger is clamped.",
+  "pathsRootExampleShows": "/Volumes/Media/Shows"
 }

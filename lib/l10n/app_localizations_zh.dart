@@ -2340,4 +2340,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get maxOutputFootnote => '上限为上下文窗口的一半，超出即夹紧。';
+
+  @override
+  String get pathsRootExampleShows => '/Volumes/Media/Shows';
 }

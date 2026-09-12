@@ -113,7 +113,9 @@ class AboutSection extends StatelessWidget {
     return 'Dart $dart';
   }
 
-  String _os() => Platform.operatingSystemVersion;
+  /// Windows 把产品名用引号裹起来（`"Windows 11 Pro" 10.0 (Build 26200)`），
+  /// 那对引号在一行信息里只是噪音。
+  String _os() => Platform.operatingSystemVersion.replaceAll('"', '');
 
   /// Dart 把自己的目标三元组印在 `Platform.version` 末尾（`on "windows_x64"`），
   /// 这是运行期唯一能拿到架构的地方 —— 没有匹配上就报 `—`，不猜。
