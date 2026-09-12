@@ -208,7 +208,11 @@ Future<T?> showGlassDialog<T>({
     // showGeneralDialog 只有一个时长参数，出入用同一个；120 与 100 的差值在
     // 这里不值得为它自己搭一条 route。
     transitionDuration: reduced ? Duration.zero : AppMotion.overlayIn,
-    pageBuilder: (ctx, animation, secondaryAnimation) => builder(ctx),
+    // 透明 Material：`showGeneralDialog` 之下没有 Material 祖先，缺省文本样式
+    // 会让每个 Text 画出黄色双下划线的调试提示。内容本身已经是 Dialog 时这一层
+    // 什么也不画，代价为零。
+    pageBuilder: (ctx, animation, secondaryAnimation) =>
+        Material(type: MaterialType.transparency, child: builder(ctx)),
     transitionBuilder: (ctx, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,

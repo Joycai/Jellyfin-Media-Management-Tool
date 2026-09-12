@@ -79,65 +79,77 @@ class _HistoryPopoverState extends State<_HistoryPopover> {
     final arrowDx = centre - left - 5.5;
     final top = widget.anchor.bottom + AppSpacing.sm;
 
-    return Stack(
-      children: [
-        Positioned(
-          left: left,
-          top: top,
-          width: width,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxHeight: AppSizes.popoverMaxHeight,
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                GlassSurface(
-                  fill: Theme.of(context).colorScheme.surface.withValues(
-                    alpha: t.isDark ? 0.92 : 0.97,
+    // `showGeneralDialog` 的 pageBuilder 之下**没有 Material 祖先**，而
+    // `Text` 会在缺省文本样式时画出黄色双下划线的调试提示。透明 Material 只提供
+    // 那份默认样式，不画任何东西。
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          Positioned(
+            left: left,
+            top: top,
+            width: width,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: AppSizes.popoverMaxHeight,
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  GlassSurface(
+                    // 性能模式下模糊是关掉的，半透明层会直接透出背后的按钮与
+                    // 表头 —— 2.4 的规矩是那时玻璃层必须换成不透明实色。
+                    fill: Theme.of(context).colorScheme.surface.withValues(
+                      alpha: t.reduceEffects
+                          ? 1.0
+                          : t.isDark
+                          ? 0.92
+                          : 0.97,
+                    ),
+                    blur: t.blurPanel,
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                    border: Border.all(color: t.strokeStrong),
+                    shadow: t.elevation.overlay,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _header(context, l10n, history),
+                        Flexible(
+                          child: history.entries.isEmpty
+                              ? _empty(context, l10n)
+                              : _list(context, history),
+                        ),
+                        _footer(context, l10n),
+                      ],
+                    ),
                   ),
-                  blur: t.blurPanel,
-                  borderRadius: BorderRadius.circular(AppRadii.card),
-                  border: Border.all(color: t.strokeStrong),
-                  shadow: t.elevation.overlay,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _header(context, l10n, history),
-                      Flexible(
-                        child: history.entries.isEmpty
-                            ? _empty(context, l10n)
-                            : _list(context, history),
-                      ),
-                      _footer(context, l10n),
-                    ],
-                  ),
-                ),
-                // 11×11 旋转 45° 的箭头，只画左上两条边，正好接上面板描边。
-                Positioned(
-                  top: -6,
-                  left: arrowDx,
-                  child: Transform.rotate(
-                    angle: 0.7853981634,
-                    child: Container(
-                      width: 11,
-                      height: 11,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        border: Border(
-                          left: BorderSide(color: t.strokeStrong),
-                          top: BorderSide(color: t.strokeStrong),
+                  // 11×11 旋转 45° 的箭头，只画左上两条边，正好接上面板描边。
+                  Positioned(
+                    top: -6,
+                    left: arrowDx,
+                    child: Transform.rotate(
+                      angle: 0.7853981634,
+                      child: Container(
+                        width: 11,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          border: Border(
+                            left: BorderSide(color: t.strokeStrong),
+                            top: BorderSide(color: t.strokeStrong),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
