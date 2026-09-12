@@ -31,6 +31,9 @@ class AppSidebar extends StatefulWidget {
 }
 
 class _AppSidebarState extends State<AppSidebar> {
+  /// 折叠态里保留几条「最近」。
+  static const _collapsedRecents = 4;
+
   /// 用户拖出来的宽度；null = 用设计稿的 244。
   double? _width;
 
@@ -262,13 +265,18 @@ class _AppSidebarState extends State<AppSidebar> {
                   selected: path == current,
                   onTap: () => _open(path),
                 ),
-              for (final path in settings.recent)
+              if (settings.favorites.isNotEmpty && settings.recent.isNotEmpty)
+                const _RailDivider(),
+              // 最近访问在折叠态里全是同一个时钟字形 —— 八行一模一样的图标既认不
+              // 出来也点不准，所以只留最近的几条，其余等展开再说。
+              for (final path in settings.recent.take(_collapsedRecents))
                 _CollapsedTile(
                   icon: Icons.history_rounded,
                   tooltip: '${l10n.recent} · ${_label(path)}',
                   selected: path == current,
                   onTap: () => _open(path),
                 ),
+              if (_locations.isNotEmpty) const _RailDivider(),
               for (final loc in _locations)
                 _CollapsedTile(
                   icon: loc.icon,
@@ -422,6 +430,20 @@ class _NavTileState extends State<_NavTile> {
       ),
     );
   }
+}
+
+/// 折叠栏里的分组分隔线 —— 没有分组标题可写，只能靠一条线。
+class _RailDivider extends StatelessWidget {
+  const _RailDivider();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.sm,
+      vertical: AppSpacing.sm,
+    ),
+    child: Divider(height: 1, thickness: 1, color: context.tokens.stroke),
+  );
 }
 
 class _CollapsedTile extends StatelessWidget {
