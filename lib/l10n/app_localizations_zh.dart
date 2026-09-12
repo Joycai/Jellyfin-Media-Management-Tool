@@ -1072,15 +1072,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get behavior => '行为';
 
   @override
-  String get behaviorAutoConnect => '启动时自动连接 AI 服务';
-
-  @override
-  String get behaviorAlwaysPreview => '应用整理前总是显示预览';
-
-  @override
-  String get behaviorLowConfSuggest => '置信度低于 60% 时仅建议、不自动应用';
-
-  @override
   String get behaviorVideoThumbnails => '在文件列表中显示视频缩略图';
 
   @override
