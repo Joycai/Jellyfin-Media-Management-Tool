@@ -124,16 +124,28 @@ class AiService extends ChangeNotifier {
   /// there is no single-shot fallback. A model never checked is probed once
   /// and the answer recorded through [onToolSupport]. Throws [AiException]
   /// when it cannot call tools.
+  ///
+  /// A probe that never reached the endpoint records nothing and reports the
+  /// transport failure instead. Writing its `false` to the profile would have
+  /// turned one dropped connection into a permanently disabled Organize
+  /// button, and "this model does not call tools" is the wrong thing to tell
+  /// someone whose Wi-Fi went down.
   Future<void> ensureTools(
     AiConfig config, {
     AiCancelToken? cancelToken,
   }) async {
     var supported = config.supportsTools;
     if (supported == null) {
-      supported = await AiConnectionCheck.probeTools(
+      final probe = await AiConnectionCheck.probeTools(
         providerFor(config),
         cancelToken: cancelToken,
       );
+      if (probe.outcome == ToolProbe.inconclusive) {
+        throw AiNetworkException(
+          probe.error ?? 'The endpoint could not be reached.',
+        );
+      }
+      supported = probe.outcome == ToolProbe.supported;
       onToolSupport?.call(config, supported);
     }
     if (!supported) throw const AiException(toolsRequiredMessage);

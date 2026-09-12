@@ -477,18 +477,22 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       if (checked != null) {
         _detected = checked.limits;
         _lastCheck = checked;
-        _toolSupport = ToolSupport(
-          fingerprint: config.toolFingerprint,
-          supported: checked.supportsTools,
-        );
+        if (checked.supportsTools case final probe
+            when probe != ToolProbe.inconclusive) {
+          _toolSupport = ToolSupport(
+            fingerprint: config.toolFingerprint,
+            supported: probe == ToolProbe.supported,
+          );
+        }
       }
     });
-    if (checked != null) {
-      // Every profile on this endpoint and model shares the answer, and the
-      // live service must see it before the next organize or scrape.
+    // Every profile on this endpoint and model shares the answer, and the
+    // live service must see it before the next organize or scrape. A probe
+    // that never completed is not an answer and is not recorded.
+    if (checked != null && checked.supportsTools != ToolProbe.inconclusive) {
       context.read<AiProfilesService>().recordToolSupport(
         config,
-        checked.supportsTools,
+        checked.supportsTools == ToolProbe.supported,
       );
       _persist();
     }

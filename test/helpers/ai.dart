@@ -111,3 +111,34 @@ ChatResult toolTurn(List<(String, Map<String, Object?>)> calls) => ChatResult(
 /// A turn that only answers in text.
 ChatResult textTurn(String text) =>
     ChatResult(text: text, promptTokens: 10, completionTokens: 5);
+
+/// A provider whose every request fails, for the paths that must tell a
+/// transport failure from an answer.
+class ThrowingChatProvider implements AiProvider {
+  final Object Function() error;
+
+  @override
+  final AiConfig config;
+
+  ThrowingChatProvider(this.error, {this.config = AiConfig.empty});
+
+  @override
+  Future<ChatResult> chat({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+    AiCancelToken? cancelToken,
+  }) async => throw error();
+
+  @override
+  Future<AiResponse> complete({
+    required String systemPrompt,
+    required String userPrompt,
+    AiCancelToken? cancelToken,
+  }) async => throw error();
+
+  @override
+  Future<ModelLimits> detectLimits() async => ModelLimits.unknown;
+
+  @override
+  Future<ServerKind> detectServerKind() async => ServerKind.unknown;
+}
