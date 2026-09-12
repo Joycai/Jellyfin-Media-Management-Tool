@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../theme/design_tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/font_service.dart';
 import '../../services/settings_service.dart';
@@ -75,7 +76,7 @@ class FontOption extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11.5,
                           color: downloaded
-                              ? const Color(0xFF34C759)
+                              ? AppPalette.success
                               : scheme.onSurfaceVariant,
                         ),
                       ),

@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../theme/design_tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/scrape_recipe.dart';
 import '../../services/scrape/cookie_store.dart';
@@ -310,7 +311,7 @@ class _RecipeBadge extends StatelessWidget {
             ),
             RecipeOrigin.llm => (
               l10n.settingsScrapeRecipeLearned,
-              const Color(0xFFE0852C),
+              AppPalette.warning,
             ),
             RecipeOrigin.user => (
               l10n.settingsScrapeRecipeUser,

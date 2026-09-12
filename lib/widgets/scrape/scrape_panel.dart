@@ -42,7 +42,7 @@ import '../../services/scrape/recipe_learner.dart';
 import '../../services/scrape/recipe_store.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/settings_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 import '../glass/glass_segmented.dart';
 import 'scrape_review_pane.dart';
@@ -619,7 +619,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
   // ── Working stage ─────────────────────────────────────────────────────────
 
   Widget _working(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final stageIndex = switch (_scrapeStage) {
       null => 0,
       ScrapeStage.fetching => 0,
@@ -650,9 +650,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             decoration: BoxDecoration(
-              color: glass.panelFill,
+              color: glass.cardFill,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: glass.panelStroke),
+              border: Border.all(color: glass.stroke),
             ),
             child: Column(
               children: [
@@ -712,7 +712,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
   }
 
   Widget _source(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final sites = context.watch<SettingsService>().searchSites;
     final keyword = widget.suggestedKeyword;
     final recipe = _parsedUrl() == null
@@ -803,9 +803,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               decoration: BoxDecoration(
-                color: glass.panelFill,
+                color: glass.cardFill,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: glass.panelStroke),
+                border: Border.all(color: glass.stroke),
               ),
               child: Wrap(
                 spacing: 8,
@@ -933,7 +933,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
   /// Where it lands. Auto-detected from what was right-clicked, because that
   /// is right almost every time, but never a dead end.
   Widget _nfoSection(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -949,9 +949,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
           // 7 + 30-px button + 7 = the same 44 every field in the panel uses.
           padding: const EdgeInsets.fromLTRB(12, 7, 7, 7),
           decoration: BoxDecoration(
-            color: glass.panelFill,
+            color: glass.cardFill,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: glass.panelStroke),
+            border: Border.all(color: glass.stroke),
           ),
           child: Row(
             children: [
@@ -1095,12 +1095,12 @@ class _ScrapePanelState extends State<ScrapePanel> {
   /// Cookies and the HTML paste fallback: both are escape hatches, and putting
   /// them behind a disclosure keeps the common path to three fields.
   Widget _advanced(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         children: [

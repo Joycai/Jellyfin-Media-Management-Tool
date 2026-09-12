@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../theme/design_tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
 import '../../services/file_label_service.dart';
@@ -287,7 +288,7 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
           _count(
             context,
             Icons.warning_amber_rounded,
-            const Color(0xFFE0A030),
+            AppPalette.warning,
             l10n.countConflicts(_conflicts.length),
           ),
         ],
@@ -655,7 +656,7 @@ class _TreePane extends StatelessWidget {
     OrganizeAction c,
     AppLocalizations l10n,
   ) {
-    const orange = Color(0xFFE0852C);
+    const orange = AppPalette.warning;
     final name = p.basename(isAfter ? c.target : c.source);
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -740,7 +741,7 @@ class _DiffRow extends StatefulWidget {
 }
 
 class _DiffRowState extends State<_DiffRow> {
-  static const _amber = Color(0xFFE0852C);
+  static const _amber = AppPalette.warning;
   bool _hover = false;
 
   @override

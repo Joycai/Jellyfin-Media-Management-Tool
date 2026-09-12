@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/apply_controller.dart';
 import '../../services/organize_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../glass/glass_panel.dart';
 
@@ -99,7 +99,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final c = context.watch<ApplyController>();
 
     return Scaffold(
@@ -134,12 +134,9 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
         c.status == ApplyStatus.done || c.status == ApplyStatus.stopped;
 
     final (Color dot, String title) = switch (c.status) {
-      ApplyStatus.running => (
-        const Color(0xFF34C759),
-        l10n.organizing(c.total),
-      ),
-      ApplyStatus.paused => (const Color(0xFFE0A030), l10n.statusPaused),
-      ApplyStatus.done => (const Color(0xFF34C759), l10n.statusDone),
+      ApplyStatus.running => (AppPalette.success, l10n.organizing(c.total)),
+      ApplyStatus.paused => (AppPalette.warning, l10n.statusPaused),
+      ApplyStatus.done => (AppPalette.success, l10n.statusDone),
       ApplyStatus.stopped => (scheme.onSurfaceVariant, l10n.statusStopped),
     };
 
@@ -261,13 +258,13 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              _legend(const Color(0xFF34C759), l10n.legendDone, c.done),
+              _legend(AppPalette.success, l10n.legendDone, c.done),
               const Spacer(),
               _legend(scheme.primary, l10n.legendInProgress, c.inProgress),
               const Spacer(),
               _legend(scheme.onSurfaceVariant, l10n.legendQueued, c.queued),
               const Spacer(),
-              _legend(const Color(0xFFE0A030), l10n.legendSkipped, c.skipped),
+              _legend(AppPalette.warning, l10n.legendSkipped, c.skipped),
             ],
           ),
         ],
@@ -404,9 +401,9 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
             ),
           ),
           const Spacer(),
-          _levelPill('INFO', LogLevel.info, const Color(0xFF34C759)),
+          _levelPill('INFO', LogLevel.info, AppPalette.success),
           const SizedBox(width: 6),
-          _levelPill('WARN', LogLevel.warn, const Color(0xFFE0A030)),
+          _levelPill('WARN', LogLevel.warn, AppPalette.warning),
           const SizedBox(width: 6),
           _levelPill('DEBUG', LogLevel.debug, const Color(0xFF8A93A2)),
         ],
@@ -454,8 +451,8 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
 
   Widget _logLine(LogEntry e, bool isLast) {
     final levelColor = switch (e.level) {
-      LogLevel.info => const Color(0xFF34C759),
-      LogLevel.warn => const Color(0xFFE0A030),
+      LogLevel.info => AppPalette.success,
+      LogLevel.warn => AppPalette.warning,
       LogLevel.debug => const Color(0xFF8A93A2),
     };
     return Padding(

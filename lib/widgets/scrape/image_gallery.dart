@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/scrape/image_cache.dart';
 import '../../services/scrape/image_role.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_menu.dart';
 
 /// One image on offer.
@@ -273,7 +273,7 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final marked = selected && role != ImageRole.original;
 
     return Tooltip(
@@ -294,7 +294,7 @@ class _Tile extends StatelessWidget {
             border: Border.all(
               color: selected
                   ? scheme.tertiary.withValues(alpha: 0.7)
-                  : glass.panelStroke,
+                  : glass.stroke,
               width: selected ? 1.5 : 1,
             ),
             boxShadow: selected
@@ -444,7 +444,7 @@ class _Tile extends StatelessWidget {
   static Color? _roleIconColor(ImageRole role, ColorScheme scheme) =>
       switch (role) {
         ImageRole.poster => scheme.primary,
-        ImageRole.fanart => const Color(0xFFE0852C),
+        ImageRole.fanart => AppPalette.warning,
         _ => null,
       };
 

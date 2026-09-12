@@ -236,7 +236,7 @@ class _ThemeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
 
     final label = switch (mode) {
       ThemeMode.light => l10n.light,
@@ -253,10 +253,10 @@ class _ThemeCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: glass.panelFill,
+            color: glass.cardFill,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected ? scheme.primary : glass.panelStroke,
+              color: selected ? scheme.primary : glass.stroke,
               width: selected ? 2 : 1,
             ),
           ),

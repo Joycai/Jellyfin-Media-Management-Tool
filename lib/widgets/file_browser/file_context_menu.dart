@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'media_table.dart';
 
+import '../../theme/design_tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_browser_service.dart';
@@ -97,7 +98,7 @@ Future<void> showFileContextMenu(
         icon: Icons.folder_outlined,
         // The design codes this row by its subject: the amber of a folder
         // icon, the same hue the file table uses for folders.
-        iconColor: const Color(0xFFE0A030),
+        iconColor: AppPalette.warning,
         label: l10n.menuRevealInFileManager,
       ),
       glassMenuItem(

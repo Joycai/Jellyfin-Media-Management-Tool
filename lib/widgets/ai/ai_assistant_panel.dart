@@ -7,37 +7,31 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
 import '../../services/ai_service.dart';
-import '../../services/file_browser_service.dart';
-import '../../theme/app_theme.dart';
 import '../../services/apply_controller.dart';
+import '../../services/file_browser_service.dart';
 import '../../services/history_service.dart';
 import '../../services/task_service.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/path_tree.dart';
-import '../glass/glass_panel.dart';
+import '../ui/app_controls.dart';
+import '../ui/glass_surface.dart';
 import 'organize_preview_dialog.dart';
 
-/// Right pane: AI reasoning, the proposed target tree, the preview action and a
-/// usage footer. When idle it shows a short hint.
+/// 右侧面板（3.1）：AI 的思考过程、建议目标树、预览入口与用量条。
+///
+/// 宽 352 由外壳决定（2.6），这里只管内容：内距 18、纵向 gap 14。
 class AiAssistantPanel extends StatelessWidget {
   const AiAssistantPanel({super.key});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final t = context.tokens;
     final ai = context.watch<AiService>();
-    final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
     final plan = ai.currentPlan;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: glass.sidebarFill,
-        border: Border(
-          left: BorderSide(
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
-          ),
-        ),
-      ),
+    return AppGlassPane(
+      border: Border(left: BorderSide(color: t.stroke)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -46,7 +40,7 @@ class AiAssistantPanel extends StatelessWidget {
             child: (plan == null && !ai.isAnalyzing)
                 ? _Idle(configured: ai.isConfigured)
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
                     children: [
                       _ReasoningCard(plan: plan, analyzing: ai.isAnalyzing),
                       if (plan != null && plan.actions.isNotEmpty) ...[
@@ -58,44 +52,43 @@ class AiAssistantPanel extends StatelessWidget {
           ),
           if (plan != null && plan.actions.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-              // "Preview", not "Apply": this only opens the confirmation dialog,
-              // which is where the plan is reviewed, edited, and finally applied.
-              child: FilledButton(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+              // 「预览」而不是「应用」：这一步只打开确认对话框，方案在那里被
+              // 审阅、修改，然后才落盘。整条流水线里它是唯一的 dry-run 闸门。
+              child: AppButton.primary(
+                label: l10n.previewOrganize,
+                icon: Icons.visibility_outlined,
+                height: 34,
+                expand: true,
                 onPressed: () => _confirmApply(context, ai),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: Text(
-                  l10n.previewOrganize,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
               ),
             ),
-          const _Divider(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
-            child: Row(
-              children: [
-                Text(
-                  l10n.usage,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: scheme.onSurfaceVariant,
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, AppSpacing.lg),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md12,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: t.isDark
+                    ? Colors.white.withValues(alpha: 0.03)
+                    : AppPalette.ink.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(AppRadii.field),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    l10n.usage,
+                    style: AppTypeScale.caption.copyWith(color: t.textMuted),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  l10n.tokensLabel(ai.lastTokens),
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
+                  const Spacer(),
+                  Text(
+                    l10n.tokensLabel(ai.lastTokens),
+                    style: AppTypeScale.monoSmall.copyWith(color: t.textBody),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -184,37 +177,42 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
       child: Row(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: AppSizes.logo,
+            height: AppSizes.logo,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [scheme.primary, scheme.tertiary],
-              ),
-              borderRadius: BorderRadius.circular(11),
+              gradient: t.brandGradient,
+              borderRadius: BorderRadius.circular(7),
+              boxShadow: t.reduceEffects
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: t.accent.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
             ),
+            alignment: Alignment.center,
             child: const Icon(
               Icons.auto_awesome,
               color: Colors.white,
-              size: 20,
+              size: 13,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   l10n.aiAssistant,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
+                  style: AppTypeScale.bodyStrong.copyWith(color: t.textTitle),
                 ),
                 Text(
                   analyzing
@@ -222,10 +220,7 @@ class _Header extends StatelessWidget {
                       : (hasPlan ? l10n.analysisComplete : l10n.aiPanelIdle),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
                 ),
               ],
             ),
@@ -236,6 +231,7 @@ class _Header extends StatelessWidget {
   }
 }
 
+/// 「思考过程」卡：accent 8% + 描边 accent 18%（3.1）。
 class _ReasoningCard extends StatelessWidget {
   final OrganizePlan? plan;
   final bool analyzing;
@@ -244,71 +240,87 @@ class _ReasoningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     final steps = plan?.reasoning ?? const [];
 
-    return GlassPanel(
-      radius: 16,
-      padding: const EdgeInsets.all(16),
-      fill: scheme.primary.withValues(alpha: 0.09),
-      blur: false,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: t.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: t.accent.withValues(alpha: 0.18)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            l10n.reasoning.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w700,
-              color: scheme.primary,
+            l10n.reasoning,
+            style: AppTypeScale.groupLabel.copyWith(
+              letterSpacing: 0.06 * 10,
+              color: t.accentText,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
           if (analyzing && steps.isEmpty)
             Row(
               children: [
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: t.accent,
+                  ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.md),
                 Text(
                   l10n.analyzing,
-                  style: TextStyle(color: scheme.onSurfaceVariant),
+                  style: AppTypeScale.caption.copyWith(color: t.textSecondary),
                 ),
               ],
             )
           else
-            ...steps.map(
-              (s) => Padding(
-                padding: const EdgeInsets.only(bottom: 9),
+            for (var i = 0; i < steps.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.check_rounded,
-                      size: 16,
-                      color: const Color(0xFF34C759),
+                    // 已完成的步骤是 ✓，还在跑的最后一条是 ● —— 设计稿用两个
+                    // 不同的字形而不是同一个对勾的两种深浅，因为「做完了」和
+                    // 「正在做」是两件事，不是一件事的两种强度。
+                    Text(
+                      analyzing && i == steps.length - 1 ? '●' : '✓',
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.55,
+                        color: analyzing && i == steps.length - 1
+                            ? t.accentText
+                            : t.successText,
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        s,
-                        style: const TextStyle(fontSize: 13, height: 1.3),
+                        steps[i],
+                        style: AppTypeScale.caption.copyWith(
+                          height: 1.55,
+                          color: analyzing && i == steps.length - 1
+                              ? t.textSecondary
+                              : t.textBody,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
         ],
       ),
     );
   }
 }
 
+/// 「建议目标」卡：mono 树，逐层缩进 10，叶子取强调色（3.1）。
 class _TargetStructureCard extends StatelessWidget {
   final OrganizePlan plan;
   const _TargetStructureCard({required this.plan});
@@ -316,59 +328,38 @@ class _TargetStructureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     final lines = buildPathTree(plan.actions.map((a) => a.target).toList());
 
-    return GlassPanel(
-      radius: 16,
-      padding: const EdgeInsets.all(16),
-      blur: false,
+    return AppCard(
+      radius: AppRadii.panel,
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            l10n.targetStructure.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w700,
-              color: scheme.onSurfaceVariant,
+            l10n.targetStructure,
+            style: AppTypeScale.groupLabel.copyWith(
+              letterSpacing: 0.06 * 10,
+              color: t.textMuted,
             ),
           ),
-          const SizedBox(height: 12),
-          ...lines.map(
-            (line) => Padding(
-              padding: EdgeInsets.only(left: line.depth * 16.0, bottom: 5),
-              child: Row(
-                children: [
-                  Icon(
-                    line.isDir
-                        ? Icons.folder_rounded
-                        : Icons.insert_drive_file_outlined,
-                    size: 15,
-                    color: line.isDir
-                        ? scheme.primary
-                        : scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      line.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontFamily: line.isDir ? null : 'monospace',
-                        fontWeight: line.isDir
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ],
+          const SizedBox(height: AppSpacing.md),
+          for (final line in lines)
+            Padding(
+              padding: EdgeInsets.only(left: line.depth * AppSpacing.md),
+              child: Text(
+                line.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypeScale.monoSmall.copyWith(
+                  height: 1.7,
+                  color: line.isDir
+                      ? t.textSecondary
+                      : (t.isDark ? AppPalette.accentOnDarkSoft : t.accentInk),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -382,39 +373,27 @@ class _Idle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.auto_awesome_outlined,
-              size: 48,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              size: 40,
+              color: t.textMuted.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 14),
             Text(
               configured ? l10n.aiPanelIdle : l10n.aiNotConfigured,
               textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurfaceVariant),
+              style: AppTypeScale.caption.copyWith(color: t.textSecondary),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  const _Divider();
-  @override
-  Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      thickness: 1,
-      color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
     );
   }
 }

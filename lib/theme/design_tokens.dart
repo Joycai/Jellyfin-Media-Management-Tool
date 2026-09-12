@@ -356,6 +356,28 @@ abstract final class AppPalette {
   static const Color perfControlDark = Color(0xFF21253A);
   static const Color perfControlLight = Color(0xFFE7EBF4);
 
+  /// 3.1 置信度条的低置信渐变。高置信直接用 [success] → [accent]。
+  static const Color confidenceLowStart = Color(0xFFFF9A6C);
+  static const Color confidenceLowEnd = Color(0xFFFFD166);
+
+  /// 4.3 「写入」主按钮的深墨字，压在成功色实底上。
+  static const Color onSuccessSolid = Color(0xFF04211A);
+
+  /// 厂商品牌色（6.1 / 6.3 的服务卡）。
+  ///
+  /// 这几个**不是**主题色：它们标识的是 OpenAI、Google 这些外部服务，跟着强调色
+  /// 变会让用户认不出自己配的是哪一家。设计稿也是照厂商原色画的。放在这里只是
+  /// 为了不让它们散落在四个界面里。
+  static const List<Color> vendorOpenAi = [
+    Color(0xFF10A37F),
+    Color(0xFF0D8364),
+  ];
+  static const List<Color> vendorGoogle = [
+    Color(0xFF4285F4),
+    Color(0xFF34A0ED),
+  ];
+  static const List<Color> vendorLocal = [Color(0xFFC45F3A), Color(0xFF963F25)];
+
   /// Windows 关闭按钮（2.2 窗口按钮）。
   static const Color closeHover = Color(0xFFC42B1C);
   static const Color closePressed = Color(0xFFB22215);

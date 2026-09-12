@@ -9,7 +9,7 @@ import '../../services/ai/ai_provider.dart';
 import '../../services/ai/connection_check.dart';
 import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 
 /// Header-less two-pane AI services manager (list + detail). Designed for
@@ -186,13 +186,11 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final badge = _badge(profile.provider);
 
     return Material(
-      color: selected
-          ? scheme.primary.withValues(alpha: 0.16)
-          : glass.panelFill,
+      color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.cardFill,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -203,7 +201,7 @@ class _ServiceCard extends StatelessWidget {
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.6)
-                  : glass.panelStroke,
+                  : glass.stroke,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -282,9 +280,9 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final (Color c, String label) = !profile.isComplete
-        ? (const Color(0xFFE0A030), l10n.statusOffline)
+        ? (AppPalette.warning, l10n.statusOffline)
         : active
-        ? (const Color(0xFF34C759), l10n.statusActive)
+        ? (AppPalette.success, l10n.statusActive)
         : (Theme.of(context).colorScheme.onSurfaceVariant, l10n.statusStandby);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -962,13 +960,13 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1098,7 +1096,7 @@ class _SamplingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final preset = this.preset;
     final reasons = preset?.reasons(requested: thinking) ?? thinking;
     final values = preset?.valuesFor(thinking: reasons);
@@ -1147,9 +1145,9 @@ class _SamplingSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1282,13 +1280,13 @@ class _ProtocolSegmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         children: [
@@ -1349,7 +1347,7 @@ class _TestButton extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         gradient: const LinearGradient(
-          colors: [Color(0xFF22C9A9), Color(0xFF2FA98A)],
+          colors: [AppPalette.success, AppPalette.success],
         ),
       ),
       child: FilledButton.icon(
@@ -1388,7 +1386,7 @@ class _UsageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final ai = context.watch<AiService>();
 
     final tokens = active ? '${ai.totalTokens}' : '—';
@@ -1400,9 +1398,9 @@ class _UsageCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

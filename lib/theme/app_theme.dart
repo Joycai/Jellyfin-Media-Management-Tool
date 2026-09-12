@@ -5,76 +5,6 @@ import 'design_tokens.dart';
 
 export 'design_tokens.dart';
 
-/// 兼容层：把 [AppTokens] 的一部分暴露成旧的字段名。
-///
-/// 重做 UI 时 21 个 widget 还在读 `GlassTheme`。与其让整棵树在迁移完成前都编译
-/// 不过，不如让它继续存在但**完全由令牌派生** —— 于是「所有组件被同一套主题
-/// 令牌覆盖」在迁移中途也成立，而不是只在最后一刻成立。迁移完成后删除。
-@Deprecated('读 context.tokens（AppTokens）；本类只为迁移期保持编译。')
-@immutable
-class GlassTheme extends ThemeExtension<GlassTheme> {
-  final Gradient backdrop;
-  final Color panelFill;
-  final Color panelStroke;
-  final Color rowSelected;
-  final Color sidebarFill;
-  final double blurSigma;
-  final bool reduceEffects;
-
-  const GlassTheme({
-    required this.backdrop,
-    required this.panelFill,
-    required this.panelStroke,
-    required this.rowSelected,
-    required this.sidebarFill,
-    required this.blurSigma,
-    this.reduceEffects = false,
-  });
-
-  factory GlassTheme.from(AppTokens t) => GlassTheme(
-    backdrop: t.backdrop,
-    panelFill: t.cardFill,
-    panelStroke: t.stroke,
-    rowSelected: t.selectionFill,
-    sidebarFill: t.panelFill,
-    blurSigma: t.blurPanel,
-    reduceEffects: t.reduceEffects,
-  );
-
-  @override
-  GlassTheme copyWith({
-    Gradient? backdrop,
-    Color? panelFill,
-    Color? panelStroke,
-    Color? rowSelected,
-    Color? sidebarFill,
-    double? blurSigma,
-    bool? reduceEffects,
-  }) => GlassTheme(
-    backdrop: backdrop ?? this.backdrop,
-    panelFill: panelFill ?? this.panelFill,
-    panelStroke: panelStroke ?? this.panelStroke,
-    rowSelected: rowSelected ?? this.rowSelected,
-    sidebarFill: sidebarFill ?? this.sidebarFill,
-    blurSigma: blurSigma ?? this.blurSigma,
-    reduceEffects: reduceEffects ?? this.reduceEffects,
-  );
-
-  @override
-  GlassTheme lerp(ThemeExtension<GlassTheme>? other, double t) {
-    if (other is! GlassTheme) return this;
-    return GlassTheme(
-      backdrop: Gradient.lerp(backdrop, other.backdrop, t) ?? backdrop,
-      panelFill: Color.lerp(panelFill, other.panelFill, t)!,
-      panelStroke: Color.lerp(panelStroke, other.panelStroke, t)!,
-      rowSelected: Color.lerp(rowSelected, other.rowSelected, t)!,
-      sidebarFill: Color.lerp(sidebarFill, other.sidebarFill, t)!,
-      blurSigma: blurSigma + (other.blurSigma - blurSigma) * t,
-      reduceEffects: t < 0.5 ? reduceEffects : other.reduceEffects,
-    );
-  }
-}
-
 /// 从 [AppTokens] 构建 Material 主题。
 ///
 /// 这里**不再定义任何取值** —— 每一个颜色、圆角、高度、字号都来自
@@ -425,7 +355,7 @@ class AppTheme {
       // 拉丁字形保留系统默认的清晰度；中文字形（Windows 的默认字体没有）回落到
       // 各平台的旗舰界面字体，让中文在哪儿都是一款主流、hinting 良好的字体。
       fontFamilyFallback: fallback,
-      extensions: [t, GlassTheme.from(t)],
+      extensions: [t],
     );
   }
 

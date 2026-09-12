@@ -11,7 +11,7 @@ import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 
 /// 3-step first-run guide: welcome → pick library root → choose AI protocol.
 ///
@@ -31,9 +31,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? _pickedRoot;
   AiProviderType? _pickedProvider;
 
-  static const _blue = Color(0xFF3B6FF5);
-  static const _teal = Color(0xFF22C9A9);
-  static const _violet = Color(0xFF8B5CF6);
+  static const _blue = AppPalette.accent;
+  static const _teal = AppPalette.success;
+  static const _violet = AppPalette.ai;
 
   Color get _accent => switch (_step) {
     0 => _blue,
@@ -261,7 +261,7 @@ class _StepWelcome extends StatelessWidget {
                   _PrimaryButton(
                     label: l10n.onboardingStart,
                     onTap: onStart,
-                    accent: const Color(0xFF3B6FF5),
+                    accent: AppPalette.accent,
                   ),
                 ],
               ),
@@ -293,8 +293,8 @@ class _GlowingOrb extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  const Color(0xFF8B7BFF).withValues(alpha: 0.45),
-                  const Color(0xFF8B7BFF).withValues(alpha: 0.0),
+                  AppPalette.ai.withValues(alpha: 0.45),
+                  AppPalette.ai.withValues(alpha: 0.0),
                 ],
                 stops: const [0.35, 1.0],
               ),
@@ -312,14 +312,14 @@ class _GlowingOrb extends StatelessWidget {
                 colors: [
                   Color(0xFFD9CFFF),
                   Color(0xFFA38BFF),
-                  Color(0xFF6E5BFF),
+                  AppPalette.ai,
                   Color(0xFF4D3FCC),
                 ],
                 stops: [0.0, 0.35, 0.7, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6E5BFF).withValues(alpha: 0.55),
+                  color: AppPalette.ai.withValues(alpha: 0.55),
                   blurRadius: 60,
                   spreadRadius: 8,
                 ),
@@ -391,7 +391,7 @@ class _StepRoot extends StatelessWidget {
               Text(
                 l10n.onboardingStep1Eyebrow,
                 style: const TextStyle(
-                  color: Color(0xFF22C9A9),
+                  color: AppPalette.success,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -454,7 +454,7 @@ class _DashDropTarget extends StatelessWidget {
         ),
         child: CustomPaint(
           painter: _DashedRRectPainter(
-            color: const Color(0xFF22C9A9).withValues(alpha: 0.55),
+            color: AppPalette.success.withValues(alpha: 0.55),
             radius: 20,
           ),
           child: Padding(
@@ -537,7 +537,7 @@ class _FolderIcon extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF22C9A9).withValues(alpha: 0.32),
+            color: AppPalette.success.withValues(alpha: 0.32),
             blurRadius: 26,
             spreadRadius: -2,
             offset: const Offset(0, 8),
@@ -612,7 +612,7 @@ class _StepAi extends StatelessWidget {
               Text(
                 l10n.onboardingStep2Eyebrow,
                 style: const TextStyle(
-                  color: Color(0xFF8B5CF6),
+                  color: AppPalette.ai,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -644,7 +644,7 @@ class _StepAi extends StatelessWidget {
                 title: l10n.onboardingProviderOpenAi,
                 subtitle: 'OpenAI · DeepSeek · LM Studio · Ollama…',
                 badge: 'O',
-                badgeColor: const Color(0xFF1FA66E),
+                badgeColor: AppPalette.success,
                 selected: picked == AiProviderType.openAi,
                 onTap: () => onPick(AiProviderType.openAi),
               ),
@@ -669,7 +669,7 @@ class _StepAi extends StatelessWidget {
                   _PrimaryButton(
                     label: l10n.onboardingEnterWorkspace,
                     onTap: onEnter,
-                    accent: const Color(0xFF6E5BFF),
+                    accent: AppPalette.ai,
                   ),
                 ],
               ),
@@ -919,7 +919,7 @@ Widget _onboardingFrost({
   required BorderRadius borderRadius,
   required Widget Function(double alphaScale) builder,
 }) {
-  final flat = Theme.of(context).extension<GlassTheme>()!.reduceEffects;
+  final flat = context.tokens.reduceEffects;
   final content = builder(flat ? 2.5 : 1.0);
   return ClipRRect(
     borderRadius: borderRadius,

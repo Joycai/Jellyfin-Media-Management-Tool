@@ -26,8 +26,8 @@ void main() {
         final b = AppTheme.light(glassIntensity: 20);
         expect(identical(a, b), isFalse);
         expect(
-          a.extension<GlassTheme>()!.blurSigma,
-          greaterThan(b.extension<GlassTheme>()!.blurSigma),
+          a.extension<AppTokens>()!.blurPanel,
+          greaterThan(b.extension<AppTokens>()!.blurPanel),
         );
 
         final accented = AppTheme.light(accent: const Color(0xFFEE7B3A));
@@ -49,8 +49,8 @@ void main() {
       // one slot having moved on.
       expect(identical(again, first), isFalse);
       expect(
-        again.extension<GlassTheme>()!.blurSigma,
-        first.extension<GlassTheme>()!.blurSigma,
+        again.extension<AppTokens>()!.blurPanel,
+        first.extension<AppTokens>()!.blurPanel,
       );
     });
   });
@@ -67,32 +67,35 @@ void main() {
     });
 
     test('zeroes the blur and flattens the fills in both brightnesses', () {
-      for (final glass in [
-        AppTheme.light(reduceEffects: true).extension<GlassTheme>()!,
-        AppTheme.dark(reduceEffects: true).extension<GlassTheme>()!,
+      for (final tokens in [
+        AppTheme.light(reduceEffects: true).extension<AppTokens>()!,
+        AppTheme.dark(reduceEffects: true).extension<AppTokens>()!,
       ]) {
-        expect(glass.reduceEffects, isTrue);
-        expect(glass.blurSigma, 0);
+        expect(tokens.reduceEffects, isTrue);
+        expect(tokens.blurTopBar, 0);
+        expect(tokens.blurPanel, 0);
+        expect(tokens.blurDialog, 0);
         // Opaque, so a panel reads as a panel without a blur behind it — and
-        // so GlassPanel's own fill check would drop the filter regardless.
-        expect(glass.panelFill.a, 1.0);
-        expect(glass.sidebarFill.a, 1.0);
+        // so GlassSurface's own fill check would drop the filter regardless.
+        expect(tokens.panelFill.a, 1.0);
+        expect(tokens.topBarFill.a, 1.0);
+        expect(tokens.controlFill.a, 1.0);
       }
     });
 
     test('overrides the glass intensity slider rather than combining', () {
-      final glass = AppTheme.dark(
+      final tokens = AppTheme.dark(
         glassIntensity: 100,
         reduceEffects: true,
-      ).extension<GlassTheme>()!;
-      expect(glass.blurSigma, 0);
+      ).extension<AppTokens>()!;
+      expect(tokens.blurPanel, 0);
     });
 
     test('leaves the normal theme frosted', () {
-      final glass = AppTheme.dark().extension<GlassTheme>()!;
-      expect(glass.reduceEffects, isFalse);
-      expect(glass.blurSigma, greaterThan(0));
-      expect(glass.panelFill.a, lessThan(1.0));
+      final tokens = AppTheme.dark().extension<AppTokens>()!;
+      expect(tokens.reduceEffects, isFalse);
+      expect(tokens.blurPanel, greaterThan(0));
+      expect(tokens.panelFill.a, lessThan(1.0));
     });
   });
 }

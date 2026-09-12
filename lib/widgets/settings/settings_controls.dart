@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 
 // ── Shared section building blocks ──────────────────────────────────────────
 
@@ -35,13 +35,13 @@ class SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: child,
     );
@@ -53,10 +53,10 @@ class SettingsDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Divider(height: 1, color: glass.panelStroke),
+      child: Divider(height: 1, color: glass.stroke),
     );
   }
 }

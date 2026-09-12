@@ -8,7 +8,7 @@ import '../../services/scrape/image_role.dart';
 import '../../services/scrape/image_downloader.dart';
 import '../../services/scrape/scrape_service.dart';
 import '../../services/metadata/nfo_writer.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../dialogs/input_dialog.dart';
 import '../glass/glass_dialog.dart';
 import 'image_gallery.dart';
@@ -757,7 +757,7 @@ const double _decisionWidth = 200;
 
 /// Local value present and different from the scrape — the rows worth a real
 /// look. Same amber as the LLM origin badge.
-const Color _conflictColor = Color(0xFFE0B23C);
+const Color _conflictColor = AppPalette.warning;
 
 class _ColumnHeader extends StatelessWidget {
   final AppLocalizations l10n;
@@ -969,9 +969,9 @@ class _OriginBadge extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final color = switch (origin) {
-      FieldOrigin.llm => const Color(0xFFE0852C),
-      FieldOrigin.recipe => const Color(0xFF8E6FE8),
-      FieldOrigin.derived => const Color(0xFF3AA885),
+      FieldOrigin.llm => AppPalette.warning,
+      FieldOrigin.recipe => AppPalette.ai,
+      FieldOrigin.derived => AppPalette.success,
       FieldOrigin.manual => scheme.primary,
       _ => scheme.onSurfaceVariant,
     };
@@ -1013,7 +1013,7 @@ class _PresetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Semantics(
       selected: selected,
       button: true,
@@ -1026,12 +1026,12 @@ class _PresetChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? scheme.primary.withValues(alpha: 0.14)
-                : glass.panelFill,
+                : glass.cardFill,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.4)
-                  : glass.panelStroke,
+                  : glass.stroke,
             ),
           ),
           child: Text(
@@ -1065,7 +1065,7 @@ class _DecisionPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final scheme = Theme.of(context).colorScheme;
 
     final options = <(MergeDecision, String)>[
@@ -1078,9 +1078,9 @@ class _DecisionPicker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         children: [
@@ -1131,7 +1131,7 @@ class _RecipeChip extends StatelessWidget {
   final String text;
   const _RecipeChip({required this.text});
 
-  static const _purple = Color(0xFF8E6FE8);
+  static const _purple = AppPalette.ai;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1160,7 +1160,7 @@ class _NoteBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const amber = Color(0xFFE0852C);
+    const amber = AppPalette.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(

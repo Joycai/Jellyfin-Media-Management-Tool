@@ -10,7 +10,7 @@ import '../../services/history_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/thumbnail_service.dart';
 import '../../shortcuts/app_shortcuts.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import 'ai_services_screen.dart';
 import 'settings_appearance_section.dart';
@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: glass.backdrop),
@@ -149,7 +149,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
 
     Widget tile(_Section s, IconData icon, String label) {
       final on = s == section;
@@ -191,7 +191,7 @@ class _Sidebar extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: glass.panelStroke)),
+        border: Border(right: BorderSide(color: glass.stroke)),
       ),
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 10),

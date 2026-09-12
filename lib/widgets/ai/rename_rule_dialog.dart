@@ -13,7 +13,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 
 class RenameRuleDialog extends StatefulWidget {
@@ -112,7 +112,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   // ── Left: templates ───────────────────────────────────────────────────────
 
   Widget _templates(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
       child: Column(
@@ -160,7 +160,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: const Color(0xFFE0852C).withValues(alpha: 0.10),
+              color: AppPalette.warning.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -168,7 +168,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
                 const Icon(
                   Icons.info_outline_rounded,
                   size: 15,
-                  color: Color(0xFFE0852C),
+                  color: AppPalette.warning,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -185,13 +185,13 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
     );
   }
 
-  Widget _templateBox(GlassTheme glass, List<Widget> parts) => Container(
+  Widget _templateBox(AppTokens glass, List<Widget> parts) => Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
     decoration: BoxDecoration(
-      color: glass.panelFill,
+      color: glass.cardFill,
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: glass.panelStroke),
+      border: Border.all(color: glass.stroke),
     ),
     child: Wrap(
       spacing: 6,
@@ -204,7 +204,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   // ── Right: live preview ───────────────────────────────────────────────────
 
   Widget _preview(AppLocalizations l10n, ColorScheme scheme) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Column(
@@ -243,7 +243,7 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
   }
 
   Widget _previewCard(
-    GlassTheme glass,
+    AppTokens glass,
     ColorScheme scheme, {
     required String input,
     required String outputLabel,
@@ -253,9 +253,9 @@ class _RenameRuleDialogState extends State<RenameRuleDialog> {
     width: double.infinity,
     padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
     decoration: BoxDecoration(
-      color: glass.panelFill,
+      color: glass.cardFill,
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: glass.panelStroke),
+      border: Border.all(color: glass.stroke),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

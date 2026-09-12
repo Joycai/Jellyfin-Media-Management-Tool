@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/history_entry.dart';
 import '../../services/history_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../glass/glass_dialog.dart';
 
@@ -37,7 +37,7 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     final history = context.watch<HistoryService>();
     final scheme = Theme.of(context).colorScheme;
 
@@ -71,10 +71,10 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE0A030).withValues(alpha: 0.10),
+                    color: AppPalette.warning.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFFE0A030).withValues(alpha: 0.25),
+                      color: AppPalette.warning.withValues(alpha: 0.25),
                     ),
                   ),
                   child: Row(
@@ -82,7 +82,7 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
                       const Icon(
                         Icons.warning_amber_rounded,
                         size: 18,
-                        color: Color(0xFFE0A030),
+                        color: AppPalette.warning,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -160,19 +160,18 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           colors: [
-            glass.panelFill,
-            Color.lerp(glass.panelFill, scheme.primary, 0.05) ??
-                glass.panelFill,
+            glass.cardFill,
+            Color.lerp(glass.cardFill, scheme.primary, 0.05) ?? glass.cardFill,
           ],
         ),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
@@ -231,7 +230,7 @@ class _HistoryCard extends StatelessWidget {
                       horizontal: 14,
                       vertical: 10,
                     ),
-                    side: BorderSide(color: glass.panelStroke),
+                    side: BorderSide(color: glass.stroke),
                     foregroundColor: scheme.onSurface,
                   ),
                 ),
@@ -323,7 +322,7 @@ class _UndoButtonState extends State<_UndoButton> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    const orange = Color(0xFFE0852C);
+    const orange = AppPalette.warning;
     return OutlinedButton.icon(
       onPressed: _busy ? null : _undo,
       icon: _busy
@@ -351,8 +350,8 @@ class _KindBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (Color a, Color b, IconData icon) = switch (kind) {
       HistoryKind.aiOrganize => (
-        const Color(0xFF6F69FF),
-        const Color(0xFFA56BFF),
+        AppPalette.ai,
+        AppPalette.ai,
         Icons.auto_awesome,
       ),
       HistoryKind.manualRename => (
@@ -361,13 +360,13 @@ class _KindBadge extends StatelessWidget {
         Icons.drive_file_rename_outline,
       ),
       HistoryKind.metadataRefresh => (
-        const Color(0xFF3B82F6),
+        AppPalette.accent,
         const Color(0xFF60A5FA),
         Icons.sync_rounded,
       ),
       HistoryKind.batchImport => (
-        const Color(0xFF6F69FF),
-        const Color(0xFFA56BFF),
+        AppPalette.ai,
+        AppPalette.ai,
         Icons.cloud_download_outlined,
       ),
     };

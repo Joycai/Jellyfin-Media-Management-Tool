@@ -6,7 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../l10n/app_localizations_en.dart';
 import '../../l10n/app_localizations_zh.dart';
 import '../../services/settings_service.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 import 'ai_services_screen.dart';
 
 /// One row in the language list. Only languages whose ARB exists are listed —
@@ -166,12 +166,10 @@ class _LanguageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
 
     return Material(
-      color: selected
-          ? scheme.primary.withValues(alpha: 0.16)
-          : glass.panelFill,
+      color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.cardFill,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -183,7 +181,7 @@ class _LanguageCard extends StatelessWidget {
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.6)
-                  : glass.panelStroke,
+                  : glass.stroke,
               width: selected ? 1.4 : 1,
             ),
           ),
@@ -292,13 +290,13 @@ class _PreviewPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -328,7 +326,7 @@ class _PreviewPanel extends StatelessWidget {
             context,
             title: loc.previewConfidenceLabel,
             body: '96% · ${loc.previewConfidenceHigh}',
-            bodyColor: const Color(0xFF34C759),
+            bodyColor: AppPalette.success,
           ),
           const SizedBox(height: 10),
           _previewItem(
@@ -352,13 +350,13 @@ class _PreviewPanel extends StatelessWidget {
     Color? bodyColor,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,13 +396,13 @@ class _PreviewHintBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final glass = context.tokens;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
       decoration: BoxDecoration(
-        color: glass.panelFill,
+        color: glass.cardFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: glass.panelStroke),
+        border: Border.all(color: glass.stroke),
       ),
       child: Row(
         children: [
@@ -429,7 +427,7 @@ class _PreviewHintBanner extends StatelessWidget {
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              side: BorderSide(color: glass.panelStroke),
+              side: BorderSide(color: glass.stroke),
             ),
             child: Text(l10n.langLearnMore),
           ),
