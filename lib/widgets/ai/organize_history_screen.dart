@@ -72,7 +72,7 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: AppPalette.warning.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     border: Border.all(
                       color: AppPalette.warning.withValues(alpha: 0.25),
                     ),
@@ -89,7 +89,7 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
                         child: Text(
                           l10n.historyUndoFootnote,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: AppTypeScale.sizeControl,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -118,12 +118,18 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
           const SizedBox(width: 4),
           Text(
             l10n.historyTitle,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            style: const TextStyle(
+              fontSize: AppTypeScale.sizeHeading,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const Spacer(),
           Text(
             l10n.historyRetention(HistoryService.retentionDays),
-            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeBody,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -164,7 +170,7 @@ class _HistoryCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         gradient: LinearGradient(
           colors: [
             glass.cardFill,
@@ -191,7 +197,7 @@ class _HistoryCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: AppTypeScale.sizeSubheading,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -201,7 +207,7 @@ class _HistoryCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: AppTypeScale.sizeBody,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -211,7 +217,10 @@ class _HistoryCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 _relativeTime(l10n, entry.createdAt),
-                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: AppTypeScale.sizeBody,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -379,7 +388,7 @@ class _KindBadge extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [a, b],
         ),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
       ),
       child: Icon(icon, color: Colors.white, size: 18),
     );
@@ -452,7 +461,7 @@ class _MovesDialog extends StatelessWidget {
                     Text(
                       l10n.movesListTitle(rows.length),
                       style: const TextStyle(
-                        fontSize: 17,
+                        fontSize: AppTypeScale.sizeSubheading,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -485,7 +494,7 @@ class _MovesDialog extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontFamily: 'monospace',
-                              fontSize: 13,
+                              fontSize: AppTypeScale.sizeBody,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -505,7 +514,7 @@ class _MovesDialog extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontFamily: 'monospace',
-                                    fontSize: 13,
+                                    fontSize: AppTypeScale.sizeBody,
                                     color: scheme.onSurface,
                                   ),
                                 ),

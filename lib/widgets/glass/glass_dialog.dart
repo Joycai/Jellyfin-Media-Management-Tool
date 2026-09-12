@@ -76,7 +76,7 @@ class GlassAlertDialog extends StatelessWidget {
                               // doesn't set.
                               child: DefaultTextStyle.merge(
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: AppTypeScale.sizeBody,
                                   fontWeight: FontWeight.w600,
                                   color: t.textTitle,
                                 ),
@@ -91,7 +91,7 @@ class GlassAlertDialog extends StatelessWidget {
                       Flexible(
                         child: DefaultTextStyle.merge(
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppTypeScale.sizeCaption,
                             height: AppTypeScale.leadingBody,
                             color: t.textSecondary,
                           ),

@@ -48,7 +48,7 @@ class TasksScreen extends StatelessWidget {
                   Text(
                     l10n.tasksTitle,
                     style: AppTypeScale.title.copyWith(
-                      fontSize: 14,
+                      fontSize: AppTypeScale.sizeBody,
                       color: t.textTitle,
                     ),
                   ),
@@ -244,7 +244,7 @@ class _TaskCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md12),
           ClipRRect(
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(AppRadii.chip),
             child: _ProgressBar(
               // A failed task shows an empty bar; anything else with no
               // fraction yet (analyze, a commit before its first download)

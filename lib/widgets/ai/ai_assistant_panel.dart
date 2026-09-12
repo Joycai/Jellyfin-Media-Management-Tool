@@ -187,7 +187,7 @@ class _Header extends StatelessWidget {
             height: AppSizes.logo,
             decoration: BoxDecoration(
               gradient: t.brandGradient,
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(AppRadii.button),
               boxShadow: t.reduceEffects
                   ? null
                   : [
@@ -292,7 +292,7 @@ class _ReasoningCard extends StatelessWidget {
                     Text(
                       analyzing && i == steps.length - 1 ? '●' : '✓',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppTypeScale.sizeMono,
                         height: 1.55,
                         color: analyzing && i == steps.length - 1
                             ? t.accentText

@@ -367,7 +367,7 @@ class _NavTileState extends State<_NavTile> {
       padding: const EdgeInsets.only(bottom: 2),
       child: Tooltip(
         message: widget.tooltip,
-        waitDuration: const Duration(milliseconds: 600),
+        waitDuration: AppMotion.progress,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hover = true),

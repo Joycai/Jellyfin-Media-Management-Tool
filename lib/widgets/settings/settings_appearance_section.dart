@@ -59,7 +59,7 @@ class AppearanceSection extends StatelessWidget {
                         Text(
                           l10n.glassIntensity,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: AppTypeScale.sizeBody,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -91,21 +91,21 @@ class AppearanceSection extends StatelessWidget {
                         Text(
                           l10n.glassNone,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppTypeScale.sizeCaption,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
                         Text(
                           l10n.glassSoft,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppTypeScale.sizeCaption,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
                         Text(
                           l10n.glassStrong,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppTypeScale.sizeCaption,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -124,7 +124,7 @@ class AppearanceSection extends StatelessWidget {
                     Text(
                       l10n.accentColor,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: AppTypeScale.sizeBody,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -143,13 +143,15 @@ class AppearanceSection extends StatelessWidget {
                           const SizedBox(width: 10),
                         ],
                         InkWell(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadii.button),
                           onTap: () {},
                           child: Container(
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.button,
+                              ),
                               border: Border.all(
                                 color: scheme.onSurfaceVariant.withValues(
                                   alpha: 0.4,
@@ -246,15 +248,15 @@ class _ThemeCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: glass.cardFill,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppRadii.panel),
             border: Border.all(
               color: selected ? scheme.primary : glass.stroke,
               width: selected ? 2 : 1,
@@ -268,7 +270,7 @@ class _ThemeCard extends StatelessWidget {
               Row(
                 children: [
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
+                    duration: AppMotion.overlayIn,
                     width: 18,
                     height: 18,
                     decoration: BoxDecoration(
@@ -289,7 +291,7 @@ class _ThemeCard extends StatelessWidget {
                   Text(
                     label,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: AppTypeScale.sizeTitle,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -323,7 +325,7 @@ class _ThemePreview extends StatelessWidget {
     final preview = Container(
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.card),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -333,7 +335,7 @@ class _ThemePreview extends StatelessWidget {
             height: 8,
             decoration: BoxDecoration(
               color: card,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppRadii.chip),
             ),
           ),
           const SizedBox(height: 8),
@@ -344,7 +346,7 @@ class _ThemePreview extends StatelessWidget {
                   height: 36,
                   decoration: BoxDecoration(
                     color: card,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadii.tiny),
                   ),
                 ),
               ),
@@ -354,7 +356,7 @@ class _ThemePreview extends StatelessWidget {
                   height: 36,
                   decoration: BoxDecoration(
                     color: card,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadii.tiny),
                   ),
                 ),
               ),
@@ -365,7 +367,7 @@ class _ThemePreview extends StatelessWidget {
             height: 14,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [bar1, bar2]),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(AppRadii.tiny),
             ),
           ),
         ],
@@ -375,7 +377,7 @@ class _ThemePreview extends StatelessWidget {
     if (mode == ThemeMode.system) {
       // Half white / half dark, split diagonally — mirrors the mockup.
       return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         child: Stack(
           children: [
             Positioned.fill(child: Container(color: Colors.white)),
@@ -390,7 +392,7 @@ class _ThemePreview extends StatelessWidget {
                 height: 6,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(AppRadii.chip),
                 ),
               ),
             ),
@@ -430,14 +432,14 @@ class _AccentSwatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadii.button),
       onTap: onTap,
       child: Container(
         width: 34,
         height: 34,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadii.button),
           border: Border.all(
             color: selected
                 ? Theme.of(context).colorScheme.onSurface
@@ -477,13 +479,16 @@ class _ToggleRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(fontSize: 14)),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: AppTypeScale.sizeBody),
+                ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     subtitle!,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppTypeScale.sizeCaption,
                       height: 1.4,
                       color: scheme.onSurfaceVariant,
                     ),

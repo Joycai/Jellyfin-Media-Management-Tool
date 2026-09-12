@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_label_service.dart';
 import '../../services/thumbnail_service.dart';
+import '../../theme/design_tokens.dart';
 
 /// The leading tile of a file row: the type icon, upgraded to a video poster
 /// frame once [ThumbnailService] has one.
@@ -94,7 +95,7 @@ class _FileThumbnailState extends State<FileThumbnail> {
       width: widget.size,
       height: widget.size,
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 180),
+        duration: AppMotion.panel,
         child: bytes == null ? _icon() : _poster(context, bytes),
       ),
     );
@@ -106,7 +107,7 @@ class _FileThumbnailState extends State<FileThumbnail> {
       key: const ValueKey('icon'),
       decoration: BoxDecoration(
         color: widget.iconColor.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(AppRadii.icon),
       ),
       child: Center(
         child: Icon(
@@ -122,7 +123,7 @@ class _FileThumbnailState extends State<FileThumbnail> {
     final ratio = MediaQuery.devicePixelRatioOf(context);
     return ClipRRect(
       key: const ValueKey('poster'),
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(AppRadii.icon),
       child: Image.memory(
         bytes,
         fit: BoxFit.cover,

@@ -91,7 +91,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       if (pos.maxScrollExtent - pos.pixels > 120) return;
       _scroll.animateTo(
         pos.maxScrollExtent,
-        duration: const Duration(milliseconds: 180),
+        duration: AppMotion.panel,
         curve: Curves.easeOut,
       );
     });
@@ -152,13 +152,19 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           const SizedBox(width: 12),
           Text(
             title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            style: const TextStyle(
+              fontSize: AppTypeScale.sizeHeading,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(width: 14),
           if (running && c.eta != null)
             Text(
               l10n.etaRemaining(c.eta!.inMinutes, c.eta!.inSeconds % 60),
-              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeBody,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
           const Spacer(),
           if (finished)
@@ -226,7 +232,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
                     TextSpan(
                       text: '${c.done}',
                       style: const TextStyle(
-                        fontSize: 44,
+                        fontSize: AppTypeScale.sizeDisplay,
                         fontWeight: FontWeight.w800,
                         height: 1,
                       ),
@@ -234,7 +240,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
                     TextSpan(
                       text: '/${c.total}',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: AppTypeScale.sizeHeading,
                         fontWeight: FontWeight.w700,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -246,7 +252,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
               Text(
                 '${formatBytes(c.bytesDone)} / ${formatBytes(c.bytesTotal)} · ${_speed(c.speedBytesPerSec)}',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   color: scheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
@@ -275,7 +281,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   Widget _bar(double fraction) {
     final scheme = Theme.of(context).colorScheme;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadii.button),
       child: Stack(
         children: [
           Container(
@@ -311,11 +317,17 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
         const SizedBox(width: 8),
         Text(
           '$label  ',
-          style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppTypeScale.sizeBody,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
         Text(
           '$count',
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: AppTypeScale.sizeBody,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
@@ -346,7 +358,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFF0E1117),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
@@ -395,7 +407,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
             'activity.log',
             style: TextStyle(
               fontFamily: 'monospace',
-              fontSize: 13,
+              fontSize: AppTypeScale.sizeBody,
               color: Color(0xFF9AA4B2),
               fontWeight: FontWeight.w600,
             ),
@@ -414,7 +426,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
   Widget _levelPill(String label, LogLevel level, Color color) {
     final on = _levels.contains(level);
     return InkWell(
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadii.button),
       onTap: () => setState(() {
         if (on) {
           _levels.remove(level);
@@ -434,13 +446,13 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           color: on
               ? color.withValues(alpha: 0.18)
               : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadii.button),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontFamily: 'monospace',
-            fontSize: 11.5,
+            fontSize: AppTypeScale.sizeCaption,
             fontWeight: FontWeight.w700,
             color: on ? color : const Color(0xFF6B7280),
           ),
@@ -461,7 +473,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
         TextSpan(
           style: const TextStyle(
             fontFamily: 'monospace',
-            fontSize: 13.5,
+            fontSize: AppTypeScale.sizeBody,
             height: 1.3,
           ),
           children: [

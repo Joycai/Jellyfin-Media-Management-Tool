@@ -211,6 +211,21 @@ abstract final class AppTypeScale {
   /// 说明段落。
   static const double leadingProse = 1.9;
 
+  /// 字阶上的八个字号，按名字引用。
+  ///
+  /// 存在的意义是**没有第九个**：设计稿 1.2 的字阶只有这些台阶，而重做之前的
+  /// 界面里散落着 13.5、15.5、17、18 这类介于两级之间的值 —— 每一个都让「这是
+  /// 标题还是正文」的答案模糊一点。所有 `fontSize:` 都从这里取。
+  static const double sizeDisplay = 36;
+  static const double sizeHeading = 22;
+  static const double sizeSubheading = 16;
+  static const double sizeTitle = 15;
+  static const double sizeBody = 13;
+  static const double sizeControl = 12.5;
+  static const double sizeCaption = 11.5;
+  static const double sizeMono = 11;
+  static const double sizeLabel = 10;
+
   /// 36 / 700 — 页面大标题。
   static const TextStyle display = TextStyle(
     fontSize: 36,

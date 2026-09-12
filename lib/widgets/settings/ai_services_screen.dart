@@ -140,7 +140,7 @@ class _ServiceList extends StatelessWidget {
           ),
           // Dashed "add another endpoint" affordance.
           InkWell(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.panel),
             onTap: onAdd,
             child: DottedBorderBox(
               child: Padding(
@@ -191,13 +191,13 @@ class _ServiceCard extends StatelessWidget {
 
     return Material(
       color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.cardFill,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadii.panel),
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.6)
@@ -223,7 +223,7 @@ class _ServiceCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 15,
+                            fontSize: AppTypeScale.sizeTitle,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -233,7 +233,7 @@ class _ServiceCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'monospace',
-                            fontSize: 12,
+                            fontSize: AppTypeScale.sizeCaption,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -288,11 +288,15 @@ class _StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.button),
       ),
       child: Text(
         label,
-        style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: c,
+          fontSize: AppTypeScale.sizeCaption,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -596,7 +600,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: AppTypeScale.sizeHeading,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -604,7 +608,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                   Text(
                     l10n.aiServiceDetailHint,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppTypeScale.sizeBody,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -660,7 +664,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                 child: Text(
                   tools ? l10n.toolsSupported : l10n.toolsUnsupported,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTypeScale.sizeBody,
                     color: tools ? scheme.onSurfaceVariant : scheme.error,
                   ),
                 ),
@@ -727,7 +731,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                     _obscureKey ? l10n.showKey : l10n.hideKey,
                     style: TextStyle(
                       color: scheme.primary,
-                      fontSize: 13,
+                      fontSize: AppTypeScale.sizeBody,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -787,7 +791,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
         Text(
           l10n.contextWindowNote,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: AppTypeScale.sizeCaption,
             height: 1.4,
             color: scheme.onSurfaceVariant,
           ),
@@ -893,7 +897,7 @@ class _MiniChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: scheme.onSurface.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadii.button),
       ),
       child: Text(
         text,
@@ -901,7 +905,7 @@ class _MiniChip extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         softWrap: false,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppTypeScale.sizeCaption,
           fontFamily: mono ? 'monospace' : null,
           color: scheme.onSurfaceVariant,
         ),
@@ -919,7 +923,7 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 12.5,
+        fontSize: AppTypeScale.sizeControl,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.3,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -965,7 +969,7 @@ class _Field extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: glass.cardFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: glass.stroke),
       ),
       child: Column(
@@ -992,7 +996,7 @@ class _Field extends StatelessWidget {
                       FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                   ],
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: AppTypeScale.sizeTitle,
                     fontFamily: mono ? 'monospace' : null,
                   ),
                   decoration: InputDecoration(
@@ -1047,7 +1051,10 @@ class _DetectedLimits extends StatelessWidget {
           Expanded(
             child: Text(
               found ? parts.join(' · ') : l10n.limitsNotDetected,
-              style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeControl,
+                color: scheme.onSurface,
+              ),
             ),
           ),
           if (found)
@@ -1102,7 +1109,7 @@ class _SamplingSection extends StatelessWidget {
     final values = preset?.valuesFor(thinking: reasons);
     final status = _thinkingStatus(l10n, reasons);
     final note = TextStyle(
-      fontSize: 12,
+      fontSize: AppTypeScale.sizeCaption,
       height: 1.4,
       color: scheme.onSurfaceVariant,
     );
@@ -1146,7 +1153,7 @@ class _SamplingSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: glass.cardFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: glass.stroke),
       ),
       child: Column(
@@ -1164,7 +1171,7 @@ class _SamplingSection extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: AppTypeScale.sizeControl,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -1190,7 +1197,7 @@ class _SamplingSection extends StatelessWidget {
                     Text(
                       l10n.thinkingMode,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: AppTypeScale.sizeBody,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1285,7 +1292,7 @@ class _ProtocolSegmented extends StatelessWidget {
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: glass.cardFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: glass.stroke),
       ),
       child: Row(
@@ -1308,9 +1315,9 @@ class _ProtocolSegmented extends StatelessWidget {
     return Expanded(
       child: Material(
         color: on ? scheme.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadii.field),
           onTap: () => onChanged(p),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1345,7 +1352,7 @@ class _TestButton extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         gradient: const LinearGradient(
           colors: [AppPalette.success, AppPalette.success],
         ),
@@ -1399,7 +1406,7 @@ class _UsageCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: glass.cardFill,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: glass.stroke),
       ),
       child: Row(
@@ -1428,12 +1435,18 @@ class _UsageCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppTypeScale.sizeControl,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            fontSize: AppTypeScale.sizeHeading,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -1466,7 +1479,7 @@ class _Sparkline extends StatelessWidget {
                     end: Alignment.topCenter,
                     colors: [scheme.primary, scheme.tertiary],
                   ),
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(AppRadii.chip),
                 ),
               ),
             ),

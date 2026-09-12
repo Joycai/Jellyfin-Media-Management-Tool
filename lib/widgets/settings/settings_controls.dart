@@ -15,7 +15,7 @@ class SettingsSectionTitle extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 13,
+          fontSize: AppTypeScale.sizeBody,
           fontWeight: FontWeight.w600,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -40,7 +40,7 @@ class SettingsCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: glass.cardFill,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: glass.stroke),
       ),
       child: child,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../theme/design_tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/font_service.dart';
 import '../../services/settings_service.dart';
+import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../glass/glass_dialog.dart';
 
@@ -36,12 +36,12 @@ class FontOption extends StatelessWidget {
               : l10n.fontStatusNotDownloaded);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadii.card),
       onTap: () => _select(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.card),
           color: selected ? scheme.primary.withValues(alpha: 0.10) : null,
           border: Border.all(
             color: selected
@@ -64,7 +64,7 @@ class FontOption extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 13.5,
+                      fontSize: AppTypeScale.sizeBody,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -74,7 +74,7 @@ class FontOption extends StatelessWidget {
                       child: Text(
                         status,
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: AppTypeScale.sizeCaption,
                           color: downloaded
                               ? AppPalette.success
                               : scheme.onSurfaceVariant,
@@ -189,7 +189,7 @@ class _FontDownloadDialogState extends State<_FontDownloadDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(AppRadii.chip),
             child: LinearProgressIndicator(
               value: (fonts.progress ?? 0) > 0 ? fonts.progress : null,
               minHeight: 6,
@@ -200,7 +200,10 @@ class _FontDownloadDialogState extends State<_FontDownloadDialog> {
             total > 0
                 ? '${formatBytes(received)} / ${formatBytes(total)}'
                 : formatBytes(received),
-            style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeControl,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

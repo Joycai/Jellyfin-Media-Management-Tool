@@ -557,7 +557,7 @@ class _CrumbSegment extends StatelessWidget {
           child: Text(
             label,
             style: AppTypeScale.monoSmall.copyWith(
-              fontSize: 12,
+              fontSize: AppTypeScale.sizeCaption,
               fontWeight: isLast ? FontWeight.w500 : FontWeight.w400,
               color: isLast ? t.textTitle : t.textMuted,
             ),
@@ -680,7 +680,7 @@ class _ColumnDividerState extends State<_ColumnDivider> {
         onDoubleTap: widget.onReset,
         child: Tooltip(
           message: widget.tooltip,
-          waitDuration: const Duration(milliseconds: 900),
+          waitDuration: AppMotion.progress,
           child: SizedBox(
             width: MediaColumnLayout.dividerHitWidth,
             height: 14,
@@ -691,7 +691,7 @@ class _ColumnDividerState extends State<_ColumnDivider> {
                 height: active ? 14 : 9,
                 decoration: BoxDecoration(
                   color: active ? t.accent : t.stroke,
-                  borderRadius: BorderRadius.circular(1),
+                  borderRadius: BorderRadius.circular(AppRadii.chip),
                 ),
               ),
             ),
@@ -741,7 +741,7 @@ class _FileRowState extends State<_FileRow> {
   /// tap having already selected the row is the standard file-manager
   /// behavior and harmless).
   DateTime? _lastTapAt;
-  static const _doubleClickWindow = Duration(milliseconds: 300);
+  static const _doubleClickWindow = AppMotion.progress;
 
   FileEntry get entry => widget.entry;
   OrganizeAction? get action => widget.action;
@@ -833,7 +833,7 @@ class _FileRowState extends State<_FileRow> {
                         children: [
                           Tooltip(
                             message: name,
-                            waitDuration: const Duration(milliseconds: 350),
+                            waitDuration: AppMotion.progress,
                             child: Text(
                               name,
                               maxLines: 1,
@@ -852,7 +852,7 @@ class _FileRowState extends State<_FileRow> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTypeScale.caption.copyWith(
-                                fontSize: 11,
+                                fontSize: AppTypeScale.sizeMono,
                                 color: t.warningText,
                               ),
                             )
@@ -881,7 +881,7 @@ class _FileRowState extends State<_FileRow> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypeScale.caption.copyWith(
-                    fontSize: 12,
+                    fontSize: AppTypeScale.sizeCaption,
                     color: t.textSecondary,
                   ),
                 ),
@@ -894,7 +894,7 @@ class _FileRowState extends State<_FileRow> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypeScale.monoSmall.copyWith(
-                    fontSize: 11.5,
+                    fontSize: AppTypeScale.sizeCaption,
                     color: t.textSecondary,
                   ),
                 ),
@@ -947,13 +947,13 @@ class _SuggestionCell extends StatelessWidget {
         Expanded(
           child: Tooltip(
             message: action!.target,
-            waitDuration: const Duration(milliseconds: 350),
+            waitDuration: AppMotion.progress,
             child: Text(
               action!.target,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: AppTypeScale.caption.copyWith(
-                fontSize: 12,
+                fontSize: AppTypeScale.sizeCaption,
                 color: color,
                 height: 1.25,
               ),
@@ -991,7 +991,7 @@ class _ConfidenceCell extends StatelessWidget {
           child: SizedBox(
             width: 46,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
+              borderRadius: BorderRadius.circular(AppRadii.chip),
               child: Container(
                 height: 5,
                 color: t.strokeStrong,
@@ -1139,7 +1139,7 @@ class _DropZoneEmptyState extends StatelessWidget {
           ),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(AppRadii.panel),
               gradient: RadialGradient(
                 colors: [
                   t.accent.withValues(alpha: 0.15),
@@ -1156,7 +1156,7 @@ class _DropZoneEmptyState extends StatelessWidget {
                 Text(
                   l10n.dropFoldersTitle,
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: AppTypeScale.sizeHeading,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.24,
                   ).copyWith(color: t.textTitle),

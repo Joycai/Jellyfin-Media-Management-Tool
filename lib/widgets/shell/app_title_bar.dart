@@ -112,7 +112,7 @@ class AppTitleBar extends StatelessWidget {
                       AnimatedContainer(
                         duration: AppMotion.respecting(
                           context,
-                          const Duration(milliseconds: 240),
+                          AppMotion.progress,
                         ),
                         curve: AppMotion.panelCurve,
                         width: window.isFullScreen
@@ -229,7 +229,7 @@ class _Brand extends StatelessWidget {
           height: AppSizes.logo,
           decoration: BoxDecoration(
             gradient: t.brandGradient,
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(AppRadii.button),
             boxShadow: t.reduceEffects
                 ? null
                 : [
@@ -244,7 +244,7 @@ class _Brand extends StatelessWidget {
           child: const Text(
             'J',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppTypeScale.sizeCaption,
               fontWeight: FontWeight.w700,
               color: Colors.white,
               height: 1,

@@ -42,7 +42,10 @@ class LanguageSection extends StatelessWidget {
           // Trilingual title + subtitle (mirrors the mockup's section header).
           RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                fontSize: AppTypeScale.sizeHeading,
+                fontWeight: FontWeight.w800,
+              ),
               children: [
                 TextSpan(
                   text: '语言',
@@ -70,7 +73,10 @@ class LanguageSection extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             l10n.langHeaderSubtitle,
-            style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeBody,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 18),
           Expanded(
@@ -121,7 +127,7 @@ class _LanguageList extends StatelessWidget {
         const SizedBox(height: 14),
         // Dashed "import .arb" placeholder.
         InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           onTap: () => ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(l10n.langImportSoon))),
@@ -170,14 +176,14 @@ class _LanguageCard extends StatelessWidget {
 
     return Material(
       color: selected ? scheme.primary.withValues(alpha: 0.16) : glass.cardFill,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadii.panel),
             border: Border.all(
               color: selected
                   ? scheme.primary.withValues(alpha: 0.6)
@@ -187,7 +193,10 @@ class _LanguageCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Text(lang.flag, style: const TextStyle(fontSize: 22)),
+              Text(
+                lang.flag,
+                style: const TextStyle(fontSize: AppTypeScale.sizeHeading),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -196,7 +205,7 @@ class _LanguageCard extends StatelessWidget {
                     Text(
                       lang.name,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: AppTypeScale.sizeTitle,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -204,7 +213,7 @@ class _LanguageCard extends StatelessWidget {
                     Text(
                       selected ? '${lang.tag} · ${l10n.langCurrent}' : lang.tag,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: AppTypeScale.sizeControl,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -247,7 +256,7 @@ class _LanguagePreview extends StatelessWidget {
           child: Text(
             l10n.langPreviewTitle,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppTypeScale.sizeBody,
               color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
@@ -295,7 +304,7 @@ class _PreviewPanel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
         color: glass.cardFill,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: glass.stroke),
       ),
       child: Column(
@@ -303,12 +312,15 @@ class _PreviewPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(flag, style: const TextStyle(fontSize: 18)),
+              Text(
+                flag,
+                style: const TextStyle(fontSize: AppTypeScale.sizeSubheading),
+              ),
               const SizedBox(width: 8),
               Text(
                 name,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -355,7 +367,7 @@ class _PreviewPanel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         border: Border.all(color: glass.stroke),
       ),
       child: Column(
@@ -377,7 +389,7 @@ class _PreviewPanel extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppTypeScale.sizeBody,
               color: bodyColor ?? scheme.onSurface,
               fontFamily: bodyMono ? 'monospace' : null,
               fontWeight: emphasised
@@ -401,7 +413,7 @@ class _PreviewHintBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
       decoration: BoxDecoration(
         color: glass.cardFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: glass.stroke),
       ),
       child: Row(
@@ -412,7 +424,7 @@ class _PreviewHintBanner extends StatelessWidget {
             child: Text(
               l10n.langPreviewHint,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: AppTypeScale.sizeControl,
                 color: scheme.onSurfaceVariant,
                 height: 1.4,
               ),

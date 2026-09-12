@@ -8,6 +8,7 @@ import '../../models/organize_plan.dart';
 import '../../services/file_label_service.dart';
 import '../../services/path_safety.dart';
 import '../../services/rename_service.dart';
+import '../../theme/design_tokens.dart';
 import '../dialogs/part_dialog.dart';
 import '../dialogs/subtitle_dialog.dart';
 import '../dialogs/tv_show_dialog.dart';
@@ -163,7 +164,7 @@ class _EditActionDialogState extends State<EditActionDialog> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12.5,
+                fontSize: AppTypeScale.sizeControl,
                 color: scheme.onSurfaceVariant,
               ),
             ),
@@ -172,7 +173,10 @@ class _EditActionDialogState extends State<EditActionDialog> {
               controller: _controller,
               autofocus: true,
               maxLines: null,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: AppTypeScale.sizeBody,
+              ),
               decoration: InputDecoration(
                 labelText: l10n.targetPathLabel,
                 errorText: _error,
@@ -186,7 +190,10 @@ class _EditActionDialogState extends State<EditActionDialog> {
             const SizedBox(height: 18),
             Text(
               l10n.namingRules,
-              style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: AppTypeScale.sizeControl,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             Wrap(

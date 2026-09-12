@@ -464,7 +464,7 @@ class ShortcutPill extends StatelessWidget {
         color: t.isDark
             ? Colors.white.withValues(alpha: 0.07)
             : AppPalette.ink.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadii.chip),
       ),
       child: Text(
         label,
@@ -541,7 +541,7 @@ class AppTag extends StatelessWidget {
                 (mono
                         ? AppTypeScale.monoTiny
                         : const TextStyle(
-                            fontSize: 10,
+                            fontSize: AppTypeScale.sizeLabel,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.05 * 10,
                             height: 1.3,
@@ -591,7 +591,7 @@ class AppCountBadge extends StatelessWidget {
         count > 99 ? '99+' : '$count',
         style: TextStyle(
           fontFamily: AppTypeScale.mono,
-          fontSize: 9.5,
+          fontSize: AppTypeScale.sizeLabel,
           fontWeight: FontWeight.w700,
           height: 1,
           color: t.badgeText,
@@ -748,7 +748,7 @@ class _Segment extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 10.5,
+              fontSize: AppTypeScale.sizeLabel,
               height: 1.2,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               color: !selected

@@ -96,7 +96,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           // Per-step radial backdrop, cross-faded between steps.
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 480),
+            duration: AppMotion.progress,
             child: Container(
               key: ValueKey(_step),
               decoration: BoxDecoration(gradient: _backdropFor(_step)),
@@ -123,7 +123,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               l10n.onboardingStepCounter(_step + 1, 3),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.55),
-                fontSize: 13,
+                fontSize: AppTypeScale.sizeBody,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.6,
               ),
@@ -131,7 +131,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           SafeArea(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 360),
+              duration: AppMotion.progress,
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, anim) {
@@ -236,7 +236,7 @@ class _StepWelcome extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 38,
+                  fontSize: AppTypeScale.sizeDisplay,
                   height: 1.15,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.5,
@@ -248,7 +248,7 @@ class _StepWelcome extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.72),
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   height: 1.6,
                 ),
               ),
@@ -338,7 +338,7 @@ class _GlowingOrb extends StatelessWidget {
               width: 36,
               height: 18,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(AppRadii.panel),
                 gradient: LinearGradient(
                   colors: [
                     Colors.white.withValues(alpha: 0.7),
@@ -352,7 +352,7 @@ class _GlowingOrb extends StatelessWidget {
             'J',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 72,
+              fontSize: AppTypeScale.sizeDisplay,
               fontWeight: FontWeight.w700,
               height: 1,
             ),
@@ -392,7 +392,7 @@ class _StepRoot extends StatelessWidget {
                 l10n.onboardingStep1Eyebrow,
                 style: const TextStyle(
                   color: AppPalette.success,
-                  fontSize: 13,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                 ),
@@ -403,7 +403,7 @@ class _StepRoot extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 34,
+                  fontSize: AppTypeScale.sizeDisplay,
                   height: 1.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -414,7 +414,7 @@ class _StepRoot extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   height: 1.55,
                 ),
               ),
@@ -446,11 +446,11 @@ class _DashDropTarget extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return _onboardingFrost(
       context: context,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       builder: (alphaScale) => Container(
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.04 * alphaScale),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
         ),
         child: CustomPaint(
           painter: _DashedRRectPainter(
@@ -469,7 +469,7 @@ class _DashDropTarget extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: AppTypeScale.sizeSubheading,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -480,7 +480,7 @@ class _DashDropTarget extends StatelessWidget {
                   l10n.onboardingOr,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 13,
+                    fontSize: AppTypeScale.sizeBody,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -493,7 +493,7 @@ class _DashDropTarget extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.28),
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(AppRadii.chip),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.06),
                     ),
@@ -502,7 +502,7 @@ class _DashDropTarget extends StatelessWidget {
                     l10n.onboardingRootHint,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.55),
-                      fontSize: 12,
+                      fontSize: AppTypeScale.sizeCaption,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -526,7 +526,7 @@ class _FolderIcon extends StatelessWidget {
       width: 88,
       height: 88,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -613,7 +613,7 @@ class _StepAi extends StatelessWidget {
                 l10n.onboardingStep2Eyebrow,
                 style: const TextStyle(
                   color: AppPalette.ai,
-                  fontSize: 13,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                 ),
@@ -624,7 +624,7 @@ class _StepAi extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 34,
+                  fontSize: AppTypeScale.sizeDisplay,
                   fontWeight: FontWeight.w700,
                   height: 1.2,
                 ),
@@ -635,7 +635,7 @@ class _StepAi extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 15,
+                  fontSize: AppTypeScale.sizeTitle,
                   height: 1.55,
                 ),
               ),
@@ -706,14 +706,14 @@ class _ProviderCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         child: _onboardingFrost(
           context: context,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
           builder: (alphaScale) => AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: AppMotion.panel,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadii.panel),
               color: selected
                   ? Colors.white.withValues(alpha: 0.08 * alphaScale)
                   : Colors.white.withValues(alpha: 0.04 * alphaScale),
@@ -727,7 +727,7 @@ class _ProviderCard extends StatelessWidget {
                   height: 46,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -746,7 +746,7 @@ class _ProviderCard extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
-                      fontSize: 20,
+                      fontSize: AppTypeScale.sizeHeading,
                     ),
                   ),
                 ),
@@ -759,7 +759,7 @@ class _ProviderCard extends StatelessWidget {
                         title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: AppTypeScale.sizeSubheading,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -768,7 +768,7 @@ class _ProviderCard extends StatelessWidget {
                         subtitle,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 13,
+                          fontSize: AppTypeScale.sizeBody,
                         ),
                       ),
                     ],
@@ -806,14 +806,14 @@ class _PageDots extends StatelessWidget {
       children: List.generate(3, (i) {
         final isActive = i == active;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
+          duration: AppMotion.progress,
           curve: Curves.easeOutCubic,
           width: isActive ? 28 : 6,
           height: 6,
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: isActive ? accent : Colors.white.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(AppRadii.chip),
           ),
         );
       }),
@@ -832,19 +832,19 @@ class _GhostButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.card),
             border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: Text(
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: AppTypeScale.sizeBody,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -870,7 +870,7 @@ class _PrimaryButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
           decoration: BoxDecoration(
@@ -879,7 +879,7 @@ class _PrimaryButton extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [accent, accent.withValues(alpha: 0.82)],
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.card),
             boxShadow: [
               BoxShadow(
                 color: accent.withValues(alpha: 0.55),
@@ -893,7 +893,7 @@ class _PrimaryButton extends StatelessWidget {
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: AppTypeScale.sizeBody,
               fontWeight: FontWeight.w600,
             ),
           ),

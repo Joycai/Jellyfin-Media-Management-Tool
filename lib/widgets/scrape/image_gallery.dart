@@ -76,7 +76,10 @@ class ImageGallery extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 24),
         child: Text(
           l10n.scrapeImageNone,
-          style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppTypeScale.sizeBody,
+            color: scheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -89,7 +92,7 @@ class ImageGallery extends StatelessWidget {
         Text(
           l10n.scrapeImageRoleHint,
           style: TextStyle(
-            fontSize: 10.5,
+            fontSize: AppTypeScale.sizeLabel,
             height: 1.3,
             color: scheme.onSurfaceVariant,
           ),
@@ -147,7 +150,7 @@ class ImageGallery extends StatelessWidget {
         child: Text(
           l10n.scrapeSaveImagesHint,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: AppTypeScale.sizeMono,
             height: 1.3,
             color: scheme.onSurfaceVariant,
           ),
@@ -170,7 +173,7 @@ class ImageGallery extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: AppTypeScale.sizeBody,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -182,7 +185,7 @@ class ImageGallery extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: AppTypeScale.sizeMono,
                   fontFamily: 'monospace',
                   color: scheme.onSurfaceVariant,
                 ),
@@ -205,7 +208,7 @@ class ImageGallery extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: AppTypeScale.sizeCaption,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -278,19 +281,19 @@ class _Tile extends StatelessWidget {
 
     return Tooltip(
       message: image.url,
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: AppMotion.progress,
       child: InkWell(
         onTap: onTap,
         onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
         // Long-press mirrors right-click, the way the file table's own context
         // menu does.
         onLongPress: () => _menu(context, null),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: AppMotion.overlayIn,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadii.field),
             border: Border.all(
               color: selected
                   ? scheme.tertiary.withValues(alpha: 0.7)
@@ -351,7 +354,7 @@ class _Tile extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: AppTypeScale.sizeLabel,
                                 fontWeight: selected
                                     ? FontWeight.w600
                                     : FontWeight.w400,
@@ -371,7 +374,7 @@ class _Tile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: AppTypeScale.sizeLabel,
                           fontFamily: 'monospace',
                           color: Colors.white.withValues(alpha: 0.55),
                         ),

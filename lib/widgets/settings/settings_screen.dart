@@ -97,17 +97,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(width: 4),
           Text(
             l10n.settings,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            style: const TextStyle(
+              fontSize: AppTypeScale.sizeHeading,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
             _breadcrumb(l10n),
-            style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeBody,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
           const Spacer(),
           Text(
             'v $_appVersion · ${l10n.versionUpToDate}',
-            style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeControl,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -159,9 +168,9 @@ class _Sidebar extends StatelessWidget {
           color: on
               ? scheme.primary.withValues(alpha: 0.14)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.card),
           child: InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.card),
             onTap: () => onChange(s),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -176,7 +185,7 @@ class _Sidebar extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: AppTypeScale.sizeBody,
                       fontWeight: on ? FontWeight.w600 : FontWeight.w500,
                       color: on ? scheme.onSurface : scheme.onSurfaceVariant,
                     ),
@@ -251,7 +260,7 @@ class _PathsSection extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: 'monospace',
-                            fontSize: 13,
+                            fontSize: AppTypeScale.sizeBody,
                           ),
                         ),
                       ),
@@ -280,7 +289,7 @@ class _PathsSection extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: 'monospace',
-                            fontSize: 13,
+                            fontSize: AppTypeScale.sizeBody,
                           ),
                         ),
                       ),
@@ -450,7 +459,10 @@ class _ShortcutsSection extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 14),
           child: Text(
             l10n.shortcutsHint,
-            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppTypeScale.sizeBody,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ),
         for (final group in AppShortcutGroup.values) ...[
@@ -459,7 +471,7 @@ class _ShortcutsSection extends StatelessWidget {
             child: Text(
               _groupLabel(l10n, group),
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTypeScale.sizeCaption,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.6,
                 color: scheme.onSurfaceVariant,
@@ -511,13 +523,13 @@ class _ShortcutRow extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: scheme.onSurface.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadii.tiny),
                   ),
                   child: Text(
                     formatActivator(activator),
                     style: const TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 13,
+                      fontSize: AppTypeScale.sizeBody,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -528,7 +540,7 @@ class _ShortcutRow extends StatelessWidget {
           Expanded(
             child: Text(
               shortcut.describe(l10n),
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: AppTypeScale.sizeBody),
             ),
           ),
         ],
@@ -566,7 +578,7 @@ class _AboutSection extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [scheme.primary, scheme.tertiary],
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadii.card),
                     ),
                     alignment: Alignment.center,
                     child: const Text(
@@ -574,7 +586,7 @@ class _AboutSection extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 26,
+                        fontSize: AppTypeScale.sizeHeading,
                       ),
                     ),
                   ),
@@ -585,7 +597,7 @@ class _AboutSection extends StatelessWidget {
                       Text(
                         l10n.appBrand,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: AppTypeScale.sizeSubheading,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -600,7 +612,10 @@ class _AboutSection extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 l10n.aboutTagline,
-                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: AppTypeScale.sizeBody,
+                ),
               ),
               if (gpu != null) ...[
                 const SizedBox(height: 14),
@@ -618,7 +633,7 @@ class _AboutSection extends StatelessWidget {
                         '${l10n.aboutGpu}: ',
                         style: TextStyle(
                           color: scheme.onSurfaceVariant,
-                          fontSize: 13,
+                          fontSize: AppTypeScale.sizeBody,
                         ),
                       ),
                       Flexible(
@@ -627,7 +642,7 @@ class _AboutSection extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: AppTypeScale.sizeBody,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
