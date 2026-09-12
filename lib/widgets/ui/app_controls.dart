@@ -441,8 +441,10 @@ class AppTextField extends StatelessWidget {
               ),
         suffixIcon: shortcut == null
             ? null
+            // 12 而不是 8：`suffixIcon` 在 contentPadding 之外，所以这一段要自己
+            // 补上输入框的左右内距，胶囊才和左边的图标一样离边 12（1.4b）。
             : Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                padding: const EdgeInsets.only(right: AppSpacing.md12),
                 child: ShortcutPill(shortcut!),
               ),
       ),
@@ -450,7 +452,7 @@ class AppTextField extends StatelessWidget {
   }
 }
 
-/// 快捷键胶囊：10px mono · r4 · 控件底。
+/// 快捷键胶囊：10px mono · r4 · `padding 2 6` · 控件底（1.4b / 2.2）。
 class ShortcutPill extends StatelessWidget {
   final String label;
   const ShortcutPill(this.label, {super.key});
@@ -458,17 +460,26 @@ class ShortcutPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: t.isDark
-            ? Colors.white.withValues(alpha: 0.07)
-            : AppPalette.ink.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(AppRadii.chip),
-      ),
-      child: Text(
-        label,
-        style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+    // 胶囊必须**贴着自己的内容**，不能被外面的约束撑开。它最常见的位置是输入框
+    // 的 `suffixIcon`，而主题给那里的最小高度是控件的 32 —— 那个约束会原样传到
+    // 这个 Container 上，一个没写死高度的 Container 就长到 32，胶囊变成一块和
+    // 搜索框一样高的方砖。`Align` 给子节点的是宽松约束，于是它退回自己的尺寸。
+    return Align(
+      alignment: Alignment.center,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: t.isDark
+              ? Colors.white.withValues(alpha: 0.07)
+              : AppPalette.ink.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(AppRadii.chip),
+        ),
+        child: Text(
+          label,
+          style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+        ),
       ),
     );
   }
