@@ -57,6 +57,44 @@ void main() {
     expect(find.text('Coming soon'), findsNWidgets(2));
   });
 
+  testWidgets('paths is a 2x2 grid whose two columns share row tracks', (
+    tester,
+  ) async {
+    await _pump(tester, const PathsSection());
+
+    // Artboard 21 is one CSS grid, not two stacked columns: the cards in a row
+    // share a track, so their tops and bottoms line up and the two columns end
+    // level. Stacking each column on its own gets the first row right by luck
+    // and everything below it wrong.
+    final cards = [
+      for (var i = 0; i < 4; i++)
+        tester.getRect(find.byType(SettingsCard).at(i)),
+    ];
+    final [roots, favorites, defaults, recent] = cards;
+
+    expect(roots.top, moreOrLessEquals(favorites.top, epsilon: 0.5));
+    expect(roots.height, moreOrLessEquals(favorites.height, epsilon: 0.5));
+    expect(defaults.top, moreOrLessEquals(recent.top, epsilon: 0.5));
+    expect(defaults.height, moreOrLessEquals(recent.height, epsilon: 0.5));
+    expect(defaults.top - roots.bottom, moreOrLessEquals(AppSpacing.lg));
+    // Left column wider than the right: the design's `1.12fr 1fr`.
+    expect(roots.width, greaterThan(favorites.width));
+
+    // Every group label sits inside its own card, not floating above it.
+    for (final (label, card) in [
+      ('Library roots', roots),
+      ('Favorite paths', favorites),
+      ('Default locations', defaults),
+      ('Recent', recent),
+    ]) {
+      expect(
+        card.contains(tester.getRect(find.text(label)).topLeft),
+        isTrue,
+        reason: '$label should be drawn inside its card',
+      );
+    }
+  });
+
   testWidgets('privacy lays out with no disk behind it', (tester) async {
     await _pump(tester, const PrivacySection());
 
@@ -67,6 +105,36 @@ void main() {
     expect(find.text('Danger zone'), findsOneWidget);
   });
 
+  testWidgets('privacy is the same 2x2 grid, on equal columns', (tester) async {
+    await _pump(tester, const PrivacySection());
+
+    final cards = [
+      for (var i = 0; i < 4; i++)
+        tester.getRect(find.byType(SettingsCard).at(i)),
+    ];
+    final [locations, privacy, caches, danger] = cards;
+
+    expect(locations.top, moreOrLessEquals(privacy.top, epsilon: 0.5));
+    expect(locations.height, moreOrLessEquals(privacy.height, epsilon: 0.5));
+    expect(caches.top, moreOrLessEquals(danger.top, epsilon: 0.5));
+    expect(caches.height, moreOrLessEquals(danger.height, epsilon: 0.5));
+    // 22 is `1fr 1fr`, unlike 21.
+    expect(locations.width, moreOrLessEquals(privacy.width, epsilon: 0.5));
+
+    for (final (label, card) in [
+      ('Config & data', locations),
+      ('Privacy', privacy),
+      ('Caches', caches),
+      ('Danger zone', danger),
+    ]) {
+      expect(
+        card.contains(tester.getRect(find.text(label)).topLeft),
+        isTrue,
+        reason: '$label should be drawn inside its card',
+      );
+    }
+  });
+
   testWidgets('shortcuts renders every binding, and the search filters', (
     tester,
   ) async {
@@ -74,6 +142,13 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Rename the focused file'), findsOneWidget);
+    // 23 draws each group label inside its own card.
+    expect(
+      tester
+          .getRect(find.byType(SettingsCard).first)
+          .contains(tester.getRect(find.text('Navigation')).topLeft),
+      isTrue,
+    );
 
     await tester.enterText(find.byType(TextField), 'rename');
     await tester.pump();

@@ -84,8 +84,9 @@ class _ShortcutsSectionState extends State<ShortcutsSection> {
         else
           for (final group in AppShortcutGroup.values)
             if (all.any((s) => s.group == group)) ...[
-              SettingsSectionTitle(_groupLabel(l10n, group)),
+              // 画板 23 把分组标题画在卡里，不是浮在卡上方。
               SettingsRowsCard(
+                header: SettingsCardHeader(_groupLabel(l10n, group)),
                 children: [
                   for (final shortcut in all.where((s) => s.group == group))
                     _ShortcutRow(shortcut: shortcut),

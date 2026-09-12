@@ -3824,6 +3824,18 @@ abstract class AppLocalizations {
   /// **'System temporary folder'**
   String get pathsTempDirValue;
 
+  /// No description provided for @pathsNfoOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'NFO & image output'**
+  String get pathsNfoOutput;
+
+  /// No description provided for @pathsNfoOutputValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Beside the media file'**
+  String get pathsNfoOutputValue;
+
   /// No description provided for @pathsDefaultsPlaceholder.
   ///
   /// In en, this message translates to:
@@ -3907,6 +3919,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'config.json · ai_profiles.json · sites.json · scrapers.json'**
   String get privacyDataFilesValue;
+
+  /// No description provided for @privacyPrefsBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences backup'**
+  String get privacyPrefsBackup;
+
+  /// No description provided for @privacyPrefsBackupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Export or restore config.json and the AI profiles'**
+  String get privacyPrefsBackupHint;
+
+  /// No description provided for @privacyImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get privacyImport;
+
+  /// No description provided for @privacyExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get privacyExport;
 
   /// No description provided for @privacyCaches.
   ///
