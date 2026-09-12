@@ -161,7 +161,6 @@ class MyApp extends StatelessWidget {
               : Color(settings.accentColor!),
           glassIntensity: settings.glassIntensity,
           fontFamily: fontFamily,
-          reduceEffects: settings.performanceMode,
         ),
         darkTheme: AppTheme.dark(
           accent: settings.accentColor == null
@@ -169,7 +168,6 @@ class MyApp extends StatelessWidget {
               : Color(settings.accentColor!),
           glassIntensity: settings.glassIntensity,
           fontFamily: fontFamily,
-          reduceEffects: settings.performanceMode,
         ),
         home: settings.onboardingSeen
             ? const HomeScreen()

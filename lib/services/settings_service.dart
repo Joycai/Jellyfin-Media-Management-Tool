@@ -38,7 +38,6 @@ class SettingsService extends ChangeNotifier {
   int? _accentColor; // ARGB int; null = default theme accent
   List<int> _accentRecents = [];
   bool _showVideoThumbnails = true;
-  bool _performanceMode = false;
   bool _onboardingSeen = false;
 
   /// UI font id: 'system' | 'harmony' | 'misans' (see FontService).
@@ -75,14 +74,6 @@ class SettingsService extends ChangeNotifier {
   List<int> get accentRecents => List.unmodifiable(_accentRecents);
   static const int maxAccentRecents = 6;
   bool get showVideoThumbnails => _showVideoThumbnails;
-
-  /// Drop the blur and the large drop shadows from the glass chrome.
-  ///
-  /// Off by default: it is a deliberate trade of the app's look for frame
-  /// time, worth making only where the GPU cannot afford the chrome — a
-  /// backdrop blur costs area x devicePixelRatio squared, so the same window
-  /// is four times as expensive on a HiDPI display as on a 1:1 one.
-  bool get performanceMode => _performanceMode;
   bool get onboardingSeen => _onboardingSeen;
   String get fontChoice => _fontChoice;
 
@@ -129,64 +120,75 @@ class SettingsService extends ChangeNotifier {
     );
   }
 
+  /// Fold a decoded `config.json` into this service.
+  ///
+  /// Split out of [init] so the migrations in here are testable without a
+  /// filesystem — there is real branching now, not just field copying.
+  @visibleForTesting
+  void applyConfig(Map<String, dynamic> data) {
+    if (data['theme_mode'] is int) {
+      _themeMode = ThemeMode.values[data['theme_mode']];
+    }
+    if (data['locale'] is String) {
+      _locale = parseLocaleTag(data['locale'] as String);
+    }
+    if (data['last_search_site_index'] is int) {
+      _lastSearchSiteIndex = data['last_search_site_index'];
+    }
+    if (data['glass_intensity'] is num) {
+      _glassIntensity = (data['glass_intensity'] as num).toDouble().clamp(
+        0,
+        100,
+      );
+    }
+    if (data['accent_color'] is int) {
+      _accentColor = data['accent_color'] as int;
+    }
+    if (data['accent_recents'] is List) {
+      _accentRecents = [
+        for (final v in data['accent_recents'] as List)
+          if (v is int) v,
+      ];
+    }
+    if (data['show_video_thumbnails'] is bool) {
+      _showVideoThumbnails = data['show_video_thumbnails'] as bool;
+    }
+    // 迁移：从前「性能模式」是一个独立开关，现在它就是玻璃强度 0。
+    // 开着它的人要的是「别做毛玻璃」，那正是 0 这一档的意思；键不再写回，
+    // 下次保存就消失了。
+    if (data['performance_mode'] == true) {
+      _glassIntensity = 0;
+    }
+    if (data['onboarding_seen'] is bool) {
+      _onboardingSeen = data['onboarding_seen'] as bool;
+    }
+    if (data['font_choice'] is String) {
+      _fontChoice = data['font_choice'] as String;
+    }
+    if (data['favorites'] is List) {
+      _favorites = List<String>.from(data['favorites']);
+    }
+    if (data['recent'] is List) {
+      _recent = List<String>.from(data['recent']);
+    }
+    if (data['column_weights'] is Map) {
+      final raw = data['column_weights'] as Map;
+      _columnWeights = {
+        for (final column in MediaColumn.values)
+          if (raw[column.name] is num)
+            column: (raw[column.name] as num).toDouble(),
+      };
+      _sanitizedColumnWeights = null;
+    }
+  }
+
   Future<void> init() async {
     try {
       final configFile = await _configFile;
       if (await configFile.exists()) {
         final String content = await configFile.readAsString();
         if (content.isNotEmpty) {
-          final Map<String, dynamic> data = jsonDecode(content);
-          if (data['theme_mode'] is int) {
-            _themeMode = ThemeMode.values[data['theme_mode']];
-          }
-          if (data['locale'] is String) {
-            _locale = parseLocaleTag(data['locale'] as String);
-          }
-          if (data['last_search_site_index'] is int) {
-            _lastSearchSiteIndex = data['last_search_site_index'];
-          }
-          if (data['glass_intensity'] is num) {
-            _glassIntensity = (data['glass_intensity'] as num).toDouble().clamp(
-              0,
-              100,
-            );
-          }
-          if (data['accent_color'] is int) {
-            _accentColor = data['accent_color'] as int;
-          }
-          if (data['accent_recents'] is List) {
-            _accentRecents = [
-              for (final v in data['accent_recents'] as List)
-                if (v is int) v,
-            ];
-          }
-          if (data['show_video_thumbnails'] is bool) {
-            _showVideoThumbnails = data['show_video_thumbnails'] as bool;
-          }
-          if (data['performance_mode'] is bool) {
-            _performanceMode = data['performance_mode'] as bool;
-          }
-          if (data['onboarding_seen'] is bool) {
-            _onboardingSeen = data['onboarding_seen'] as bool;
-          }
-          if (data['font_choice'] is String) {
-            _fontChoice = data['font_choice'] as String;
-          }
-          if (data['favorites'] is List) {
-            _favorites = List<String>.from(data['favorites']);
-          }
-          if (data['recent'] is List) {
-            _recent = List<String>.from(data['recent']);
-          }
-          if (data['column_weights'] is Map) {
-            final raw = data['column_weights'] as Map;
-            _columnWeights = {
-              for (final column in MediaColumn.values)
-                if (raw[column.name] is num)
-                  column: (raw[column.name] as num).toDouble(),
-            };
-            _sanitizedColumnWeights = null;
-          }
+          applyConfig(jsonDecode(content) as Map<String, dynamic>);
         }
       }
 
@@ -233,7 +235,6 @@ class SettingsService extends ChangeNotifier {
         'accent_color': _accentColor,
         'accent_recents': _accentRecents,
         'show_video_thumbnails': _showVideoThumbnails,
-        'performance_mode': _performanceMode,
         'onboarding_seen': _onboardingSeen,
         'font_choice': _fontChoice,
         'favorites': _favorites,
@@ -287,6 +288,12 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 玻璃强度 0–100。
+  ///
+  /// **0 不只是「模糊半径为零」** —— 它是这个 app 唯一的降级档：不建
+  /// `BackdropFilter`，并且把玻璃底换成不透明实色、发丝线加重、大投影压平，
+  /// 否则没有模糊衬托的半透明底会掉到约 2:1 对比度。推导发生在
+  /// `AppTokens.build`，这里只存数。
   Future<void> setGlassIntensity(double v) async {
     _glassIntensity = v.clamp(0, 100);
     _scheduleSave();
@@ -344,13 +351,6 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setShowVideoThumbnails(bool v) async {
     _showVideoThumbnails = v;
-    _scheduleSave();
-    notifyListeners();
-  }
-
-  Future<void> setPerformanceMode(bool v) async {
-    if (_performanceMode == v) return;
-    _performanceMode = v;
     _scheduleSave();
     notifyListeners();
   }

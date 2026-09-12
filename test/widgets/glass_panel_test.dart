@@ -93,11 +93,11 @@ void main() {
     expect(filter, isA<ImageFilter>());
   });
 
-  group('performance mode', () {
+  group('glass intensity 0', () {
     Future<void> pumpReduced(WidgetTester tester, GlassPanel panel) =>
         tester.pumpWidget(
           MaterialApp(
-            theme: AppTheme.light(reduceEffects: true),
+            theme: AppTheme.light(glassIntensity: 0),
             home: Scaffold(
               body: Center(
                 child: SizedBox(width: 300, height: 200, child: panel),
