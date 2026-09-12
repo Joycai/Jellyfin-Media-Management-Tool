@@ -2347,4 +2347,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutGpuShared => 'Shared memory';
+
+  @override
+  String get accentPickerTitle => 'Accent colour';
+
+  @override
+  String get accentRestoreDefault => 'Restore the default blue';
+
+  @override
+  String get accentRecents => 'Recently used';
+
+  @override
+  String get accentRecentsEmpty => 'Nothing yet';
+
+  @override
+  String get accentEyedropper => 'Pick a colour from the screen';
+
+  @override
+  String accentContrastOk(Object dark, Object light) {
+    return 'Contrast against the dark and light window bases: $dark:1 · $light:1';
+  }
+
+  @override
+  String accentContrastWeak(Object dark, Object light) {
+    return 'Contrast $dark:1 · $light:1 — below 3:1, so use it as a fill only';
+  }
 }

@@ -4213,6 +4213,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shared memory'**
   String get aboutGpuShared;
+
+  /// No description provided for @accentPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent colour'**
+  String get accentPickerTitle;
+
+  /// No description provided for @accentRestoreDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore the default blue'**
+  String get accentRestoreDefault;
+
+  /// No description provided for @accentRecents.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently used'**
+  String get accentRecents;
+
+  /// No description provided for @accentRecentsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get accentRecentsEmpty;
+
+  /// No description provided for @accentEyedropper.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a colour from the screen'**
+  String get accentEyedropper;
+
+  /// No description provided for @accentContrastOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Contrast against the dark and light window bases: {dark}:1 · {light}:1'**
+  String accentContrastOk(Object dark, Object light);
+
+  /// No description provided for @accentContrastWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Contrast {dark}:1 · {light}:1 — below 3:1, so use it as a fill only'**
+  String accentContrastWeak(Object dark, Object light);
 }
 
 class _AppLocalizationsDelegate

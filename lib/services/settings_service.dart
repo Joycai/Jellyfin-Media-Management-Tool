@@ -36,6 +36,7 @@ class SettingsService extends ChangeNotifier {
   // Appearance + behavior, surfaced on the Settings screen.
   double _glassIntensity = 70; // 0–100
   int? _accentColor; // ARGB int; null = default theme accent
+  List<int> _accentRecents = [];
   bool _showVideoThumbnails = true;
   bool _performanceMode = false;
   bool _onboardingSeen = false;
@@ -68,6 +69,11 @@ class SettingsService extends ChangeNotifier {
   List<String> get recent => List.unmodifiable(_recent);
   double get glassIntensity => _glassIntensity;
   int? get accentColor => _accentColor;
+
+  /// 取色浮层的「最近使用」：应用过的自定义强调色，先进先出，最多
+  /// [maxAccentRecents] 个（6.2）。预设色不入列 —— 它们本来就一直在那儿。
+  List<int> get accentRecents => List.unmodifiable(_accentRecents);
+  static const int maxAccentRecents = 6;
   bool get showVideoThumbnails => _showVideoThumbnails;
 
   /// Drop the blur and the large drop shadows from the glass chrome.
@@ -148,6 +154,12 @@ class SettingsService extends ChangeNotifier {
           if (data['accent_color'] is int) {
             _accentColor = data['accent_color'] as int;
           }
+          if (data['accent_recents'] is List) {
+            _accentRecents = [
+              for (final v in data['accent_recents'] as List)
+                if (v is int) v,
+            ];
+          }
           if (data['show_video_thumbnails'] is bool) {
             _showVideoThumbnails = data['show_video_thumbnails'] as bool;
           }
@@ -219,6 +231,7 @@ class SettingsService extends ChangeNotifier {
         'last_search_site_index': _lastSearchSiteIndex,
         'glass_intensity': _glassIntensity,
         'accent_color': _accentColor,
+        'accent_recents': _accentRecents,
         'show_video_thumbnails': _showVideoThumbnails,
         'performance_mode': _performanceMode,
         'onboarding_seen': _onboardingSeen,
@@ -311,8 +324,20 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setAccentColor(int? argb) async {
+  /// 换强调色。
+  ///
+  /// [remember] 只在用户**确认**取色时为真：拖动取色器会一路调用这个方法做实时
+  /// 预览，把每一个中间色都记进「最近使用」，六个格子在一次拖动里就被同一条色相
+  /// 上的邻居填满了。
+  Future<void> setAccentColor(int? argb, {bool remember = false}) async {
     _accentColor = argb;
+    if (remember && argb != null) {
+      _accentRecents.remove(argb);
+      _accentRecents.insert(0, argb);
+      if (_accentRecents.length > maxAccentRecents) {
+        _accentRecents = _accentRecents.sublist(0, maxAccentRecents);
+      }
+    }
     _scheduleSave();
     notifyListeners();
   }

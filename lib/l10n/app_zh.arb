@@ -684,5 +684,12 @@
   "aboutCopyrightValue": "© 2026 贡献者",
   "aboutGraphics": "图形设备",
   "aboutGpuRunning": "当前运行",
-  "aboutGpuShared": "共享内存"
+  "aboutGpuShared": "共享内存",
+  "accentPickerTitle": "强调色",
+  "accentRestoreDefault": "恢复默认蓝",
+  "accentRecents": "最近使用",
+  "accentRecentsEmpty": "暂无",
+  "accentEyedropper": "从屏幕取色",
+  "accentContrastOk": "与深 / 浅两套底色对比 {dark}:1 · {light}:1",
+  "accentContrastWeak": "对比 {dark}:1 · {light}:1 —— 低于 3:1，仅建议用于底色"
 }

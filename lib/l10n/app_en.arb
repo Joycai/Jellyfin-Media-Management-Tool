@@ -691,5 +691,12 @@
   "aboutCopyrightValue": "© 2026 contributors",
   "aboutGraphics": "Graphics adapter",
   "aboutGpuRunning": "In use",
-  "aboutGpuShared": "Shared memory"
+  "aboutGpuShared": "Shared memory",
+  "accentPickerTitle": "Accent colour",
+  "accentRestoreDefault": "Restore the default blue",
+  "accentRecents": "Recently used",
+  "accentRecentsEmpty": "Nothing yet",
+  "accentEyedropper": "Pick a colour from the screen",
+  "accentContrastOk": "Contrast against the dark and light window bases: {dark}:1 · {light}:1",
+  "accentContrastWeak": "Contrast {dark}:1 · {light}:1 — below 3:1, so use it as a fill only"
 }

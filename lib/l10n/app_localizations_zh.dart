@@ -2288,4 +2288,29 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutGpuShared => '共享内存';
+
+  @override
+  String get accentPickerTitle => '强调色';
+
+  @override
+  String get accentRestoreDefault => '恢复默认蓝';
+
+  @override
+  String get accentRecents => '最近使用';
+
+  @override
+  String get accentRecentsEmpty => '暂无';
+
+  @override
+  String get accentEyedropper => '从屏幕取色';
+
+  @override
+  String accentContrastOk(Object dark, Object light) {
+    return '与深 / 浅两套底色对比 $dark:1 · $light:1';
+  }
+
+  @override
+  String accentContrastWeak(Object dark, Object light) {
+    return '对比 $dark:1 · $light:1 —— 低于 3:1，仅建议用于底色';
+  }
 }
