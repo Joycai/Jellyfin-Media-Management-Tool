@@ -1,66 +1,41 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
+import '../ui/glass_surface.dart';
 
-/// A frosted translucent surface: blurs whatever is behind it, fills with a
-/// theme-aware translucent tint, and draws a hairline border. The building
-/// block for the app's three panes.
+/// 玻璃面板。
+///
+/// 现在只是 [GlassSurface] 的一层薄封装 —— 模糊的三条规矩（底色不透明就丢掉
+/// 滤镜、性能模式整块跳过、没有裁剪不开模糊）都收在那一个地方，这里只负责把
+/// 面板的默认取值从 [AppTokens] 取出来。
 class GlassPanel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final double radius;
 
-  /// Use the lighter sidebar fill instead of the default panel fill.
+  /// 用侧栏 / 面板的底色，而不是卡片底色。
   final bool sidebar;
   final Color? fill;
 
-  /// Optional tint wash drawn instead of the solid fill (e.g. the center
-  /// table's blue→green diagonal). The blur and border still apply.
+  /// 用渐变代替纯色底（中央表格那种蓝→绿斜向washes）。描边与模糊照旧。
   final Gradient? gradient;
 
-  /// Raise the panel with a soft drop shadow (for floating cards like the
-  /// center table). Flush columns leave this off.
+  /// L2 投影。贴边的列不开。
   final bool elevated;
 
-  /// Whether to apply a [BackdropFilter] behind the panel. Top-level cards
-  /// that float over the backdrop gradient want this (default); nested
-  /// cards inside an already-blurred or already-opaque parent can disable
-  /// it to skip the expensive blur pass.
-  ///
-  /// Asking for it is not the same as getting it: an opaque [fill] or
-  /// [gradient] paints over the blurred backdrop, so the filter is dropped
-  /// even here. See [_fillHidesBackdrop].
+  /// 是否加背景模糊。**要求它不等于拿到它**：不透明的 [fill] / [gradient] 会把
+  /// 模糊结果整块盖住，那时滤镜会被丢弃。见 [GlassSurface]。
   final bool blur;
 
-  /// The hairline border eats layout space on every side: a child that fills
-  /// the panel gets the panel's width minus twice this. Anything measuring
-  /// itself against the panel's outer constraints must subtract it, or its
-  /// content is exactly `2 * borderWidth` too wide.
+  /// 发丝描边在每一边都吃掉布局空间：撑满面板的子节点拿到的是面板宽减去它的
+  /// 两倍。任何拿面板外约束量自己的东西都要减掉，否则正好宽出 `2 * borderWidth`。
   static const borderWidth = 1.0;
-
-  /// Whether the panel's own fill already covers everything behind it.
-  ///
-  /// A [BackdropFilter] blurs the backdrop and then paints its child on top,
-  /// so an opaque child makes the blur invisible — the light theme's table
-  /// gradient is exactly that case, its three stops all at full alpha. The
-  /// blur is not cheap to throw away: it is a full-panel, multi-pass GPU
-  /// filter re-run on every frame, at device resolution. So when the fill
-  /// hides it, it is skipped rather than computed and painted over.
-  ///
-  /// Only fully opaque counts. A gradient extends its end colors past its
-  /// stops, so every stop being opaque means every pixel is.
-  static bool _fillHidesBackdrop(Gradient? gradient, Color fill) {
-    if (gradient != null) return gradient.colors.every((c) => c.a >= 1.0);
-    return fill.a >= 1.0;
-  }
 
   const GlassPanel({
     super.key,
     required this.child,
     this.padding,
-    this.radius = 20,
+    this.radius = AppRadii.panel,
     this.sidebar = false,
     this.fill,
     this.gradient,
@@ -70,62 +45,40 @@ class GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glass = Theme.of(context).extension<GlassTheme>()!;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = context.tokens;
+    final resolvedFill = fill ?? (sidebar ? t.panelFill : t.cardFill);
     final borderRadius = BorderRadius.circular(radius);
 
-    final resolvedFill =
-        fill ?? (sidebar ? glass.sidebarFill : glass.panelFill);
-
-    final fillBox = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: gradient != null ? null : resolvedFill,
-        gradient: gradient,
+    // 渐变要自己画：GlassSurface 只吃纯色底（它判断「底色是否遮住背景」也靠
+    // 单一颜色）。不透明的渐变同样要跳过模糊，理由一模一样。
+    if (gradient != null) {
+      final opaque = gradient!.colors.every((c) => c.a >= 0.995);
+      return GlassSurface(
+        fill: opaque ? const Color(0xFFFFFFFF) : Colors.transparent,
+        blur: opaque ? 0 : (blur ? t.blurPanel : 0),
         borderRadius: borderRadius,
-        border: Border.all(color: glass.panelStroke, width: borderWidth),
-      ),
-      child: child,
-    );
-
-    // A zero sigma is not a way to switch the blur off: the filter still ends
-    // the render pass and reads back the whole target, which is the part that
-    // costs. Performance mode has to skip the widget, not neuter it.
-    final useBlur =
-        blur &&
-        glass.blurSigma > 0 &&
-        !_fillHidesBackdrop(gradient, resolvedFill);
-
-    final panel = ClipRRect(
-      borderRadius: borderRadius,
-      child: useBlur
-          ? BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: glass.blurSigma,
-                sigmaY: glass.blurSigma,
-              ),
-              child: fillBox,
-            )
-          : fillBox,
-    );
-
-    // The shadow spreads a 28px blur over the panel's whole footprint every
-    // frame, so it goes with the backdrop filter rather than surviving it.
-    // The hairline border is what separates the panel once it is gone.
-    if (!elevated || glass.reduceEffects) return panel;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.10),
-            blurRadius: 28,
-            spreadRadius: -6,
-            offset: const Offset(0, 12),
+        shadow: elevated ? t.elevation.card : const [],
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: borderRadius,
+            border: Border.all(color: t.stroke, width: borderWidth),
           ),
-        ],
-      ),
-      child: panel,
+          child: padding == null
+              ? child
+              : Padding(padding: padding!, child: child),
+        ),
+      );
+    }
+
+    return GlassSurface(
+      fill: resolvedFill,
+      blur: blur ? t.blurPanel : 0,
+      borderRadius: borderRadius,
+      border: Border.all(color: t.stroke, width: borderWidth),
+      shadow: elevated ? t.elevation.card : const [],
+      padding: padding,
+      child: child,
     );
   }
 }

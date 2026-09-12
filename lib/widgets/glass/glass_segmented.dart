@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../theme/design_tokens.dart';
 
 /// A pill-style segmented toggle that fits the liquid-glass design system.
 ///
@@ -20,14 +20,15 @@ class GlassSegmented<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final glass = Theme.of(context).extension<GlassTheme>()!;
+    final t = context.tokens;
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: glass.panelFill,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: glass.panelStroke),
+        color: t.isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : AppPalette.ink.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppRadii.icon),
+        border: Border.all(color: t.stroke),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -38,25 +39,25 @@ class GlassSegmented<T> extends StatelessWidget {
               button: true,
               label: item.label,
               child: InkWell(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(AppRadii.tiny),
                 onTap: () => onChanged(item.value),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  curve: Curves.ease,
+                  duration: AppMotion.respecting(context, AppMotion.hover),
+                  curve: AppMotion.standard,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
+                    horizontal: AppSpacing.md12,
+                    vertical: AppSpacing.xxs,
                   ),
                   decoration: BoxDecoration(
                     color: item.value == value
-                        ? scheme.primary.withValues(alpha: 0.16)
+                        ? t.selectionFill
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                    border: item.value == value
-                        ? Border.all(
-                            color: scheme.primary.withValues(alpha: 0.35),
-                          )
-                        : Border.all(color: Colors.transparent),
+                    borderRadius: BorderRadius.circular(AppRadii.tiny),
+                    border: Border.all(
+                      color: item.value == value
+                          ? t.selectionStroke
+                          : Colors.transparent,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -66,21 +67,20 @@ class GlassSegmented<T> extends StatelessWidget {
                           item.icon,
                           size: 13,
                           color: item.value == value
-                              ? scheme.primary
-                              : scheme.onSurfaceVariant,
+                              ? t.textTitle
+                              : t.textSecondary,
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: AppSpacing.xs),
                       ],
                       Text(
                         item.label,
-                        style: TextStyle(
-                          fontSize: 11.5,
+                        style: AppTypeScale.caption.copyWith(
                           fontWeight: item.value == value
                               ? FontWeight.w600
                               : FontWeight.w400,
                           color: item.value == value
-                              ? scheme.primary
-                              : scheme.onSurfaceVariant,
+                              ? t.textTitle
+                              : t.textSecondary,
                         ),
                       ),
                     ],
