@@ -70,6 +70,11 @@ class SecondaryTitleBar extends StatelessWidget {
       child: SizedBox(
         height: AppSizes.topBar,
         child: Stack(
+          // 行必须撑满 48：Windows/Linux 那边 WindowCaptionButtons 恰好是 48 高，
+          // 把行顶到满高；macOS 走的是 `SizedBox(width:)` 分支，没有任何 48 高的
+          // 孩子，行就只有最高控件那么高（28），在 Stack 里靠顶排 —— 返回按钮、
+          // 标题、面包屑于是整体上移 10px，与系统交通灯错开。
+          fit: StackFit.expand,
           children: [
             Positioned.fill(
               child: GestureDetector(

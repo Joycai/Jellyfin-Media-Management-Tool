@@ -99,6 +99,10 @@ class AppTitleBar extends StatelessWidget {
           child: SizedBox(
             height: AppSizes.topBar,
             child: Stack(
+              // 行必须撑满 48：Windows/Linux 靠 WindowCaptionButtons（48 高）把行
+              // 顶满，macOS 那一支只有 `SizedBox(width:)`，行会塌到最高控件的高度
+              // （搜索框 32）并在 Stack 里靠顶排，整条内容比交通灯高 8px。
+              fit: StackFit.expand,
               children: [
                 // 底层：整条可拖拽。双击 = 最大化 / 还原，右键 = 系统窗口菜单。
                 Positioned.fill(
