@@ -98,7 +98,11 @@ class SettingsCard extends StatelessWidget {
 class SettingsRowsCard extends StatelessWidget {
   final List<Widget> children;
 
-  const SettingsRowsCard({super.key, required this.children});
+  /// 卡内的分组标题（画板 24 把标题画在卡里，而不是卡上方）。它和行之间不划
+  /// 发丝线 —— 发丝线是行与行的分隔，标题不是一行。
+  final Widget? header;
+
+  const SettingsRowsCard({super.key, required this.children, this.header});
 
   @override
   Widget build(BuildContext context) {
@@ -112,10 +116,55 @@ class SettingsRowsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          ?header,
           for (final (i, child) in children.indexed) ...[
             if (i != 0) Divider(height: 1, thickness: 1, color: t.stroke),
             child,
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 卡内标题行。
+///
+/// 与卡外的 [SettingsSectionTitle] 同一档字（10.5 / 700 / 0.06em），但不占那
+/// 28 的固定高：固定高存在的理由是让并排两列的分组对齐，而卡内没有这个问题。
+/// [emphasis] 换成 12.5 / 600 的卡片标题档 —— 画板 24 的「图形设备」用的是它。
+class SettingsCardHeader extends StatelessWidget {
+  final String text;
+  final Widget? trailing;
+  final bool emphasis;
+
+  const SettingsCardHeader(
+    this.text, {
+    super.key,
+    this.trailing,
+    this.emphasis = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      // 固定高，理由同 [SettingsSectionTitle]：带文字链的卡头和不带的必须一样
+      // 高，否则并排两张卡的标题会差一个按钮的高度。
+      height: AppSizes.controlXs + AppSpacing.md12,
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.xs),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: emphasis
+                ? AppTypeScale.controlStrong.copyWith(color: t.textTitle)
+                : AppTypeScale.columnHeader.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: t.textMuted,
+                  ),
+          ),
+          const Spacer(),
+          ?trailing,
         ],
       ),
     );

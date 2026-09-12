@@ -44,80 +44,66 @@ class AboutSection extends StatelessWidget {
           // 等高，所以两张卡都 `Expanded` 到这一行的高度。
           leftFlex: 100,
           equalHeight: true,
-          left: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          left: SettingsRowsCard(
+            header: SettingsCardHeader(
+              l10n.aboutBuildInfo,
+              // 画板 24 把它画成卡头上的一个文字链，不是一颗描边按钮 ——
+              // 幽灵按钮是这套控件里离「链接」最近的一档。
+              trailing: AppButton.ghost(
+                label: l10n.privacyCopyPath,
+                height: AppSizes.controlXs,
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(
+                      text: '$version · ${_runtime()} · ${_system()}',
+                    ),
+                  );
+                },
+              ),
+            ),
             children: [
-              SettingsSectionTitle(
-                l10n.aboutBuildInfo,
-                // 设计稿把它画成卡头上的一个强调色文字链，不是一颗描边按钮 ——
-                // 幽灵按钮是这套控件里离「链接」最近的一档。
-                trailing: AppButton.ghost(
-                  label: l10n.privacyCopyPath,
-                  height: AppSizes.controlXs,
-                  onPressed: () async {
-                    await Clipboard.setData(
-                      ClipboardData(
-                        text: '$version · ${_runtime()} · ${_system()}',
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Expanded(
-                child: SettingsRowsCard(
-                  children: [
-                    _InfoRow(l10n.aboutVersion, _versionName),
-                    _InfoRow(l10n.aboutBuildNumber, _buildNumber),
-                    // 打包时还没有注入 git 元数据 —— 见卡底说明。
-                    _InfoRow(l10n.aboutCommit, '—', dim: true),
-                    _InfoRow(l10n.aboutBranch, '—', dim: true),
-                    _InfoRow(l10n.aboutCommitTime, '—', dim: true),
-                    _InfoRow(l10n.aboutRuntime, _runtime()),
-                    // 说明留在卡里而不是卡下：卡下的话它会把左列撑高，两张
-                    // 等高的卡就再也对不齐了。
-                    SettingsFootnote(l10n.aboutBuildInfoPlaceholder),
-                  ],
-                ),
-              ),
+              _InfoRow(l10n.aboutVersion, _versionName),
+              _InfoRow(l10n.aboutBuildNumber, _buildNumber),
+              // 打包时还没有注入 git 元数据 —— 见卡底说明。
+              _InfoRow(l10n.aboutCommit, '—', dim: true),
+              _InfoRow(l10n.aboutBranch, '—', dim: true),
+              _InfoRow(l10n.aboutCommitTime, '—', dim: true),
+              _InfoRow(l10n.aboutRuntime, _runtime()),
+              // 说明留在卡里而不是卡下：卡下的话它会把左列撑高，两张等高的卡
+              // 就再也对不齐了。
+              SettingsFootnote(l10n.aboutBuildInfoPlaceholder),
             ],
           ),
-          right: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          right: SettingsRowsCard(
+            header: SettingsCardHeader(l10n.aboutOpenSource),
             children: [
-              SettingsSectionTitle(l10n.aboutOpenSource),
-              Expanded(
-                child: SettingsRowsCard(
-                  children: [
-                    _InfoRow(l10n.aboutLicense, 'MIT'),
-                    _LinkRow(
-                      label: l10n.aboutRepository,
-                      value: 'github.com/Joycai',
-                      url: _repoUrl,
-                    ),
-                    _LinkRow(
-                      label: l10n.aboutIssues,
-                      value: 'Issues',
-                      url: '$_repoUrl/issues',
-                    ),
-                    // 依赖清单要一个能翻的页面，而全页路由得自带二级顶栏，
-                    // 不是顺手能加的一行 —— 见 backlog B21。
-                    SettingsPlaceholder(
-                      child: _InfoRow(
-                        l10n.aboutThirdParty,
-                        l10n.comingSoon,
-                        dim: true,
-                      ),
-                    ),
-                    _LinkRow(
-                      label: l10n.aboutJellyfinNaming,
-                      value: 'jellyfin.org',
-                      url: _namingDocs,
-                    ),
-                    _InfoRow(l10n.aboutCopyright, l10n.aboutCopyrightValue),
-                    _InfoRow(l10n.aboutSystem, _system()),
-                  ],
+              _InfoRow(l10n.aboutLicense, 'MIT'),
+              _LinkRow(
+                label: l10n.aboutRepository,
+                value: 'github.com/Joycai',
+                url: _repoUrl,
+              ),
+              _LinkRow(
+                label: l10n.aboutIssues,
+                value: 'Issues',
+                url: '$_repoUrl/issues',
+              ),
+              // 依赖清单要一个能翻的页面，而全页路由得自带二级顶栏，不是顺手
+              // 能加的一行 —— 见 backlog B21。
+              SettingsPlaceholder(
+                child: _InfoRow(
+                  l10n.aboutThirdParty,
+                  l10n.comingSoon,
+                  dim: true,
                 ),
               ),
+              _LinkRow(
+                label: l10n.aboutJellyfinNaming,
+                value: 'jellyfin.org',
+                url: _namingDocs,
+              ),
+              _InfoRow(l10n.aboutCopyright, l10n.aboutCopyrightValue),
+              _InfoRow(l10n.aboutSystem, _system()),
             ],
           ),
         ),
@@ -295,54 +281,52 @@ class _GraphicsSection extends StatelessWidget {
     // 非 Windows，或 DXGI 查询失败：整块不出现，而不是道歉。
     final adapters = GpuInfo.all();
     if (adapters.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsSectionTitle(
-          l10n.aboutGraphics,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 只有一块时不挂这个徽标：「检测到 1 个 GPU」什么也没告诉人。
-              if (adapters.length > 1) ...[
-                AppTag(
-                  label: l10n.aboutGpuCount(adapters.length),
-                  color: t.accent,
+    return SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 标题、徽标与旁注都在卡里 —— 画板 24 的这张卡自带卡头。
+          SettingsCardHeader(
+            l10n.aboutGraphics,
+            emphasis: true,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 只有一块时不挂这个徽标：「检测到 1 个 GPU」什么也没告诉人。
+                if (adapters.length > 1) ...[
+                  AppTag(
+                    label: l10n.aboutGpuCount(adapters.length),
+                    color: t.accent,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                ],
+                Text(
+                  l10n.aboutGpuInfoOnly,
+                  style: AppTypeScale.caption.copyWith(color: t.textMuted),
                 ),
-                const SizedBox(width: AppSpacing.md),
               ],
-              Text(
-                l10n.aboutGpuInfoOnly,
-                style: AppTypeScale.caption.copyWith(color: t.textMuted),
-              ),
-            ],
+            ),
           ),
-        ),
-        SettingsCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 等高的一排格子。`stretch` 在 `ListView` 里交叉轴无界会直接抛，
-              // 所以先用 `IntrinsicHeight` 把高度定下来 —— 同 `SettingsColumns`
-              // 的 `equalHeight`。
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < adapters.length; i++) ...[
-                      if (i > 0) const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: _GpuTile(gpu: adapters[i], running: i == 0),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              SettingsFootnote(l10n.aboutGpuHint),
-            ],
+          const SizedBox(height: AppSpacing.md),
+          // 等高的一排格子。`stretch` 在 `ListView` 里交叉轴无界会直接抛，所以
+          // 先用 `IntrinsicHeight` 把高度定下来 —— 同 `SettingsColumns` 的
+          // `equalHeight`。
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < adapters.length; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: _GpuTile(gpu: adapters[i], running: i == 0),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
+          SettingsFootnote(l10n.aboutGpuHint),
+        ],
+      ),
     );
   }
 }

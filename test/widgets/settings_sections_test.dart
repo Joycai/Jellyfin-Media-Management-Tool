@@ -102,6 +102,15 @@ void main() {
     final build = tester.getRect(find.byType(SettingsCard).at(0));
     final source = tester.getRect(find.byType(SettingsCard).at(1));
     expect(build.height, moreOrLessEquals(source.height, epsilon: 0.5));
+    // 24 puts every group label inside its own card, not floating above it.
+    expect(
+      build.contains(tester.getRect(find.text('Build info')).topLeft),
+      isTrue,
+    );
+    expect(
+      source.contains(tester.getRect(find.text('Open source')).topLeft),
+      isTrue,
+    );
   });
 
   testWidgets('the model parameters page lays out', (tester) async {
