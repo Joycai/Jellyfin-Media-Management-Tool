@@ -2137,6 +2137,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pathsTempDirValue => 'System temporary folder';
 
   @override
+  String get pathsNfoOutput => 'NFO & image output';
+
+  @override
+  String get pathsNfoOutputValue => 'Beside the media file';
+
+  @override
   String get pathsDefaultsPlaceholder =>
       'Organized files always land beside their source; a separate output or temporary folder is not implemented yet.';
 
@@ -2182,6 +2188,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyDataFilesValue =>
       'config.json · ai_profiles.json · sites.json · scrapers.json';
+
+  @override
+  String get privacyPrefsBackup => 'Preferences backup';
+
+  @override
+  String get privacyPrefsBackupHint =>
+      'Export or restore config.json and the AI profiles';
+
+  @override
+  String get privacyImport => 'Import';
+
+  @override
+  String get privacyExport => 'Export';
 
   @override
   String get privacyCaches => 'Caches';

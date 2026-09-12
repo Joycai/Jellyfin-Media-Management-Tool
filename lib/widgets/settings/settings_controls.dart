@@ -98,15 +98,51 @@ class SettingsCard extends StatelessWidget {
 class SettingsRowsCard extends StatelessWidget {
   final List<Widget> children;
 
-  /// 卡内的分组标题（画板 24 把标题画在卡里，而不是卡上方）。它和行之间不划
+  /// 卡内的分组标题（画板 21–24 把标题画在卡里，而不是卡上方）。它和行之间不划
   /// 发丝线 —— 发丝线是行与行的分隔，标题不是一行。
   final Widget? header;
 
-  const SettingsRowsCard({super.key, required this.children, this.header});
+  /// 行在多出来的高度上均匀铺开（设计稿短卡上的 `justify-content:
+  /// space-between`）。两列共用行轨道之后，一行里矮的那张卡会被拉到和高的那张
+  /// 一样高，多出来的高度总得有个去处 —— 全堆在卡底会让卡看上去空了半截。
+  ///
+  /// 卡没被拉高时（自然高度）这个开关什么也不做。
+  final bool spread;
+
+  /// 钉在卡底的一块：说明、合计行、动作按钮。等高的一行里两张卡不一样满，这一
+  /// 块要贴着卡底，而不是跟着最后一行浮在半空。
+  final Widget? footer;
+
+  /// [footer] 上方的那条发丝线。设计稿的说明与合计行有（`border-top`），
+  /// 「＋ 添加根目录」那一排按钮没有。
+  final bool footerDivider;
+
+  const SettingsRowsCard({
+    super.key,
+    required this.children,
+    this.header,
+    this.spread = false,
+    this.footer,
+    this.footerDivider = true,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
+    // 发丝线跟在它上面那一行的下面，而不是单独插在两行之间：`spread` 把余量摊在
+    // 子项之间，线要是自己算一个子项，就会从行上脱开、浮在两行正中。
+    final hairlineAfterLast = footer != null && footerDivider;
+    final blocks = <Widget>[
+      ?header,
+      for (final (i, child) in children.indexed)
+        if (i == children.length - 1 && !hairlineAfterLast)
+          child
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [child, const SettingsDivider()],
+          ),
+    ];
     return SettingsCard(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -114,13 +150,23 @@ class SettingsRowsCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        // 对齐方式在 `MainAxisSize.min` 之下仍然生效：卡被拉到一行的高度时约束
+        // 是紧的，Column 只能是那个高度，余量照样摊给对齐方式。没被拉高时余量
+        // 是 0，选什么都一样。
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: spread || footer != null
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.start,
         children: [
-          ?header,
-          for (final (i, child) in children.indexed) ...[
-            if (i != 0) Divider(height: 1, thickness: 1, color: t.stroke),
-            child,
-          ],
+          if (spread)
+            ...blocks
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: blocks,
+            ),
+          ?footer,
         ],
       ),
     );

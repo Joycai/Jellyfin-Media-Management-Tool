@@ -2086,6 +2086,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pathsTempDirValue => '系统临时目录';
 
   @override
+  String get pathsNfoOutput => 'NFO 与图片写入位置';
+
+  @override
+  String get pathsNfoOutputValue => '与媒体文件同目录';
+
+  @override
   String get pathsDefaultsPlaceholder => '整理后的文件始终落在源目录内；单独的输出目录与临时目录尚未实现。';
 
   @override
@@ -2129,6 +2135,18 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get privacyDataFilesValue =>
       'config.json · ai_profiles.json · sites.json · scrapers.json';
+
+  @override
+  String get privacyPrefsBackup => '偏好设置备份';
+
+  @override
+  String get privacyPrefsBackupHint => '导出或恢复 config.json 与 AI 服务配置';
+
+  @override
+  String get privacyImport => '导入';
+
+  @override
+  String get privacyExport => '导出';
 
   @override
   String get privacyCaches => '缓存';
