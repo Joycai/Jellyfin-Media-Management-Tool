@@ -252,12 +252,12 @@ class OpenAiProvider implements AiProvider {
         rethrow;
       } on TimeoutException {
         if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiException(_noResponse(firstEventTimeout));
+        throw AiNetworkException(_noResponse(firstEventTimeout));
       } catch (e) {
         // Closing the client to cancel surfaces as a generic ClientException;
         // report it as a cancellation, not a network failure.
         if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiException('Network error: $e');
+        throw AiNetworkException(AiHttp.describeTransportError(e));
       }
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -413,7 +413,7 @@ class OpenAiProvider implements AiProvider {
             started ? idleTimeout : firstEventTimeout,
           );
         } on TimeoutException {
-          throw AiException(
+          throw AiNetworkException(
             started
                 ? 'The server stopped sending for ${_duration(idleTimeout)} '
                       'partway through the reply.'
@@ -485,7 +485,7 @@ class OpenAiProvider implements AiProvider {
       rethrow;
     } catch (e) {
       if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-      throw AiException('Network error: $e');
+      throw AiNetworkException(AiHttp.describeTransportError(e));
     } finally {
       // On an early exit this closes the connection, which is what tells the
       // server to stop generating.
