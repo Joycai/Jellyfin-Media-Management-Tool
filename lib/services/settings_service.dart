@@ -57,7 +57,8 @@ class SettingsService extends ChangeNotifier {
     ),
   ];
 
-  static const int _maxRecent = 8;
+  /// 最近访问保留的条数。设置页的说明文案引用它，免得两处各写一个数字。
+  static const int maxRecent = 8;
 
   ThemeMode get themeMode => _themeMode;
   Locale? get locale => _locale;
@@ -79,11 +80,19 @@ class SettingsService extends ChangeNotifier {
   bool get onboardingSeen => _onboardingSeen;
   String get fontChoice => _fontChoice;
 
+  /// Where everything this app persists lives, once something has asked for it
+  /// (`init()` does, on the first frame). Null before that: the privacy page
+  /// shows a placeholder rather than blocking a frame on a disk call, and this
+  /// is a label — nothing reads or writes through it.
+  String? get configPath => _configPath;
+  String? _configPath;
+
   Future<Directory> get _configDir async {
     final directory = await getApplicationSupportDirectory();
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
+    _configPath = directory.path;
     return directory;
   }
 
@@ -346,12 +355,12 @@ class SettingsService extends ChangeNotifier {
   }
 
   /// Records [path] as the most recently opened folder, de-duplicated and
-  /// capped at [_maxRecent].
+  /// capped at [maxRecent].
   Future<void> pushRecent(String path) async {
     _recent.remove(path);
     _recent.insert(0, path);
-    if (_recent.length > _maxRecent) {
-      _recent = _recent.sublist(0, _maxRecent);
+    if (_recent.length > maxRecent) {
+      _recent = _recent.sublist(0, maxRecent);
     }
     _scheduleSave();
     notifyListeners();

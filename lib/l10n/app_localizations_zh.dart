@@ -2036,4 +2036,256 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get back => '返回';
+
+  @override
+  String get pathsLibraryRoots => '媒体库根目录';
+
+  @override
+  String get pathsRootMovies => '电影';
+
+  @override
+  String get pathsRootShows => '剧集';
+
+  @override
+  String get pathsRootExample => '/Volumes/Media/Movies';
+
+  @override
+  String get pathsMounted => '已连接';
+
+  @override
+  String get pathsUnmounted => '未挂载';
+
+  @override
+  String get pathsChange => '更改';
+
+  @override
+  String get pathsAddRoot => '添加根目录';
+
+  @override
+  String get pathsRescan => '重新扫描';
+
+  @override
+  String get pathsRootsPlaceholder => '本应用一次只整理一个文件夹；多根目录、挂载状态与重新扫描尚未实现。';
+
+  @override
+  String get pathsDefaults => '默认位置';
+
+  @override
+  String get pathsOrganizeOutput => '整理输出位置';
+
+  @override
+  String get pathsOrganizeOutputValue => '跟随源目录';
+
+  @override
+  String get pathsChoose => '选择…';
+
+  @override
+  String get pathsTempDir => '临时与下载目录';
+
+  @override
+  String get pathsTempDirValue => '系统临时目录';
+
+  @override
+  String get pathsDefaultsPlaceholder => '整理后的文件始终落在源目录内；单独的输出目录与临时目录尚未实现。';
+
+  @override
+  String get pathsFavorites => '收藏的路径';
+
+  @override
+  String get pathsFavoritesHint => '拖拽排序尚未实现；此处就是侧边栏的「收藏」分组。';
+
+  @override
+  String get pathsRecent => '最近访问';
+
+  @override
+  String get pathsClearRecent => '清除记录';
+
+  @override
+  String pathsRecentHint(Object count) {
+    return '保留最近 $count 条；行尾的星号可加入收藏。';
+  }
+
+  @override
+  String get pathsAddFavorite => '加入收藏';
+
+  @override
+  String get privacyLocations => '配置与数据位置';
+
+  @override
+  String get privacyConfigFolder => '配置文件夹';
+
+  @override
+  String get privacyBrowse => '浏览';
+
+  @override
+  String get privacyCopyPath => '复制';
+
+  @override
+  String get privacyCopied => '已复制路径';
+
+  @override
+  String get privacyDataFiles => '数据文件';
+
+  @override
+  String get privacyDataFilesValue =>
+      'config.json · ai_profiles.json · sites.json · scrapers.json';
+
+  @override
+  String get privacyCaches => '缓存';
+
+  @override
+  String get privacyClear => '清理';
+
+  @override
+  String get privacyClearAll => '全部清理';
+
+  @override
+  String get privacyTotal => '合计';
+
+  @override
+  String get privacyCacheThumbnails => '缩略图缓存';
+
+  @override
+  String get privacyCacheThumbnailsHint => '文件列表的视频首帧';
+
+  @override
+  String get privacyCacheUndo => '撤销备份';
+
+  @override
+  String privacyCacheUndoHint(Object count, Object days) {
+    return '被覆盖文件的真副本，保留 $days 天 · 共 $count 条记录';
+  }
+
+  @override
+  String get privacyCacheAgent => '整理记忆';
+
+  @override
+  String get privacyCacheAgentHint => '已决定的分组与已应用的更正';
+
+  @override
+  String get privacyCacheNote =>
+      '清理只删除本地缓存，不影响已写入媒体库的 NFO 与图片，下次运行会重新生成。撤销备份没有「清理」：删掉它等于把还没过期的撤销记录变成空头支票。';
+
+  @override
+  String get privacySection => '隐私';
+
+  @override
+  String get privacyTelemetry => '发送匿名使用统计';
+
+  @override
+  String get privacyTelemetryHint => '不含文件名与路径';
+
+  @override
+  String get privacyCrashReports => '崩溃报告';
+
+  @override
+  String get privacyCrashReportsHint => '仅堆栈与设备型号';
+
+  @override
+  String get privacyLogAiBodies => '记录 AI 请求与回复正文';
+
+  @override
+  String get privacyLogAiBodiesHint => '仅排查问题时开启，日志会变大';
+
+  @override
+  String get privacyClearTempOnExit => '退出时清空临时目录';
+
+  @override
+  String get privacyNoTelemetry => '本应用不采集任何遥测数据，也没有日志文件，这几项因此暂无可关。';
+
+  @override
+  String get privacyDanger => '危险操作';
+
+  @override
+  String get privacyReset => '重置所有数据';
+
+  @override
+  String get privacyResetBody =>
+      '清空 AI 服务、规则、历史与全部缓存，应用回到首次启动状态。磁盘上的媒体文件不会被删除，已写入的 NFO 与图片保留。';
+
+  @override
+  String get privacyResetAction => '重置…';
+
+  @override
+  String get privacyResetPlaceholder =>
+      '尚未实现。在那之前请手动删除配置文件夹 —— 一个不可撤销的重置不应该半成品上线。';
+
+  @override
+  String get shortcutsSearchHint => '搜索命令或按键…';
+
+  @override
+  String get shortcutsRestoreDefaults => '恢复默认';
+
+  @override
+  String get shortcutsRebindHint => '改绑尚未实现 —— 这里列出的就是实际生效的绑定。';
+
+  @override
+  String get shortcutsNoMatch => '没有匹配的命令';
+
+  @override
+  String get shortcutsPlatformNote =>
+      'Windows 与 Linux 上 ⌘ → Ctrl、⌥ → Alt、⌫ → Delete。';
+
+  @override
+  String get aboutChangelog => '更新日志';
+
+  @override
+  String get aboutCheckUpdates => '检查更新';
+
+  @override
+  String get aboutBuildInfo => '构建信息';
+
+  @override
+  String get aboutVersion => '版本';
+
+  @override
+  String get aboutBuildNumber => '构建号';
+
+  @override
+  String get aboutCommit => '提交';
+
+  @override
+  String get aboutBranch => '分支';
+
+  @override
+  String get aboutRuntime => '运行时';
+
+  @override
+  String get aboutBuildInfoPlaceholder => '提交号与分支需要在打包时注入，当前构建还没有做这一步。';
+
+  @override
+  String get aboutSystem => '系统';
+
+  @override
+  String get aboutOs => '操作系统';
+
+  @override
+  String get aboutArch => '架构';
+
+  @override
+  String get aboutOpenSource => '开源与版权';
+
+  @override
+  String get aboutLicense => '许可证';
+
+  @override
+  String get aboutRepository => '仓库';
+
+  @override
+  String get aboutIssues => '问题反馈';
+
+  @override
+  String get aboutCopyright => '版权';
+
+  @override
+  String get aboutCopyrightValue => '© 2026 贡献者';
+
+  @override
+  String get aboutGraphics => '图形设备';
+
+  @override
+  String get aboutGpuRunning => '当前运行';
+
+  @override
+  String get aboutGpuShared => '共享内存';
 }
