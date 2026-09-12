@@ -333,7 +333,7 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                               style: TextStyle(
                                 fontSize: AppTypeScale.sizeLabel,
                                 fontFamily: AppTypeScale.mono,
-                                fontFamilyFallback: AppTypeScale.monoFallback,
+                                fontFamilyFallback: context.tokens.monoFallback,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
@@ -663,10 +663,10 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                 flex: 3,
                 child: TextField(
                   controller: _targetDir,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: AppTypeScale.sizeControl,
                     fontFamily: AppTypeScale.mono,
-                    fontFamilyFallback: AppTypeScale.monoFallback,
+                    fontFamilyFallback: context.tokens.monoFallback,
                   ),
                   decoration: InputDecoration(
                     isDense: true,
@@ -680,10 +680,10 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
                 flex: 2,
                 child: TextField(
                   controller: _nfoName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: AppTypeScale.sizeControl,
                     fontFamily: AppTypeScale.mono,
-                    fontFamilyFallback: AppTypeScale.monoFallback,
+                    fontFamilyFallback: context.tokens.monoFallback,
                   ),
                   decoration: InputDecoration(
                     isDense: true,

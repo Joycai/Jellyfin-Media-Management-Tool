@@ -502,7 +502,7 @@ class _Breadcrumb extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 2),
             child: Text(
               '›',
-              style: AppTypeScale.monoSmall.copyWith(
+              style: context.tokens.monoSmall.copyWith(
                 color: t.textMuted.withValues(alpha: 0.6),
               ),
             ),
@@ -561,7 +561,7 @@ class _CrumbSegment extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: AppTypeScale.monoSmall.copyWith(
+            style: context.tokens.monoSmall.copyWith(
               fontSize: AppTypeScale.sizeCaption,
               fontWeight: isLast ? FontWeight.w500 : FontWeight.w400,
               color: isLast ? t.textTitle : t.textMuted,
@@ -869,7 +869,7 @@ class _FileRowState extends State<_FileRow> {
                               widget.relativeDir!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTypeScale.monoSmall.copyWith(
+                              style: context.tokens.monoSmall.copyWith(
                                 color: t.textMuted,
                               ),
                             ),
@@ -901,7 +901,7 @@ class _FileRowState extends State<_FileRow> {
                   size,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypeScale.monoSmall.copyWith(
+                  style: context.tokens.monoSmall.copyWith(
                     fontSize: AppTypeScale.sizeCaption,
                     color: t.textSecondary,
                   ),
@@ -1029,7 +1029,7 @@ class _ConfidenceCell extends StatelessWidget {
           child: Text(
             '${(v * 100).round()}%',
             textAlign: TextAlign.right,
-            style: AppTypeScale.monoSmall.copyWith(
+            style: context.tokens.monoSmall.copyWith(
               fontWeight: FontWeight.w600,
               color: textColor,
             ),

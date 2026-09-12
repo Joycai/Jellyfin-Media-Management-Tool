@@ -261,7 +261,7 @@ class _HistoryPopoverState extends State<_HistoryPopover> {
           // 教用户按一个没有反应的键 —— 改成陈述条数，快捷键本身进 backlog。
           Text(
             l10n.itemsCount(_count),
-            style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+            style: context.tokens.monoTiny.copyWith(color: t.textMuted),
           ),
         ],
       ),
@@ -362,7 +362,7 @@ class _PopoverRowState extends State<_PopoverRow> {
                       : '${_time(e.createdAt)} · ${l10n.historyIrreversible}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypeScale.monoSmall.copyWith(color: t.textMuted),
+                  style: context.tokens.monoSmall.copyWith(color: t.textMuted),
                 ),
               ],
             ),

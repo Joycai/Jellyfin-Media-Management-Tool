@@ -329,7 +329,7 @@ class _Bubble extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppTypeScale.monoTiny.copyWith(color: t.badgeText),
+        style: context.tokens.monoTiny.copyWith(color: t.badgeText),
       ),
     );
   }
@@ -367,7 +367,7 @@ class ContextWindowTickLabels extends StatelessWidget {
           for (final tick in ContextWindowScale.ticks)
             Text(
               ContextWindowScale.format(tick),
-              style: AppTypeScale.monoTiny.copyWith(
+              style: context.tokens.monoTiny.copyWith(
                 color: tick == current ? t.accentText : t.textMuted,
                 fontWeight: tick == current ? FontWeight.w600 : FontWeight.w500,
               ),

@@ -221,7 +221,7 @@ class _InfoRow extends StatelessWidget {
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypeScale.monoSmall.copyWith(
+              style: context.tokens.monoSmall.copyWith(
                 color: dim ? t.textDisabled : t.textBody,
               ),
             ),
@@ -370,7 +370,7 @@ class _GpuTile extends StatelessWidget {
                       : l10n.aboutGpuShared,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+                  style: context.tokens.monoTiny.copyWith(color: t.textMuted),
                 ),
               ],
             ),

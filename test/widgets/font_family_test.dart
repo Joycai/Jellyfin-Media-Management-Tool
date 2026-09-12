@@ -66,7 +66,10 @@ void main() {
   testWidgets('a mono style names a family that exists on this platform', (
     tester,
   ) async {
-    await _pump(tester, const Text('42', style: AppTypeScale.monoSmall));
+    await _pump(
+      tester,
+      Builder(builder: (c) => Text('42', style: c.tokens.monoSmall)),
+    );
 
     final style = _styleOf(tester, find.text('42'));
     expect(style.fontFamily, AppTypeScale.mono);
@@ -75,12 +78,35 @@ void main() {
     // do not have. Without a real chain behind it the engine walked on to the
     // theme's CJK fallback and drew every path and token count in Microsoft
     // YaHei — proportional, and not the font the user picked either.
-    expect(style.fontFamilyFallback, AppTypeScale.monoFallback);
+    expect(
+      style.fontFamilyFallback!.take(AppTypeScale.monoFaces.length),
+      AppTypeScale.monoFaces,
+    );
     expect(style.fontFamilyFallback, contains('Consolas'));
     expect(style.fontFamilyFallback, contains('Menlo'));
-    // Paths have Chinese directory names in them, and this list replaces the
-    // theme's, so the CJK families have to be on it too.
-    expect(style.fontFamilyFallback, contains('Microsoft YaHei UI'));
+  });
+
+  testWidgets('Chinese inside mono text uses the picked font too', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      Builder(builder: (c) => Text(r'D:\电影', style: c.tokens.monoSmall)),
+    );
+
+    final fallback = _styleOf(
+      tester,
+      find.textContaining('电影'),
+    ).fontFamilyFallback!;
+    // Naming a fallback replaces the theme's, so a const mono style could
+    // never see the user's font: a path with Chinese in it came out half in
+    // Cascadia Mono and half in Microsoft YaHei, while every other Chinese
+    // glyph in the window was HarmonyOS. The chain now comes off the theme.
+    expect(
+      fallback.indexOf(_picked),
+      greaterThan(fallback.indexOf('Consolas')),
+    );
+    expect(fallback.indexOf(_picked), lessThan(fallback.indexOf(_cjk.first)));
   });
 
   testWidgets('a column header keeps the theme family', (tester) async {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Every value the redesigned UI is allowed to paint with.
@@ -209,7 +210,8 @@ abstract final class AppTypeScale {
   /// 一张平铺的名单管三个平台：匹配不上的名字会被跳过。末尾接上中文字族，
   /// 因为这里写了 `fontFamilyFallback` 就会把主题那份顶掉，而路径里是有中文
   /// 目录名的。
-  static const List<String> monoFallback = [
+  /// 一张平铺的名单管三个平台：匹配不上的名字会被跳过。
+  static const List<String> monoFaces = [
     // Windows
     'Cascadia Mono',
     'Consolas',
@@ -222,13 +224,31 @@ abstract final class AppTypeScale {
     'Liberation Mono',
     'Noto Sans Mono',
     'Courier New',
-    // 等宽字体里没有的中文字形，仍要落到界面中文字体上。
+  ];
+
+  /// 等宽 + 中文的完整回落链，**不含**用户选的字体。
+  ///
+  /// 这是没有主题可问时的兜底（测试、以及任何拿不到 `BuildContext` 的地方）。
+  /// 界面上应当读 `context.tokens.monoFallback`，那一份把用户选的中文字体插在
+  /// 系统中文字体之前 —— 否则一条含中文的路径会出现两款中文字体：等宽段落里
+  /// 是微软雅黑，别处是用户选的那款。
+  static const List<String> monoFallback = [...monoFaces, ...cjkFaces];
+
+  /// 等宽样式里，中文字形的候选。[monoFaces] 里一个也没有汉字。
+  static const List<String> cjkFaces = [
     'Microsoft YaHei UI',
     'Microsoft YaHei',
     'PingFang SC',
     'Heiti SC',
     'Noto Sans CJK SC',
     'Noto Sans SC',
+  ];
+
+  /// 等宽回落链，把用户选的中文字体接在等宽字族之后、系统中文字体之前。
+  static List<String> monoChain(String? picked, TargetPlatform platform) => [
+    ...monoFaces,
+    ?picked,
+    ...cjkFallback(platform),
   ];
 
   /// 全局字间距；22px 以上标题收紧到 [tightTracking]。
@@ -667,6 +687,13 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// 回读整个目标，代价正在那里。
   final bool reduceEffects;
 
+  /// 等宽文本的回落链，含用户选的中文字体。见 [AppTypeScale.monoChain]。
+  ///
+  /// 等宽样式必须自带回落链（`JetBrains Mono` 哪儿都没装），而 `TextStyle`
+  /// 合并时后者的 `fontFamilyFallback` 是**整个替换**前者 —— 所以主题给的那份
+  /// 到不了等宽文本。这份就是替它准备的。
+  final List<String> monoFallback;
+
   const AppTokens({
     required this.brightness,
     required this.accent,
@@ -702,6 +729,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.blurPanel,
     required this.blurDialog,
     required this.reduceEffects,
+    required this.monoFallback,
   });
 
   bool get isDark => brightness == Brightness.dark;
@@ -794,6 +822,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     Color? accent,
     double glassIntensity = 70,
     bool reduceEffects = false,
+    String? uiFont,
+    TargetPlatform? platform,
   }) {
     final isDark = brightness == Brightness.dark;
     final a = accent ?? AppPalette.accent;
@@ -868,6 +898,10 @@ class AppTokens extends ThemeExtension<AppTokens> {
       blurPanel: reduceEffects ? 0 : AppBlur.panel * scale,
       blurDialog: reduceEffects ? 0 : AppBlur.dialog * scale,
       reduceEffects: reduceEffects,
+      monoFallback: AppTypeScale.monoChain(
+        uiFont,
+        platform ?? defaultTargetPlatform,
+      ),
     );
   }
 
@@ -950,6 +984,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     double? blurPanel,
     double? blurDialog,
     bool? reduceEffects,
+    List<String>? monoFallback,
   }) => AppTokens(
     brightness: brightness ?? this.brightness,
     accent: accent ?? this.accent,
@@ -985,7 +1020,20 @@ class AppTokens extends ThemeExtension<AppTokens> {
     blurPanel: blurPanel ?? this.blurPanel,
     blurDialog: blurDialog ?? this.blurDialog,
     reduceEffects: reduceEffects ?? this.reduceEffects,
+    monoFallback: monoFallback ?? this.monoFallback,
   );
+
+  // --- 等宽字体 -----------------------------------------------------------
+  //
+  // 界面里所有等宽文字都从这三个走，别直接用 `AppTypeScale.mono*`：那三个带的
+  // 是常量回落链，读不到用户选的中文字体。
+
+  TextStyle get monoTiny =>
+      AppTypeScale.monoTiny.copyWith(fontFamilyFallback: monoFallback);
+  TextStyle get monoSmall =>
+      AppTypeScale.monoSmall.copyWith(fontFamilyFallback: monoFallback);
+  TextStyle get monoBody =>
+      AppTypeScale.monoBody.copyWith(fontFamilyFallback: monoFallback);
 
   @override
   AppTokens lerp(ThemeExtension<AppTokens>? other, double t) {
@@ -1030,6 +1078,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
       blurPanel: d(blurPanel, other.blurPanel),
       blurDialog: d(blurDialog, other.blurDialog),
       reduceEffects: t < 0.5 ? reduceEffects : other.reduceEffects,
+      // 字族名没有中间值。
+      monoFallback: t < 0.5 ? monoFallback : other.monoFallback,
     );
   }
 }

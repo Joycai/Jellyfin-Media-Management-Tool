@@ -87,7 +87,7 @@ class ImageGallery extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _header(l10n, scheme),
+        _header(context, l10n, scheme),
         const SizedBox(height: 4),
         Text(
           l10n.scrapeImageRoleHint,
@@ -162,7 +162,11 @@ class ImageGallery extends StatelessWidget {
   /// The label side is [Expanded] and every text in it can ellipsize: this
   /// header sits in a column whose width the user does not control, and a
   /// fixed-width Row here overflowed at the narrow end.
-  Widget _header(AppLocalizations l10n, ColorScheme scheme) => Row(
+  Widget _header(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+  ) => Row(
     children: [
       Expanded(
         child: Row(
@@ -187,7 +191,7 @@ class ImageGallery extends StatelessWidget {
                 style: TextStyle(
                   fontSize: AppTypeScale.sizeMono,
                   fontFamily: AppTypeScale.mono,
-                  fontFamilyFallback: AppTypeScale.monoFallback,
+                  fontFamilyFallback: context.tokens.monoFallback,
                   color: scheme.onSurfaceVariant,
                 ),
               ),
@@ -382,7 +386,7 @@ class _Tile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: AppTypeScale.sizeLabel,
                           fontFamily: AppTypeScale.mono,
-                          fontFamilyFallback: AppTypeScale.monoFallback,
+                          fontFamilyFallback: context.tokens.monoFallback,
                           color: Colors.white.withValues(alpha: 0.55),
                         ),
                       ),

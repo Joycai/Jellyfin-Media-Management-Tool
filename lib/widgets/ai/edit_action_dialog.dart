@@ -164,7 +164,7 @@ class _EditActionDialogState extends State<EditActionDialog> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: AppTypeScale.mono,
-                fontFamilyFallback: AppTypeScale.monoFallback,
+                fontFamilyFallback: context.tokens.monoFallback,
                 fontSize: AppTypeScale.sizeControl,
                 color: scheme.onSurfaceVariant,
               ),
@@ -174,9 +174,9 @@ class _EditActionDialogState extends State<EditActionDialog> {
               controller: _controller,
               autofocus: true,
               maxLines: null,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppTypeScale.mono,
-                fontFamilyFallback: AppTypeScale.monoFallback,
+                fontFamilyFallback: context.tokens.monoFallback,
                 fontSize: AppTypeScale.sizeBody,
               ),
               decoration: InputDecoration(

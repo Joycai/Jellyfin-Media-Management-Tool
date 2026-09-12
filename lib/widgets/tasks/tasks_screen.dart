@@ -144,7 +144,7 @@ class _RunningPill extends StatelessWidget {
           const SizedBox(width: 7),
           Text(
             '$count',
-            style: AppTypeScale.monoTiny.copyWith(
+            style: context.tokens.monoTiny.copyWith(
               fontWeight: FontWeight.w700,
               color: t.accentText,
             ),
@@ -231,7 +231,7 @@ class _TaskCard extends StatelessWidget {
                       _statusLine(l10n, controller),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypeScale.monoSmall.copyWith(
+                      style: context.tokens.monoSmall.copyWith(
                         color: t.textMuted,
                       ),
                     ),

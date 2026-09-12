@@ -381,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
       leading: [
         Text(
           l10n.statusTotalSize(formatBytes(bytes, zero: '0 B')),
-          style: AppTypeScale.monoSmall.copyWith(color: t.textMuted),
+          style: context.tokens.monoSmall.copyWith(color: t.textMuted),
         ),
       ],
       trailing: [

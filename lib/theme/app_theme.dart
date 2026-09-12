@@ -92,6 +92,7 @@ class AppTheme {
       accent: accent,
       glassIntensity: glassIntensity ?? 70,
       reduceEffects: reduceEffects,
+      uiFont: fontFamily,
     );
     final isDark = t.isDark;
     // 「系统默认」= 字族交给引擎，中文回落照旧。
