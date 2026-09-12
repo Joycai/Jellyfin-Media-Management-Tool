@@ -645,10 +645,9 @@ class _ServiceDetailState extends State<_ServiceDetail> {
                     _name.text.isEmpty ? l10n.newServiceName : _name.text,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: AppTypeScale.sizeHeading,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    // 1.2 的字阶里详情页主标题就是 heading（22 / 700）；手写一个
+                    // w800 只是又造了一级不在字阶上的字重。
+                    style: AppTypeScale.heading,
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -1488,10 +1487,12 @@ class _UsageCard extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
+          // 6.1 的用量数值是 mono 18/600；18 不在 1.2 的字阶上，取 16。
           value,
           style: const TextStyle(
-            fontSize: AppTypeScale.sizeHeading,
-            fontWeight: FontWeight.w800,
+            fontFamily: AppTypeScale.mono,
+            fontSize: AppTypeScale.sizeSubheading,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
