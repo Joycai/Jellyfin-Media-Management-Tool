@@ -10,10 +10,18 @@ import 'package:jellyfin_media_management_tool/widgets/ui/glass_surface.dart';
 /// A glass pane is the cheapest thing that actually builds a `BackdropFilter`.
 Widget _pane() => const AppGlassPane(child: SizedBox.expand());
 
+/// Every test here is about the **live filter** path, so baking is off.
+///
+/// With it on, the shell panels draw a crop of a pre-blurred image and build
+/// no `BackdropFilter` at all once the bake lands — which is the whole point
+/// of it, and is pinned in `baked_glass_test.dart`. Grouping still matters
+/// underneath: it is what the app falls back to when the user turns baking
+/// off, during the first frames before the first bake, and for every dialog
+/// and popover, which are never baked.
 Future<void> _pumpShell(WidgetTester tester, {Widget? body}) =>
     tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.dark(),
+        theme: AppTheme.dark(bakedGlass: false),
         home: AppShell(
           titleBar: SizedBox(height: 48, child: _pane()),
           body: body ?? _pane(),
@@ -83,7 +91,7 @@ void main() {
     // Losing the blur there would be a silent visual regression.
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.dark(),
+        theme: AppTheme.dark(bakedGlass: false),
         home: Scaffold(body: SizedBox(width: 300, height: 200, child: _pane())),
       ),
     );

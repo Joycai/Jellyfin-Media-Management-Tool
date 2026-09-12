@@ -14,12 +14,18 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/file_entry.dart';
+import 'windows_thumbnailer.dart';
 
 /// Poster frames for video rows in the file table.
 ///
-/// Decoding happens in `fc_native_video_thumbnail`'s native backends
-/// (AVFoundation on macOS, Media Foundation on Windows, FFmpeg on Linux), so
-/// nothing here blocks the UI isolate. Results are cached twice: an in-memory
+/// Decoding happens off the Dart isolate on every platform, but *where* it
+/// happens differs. macOS and Linux go through `fc_native_video_thumbnail`,
+/// whose AVFoundation and FFmpeg backends thread. Windows does not: that
+/// plugin runs the blocking Shell extraction inline on the Flutter platform
+/// thread, so one video on a NAS stalls the window's message loop while it is
+/// read over SMB. Windows therefore goes through [WindowsThumbnailer] and the
+/// runner's own worker pool, and falls back to the plugin only when the
+/// running binary predates that channel. Results are cached twice: an in-memory
 /// LRU for the current session and a JPEG per entry under
 /// `<appSupport>/thumbnails/` so re-opening a folder is instant.
 ///
@@ -43,7 +49,9 @@ class ThumbnailService {
   static const int _quality = 80;
 
   /// Native decode is cheap but not free; a hard cap keeps a fast scroll
-  /// through a 500-file folder from queueing 500 simultaneous decodes.
+  /// through a 500-file folder from queueing 500 simultaneous decodes. It is
+  /// a real limit on every platform now — before the Windows worker pool the
+  /// three "parallel" slots all serialised behind the platform thread.
   static const int _maxConcurrent = 3;
 
   static const int _memCacheEntries = 240;
@@ -51,8 +59,10 @@ class ThumbnailService {
 
   /// Where to grab the frame. The first frame of a movie or episode is
   /// routinely a black fade-in or a distributor logo, so seek past it.
-  /// Ignored on Windows (Media Foundation exposes no seek here) and rejected
-  /// for clips shorter than this — [_generate] retries without it.
+  /// Rejected for clips shorter than this — [_generate] retries without it.
+  /// Windows never sees this: the Shell hands back whatever frame it picked
+  /// and takes no timestamp, which is why [_useNativeChannel] skips the
+  /// two-attempt dance entirely.
   static final _seekTo = FcVideoThumbnailTime(
     10,
     FcVideoThumbnailTimeUnit.seconds,
@@ -76,6 +86,11 @@ class ThumbnailService {
   /// turns the whole service into a no-op instead of throwing per row.
   bool _unsupported = false;
 
+  /// Whether to ask the runner's channel rather than the plugin. Latches off
+  /// the first time the channel turns out not to be there, which happens when
+  /// a Dart-only hot restart lands on a runner built before it existed.
+  bool _useNativeChannel = Platform.isWindows;
+
   Directory? _cacheDir;
   Future<void>? _pruned;
 
@@ -89,6 +104,13 @@ class ThumbnailService {
   @visibleForTesting
   Future<void>? get pendingPrune => _pruned;
 
+  /// Forces the runner channel on or off, so both paths are reachable from a
+  /// test on any host. Production decides this from [Platform.isWindows] and
+  /// from whether the channel answers at all.
+  @visibleForTesting
+  // ignore: use_setters_to_change_properties
+  void useNativeChannelForTest(bool value) => _useNativeChannel = value;
+
   /// Drops all session state so each test starts from a cold service.
   /// The singleton outlives individual tests; without this a cached frame or a
   /// latched [_unsupported] would leak into the next one.
@@ -100,6 +122,7 @@ class ThumbnailService {
     _waiting.clear();
     _running = 0;
     _unsupported = false;
+    _useNativeChannel = Platform.isWindows;
     _cacheDir = null;
     _pruned = null;
   }
@@ -225,6 +248,20 @@ class ThumbnailService {
   Future<Uint8List?> _generate(String path) async {
     await _acquire();
     try {
+      if (_useNativeChannel) {
+        try {
+          return await WindowsThumbnailer.extract(
+            path: path,
+            edge: _maxEdge,
+            quality: _quality,
+          );
+        } on MissingPluginException {
+          // The runner is older than the channel. Fall through to the plugin,
+          // which still works — it just blocks the platform thread.
+          _useNativeChannel = false;
+        }
+      }
+
       // A clip shorter than _seekTo has no frame there. Backends differ in how
       // they say so — Linux/macOS throw, and a null return is also allowed by
       // the API contract — so treat both as "retry for the first frame".

@@ -160,6 +160,7 @@ class MyApp extends StatelessWidget {
               ? null
               : Color(settings.accentColor!),
           glassIntensity: settings.glassIntensity,
+          bakedGlass: settings.bakedGlass,
           fontFamily: fontFamily,
         ),
         darkTheme: AppTheme.dark(
@@ -167,6 +168,7 @@ class MyApp extends StatelessWidget {
               ? null
               : Color(settings.accentColor!),
           glassIntensity: settings.glassIntensity,
+          bakedGlass: settings.bakedGlass,
           fontFamily: fontFamily,
         ),
         home: settings.onboardingSeen

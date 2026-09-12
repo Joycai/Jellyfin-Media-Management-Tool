@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Flutter **desktop** app for Windows/macOS/Linux. There are no `android/`, `ios/` or `web/` directories — those targets are not supported, and `flutter create` scaffolding for them should not be re-added.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `1.0.0+1`.
+- Dart SDK `^3.10.4`. Current app version: `1.1.0+2`.
 
 ## Common commands
 
@@ -206,7 +206,7 @@ Not done yet: the Library section (a placeholder drawn to the design), recipe im
 
 Everything lives in the `path_provider` application-support directory, hand-rolled JSON in the owning service:
 
-- `config.json` — settings (debounced 250ms, flushed on dispose). A legacy `performance_mode: true` migrates to `glass_intensity: 0` on load and the key is then dropped.
+- `config.json` — settings (debounced 250ms, flushed on dispose). A legacy `performance_mode: true` migrates to `glass_intensity: 0` on load and the key is then dropped. `baked_glass` defaults to true when absent.
 - `ai_profiles.json` — AI profiles and API keys, deliberately separate so a slider drag never rewrites keys
 - `sites.json` — custom search sites
 - `scrapers.json` — learned / user-edited scrape recipes (built-ins live in code)
@@ -228,9 +228,18 @@ Playback was evaluated against `video_player` + `video_player_win` and deliberat
 
 ### Thumbnails
 
-[thumbnail_service.dart](lib/services/thumbnail_service.dart) renders video poster frames for file-table rows via `fc_native_video_thumbnail` (AVFoundation / Media Foundation / FFmpeg per platform). Its cache is an in-memory LRU plus JPEGs under `<appSupport>/thumbnails/`, keyed by `sha1(path|mtime|size)` so a re-encoded file never shows a stale frame. Pruned to 64 MB, oldest-first, once per session.
+[thumbnail_service.dart](lib/services/thumbnail_service.dart) renders video poster frames for file-table rows. Its cache is an in-memory LRU plus JPEGs under `<appSupport>/thumbnails/`, keyed by `sha1(path|mtime|size)` so a re-encoded file never shows a stale frame. Pruned to 64 MB, oldest-first, once per session.
 
-Platform quirks that shaped the code: Windows ignores the `height` argument (square bounding box only) and does not seek, so the service asks for a frame at 10s and silently falls back to the first frame when that returns null or throws. Linux needs system FFmpeg + libjpeg; without them every call fails, each failure is cached per-key, and rows fall back to the type icon. Every failure path degrades to the icon — thumbnails are never load-bearing.
+**Windows does not use the plugin.** `fc_native_video_thumbnail` has no threading in its Windows implementation at all: `HandleMethodCall` runs the blocking Shell extraction inline and replies on the **Flutter platform thread**, which is the thread pumping the window's message loop. For a file on a NAS that means reading video over SMB there — entering such a folder measured 21 ms → 46.6 ms per frame, and the Dart-side `_maxConcurrent = 3` bought nothing, because all three slots serialised behind that one thread. So Windows goes through [windows_thumbnailer.dart](lib/services/windows_thumbnailer.dart) to the runner's own `jellyfin/thumbnail` channel ([thumbnail_channel.cpp](windows/runner/thumbnail_channel.cpp)), which extracts on a three-thread pool and encodes JPEG with WIC. macOS and Linux keep the plugin, whose backends already thread; a runner older than the channel raises `MissingPluginException`, which latches the service back onto the plugin rather than losing thumbnails.
+
+Four things in that C++ that are not obvious:
+
+- **A `MethodResult` may only be completed on the platform thread.** A worker parks its bytes on a shared queue and posts a `RegisterWindowMessage` value; `FlutterWindow::MessageHandler` drains the queue and replies. Registered rather than `WM_APP+n` so no plugin sharing the HWND can collide with it.
+- **Each worker needs its own `CoInitializeEx(COINIT_APARTMENTTHREADED)`.** Shell thumbnail providers are apartment-threaded; without it every `CoCreateInstance` fails — and since every failure path here degrades to "no thumbnail", it fails *silently*.
+- **Workers are detached, not joined.** One can be parked in a Shell call over SMB for many seconds, and joining that would hang the window close. The shared state is a `shared_ptr` so it stays valid, and a `stop` flag makes a late worker drop its result instead of posting to a dead HWND.
+- **No `SIIGBF_BIGGERSIZEOK`.** It sounds free — take whatever size Explorer already cached instead of resampling — but what Explorer has is routinely 1280x720, which went into the cache at 138 KB a row against the plugin's ~16 KB, to fill a 34pt row. `SIIGBF_THUMBNAILONLY` *is* set: a Shell type icon blown up to 320px reads as a corrupt poster frame, and Dart already draws its own icon for "none".
+
+Windows takes no timestamp, so `_seekTo` never applies there and the service makes one call rather than the plugin's seek-then-retry pair. Linux needs system FFmpeg + libjpeg; without them every call fails, each failure is cached per-key, and rows fall back to the type icon. Every failure path degrades to the icon — thumbnails are never load-bearing.
 
 ### Theming
 
@@ -264,6 +273,8 @@ And a style that names its own `fontFamily` must bring `AppTypeScale.monoFallbac
 - **Glass intensity 0 skips the widget rather than passing sigma 0.** A zero-sigma filter still ends the render pass and reads back the whole target, which is where the cost is.
 - **The cost is per filter, not per sigma.** Impeller downsamples before blurring, so the radius is nearly free: maximized at 4K, intensity 50 measured 82.0 ms and intensity 100 measured 83.8 ms. Removing the four filters saved 46 ms. The slider is a *look* control; only its 0 stop is a performance control.
 - **Co-planar filters share one backdrop snapshot.** `GlassSurface` uses `BackdropFilter.grouped` when it finds a `BackdropGroup` ancestor, which `AppShell` puts around the shell chrome — measured 80.4 ms → 64.6 ms maximized at 4K. It keys off the *ancestor* rather than a parameter because that is exactly the right split: dialogs, menus and popovers are pushed routes, so they never find the group, and they must not — they sit **on top of** the panels and have to blur the panels themselves, and Flutter's own docs warn that overlapping filters sharing a key render as though only one ran. `test/widgets/backdrop_group_test.dart` pins both halves.
+- **When the backdrop is static, so is the blur — draw the pre-baked one.** The shell's glass tiles sit on nothing but `AppBackdrop`'s baked image, so `AppBackdrop` blurs that image once per sigma and `GlassSurface` draws the crop belonging to its own rectangle instead of running a filter at all. Measured maximized at 4K: **32.0 ms → 1.74 ms**, the same frame time as turning the blur off entirely, with 99.92% of pixels bit-identical (see below). On by default, behind Settings → Appearance → Behavior → *Pre-render the glass blur*; off, it is the grouped live path above.
+- **The baked path is a structural claim, not a flag.** It is correct only while nothing dynamic sits *behind* a glass tile. Nesting is handled: a `GlassSurface` that takes the baked path shadows `BakedBackdropScope` with null for its own subtree, so an inner surface — whose backdrop includes the outer one's fill and content — falls back to a real filter. Pushed routes never reach the scope at all, the same split that keeps them out of the `BackdropGroup`. What is *not* handled is someone putting live content behind a tile at the same level. `test/widgets/baked_glass_test.dart` pins all of it, including that the tiles still filter live for the first frames before the first bake lands.
 - **No blur without a clip**, or it samples past the rounded corner.
 - **Nothing blurs while an opaque route covers it.** `GlassCoverScope` ([glass_cover.dart](lib/widgets/ui/glass_cover.dart)) tracks the navigator stack through an `OpaqueCoverObserver` registered in `main()`, and `GlassSurface` asks it whether the route it lives in is buried. It follows the stack rather than `ModalRoute.secondaryAnimation` because *any* pushed route drives that animation, dialogs and menus included — and those are translucent, so flattening the page behind one is visible. It also keeps a popped route on the stack until its exit animation finishes: `didPop` fires when the pop *starts*, and removing it there let the page below blur again through the whole 180ms nobody could see it (measured: 3 ms/frame). The observer defers `notifyListeners` when a build is in flight — the navigator flushes observer notifications *during* build, and the scope sits above `MaterialApp`.
 
@@ -274,6 +285,10 @@ Baking collapses three full-window blended draws into one textured quad: 24.2 ms
 - **Bake at 1/4 resolution.** Gradients are smooth, so bilinear upscaling is invisible — verified by pixel-diffing the baked and live renders at native 4K: max delta **4/255**, no pixel above it, no banding. It costs 2 MB of texture instead of 33 MB.
 - **Bake to the window's aspect, not the display's.** `RadialGradient.radius` is a fraction of the *shortest side*, so a differently-shaped image stretched to fit turns the circles into ellipses. Re-baking is kept rare by quantising the bake size and debouncing 120 ms — which is also what stops the live-previewing accent picker from re-baking on every drag frame.
 - **`RepaintBoundary` cannot do this.** Flutter's raster cache has a size ceiling and refuses a full-window surface: measured 21.9 → 22.7 ms, i.e. nothing. The image has to be made by hand, and disposed when replaced.
+
+It bakes the **blurred** backdrop alongside the sharp one, one image per blur radius the theme actually uses inside the shell (`blurTopBar`, `blurPanel` — dialog surfaces are pushed routes and can never reach these images, so a third would be dead texture). `BakedBackdropScope` hands them down and `GlassSurface` crops. Sigma is divided by the same 1/4 downscale, and the blur uses `TileMode.clamp`: the source *is* the whole window, so the default fade-to-transparent would put a dark rim on all four edges.
+
+Verified as a visual no-op the way `verify.md` in the `flutter-render-perf` skill describes — one build, an env flag selecting the old path, native-resolution captures cropped to the render area. Two captures of the *same* configuration came out pixel-identical, so the comparison carries no capture noise at all; against that control, baked vs live is **99.92% of pixels bit-identical, mean delta 0.001/255, max 4/255** once you exclude 119 pixels. Those 119 are worth knowing about: they are the antialiased corner arcs of the drop zone's dashed border, where a sub-1/255 shift underneath tips an 18-step AA ramp by exactly one step and reads as 11–13/255 on individual pixels. Curved antialiased edges drawn over the backdrop are where this shows up, and nowhere else.
 
 ### The settings screen
 
@@ -300,7 +315,7 @@ Two things in there that are load-bearing rather than cosmetic:
 
 This used to be a separate `performance_mode` toggle, which made two bad states reachable: "performance mode on **and** intensity 50" meant nothing coherent, and intensity 0 on its own dropped the blur while *keeping* the translucent fills — precisely the ~2:1 contrast the toggle existed to prevent, reachable without ever finding the toggle. One control cannot contradict itself. `SettingsService` migrates a stored `performance_mode: true` to intensity 0 on load and stops writing the key.
 
-Measured on a Ryzen 9 9900X iGPU driving 3840x2160 (devicePixelRatio 2.0), Files maximized (render target 3840x2064), continuous frames: **80.4 ms / 12.4 fps** as the app shipped before this work, **33 ms / ~29 fps** after the backdrop bake and `BackdropGroup` landed, and **1.7 ms / 60 fps** at intensity 0. Three things that measurement settled and that guesswork got wrong:
+Measured on a Ryzen 9 9900X iGPU driving 3840x2160 (devicePixelRatio 2.0), Files maximized (render target 3840x2064), continuous frames: **80.4 ms / 12.4 fps** as the app shipped before this work, **32.0 ms / 31 fps** after the backdrop bake and `BackdropGroup` landed, and **1.74 ms / 60 fps** with the glass blur pre-baked as well — the same number as intensity 0, so the app now costs what an empty frame costs whether the frost is on or off. Three things that measurement settled and that guesswork got wrong:
 
 - **The cost is area x devicePixelRatio squared, and superlinear past that.** The same blur is nearly free in a small window and catastrophic maximized, so any before/after has to be measured at the size the complaint came from.
 - **`BackdropGroup` is worth 16 ms, and the claim that it wasn't came from not counting.** This file used to assert that only one `BackdropFilterLayer` is ever live. A census of the composited layer tree on the Files view finds **four**. Count the layers before reasoning about them — `RenderView.layer` works in profile builds, `debugLayer` is assert-guarded and returns null there.

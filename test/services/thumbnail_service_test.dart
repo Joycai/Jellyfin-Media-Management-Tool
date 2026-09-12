@@ -11,6 +11,7 @@ final _pixel = base64Decode(
 );
 
 const _thumbChannel = MethodChannel('fc_native_video_thumbnail');
+const _nativeChannel = MethodChannel('jellyfin/thumbnail');
 const _pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
 
 FileEntry _video([String name = 'episode.mkv']) => FileEntry(
@@ -43,6 +44,11 @@ void main() {
           (call) async => tempDir.path,
         );
     ThumbnailService.instance.resetForTest();
+    // These tests are about the plugin path, which is what macOS and Linux
+    // use. Pinned explicitly rather than left to the host: on Windows the
+    // service prefers the runner channel, and the fallback would make every
+    // assertion below depend on which machine ran it.
+    ThumbnailService.instance.useNativeChannelForTest(false);
   });
 
   tearDown(() async {
@@ -140,6 +146,97 @@ void main() {
     await ThumbnailService.instance.clearCache();
     expect(ThumbnailService.instance.peek(_video()), isNull);
     expect(await ThumbnailService.instance.cacheSizeOnDisk(), 0);
+  });
+
+  group('the Windows runner channel', () {
+    // fc_native_video_thumbnail runs its Shell extraction inline on the
+    // platform thread on Windows, so one NAS video stalls the window's message
+    // loop while it is read over SMB. The runner answers this channel from a
+    // worker pool instead; see windows/runner/thumbnail_channel.h.
+    late List<MethodCall> nativeCalls;
+
+    void mockNative(Object? Function(MethodCall call) respond) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_nativeChannel, (call) async {
+            nativeCalls.add(call);
+            return respond(call);
+          });
+    }
+
+    setUp(() {
+      nativeCalls = [];
+      ThumbnailService.instance.useNativeChannelForTest(true);
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_nativeChannel, null);
+    });
+
+    test('is preferred over the plugin, and asks it nothing', () async {
+      mockNative((_) => _pixel);
+      mockPlugin((_) => _pixel);
+
+      expect(await ThumbnailService.instance.thumbnailFor(_video()), isNotNull);
+      expect(nativeCalls, hasLength(1));
+      expect(nativeCalls.single.method, 'extract');
+      expect(
+        (nativeCalls.single.arguments as Map)['path'],
+        '/media/episode.mkv',
+      );
+      expect(
+        calls,
+        isEmpty,
+        reason: 'the plugin must not be consulted on this path',
+      );
+    });
+
+    test('makes one call, not the plugin two-step', () async {
+      // The Shell takes no timestamp, so there is no seeked attempt to retry
+      // without. Asking twice would just double the SMB round trips.
+      mockNative((_) => _pixel);
+      await ThumbnailService.instance.thumbnailFor(_video());
+      expect(nativeCalls, hasLength(1));
+      expect(
+        (nativeCalls.single.arguments as Map).containsKey('atUs'),
+        isFalse,
+      );
+    });
+
+    test('no frame is cached as a failure, same as the plugin', () async {
+      mockNative((_) => null);
+      expect(await ThumbnailService.instance.thumbnailFor(_video()), isNull);
+      final after = nativeCalls.length;
+      expect(await ThumbnailService.instance.thumbnailFor(_video()), isNull);
+      expect(nativeCalls, hasLength(after));
+    });
+
+    test(
+      'an older runner without the channel falls back to the plugin',
+      () async {
+        // A Dart-only hot restart can land on a binary built before the channel
+        // existed. Thumbnails must keep working there — just on the old, slow
+        // path — rather than disappearing.
+        mockPlugin((_) => _pixel);
+        // No handler registered for the native channel, so it raises
+        // MissingPluginException exactly as that runner would.
+
+        expect(
+          await ThumbnailService.instance.thumbnailFor(_video()),
+          isNotNull,
+        );
+        expect(calls, isNotEmpty);
+
+        // And the fallback latches: no second probe per file.
+        final before = calls.length;
+        expect(
+          await ThumbnailService.instance.thumbnailFor(_video('other.mkv')),
+          isNotNull,
+        );
+        expect(calls.length, greaterThan(before));
+        expect(nativeCalls, isEmpty);
+      },
+    );
   });
 
   test('canThumbnail only accepts video files', () {

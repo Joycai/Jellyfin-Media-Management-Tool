@@ -1697,7 +1697,7 @@ abstract class AppLocalizations {
   /// No description provided for @glassOnHint.
   ///
   /// In en, this message translates to:
-  /// **'Drag to 0 to turn the blur off. That is the only step here that changes performance — the strength itself barely does.'**
+  /// **'Drag to 0 to turn the blur off entirely. The strength itself costs almost nothing — how the blur is computed is the setting under Behavior.'**
   String get glassOnHint;
 
   /// No description provided for @accentColor.
@@ -1711,6 +1711,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Behavior'**
   String get behavior;
+
+  /// No description provided for @behaviorBakedGlass.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-render the glass blur'**
+  String get behaviorBakedGlass;
+
+  /// No description provided for @behaviorBakedGlassDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Blurs the window background once and reuses it instead of re-blurring every frame. Far cheaper on the GPU, and the panels look the same.'**
+  String get behaviorBakedGlassDesc;
+
+  /// No description provided for @behaviorBakedGlassUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to pre-render while the blur is off.'**
+  String get behaviorBakedGlassUnavailable;
 
   /// No description provided for @behaviorVideoThumbnails.
   ///

@@ -35,6 +35,13 @@ class SettingsService extends ChangeNotifier {
 
   // Appearance + behavior, surfaced on the Settings screen.
   double _glassIntensity = 70; // 0–100
+
+  /// Render the glass blur from a pre-baked image instead of a live
+  /// `BackdropFilter`. Defaults on: on the reference machine it is worth
+  /// ~46ms/frame maximized at 4K and the panels look the same either way.
+  /// Independent of [glassIntensity] — that decides how much blur, this
+  /// decides how it is computed, and 0 means there is none to compute.
+  bool _bakedGlass = true;
   int? _accentColor; // ARGB int; null = default theme accent
   List<int> _accentRecents = [];
   bool _showVideoThumbnails = true;
@@ -67,6 +74,7 @@ class SettingsService extends ChangeNotifier {
   List<String> get favorites => List.unmodifiable(_favorites);
   List<String> get recent => List.unmodifiable(_recent);
   double get glassIntensity => _glassIntensity;
+  bool get bakedGlass => _bakedGlass;
   int? get accentColor => _accentColor;
 
   /// 取色浮层的「最近使用」：应用过的自定义强调色，先进先出，最多
@@ -153,6 +161,9 @@ class SettingsService extends ChangeNotifier {
     if (data['show_video_thumbnails'] is bool) {
       _showVideoThumbnails = data['show_video_thumbnails'] as bool;
     }
+    if (data['baked_glass'] is bool) {
+      _bakedGlass = data['baked_glass'] as bool;
+    }
     // 迁移：从前「性能模式」是一个独立开关，现在它就是玻璃强度 0。
     // 开着它的人要的是「别做毛玻璃」，那正是 0 这一档的意思；键不再写回，
     // 下次保存就消失了。
@@ -235,6 +246,7 @@ class SettingsService extends ChangeNotifier {
         'accent_color': _accentColor,
         'accent_recents': _accentRecents,
         'show_video_thumbnails': _showVideoThumbnails,
+        'baked_glass': _bakedGlass,
         'onboarding_seen': _onboardingSeen,
         'font_choice': _fontChoice,
         'favorites': _favorites,
@@ -296,6 +308,12 @@ class SettingsService extends ChangeNotifier {
   /// `AppTokens.build`，这里只存数。
   Future<void> setGlassIntensity(double v) async {
     _glassIntensity = v.clamp(0, 100);
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  Future<void> setBakedGlass(bool v) async {
+    _bakedGlass = v;
     _scheduleSave();
     notifyListeners();
   }

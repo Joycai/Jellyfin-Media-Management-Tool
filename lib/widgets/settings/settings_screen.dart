@@ -49,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// `X.Y.Z+N`. sync-version 写的就是这一处；关于页把它拆成版本与构建号两行
   /// （6.4），顶栏只显示版本名。
-  static const String _appVersion = '1.0.0+1';
+  static const String _appVersion = '1.1.0+2';
   static String get _versionName => _appVersion.split('+').first;
 
   @override

@@ -24,22 +24,26 @@ class AppTheme {
   static ThemeData light({
     Color? accent,
     double? glassIntensity,
+    bool bakedGlass = true,
     String? fontFamily,
   }) => _build(
     Brightness.light,
     accent: accent,
     glassIntensity: glassIntensity,
+    bakedGlass: bakedGlass,
     fontFamily: fontFamily,
   );
 
   static ThemeData dark({
     Color? accent,
     double? glassIntensity,
+    bool bakedGlass = true,
     String? fontFamily,
   }) => _build(
     Brightness.dark,
     accent: accent,
     glassIntensity: glassIntensity,
+    bakedGlass: bakedGlass,
     fontFamily: fontFamily,
   );
 
@@ -58,15 +62,17 @@ class AppTheme {
     Brightness brightness, {
     Color? accent,
     double? glassIntensity,
+    required bool bakedGlass,
     String? fontFamily,
   }) {
-    final key = '${accent?.toARGB32()}|$glassIntensity|$fontFamily';
+    final key = '${accent?.toARGB32()}|$glassIntensity|$bakedGlass|$fontFamily';
     final cached = _memo[brightness];
     if (cached != null && cached.$1 == key) return cached.$2;
     final built = _buildUncached(
       brightness,
       accent: accent,
       glassIntensity: glassIntensity,
+      bakedGlass: bakedGlass,
       fontFamily: fontFamily,
     );
     _memo[brightness] = (key, built);
@@ -77,12 +83,14 @@ class AppTheme {
     Brightness brightness, {
     Color? accent,
     double? glassIntensity,
+    required bool bakedGlass,
     String? fontFamily,
   }) {
     final t = AppTokens.build(
       brightness: brightness,
       accent: accent,
       glassIntensity: glassIntensity ?? 70,
+      bakedGlass: bakedGlass,
       uiFont: fontFamily,
     );
     final isDark = t.isDark;
