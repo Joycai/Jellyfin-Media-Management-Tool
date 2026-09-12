@@ -702,6 +702,7 @@
   "modelParameters": "Model parameters",
   "modelParametersExpand": "Expand",
   "modelParametersCollapse": "Collapse",
+  "modelParametersSaved": "Model parameters saved",
   "contextWindowScaleHint": "tokens · 8k – 1M · step 1k",
   "contextWindowFootnote": "The ticks are evenly spaced segments and each segment is continuous, so the handle can stop on any 1k. Slider and field follow each other; blank means no limit.",
   "contextWindowOverDetected": "Above the {limit} the server reported. Still saved.",

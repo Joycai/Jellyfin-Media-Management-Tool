@@ -30,6 +30,10 @@ class ModelParametersPage extends StatelessWidget {
 
   final VoidCallback onCollapse;
 
+  /// 落盘并给一句回执。页面里每一处改动本来就落键即存，这颗按钮做的是
+  /// 「把还在输入框里的那一处也交上去，然后说一声」—— 设计稿 03b 的主操作。
+  final VoidCallback onSave;
+
   /// 采样参数卡。留在服务详情那边（它要读家族预设和上次测试结果），这里只是把
   /// 它排进设计稿给的位置。
   final Widget sampling;
@@ -44,6 +48,7 @@ class ModelParametersPage extends StatelessWidget {
     required this.onMaxOutputChanged,
     required this.detectedCeiling,
     required this.onCollapse,
+    required this.onSave,
     required this.sampling,
   });
 
@@ -54,7 +59,12 @@ class ModelParametersPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Header(serviceName: serviceName, model: model, onCollapse: onCollapse),
+        _Header(
+          serviceName: serviceName,
+          model: model,
+          onCollapse: onCollapse,
+          onSave: onSave,
+        ),
         Expanded(
           child: SettingsPage(
             children: [
@@ -90,11 +100,13 @@ class _Header extends StatelessWidget {
   final String serviceName;
   final String model;
   final VoidCallback onCollapse;
+  final VoidCallback onSave;
 
   const _Header({
     required this.serviceName,
     required this.model,
     required this.onCollapse,
+    required this.onSave,
   });
 
   @override
@@ -109,33 +121,53 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Flexible(
-            child: Text(
-              '${l10n.secAiServices} · $serviceName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypeScale.control.copyWith(color: t.textMuted),
+          // 面包屑这一段是唯一可伸缩的：它和右侧按钮组之间不能再放第二个
+          // 弹性子项。`Flexible` 是松约束的，用不满分给它的那一份余量也不会
+          // 还回去 —— 和 `Spacer` 一人一半时，按钮就被顶在离右边一段距离的
+          // 地方，怎么看都像没对齐。
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    '${l10n.secAiServices} · $serviceName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypeScale.control.copyWith(color: t.textMuted),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Icon(Icons.chevron_right, size: 14, color: t.textMuted),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  l10n.modelParameters,
+                  style: AppTypeScale.title.copyWith(color: t.textTitle),
+                ),
+                if (model.isNotEmpty) ...[
+                  const SizedBox(width: AppSpacing.md),
+                  Flexible(child: AppTag.neutral(model, mono: true)),
+                ],
+              ],
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Icon(Icons.chevron_right, size: 14, color: t.textMuted),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            l10n.modelParameters,
-            style: AppTypeScale.title.copyWith(color: t.textTitle),
-          ),
-          if (model.isNotEmpty) ...[
-            const SizedBox(width: AppSpacing.md),
-            AppTag.neutral(model, mono: true),
-          ],
-          const Spacer(),
-          // 「保存」不在这里：每一处改动落键即存（服务详情的 `_persist`），
-          // 摆一个保存按钮会让人以为不按就丢。设计稿的那颗按钮因此换成收起。
+          const SizedBox(width: AppSpacing.md12),
+          // 03b 的按钮组：次级「收起」+ 主「保存」，间距 8，齐右。收起不带
+          // 图标（摘要行的「展开 ▾」才有），两颗都是 h28 的紧凑档。
           AppButton(
             label: l10n.modelParametersCollapse,
-            icon: Icons.expand_less,
             height: AppSizes.controlSm,
             onPressed: onCollapse,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          AppButton.primary(
+            label: l10n.save,
+            height: AppSizes.controlSm,
+            onPressed: () {
+              // 焦点还在某个输入框里时，那一处改动尚未提交（两张卡都是失焦
+              // 或回车才认）。先交上去，再落盘。
+              FocusManager.instance.primaryFocus?.unfocus();
+              onSave();
+            },
           ),
         ],
       ),
@@ -293,7 +325,7 @@ class _ContextCardState extends State<_ContextCard> {
 
 // ── 最大输出卡 ──────────────────────────────────────────────────────────────
 
-class _MaxOutputCard extends StatelessWidget {
+class _MaxOutputCard extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onChanged;
   final int? contextWindow;
@@ -303,6 +335,41 @@ class _MaxOutputCard extends StatelessWidget {
     required this.onChanged,
     required this.contextWindow,
   });
+
+  @override
+  State<_MaxOutputCard> createState() => _MaxOutputCardState();
+}
+
+class _MaxOutputCardState extends State<_MaxOutputCard> {
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _commit(widget.controller.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// 夹紧在失焦 / 回车时做，不在每一次按键上做：打 2048 的路上会先经过 2，
+  /// 那一刻夹到 256 会把用户正在打的数字改掉。
+  void _commit(String raw) {
+    final parsed = int.tryParse(raw.trim());
+    if (parsed == null) return;
+    final clamped = MaxOutputScale.clamp(
+      parsed,
+      contextWindow: widget.contextWindow,
+    ).toString();
+    if (clamped == widget.controller.text) return;
+    widget.controller.text = clamped;
+    widget.onChanged();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -334,22 +401,13 @@ class _MaxOutputCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md12),
           AppTextField(
-            controller: controller,
+            controller: widget.controller,
+            focusNode: _focus,
             mono: true,
             hint: l10n.maxOutputTokensHint,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            onChanged: (_) => onChanged(),
-            // 夹紧在失焦 / 回车时做，不在每一次按键上做：打 2048 的路上会先经过
-            // 2，那一刻夹到 256 会把用户正在打的数字改掉。
-            onSubmitted: (raw) {
-              final parsed = int.tryParse(raw.trim());
-              if (parsed == null) return;
-              controller.text = MaxOutputScale.clamp(
-                parsed,
-                contextWindow: contextWindow,
-              ).toString();
-              onChanged();
-            },
+            onChanged: (_) => widget.onChanged(),
+            onSubmitted: _commit,
           ),
           const SizedBox(height: AppSpacing.md12),
           Divider(height: 1, thickness: 1, color: t.stroke),

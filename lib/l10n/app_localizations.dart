@@ -4274,6 +4274,12 @@ abstract class AppLocalizations {
   /// **'Collapse'**
   String get modelParametersCollapse;
 
+  /// No description provided for @modelParametersSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Model parameters saved'**
+  String get modelParametersSaved;
+
   /// No description provided for @contextWindowScaleHint.
   ///
   /// In en, this message translates to:

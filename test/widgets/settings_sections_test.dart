@@ -9,7 +9,9 @@ import 'package:jellyfin_media_management_tool/widgets/settings/model_parameters
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_about_section.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_paths_section.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_privacy_section.dart';
+import 'package:jellyfin_media_management_tool/widgets/settings/settings_controls.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_shortcuts_section.dart';
+import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
 import 'package:provider/provider.dart';
 
 /// Layout smoke tests for the 06-Config pages.
@@ -106,6 +108,7 @@ void main() {
         onMaxOutputChanged: () {},
         detectedCeiling: null,
         onCollapse: () {},
+        onSave: () {},
         sampling: const SizedBox.shrink(),
       ),
     );
@@ -115,5 +118,38 @@ void main() {
     // The tick labels read in k/M, while the field keeps raw tokens.
     expect(find.text('128k'), findsOneWidget);
     expect(find.text('1M'), findsOneWidget);
+  });
+
+  testWidgets('the header actions sit flush with the content edge', (
+    tester,
+  ) async {
+    final maxOutput = TextEditingController();
+    addTearDown(maxOutput.dispose);
+    await _pump(
+      tester,
+      ModelParametersPage(
+        serviceName: 'OpenAI',
+        model: 'gpt-4o-mini',
+        contextWindow: 131072,
+        onContextWindow: (_) {},
+        maxOutput: maxOutput,
+        onMaxOutputChanged: () {},
+        detectedCeiling: null,
+        onCollapse: () {},
+        onSave: () {},
+        sampling: const SizedBox.shrink(),
+      ),
+    );
+
+    // 03b puts Collapse + Save against the right edge, on the same 24px inset
+    // as the cards below. A `Flexible` breadcrumb beside a `Spacer` split the
+    // free space between them and left the group stranded 38px short, which
+    // reads as a misplaced button rather than as a layout bug.
+    final save = tester.getRect(find.widgetWithText(AppButton, 'Save'));
+    final collapse = tester.getRect(find.widgetWithText(AppButton, 'Collapse'));
+    final card = tester.getRect(find.byType(SettingsCard).at(1));
+    expect(save.right, moreOrLessEquals(card.right, epsilon: 0.5));
+    expect(save.left - collapse.right, moreOrLessEquals(AppSpacing.sm));
+    expect(save.height, AppSizes.controlSm);
   });
 }

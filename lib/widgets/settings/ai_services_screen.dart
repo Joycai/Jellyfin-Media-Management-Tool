@@ -445,6 +445,16 @@ class _ServiceDetailState extends State<_ServiceDetail> {
     }
   }
 
+  /// 03b 顶栏的「保存」。这一页的每一处改动本来就落键即存，所以它不是这些值
+  /// 唯一的出路 —— 它做的是「立刻再写一次，并说一声写过了」，好让人不必猜。
+  void _saveParameters() {
+    _persist();
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.modelParametersSaved)));
+  }
+
   void _resetSampling() {
     setState(() {
       for (final controller in _sampling.values) {
@@ -617,6 +627,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
         onMaxOutputChanged: _persist,
         detectedCeiling: _detected?.contextWindow,
         onCollapse: () => widget.onShowParameters(false),
+        onSave: _saveParameters,
         sampling: _SamplingSection(
           preset: SamplingPresets.forModel(_model.text),
           controllers: _sampling,

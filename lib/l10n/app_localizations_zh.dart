@@ -2324,6 +2324,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelParametersCollapse => '收起';
 
   @override
+  String get modelParametersSaved => '模型参数已保存';
+
+  @override
   String get contextWindowScaleHint => 'tokens · 8k – 1M · 步进 1k';
 
   @override

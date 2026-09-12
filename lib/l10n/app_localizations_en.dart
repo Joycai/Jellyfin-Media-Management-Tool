@@ -2383,6 +2383,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelParametersCollapse => 'Collapse';
 
   @override
+  String get modelParametersSaved => 'Model parameters saved';
+
+  @override
   String get contextWindowScaleHint => 'tokens · 8k – 1M · step 1k';
 
   @override
