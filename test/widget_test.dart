@@ -8,6 +8,7 @@ import 'package:jellyfin_media_management_tool/services/font_service.dart';
 import 'package:jellyfin_media_management_tool/services/settings_service.dart';
 import 'package:jellyfin_media_management_tool/services/file_browser_service.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
+import 'package:jellyfin_media_management_tool/widgets/ui/glass_cover.dart';
 
 void main() {
   testWidgets('Fresh install shows the onboarding welcome step', (
@@ -30,7 +31,7 @@ void main() {
           ChangeNotifierProvider<HistoryService>.value(value: HistoryService()),
           ChangeNotifierProvider(create: (_) => FileBrowserService()),
         ],
-        child: const MyApp(),
+        child: MyApp(glassCover: OpaqueCoverObserver()),
       ),
     );
     await tester.pump();

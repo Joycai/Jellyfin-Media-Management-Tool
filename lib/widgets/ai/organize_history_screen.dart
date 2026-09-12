@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/history_entry.dart';
 import '../../services/history_service.dart';
-import '../../theme/design_tokens.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../glass/glass_dialog.dart';
 import '../shell/app_shell.dart';
@@ -17,7 +17,7 @@ class OrganizeHistoryScreen extends StatefulWidget {
   const OrganizeHistoryScreen({super.key});
 
   static Future<void> show(BuildContext context) => Navigator.of(context).push(
-    MaterialPageRoute(
+    AppPageRoute<void>(
       fullscreenDialog: true,
       builder: (_) => const OrganizeHistoryScreen(),
     ),

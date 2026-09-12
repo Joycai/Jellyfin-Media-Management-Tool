@@ -383,6 +383,26 @@ class AppTheme {
   );
 }
 
+/// 整页路由。转场时长走设计规范，而不是 Material 的默认值。
+///
+/// `MaterialPageRoute` 硬编码 300ms，而 1.4f 的动效档位只有
+/// 80 / 100 / 120 / 180 / 240 —— 对话框和 popover 都老实用了 [AppMotion]，
+/// 只有整页路由漏在外面。180ms 同时也少付 40% 的转场帧：那段时间里上下两棵树
+/// 同时绘制，是全应用最贵的一段（见 `GlassCoverScope`）。
+class AppPageRoute<T> extends MaterialPageRoute<T> {
+  AppPageRoute({
+    required super.builder,
+    super.settings,
+    super.fullscreenDialog,
+  });
+
+  @override
+  Duration get transitionDuration => AppMotion.panel;
+
+  @override
+  Duration get reverseTransitionDuration => AppMotion.panel;
+}
+
 /// 桌面端页面转场：淡入 + 1.5% 上浮。
 ///
 /// 默认的 `ZoomPageTransitionsBuilder` 是安卓的放大浮入，在桌面窗口里像手机

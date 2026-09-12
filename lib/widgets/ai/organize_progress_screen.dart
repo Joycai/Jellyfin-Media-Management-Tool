@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/apply_controller.dart';
 import '../../services/organize_service.dart';
-import '../../theme/design_tokens.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../shell/app_shell.dart';
 import '../shell/secondary_title_bar.dart';
@@ -23,7 +23,7 @@ class OrganizeProgressScreen extends StatefulWidget {
     ApplyController controller,
   ) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
+      AppPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => ChangeNotifierProvider.value(
           value: controller,
