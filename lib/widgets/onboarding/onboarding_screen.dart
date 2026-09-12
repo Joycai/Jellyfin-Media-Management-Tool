@@ -919,8 +919,8 @@ class _PrimaryButton extends StatelessWidget {
   }
 }
 
-/// Wrap [child] in the onboarding cards' frosted backdrop, unless performance
-/// mode is on.
+/// Wrap [child] in the onboarding cards' frosted backdrop, unless the app is
+/// currently drawing without blur.
 ///
 /// These two cards sit on a dark decorative gradient and carry a 4-8% white
 /// wash, which reads as a surface only because the blur behind it separates it
@@ -929,20 +929,26 @@ class _PrimaryButton extends StatelessWidget {
 /// weight without the per-frame filter.
 ///
 /// Onboarding is a one-time screen, so this is about the switch meaning the
-/// same thing everywhere rather than about frame time here.
+/// same thing everywhere rather than about frame time here. Which is exactly
+/// why the radius comes off [AppTokens] rather than being written down: this
+/// used to read `reduceEffects` and blur at a hard-coded 18, so turning the
+/// glass-intensity slider to 0 silenced every other frosted surface in the app
+/// and left these two cards blurring. A token of 0 now means no filter here
+/// too, whichever switch produced the 0.
 Widget _onboardingFrost({
   required BuildContext context,
   required BorderRadius borderRadius,
   required Widget Function(double alphaScale) builder,
 }) {
-  final flat = context.tokens.reduceEffects;
+  final blur = context.tokens.blurDialog;
+  final flat = blur <= 0;
   final content = builder(flat ? 2.5 : 1.0);
   return ClipRRect(
     borderRadius: borderRadius,
     child: flat
         ? content
         : BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
             child: content,
           ),
   );

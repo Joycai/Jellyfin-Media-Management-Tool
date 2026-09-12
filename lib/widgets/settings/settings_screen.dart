@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/ai_profiles_service.dart';
 import '../../services/ai_service.dart';
-import '../../theme/design_tokens.dart';
+import '../../theme/app_theme.dart';
 import '../shell/app_shell.dart';
 import '../shell/secondary_title_bar.dart';
 import '../ui/glass_surface.dart';
@@ -34,7 +34,7 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   static Future<void> show(BuildContext context) => Navigator.of(context).push(
-    MaterialPageRoute(
+    AppPageRoute<void>(
       fullscreenDialog: true,
       builder: (_) => const SettingsScreen(),
     ),

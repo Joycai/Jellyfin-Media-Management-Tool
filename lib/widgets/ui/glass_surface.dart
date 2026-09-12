@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../theme/design_tokens.dart';
+import 'glass_cover.dart';
 
 /// 全应用**唯一**一处 `BackdropFilter`。
 ///
@@ -17,6 +18,8 @@ import '../../theme/design_tokens.dart';
 ///   通道并回读整个目标，代价正在那里。
 /// * **模糊只在有裁剪的地方开。** 没有 `ClipRRect` 的 `BackdropFilter` 会采样到
 ///   圆角之外。
+/// * **被不透明路由盖住时不加模糊。** 看不见的那层照样每帧回读整块背景；推开
+///   设置页的 300ms 里，主页那 6 个滤镜一个都没人看得到。见 [GlassCoverScope]。
 ///
 /// 在 3840×2160（devicePixelRatio 2.0）上实测：最大化切分区，p50 光栅
 /// 61.5 ms → 23.9 ms、12.5 → 24.8 fps。代价是面积 × dpr²，而且超线性 —— 同一层
@@ -59,7 +62,11 @@ class GlassSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
     final radius = borderRadius ?? BorderRadius.zero;
-    final wantsBlur = blur > 0 && !t.reduceEffects && !_fillHidesBackdrop(fill);
+    final wantsBlur =
+        blur > 0 &&
+        !t.reduceEffects &&
+        !_fillHidesBackdrop(fill) &&
+        !GlassCoverScope.isCovered(context);
 
     Widget content = DecoratedBox(
       decoration: BoxDecoration(

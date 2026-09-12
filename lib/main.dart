@@ -23,6 +23,7 @@ import 'services/task_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/onboarding/onboarding_screen.dart';
 import 'widgets/shell/window_state.dart';
+import 'widgets/ui/glass_cover.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -102,6 +103,10 @@ void main() async {
   final windowState = WindowStateNotifier();
   unawaited(windowState.attach());
 
+  // 谁盖住了谁 —— GlassSurface 用它跳过看不见的模糊。观察者必须先于 Navigator
+  // 存在，所以在这里造，而不是在某个 widget 的 build 里。
+  final glassCover = OpaqueCoverObserver();
+
   runApp(
     MultiProvider(
       providers: [
@@ -115,13 +120,18 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TaskService()),
         ChangeNotifierProvider(create: (_) => FileBrowserService()),
       ],
-      child: WindowStateScope(notifier: windowState, child: const MyApp()),
+      child: WindowStateScope(
+        notifier: windowState,
+        child: MyApp(glassCover: glassCover),
+      ),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.glassCover});
+
+  final OpaqueCoverObserver glassCover;
 
   @override
   Widget build(BuildContext context) {
@@ -131,36 +141,40 @@ class MyApp extends StatelessWidget {
       AppFontChoiceX.fromId(settings.fontChoice),
     );
 
-    return MaterialApp(
-      title: 'Jellyfin Media Management Tool',
-      themeMode: settings.themeMode,
-      locale: settings.locale,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('en'), Locale('zh')],
-      theme: AppTheme.light(
-        accent: settings.accentColor == null
-            ? null
-            : Color(settings.accentColor!),
-        glassIntensity: settings.glassIntensity,
-        fontFamily: fontFamily,
-        reduceEffects: settings.performanceMode,
+    return GlassCoverScope(
+      notifier: glassCover,
+      child: MaterialApp(
+        navigatorObservers: [glassCover],
+        title: 'Jellyfin Media Management Tool',
+        themeMode: settings.themeMode,
+        locale: settings.locale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('en'), Locale('zh')],
+        theme: AppTheme.light(
+          accent: settings.accentColor == null
+              ? null
+              : Color(settings.accentColor!),
+          glassIntensity: settings.glassIntensity,
+          fontFamily: fontFamily,
+          reduceEffects: settings.performanceMode,
+        ),
+        darkTheme: AppTheme.dark(
+          accent: settings.accentColor == null
+              ? null
+              : Color(settings.accentColor!),
+          glassIntensity: settings.glassIntensity,
+          fontFamily: fontFamily,
+          reduceEffects: settings.performanceMode,
+        ),
+        home: settings.onboardingSeen
+            ? const HomeScreen()
+            : const OnboardingScreen(),
       ),
-      darkTheme: AppTheme.dark(
-        accent: settings.accentColor == null
-            ? null
-            : Color(settings.accentColor!),
-        glassIntensity: settings.glassIntensity,
-        fontFamily: fontFamily,
-        reduceEffects: settings.performanceMode,
-      ),
-      home: settings.onboardingSeen
-          ? const HomeScreen()
-          : const OnboardingScreen(),
     );
   }
 }
