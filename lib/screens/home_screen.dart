@@ -340,9 +340,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final visible = MediaTable.visibleFiles(browser.files, _search);
     final bytes = visible.fold<int>(0, (sum, e) => sum + e.size);
     final ai = context.watch<AiService>();
+    // 计数与选中数由列表面板自己的页脚讲（3.1）；状态栏讲的是「这个文件夹有多
+    // 大、AI 走到哪一步了」。两个地方都写「已选 N 项」的时候它们还会打架 ——
+    // 面板把聚焦行算作 1，状态栏只算显式多选。
     return AppStatusBar(
       leading: [
-        Text(l10n.statusItems(browser.selectionCount, visible.length)),
         Text(
           l10n.statusTotalSize(formatBytes(bytes, zero: '0 B')),
           style: AppTypeScale.monoSmall.copyWith(color: t.textMuted),

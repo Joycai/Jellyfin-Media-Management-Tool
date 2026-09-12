@@ -594,17 +594,6 @@
   "togglePanel": "Show or hide the side panel",
   "toggleSidebar": "Show or hide the sidebar",
   "searchHintShort": "Search…",
-  "statusItems": "{selected} of {total} selected",
-  "@statusItems": {
-    "placeholders": {
-      "selected": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "statusTotalSize": "{size} total",
   "@statusTotalSize": {
     "placeholders": {

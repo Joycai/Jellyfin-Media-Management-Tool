@@ -3668,12 +3668,6 @@ abstract class AppLocalizations {
   /// **'Search…'**
   String get searchHintShort;
 
-  /// No description provided for @statusItems.
-  ///
-  /// In en, this message translates to:
-  /// **'{selected} of {total} selected'**
-  String statusItems(int selected, int total);
-
   /// No description provided for @statusTotalSize.
   ///
   /// In en, this message translates to:

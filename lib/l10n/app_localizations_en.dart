@@ -2055,11 +2055,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchHintShort => 'Search…';
 
   @override
-  String statusItems(int selected, int total) {
-    return '$selected of $total selected';
-  }
-
-  @override
   String statusTotalSize(String size) {
     return '$size total';
   }

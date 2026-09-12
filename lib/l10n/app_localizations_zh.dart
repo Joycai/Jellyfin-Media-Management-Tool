@@ -2006,11 +2006,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchHintShort => '搜索…';
 
   @override
-  String statusItems(int selected, int total) {
-    return '已选 $selected 项 · 共 $total 项';
-  }
-
-  @override
   String statusTotalSize(String size) {
     return '总计 $size';
   }
