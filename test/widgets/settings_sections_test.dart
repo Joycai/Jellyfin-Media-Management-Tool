@@ -9,7 +9,9 @@ import 'package:jellyfin_media_management_tool/widgets/settings/model_parameters
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_about_section.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_paths_section.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_privacy_section.dart';
+import 'package:jellyfin_media_management_tool/widgets/settings/settings_controls.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_shortcuts_section.dart';
+import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
 import 'package:provider/provider.dart';
 
 /// Layout smoke tests for the 06-Config pages.
@@ -87,9 +89,28 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('1.2.3'), findsOneWidget);
     expect(find.text('45'), findsOneWidget);
-    // Commit and branch are not stamped into the build yet, so they read as
-    // em dashes with a footnote rather than quietly disappearing.
-    expect(find.text('—'), findsNWidgets(2));
+    // Commit, branch and commit time are not stamped into the build yet, so
+    // they read as em dashes with a footnote rather than quietly disappearing.
+    expect(find.text('—'), findsNWidgets(3));
+    // The design's own third-party list has nowhere to open yet, so the row is
+    // drawn and labelled rather than dropped.
+    expect(find.text('Third-party licenses'), findsOneWidget);
+    // One system row, not a separate card for OS and architecture.
+    expect(find.text('System'), findsOneWidget);
+    // Artboard 24 puts the two info cards in one grid row, so they match
+    // height; the build-info note lives inside its card for that reason.
+    final build = tester.getRect(find.byType(SettingsCard).at(0));
+    final source = tester.getRect(find.byType(SettingsCard).at(1));
+    expect(build.height, moreOrLessEquals(source.height, epsilon: 0.5));
+    // 24 puts every group label inside its own card, not floating above it.
+    expect(
+      build.contains(tester.getRect(find.text('Build info')).topLeft),
+      isTrue,
+    );
+    expect(
+      source.contains(tester.getRect(find.text('Open source')).topLeft),
+      isTrue,
+    );
   });
 
   testWidgets('the model parameters page lays out', (tester) async {
@@ -106,6 +127,7 @@ void main() {
         onMaxOutputChanged: () {},
         detectedCeiling: null,
         onCollapse: () {},
+        onSave: () {},
         sampling: const SizedBox.shrink(),
       ),
     );
@@ -115,5 +137,43 @@ void main() {
     // The tick labels read in k/M, while the field keeps raw tokens.
     expect(find.text('128k'), findsOneWidget);
     expect(find.text('1M'), findsOneWidget);
+  });
+
+  testWidgets('the header actions sit flush with the content edge', (
+    tester,
+  ) async {
+    final maxOutput = TextEditingController();
+    addTearDown(maxOutput.dispose);
+    await _pump(
+      tester,
+      ModelParametersPage(
+        serviceName: 'OpenAI',
+        model: 'gpt-4o-mini',
+        contextWindow: 131072,
+        onContextWindow: (_) {},
+        maxOutput: maxOutput,
+        onMaxOutputChanged: () {},
+        detectedCeiling: null,
+        onCollapse: () {},
+        onSave: () {},
+        sampling: const SizedBox.shrink(),
+      ),
+    );
+
+    // 03b puts Collapse + Save against the right edge, on the same 24px inset
+    // as the cards below. A `Flexible` breadcrumb beside a `Spacer` split the
+    // free space between them and left the group stranded 38px short, which
+    // reads as a misplaced button rather than as a layout bug.
+    final save = tester.getRect(find.widgetWithText(AppButton, 'Save'));
+    final collapse = tester.getRect(find.widgetWithText(AppButton, 'Collapse'));
+    final card = tester.getRect(find.byType(SettingsCard).at(1));
+    expect(save.right, moreOrLessEquals(card.right, epsilon: 0.5));
+    expect(save.left - collapse.right, moreOrLessEquals(AppSpacing.sm));
+    expect(save.height, AppSizes.controlSm);
+
+    // 03b's two columns are grid cells: same row, same height. The right card
+    // holds one field and would otherwise stop well short of the slider card.
+    final left = tester.getRect(find.byType(SettingsCard).first);
+    expect(card.height, moreOrLessEquals(left.height, epsilon: 0.5));
   });
 }

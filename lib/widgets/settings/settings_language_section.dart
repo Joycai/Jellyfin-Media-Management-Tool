@@ -382,7 +382,9 @@ class _PreviewPanel extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: emphasised ? 15 : 12.5,
+              fontSize: emphasised
+                  ? AppTypeScale.sizeTitle
+                  : AppTypeScale.sizeControl,
               fontWeight: emphasised ? FontWeight.w800 : FontWeight.w600,
               color: emphasised ? scheme.onSurface : scheme.onSurfaceVariant,
             ),

@@ -395,6 +395,9 @@ class _HueTrack extends StatelessWidget {
                 height: _trackHeight,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(_trackHeight / 2),
+                  // 6.2 的「全色相渐变」。这七个值是色相环本身，不是主题色 ——
+                  // 从令牌里取任何东西来画它都会让某一段色相消失，而那正是用户
+                  // 在这条轨上要找的。
                   gradient: const LinearGradient(
                     colors: [
                       Color(0xFFFF0000),

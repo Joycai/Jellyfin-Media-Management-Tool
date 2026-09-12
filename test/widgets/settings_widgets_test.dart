@@ -50,6 +50,25 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('a card header keeps its badge with the label', (tester) async {
+      await _pump(
+        tester,
+        const SettingsCardHeader(
+          'Graphics',
+          badge: Text('2 detected'),
+          trailing: Text('Information only'),
+        ),
+      );
+
+      final label = tester.getRect(find.text('Graphics'));
+      final badge = tester.getRect(find.text('2 detected'));
+      final hint = tester.getRect(find.text('Information only'));
+      // Only the note is pushed to the far edge; the badge belongs to the
+      // title and sits one gap after it.
+      expect(badge.left - label.right, moreOrLessEquals(AppSpacing.md));
+      expect(badge.right, lessThan(hint.left));
+    });
+
     testWidgets('a card holds its child and honours custom padding', (
       tester,
     ) async {

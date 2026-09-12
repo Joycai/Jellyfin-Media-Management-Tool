@@ -2245,6 +2245,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutCommit => '提交';
 
   @override
+  String get aboutCommitTime => '提交时间';
+
+  @override
   String get aboutBranch => '分支';
 
   @override
@@ -2281,6 +2284,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutCopyrightValue => '© 2026 贡献者';
 
   @override
+  String get aboutThirdParty => '第三方许可';
+
+  @override
   String get aboutGraphics => '图形设备';
 
   @override
@@ -2288,6 +2294,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutGpuShared => '共享内存';
+
+  @override
+  String aboutGpuCount(Object count) {
+    return '检测到 $count 个 GPU';
+  }
+
+  @override
+  String get aboutGpuInfoOnly => '仅信息展示';
+
+  @override
+  String get aboutGpuIdle => '空闲';
 
   @override
   String get accentPickerTitle => '强调色';
@@ -2322,6 +2339,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelParametersCollapse => '收起';
+
+  @override
+  String get modelParametersSaved => '模型参数已保存';
 
   @override
   String get contextWindowScaleHint => 'tokens · 8k – 1M · 步进 1k';

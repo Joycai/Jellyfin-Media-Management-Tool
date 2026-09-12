@@ -98,7 +98,11 @@ class SettingsCard extends StatelessWidget {
 class SettingsRowsCard extends StatelessWidget {
   final List<Widget> children;
 
-  const SettingsRowsCard({super.key, required this.children});
+  /// 卡内的分组标题（画板 24 把标题画在卡里，而不是卡上方）。它和行之间不划
+  /// 发丝线 —— 发丝线是行与行的分隔，标题不是一行。
+  final Widget? header;
+
+  const SettingsRowsCard({super.key, required this.children, this.header});
 
   @override
   Widget build(BuildContext context) {
@@ -112,10 +116,62 @@ class SettingsRowsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          ?header,
           for (final (i, child) in children.indexed) ...[
             if (i != 0) Divider(height: 1, thickness: 1, color: t.stroke),
             child,
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 卡内标题行。
+///
+/// 与卡外的 [SettingsSectionTitle] 同一档字（10.5 / 700 / 0.06em），但不占那
+/// 28 的固定高：固定高存在的理由是让并排两列的分组对齐，而卡内没有这个问题。
+/// [emphasis] 换成 12.5 / 600 的卡片标题档 —— 画板 24 的「图形设备」用的是它。
+class SettingsCardHeader extends StatelessWidget {
+  final String text;
+
+  /// 紧跟在标题后面的徽标。它属于标题，不属于右边那一栏 —— 画板 24 的卡头上
+  /// 只有旁注带 `margin-left:auto`，徽标是标题的一部分。
+  final Widget? badge;
+
+  final Widget? trailing;
+  final bool emphasis;
+
+  const SettingsCardHeader(
+    this.text, {
+    super.key,
+    this.badge,
+    this.trailing,
+    this.emphasis = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      // 固定高，理由同 [SettingsSectionTitle]：带文字链的卡头和不带的必须一样
+      // 高，否则并排两张卡的标题会差一个按钮的高度。
+      height: AppSizes.controlXs + AppSpacing.md12,
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.xs),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: emphasis
+                ? AppTypeScale.controlStrong.copyWith(color: t.textTitle)
+                : AppTypeScale.columnHeader.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: t.textMuted,
+                  ),
+          ),
+          if (badge != null) ...[const SizedBox(width: AppSpacing.md), badge!],
+          const Spacer(),
+          ?trailing,
         ],
       ),
     );
@@ -304,23 +360,38 @@ class SettingsColumns extends StatelessWidget {
   final int leftFlex;
   final int rightFlex;
 
+  /// 两列等高。设计稿的两列是 CSS grid，同一行的格子默认拉伸到等高 —— 一行里
+  /// 并排的两张卡下沿不齐，看上去就像右边那张画漏了。
+  ///
+  /// 用 `IntrinsicHeight` 而不是 `CrossAxisAlignment.stretch`：在 `ListView`
+  /// 里交叉轴是无界的，stretch 会直接抛，整页空掉而控制台一声不响。代价是列内
+  /// 每个子项都得答得出固有高度（`LayoutBuilder` 答不出，见
+  /// `ContextWindowSlider.height`）。
+  final bool equalHeight;
+
   const SettingsColumns({
     super.key,
     required this.left,
     required this.right,
     this.leftFlex = 112,
     this.rightFlex = 100,
+    this.equalHeight = false,
   });
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(flex: leftFlex, child: left),
-      const SizedBox(width: AppSpacing.lg),
-      Expanded(flex: rightFlex, child: right),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final row = Row(
+      crossAxisAlignment: equalHeight
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: leftFlex, child: left),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(flex: rightFlex, child: right),
+      ],
+    );
+    return equalHeight ? IntrinsicHeight(child: row) : row;
+  }
 }
 
 /// 卡底 / 分组底的一行说明：11.5px · 次要色。

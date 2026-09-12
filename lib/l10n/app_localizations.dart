@@ -4124,6 +4124,12 @@ abstract class AppLocalizations {
   /// **'Commit'**
   String get aboutCommit;
 
+  /// No description provided for @aboutCommitTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit time'**
+  String get aboutCommitTime;
+
   /// No description provided for @aboutBranch.
   ///
   /// In en, this message translates to:
@@ -4196,6 +4202,12 @@ abstract class AppLocalizations {
   /// **'© 2026 contributors'**
   String get aboutCopyrightValue;
 
+  /// No description provided for @aboutThirdParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Third-party licenses'**
+  String get aboutThirdParty;
+
   /// No description provided for @aboutGraphics.
   ///
   /// In en, this message translates to:
@@ -4213,6 +4225,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shared memory'**
   String get aboutGpuShared;
+
+  /// No description provided for @aboutGpuCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} GPUs detected'**
+  String aboutGpuCount(Object count);
+
+  /// No description provided for @aboutGpuInfoOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Information only'**
+  String get aboutGpuInfoOnly;
+
+  /// No description provided for @aboutGpuIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Idle'**
+  String get aboutGpuIdle;
 
   /// No description provided for @accentPickerTitle.
   ///
@@ -4273,6 +4303,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Collapse'**
   String get modelParametersCollapse;
+
+  /// No description provided for @modelParametersSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Model parameters saved'**
+  String get modelParametersSaved;
 
   /// No description provided for @contextWindowScaleHint.
   ///

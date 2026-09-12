@@ -33,6 +33,11 @@ class ContextWindowSlider extends StatefulWidget {
   static const double tickHeight = 4;
   static const double knob = 18;
 
+  /// 整条控件的高度。写死而不是量出来，是为了让它能被 `IntrinsicHeight` 问：
+  /// 里头的 `LayoutBuilder` 拿不出固有尺寸（debug 下直接抛），而一个紧约束的
+  /// `SizedBox` 会在到达它之前就把答案给出去。
+  static const double height = knob + AppSpacing.xxs;
+
   @override
   State<ContextWindowSlider> createState() => _ContextWindowSliderState();
 }
@@ -92,78 +97,81 @@ class _ContextWindowSliderState extends State<ContextWindowSlider> {
     final position = ContextWindowScale.positionOf(_effective);
     final ceiling = widget.detectedCeiling;
 
-    return Focus(
-      focusNode: _focus,
-      onKeyEvent: _onKey,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // 把手是圆的，圆心不能跑到轨道端点之外，所以可走的距离比轨道短一个
-            // 把手宽 —— 不减这一下，两端的值就永远选不中。
-            final travel = constraints.maxWidth - ContextWindowSlider.knob;
+    return SizedBox(
+      height: ContextWindowSlider.height,
+      child: Focus(
+        focusNode: _focus,
+        onKeyEvent: _onKey,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 把手是圆的，圆心不能跑到轨道端点之外，所以可走的距离比轨道短一个
+              // 把手宽 —— 不减这一下，两端的值就永远选不中。
+              final travel = constraints.maxWidth - ContextWindowSlider.knob;
 
-            void handle(Offset local) {
-              _focus.requestFocus();
-              final x = (local.dx - ContextWindowSlider.knob / 2).clamp(
-                0.0,
-                travel,
-              );
-              widget.onChanged(
-                ContextWindowScale.tokensAt(travel == 0 ? 0 : x / travel),
-              );
-            }
+              void handle(Offset local) {
+                _focus.requestFocus();
+                final x = (local.dx - ContextWindowSlider.knob / 2).clamp(
+                  0.0,
+                  travel,
+                );
+                widget.onChanged(
+                  ContextWindowScale.tokensAt(travel == 0 ? 0 : x / travel),
+                );
+              }
 
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onPanDown: (d) {
-                setState(() => _dragging = true);
-                handle(d.localPosition);
-              },
-              onPanUpdate: (d) => handle(d.localPosition),
-              onPanEnd: (_) => setState(() => _dragging = false),
-              onPanCancel: () => setState(() => _dragging = false),
-              child: SizedBox(
-                height: ContextWindowSlider.knob + AppSpacing.xxs,
-                child: Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    Opacity(
-                      opacity: unset ? 0.4 : 1,
-                      child: _Track(
-                        position: position,
-                        travel: travel,
-                        filled: !unset,
-                        ceiling: ceiling,
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanDown: (d) {
+                  setState(() => _dragging = true);
+                  handle(d.localPosition);
+                },
+                onPanUpdate: (d) => handle(d.localPosition),
+                onPanEnd: (_) => setState(() => _dragging = false),
+                onPanCancel: () => setState(() => _dragging = false),
+                child: SizedBox(
+                  height: ContextWindowSlider.height,
+                  child: Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      Opacity(
+                        opacity: unset ? 0.4 : 1,
+                        child: _Track(
+                          position: position,
+                          travel: travel,
+                          filled: !unset,
+                          ceiling: ceiling,
+                        ),
                       ),
-                    ),
-                    Positioned(
-                      left: position * travel,
-                      child: _Knob(
-                        hollow: unset,
-                        hovered: _hover && !_dragging,
-                        dragging: _dragging,
-                        accent: t.accent,
-                      ),
-                    ),
-                    if (_dragging && !unset)
                       Positioned(
-                        left: (position * travel - 24).clamp(
-                          0.0,
-                          constraints.maxWidth - 60,
-                        ),
-                        bottom: 0,
-                        child: _Bubble(
-                          label: ContextWindowScale.format(_effective),
+                        left: position * travel,
+                        child: _Knob(
+                          hollow: unset,
+                          hovered: _hover && !_dragging,
+                          dragging: _dragging,
+                          accent: t.accent,
                         ),
                       ),
-                  ],
+                      if (_dragging && !unset)
+                        Positioned(
+                          left: (position * travel - 24).clamp(
+                            0.0,
+                            constraints.maxWidth - 60,
+                          ),
+                          bottom: 0,
+                          child: _Bubble(
+                            label: ContextWindowScale.format(_effective),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

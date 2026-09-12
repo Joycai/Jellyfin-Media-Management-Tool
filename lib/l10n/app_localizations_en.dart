@@ -2303,6 +2303,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutCommit => 'Commit';
 
   @override
+  String get aboutCommitTime => 'Commit time';
+
+  @override
   String get aboutBranch => 'Branch';
 
   @override
@@ -2340,6 +2343,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutCopyrightValue => '© 2026 contributors';
 
   @override
+  String get aboutThirdParty => 'Third-party licenses';
+
+  @override
   String get aboutGraphics => 'Graphics adapter';
 
   @override
@@ -2347,6 +2353,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutGpuShared => 'Shared memory';
+
+  @override
+  String aboutGpuCount(Object count) {
+    return '$count GPUs detected';
+  }
+
+  @override
+  String get aboutGpuInfoOnly => 'Information only';
+
+  @override
+  String get aboutGpuIdle => 'Idle';
 
   @override
   String get accentPickerTitle => 'Accent color';
@@ -2381,6 +2398,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelParametersCollapse => 'Collapse';
+
+  @override
+  String get modelParametersSaved => 'Model parameters saved';
 
   @override
   String get contextWindowScaleHint => 'tokens · 8k – 1M · step 1k';
