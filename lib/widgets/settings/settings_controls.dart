@@ -230,7 +230,7 @@ class SettingsRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style:
                         (subtitleMono
-                                ? AppTypeScale.monoSmall
+                                ? context.tokens.monoSmall
                                 : AppTypeScale.caption)
                             .copyWith(color: t.textMuted),
                   ),

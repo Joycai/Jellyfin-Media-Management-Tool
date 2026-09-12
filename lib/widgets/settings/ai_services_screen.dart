@@ -242,7 +242,7 @@ class _ServiceCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: AppTypeScale.mono,
-                            fontFamilyFallback: AppTypeScale.monoFallback,
+                            fontFamilyFallback: context.tokens.monoFallback,
                             fontSize: AppTypeScale.sizeCaption,
                             color: scheme.onSurfaceVariant,
                           ),
@@ -928,7 +928,7 @@ class _MiniChip extends StatelessWidget {
         style: TextStyle(
           fontSize: AppTypeScale.sizeCaption,
           fontFamily: mono ? AppTypeScale.mono : null,
-          fontFamilyFallback: mono ? AppTypeScale.monoFallback : null,
+          fontFamilyFallback: mono ? context.tokens.monoFallback : null,
           color: scheme.onSurfaceVariant,
         ),
       ),
@@ -1010,7 +1010,9 @@ class _Field extends StatelessWidget {
               if (range != null)
                 Text(
                   range!,
-                  style: AppTypeScale.monoTiny.copyWith(color: glass.textMuted),
+                  style: context.tokens.monoTiny.copyWith(
+                    color: glass.textMuted,
+                  ),
                 ),
             ],
           ),
@@ -1036,7 +1038,9 @@ class _Field extends StatelessWidget {
                   style: TextStyle(
                     fontSize: AppTypeScale.sizeTitle,
                     fontFamily: mono ? AppTypeScale.mono : null,
-                    fontFamilyFallback: mono ? AppTypeScale.monoFallback : null,
+                    fontFamilyFallback: mono
+                        ? context.tokens.monoFallback
+                        : null,
                   ),
                   decoration: InputDecoration(
                     isCollapsed: true,

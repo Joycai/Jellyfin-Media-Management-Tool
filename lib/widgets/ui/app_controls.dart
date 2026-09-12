@@ -427,7 +427,7 @@ class AppTextField extends StatelessWidget {
       inputFormatters: inputFormatters,
       cursorColor: t.accent,
       cursorWidth: 1.5,
-      style: (mono ? AppTypeScale.monoBody : AppTypeScale.control).copyWith(
+      style: (mono ? context.tokens.monoBody : AppTypeScale.control).copyWith(
         color: enabled ? t.textBody : t.textDisabled,
       ),
       decoration: InputDecoration(
@@ -478,7 +478,7 @@ class ShortcutPill extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+          style: context.tokens.monoTiny.copyWith(color: t.textMuted),
         ),
       ),
     );
@@ -551,7 +551,7 @@ class AppTag extends StatelessWidget {
             label,
             style:
                 (mono
-                        ? AppTypeScale.monoTiny
+                        ? context.tokens.monoTiny
                         : const TextStyle(
                             fontSize: AppTypeScale.sizeLabel,
                             fontWeight: FontWeight.w600,

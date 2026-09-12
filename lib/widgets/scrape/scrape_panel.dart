@@ -599,7 +599,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                 style: TextStyle(
                   fontSize: AppTypeScale.sizeCaption,
                   fontFamily: AppTypeScale.mono,
-                  fontFamilyFallback: AppTypeScale.monoFallback,
+                  fontFamilyFallback: context.tokens.monoFallback,
                   color: scheme.onSurfaceVariant,
                 ),
               ),
@@ -678,7 +678,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
             style: TextStyle(
               fontSize: AppTypeScale.sizeMono,
               fontFamily: AppTypeScale.mono,
-              fontFamilyFallback: AppTypeScale.monoFallback,
+              fontFamilyFallback: context.tokens.monoFallback,
               color: scheme.onSurfaceVariant,
             ),
           ),
@@ -756,10 +756,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
               prefixIcon: const Icon(Icons.link_rounded, size: 18),
               errorText: _error,
             ),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: AppTypeScale.sizeBody,
               fontFamily: AppTypeScale.mono,
-              fontFamilyFallback: AppTypeScale.monoFallback,
+              fontFamilyFallback: context.tokens.monoFallback,
             ),
             onChanged: (_) => setState(() => _error = null),
             onSubmitted: (_) => _run(askLlm: false),
@@ -986,10 +986,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
                   p.join(_targetDir, _nfoFileName),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: AppTypeScale.sizeCaption,
                     fontFamily: AppTypeScale.mono,
-                    fontFamilyFallback: AppTypeScale.monoFallback,
+                    fontFamilyFallback: context.tokens.monoFallback,
                   ),
                 ),
               ),
@@ -1170,10 +1170,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
                       helperText: l10n.scrapeCookiesHint,
                       prefixIcon: const Icon(Icons.cookie_outlined, size: 16),
                     ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: AppTypeScale.sizeCaption,
                       fontFamily: AppTypeScale.mono,
-                      fontFamilyFallback: AppTypeScale.monoFallback,
+                      fontFamilyFallback: context.tokens.monoFallback,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -1192,10 +1192,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
                     TextField(
                       controller: _html,
                       maxLines: 5,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: AppTypeScale.sizeCaption,
                         fontFamily: AppTypeScale.mono,
-                        fontFamilyFallback: AppTypeScale.monoFallback,
+                        fontFamilyFallback: context.tokens.monoFallback,
                       ),
                       decoration: InputDecoration(
                         labelText: l10n.scrapePasteHtml,
@@ -1290,7 +1290,7 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
       style: TextStyle(
         fontSize: AppTypeScale.sizeCaption,
         fontFamily: AppTypeScale.mono,
-        fontFamilyFallback: AppTypeScale.monoFallback,
+        fontFamilyFallback: context.tokens.monoFallback,
         color: scheme.onSurfaceVariant,
       ),
     );

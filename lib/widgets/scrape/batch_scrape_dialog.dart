@@ -140,7 +140,7 @@ class _BatchScrapeDialogState extends State<_BatchScrapeDialog> {
                               style: TextStyle(
                                 fontSize: AppTypeScale.sizeMono,
                                 fontFamily: AppTypeScale.mono,
-                                fontFamilyFallback: AppTypeScale.monoFallback,
+                                fontFamilyFallback: context.tokens.monoFallback,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),

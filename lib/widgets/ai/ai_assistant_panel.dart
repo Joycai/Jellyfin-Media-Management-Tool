@@ -85,7 +85,7 @@ class AiAssistantPanel extends StatelessWidget {
                   const Spacer(),
                   Text(
                     l10n.tokensLabel(ai.lastTokens),
-                    style: AppTypeScale.monoSmall.copyWith(color: t.textBody),
+                    style: context.tokens.monoSmall.copyWith(color: t.textBody),
                   ),
                 ],
               ),
@@ -220,7 +220,7 @@ class _Header extends StatelessWidget {
                       : (hasPlan ? l10n.analysisComplete : l10n.aiPanelIdle),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+                  style: context.tokens.monoTiny.copyWith(color: t.textMuted),
                 ),
               ],
             ),
@@ -352,7 +352,7 @@ class _TargetStructureCard extends StatelessWidget {
                 line.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypeScale.monoSmall.copyWith(
+                style: context.tokens.monoSmall.copyWith(
                   height: 1.7,
                   color: line.isDir
                       ? t.textSecondary

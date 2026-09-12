@@ -582,7 +582,7 @@ class _TreePane extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: AppTypeScale.mono,
-                      fontFamilyFallback: AppTypeScale.monoFallback,
+                      fontFamilyFallback: context.tokens.monoFallback,
                       fontSize: AppTypeScale.sizeControl,
                       color: scheme.onSurfaceVariant,
                     ),
@@ -623,7 +623,7 @@ class _TreePane extends StatelessWidget {
             line.isDir ? '├' : '│',
             style: TextStyle(
               fontFamily: AppTypeScale.mono,
-              fontFamilyFallback: AppTypeScale.monoFallback,
+              fontFamilyFallback: context.tokens.monoFallback,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ),
@@ -640,7 +640,7 @@ class _TreePane extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: AppTypeScale.mono,
-                  fontFamilyFallback: AppTypeScale.monoFallback,
+                  fontFamilyFallback: context.tokens.monoFallback,
                   fontSize: AppTypeScale.sizeBody,
                   fontWeight: line.depth <= 1 && line.isDir
                       ? FontWeight.w700
@@ -671,9 +671,9 @@ class _TreePane extends StatelessWidget {
         children: [
           Text(
             isAfter ? '└ ?' : '└',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: AppTypeScale.mono,
-              fontFamilyFallback: AppTypeScale.monoFallback,
+              fontFamilyFallback: context.tokens.monoFallback,
               color: orange,
             ),
           ),
@@ -686,9 +686,9 @@ class _TreePane extends StatelessWidget {
                 isAfter ? '$name · ${l10n.needsReviewSuffix}' : '$name ⚠',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppTypeScale.mono,
-                  fontFamilyFallback: AppTypeScale.monoFallback,
+                  fontFamilyFallback: context.tokens.monoFallback,
                   fontSize: AppTypeScale.sizeBody,
                   color: orange,
                 ),
@@ -829,7 +829,7 @@ class _DiffRowState extends State<_DiffRow> {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         fontFamily: AppTypeScale.mono,
-        fontFamilyFallback: AppTypeScale.monoFallback,
+        fontFamilyFallback: context.tokens.monoFallback,
         fontSize: AppTypeScale.sizeBody,
         color: color,
       ),

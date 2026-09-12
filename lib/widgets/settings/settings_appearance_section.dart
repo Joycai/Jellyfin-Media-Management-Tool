@@ -347,7 +347,7 @@ class _GlassCard extends StatelessWidget {
               ),
               Text(
                 '${settings.glassIntensity.round()}',
-                style: AppTypeScale.monoBody.copyWith(
+                style: context.tokens.monoBody.copyWith(
                   color: t.accentText,
                   fontWeight: FontWeight.w700,
                 ),

@@ -215,7 +215,7 @@ class _CookieDomainRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: AppTypeScale.sizeCaption,
                     fontFamily: AppTypeScale.mono,
-                    fontFamilyFallback: AppTypeScale.monoFallback,
+                    fontFamilyFallback: context.tokens.monoFallback,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -267,7 +267,7 @@ class _RecipeList extends StatelessWidget {
                         style: TextStyle(
                           fontSize: AppTypeScale.sizeCaption,
                           fontFamily: AppTypeScale.mono,
-                          fontFamilyFallback: AppTypeScale.monoFallback,
+                          fontFamilyFallback: context.tokens.monoFallback,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),

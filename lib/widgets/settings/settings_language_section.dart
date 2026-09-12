@@ -398,7 +398,7 @@ class _PreviewPanel extends StatelessWidget {
               fontSize: AppTypeScale.sizeBody,
               color: bodyColor ?? scheme.onSurface,
               fontFamily: bodyMono ? AppTypeScale.mono : null,
-              fontFamilyFallback: bodyMono ? AppTypeScale.monoFallback : null,
+              fontFamilyFallback: bodyMono ? context.tokens.monoFallback : null,
               fontWeight: emphasised
                   ? FontWeight.w400
                   : (bodyColor != null ? FontWeight.w700 : FontWeight.w500),

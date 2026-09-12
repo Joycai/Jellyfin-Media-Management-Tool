@@ -267,14 +267,14 @@ class _ContextCardState extends State<_ContextCard> {
                   l10n.contextWindowScaleHint,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+                  style: context.tokens.monoTiny.copyWith(color: t.textMuted),
                 ),
               ),
               Text(
                 value == null
                     ? l10n.contextWindowHint
                     : ContextWindowScale.grouped(value),
-                style: AppTypeScale.monoBody.copyWith(color: t.accentText),
+                style: context.tokens.monoBody.copyWith(color: t.accentText),
               ),
             ],
           ),
@@ -396,7 +396,7 @@ class _MaxOutputCardState extends State<_MaxOutputCard> {
               ),
               Text(
                 l10n.maxOutputStep,
-                style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+                style: context.tokens.monoTiny.copyWith(color: t.textMuted),
               ),
             ],
           ),

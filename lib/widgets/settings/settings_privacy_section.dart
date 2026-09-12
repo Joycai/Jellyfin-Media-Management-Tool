@@ -190,7 +190,7 @@ class _CachesCard extends StatelessWidget {
 
     Widget value(int? bytes) => Text(
       size(bytes),
-      style: AppTypeScale.monoSmall.copyWith(color: t.textBody),
+      style: context.tokens.monoSmall.copyWith(color: t.textBody),
     );
 
     return SettingsRowsCard(
@@ -237,7 +237,7 @@ class _CachesCard extends StatelessWidget {
           trailing: [
             Text(
               size(sizes?.total),
-              style: AppTypeScale.monoBody.copyWith(
+              style: context.tokens.monoBody.copyWith(
                 color: t.textTitle,
                 fontWeight: FontWeight.w600,
               ),

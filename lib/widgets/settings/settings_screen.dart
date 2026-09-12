@@ -68,7 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             Text(
               'v $_versionName · ${l10n.versionUpToDate}',
-              style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+              style: context.tokens.monoTiny.copyWith(color: t.textMuted),
             ),
             const SizedBox(width: AppSpacing.md12),
           ],

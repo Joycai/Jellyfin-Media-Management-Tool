@@ -133,7 +133,7 @@ PopupMenuEntry<T> glassMenuItem<T>(
                 trailing,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypeScale.monoTiny.copyWith(
+                style: context.tokens.monoTiny.copyWith(
                   color: color?.withValues(alpha: 0.5) ?? t.textMuted,
                 ),
               ),
