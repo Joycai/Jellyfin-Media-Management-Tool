@@ -40,17 +40,20 @@ class GpuInfo {
     required this.isSoftware,
   });
 
-  static GpuInfo? _cached;
-  static bool _probed = false;
+  static List<GpuInfo>? _cached;
 
-  /// The adapter, probed once per session and cached. Null when the platform
-  /// isn't Windows or the query failed.
+  /// Every adapter DXGI reports, in its own order, probed once per session.
+  /// Empty when the platform isn't Windows or the query failed.
+  ///
+  /// The order is the answer to "which one is this app on": the first entry is
+  /// the process's default adapter. A software rasterizer only appears when it
+  /// is the only thing there is.
+  static List<GpuInfo> all() => _cached ??= _detect();
+
+  /// The adapter this process renders on. Null when nothing could be read.
   static GpuInfo? current() {
-    if (!_probed) {
-      _probed = true;
-      _cached = _detect();
-    }
-    return _cached;
+    final adapters = all();
+    return adapters.isEmpty ? null : adapters.first;
   }
 
   /// `NVIDIA GeForce RTX 4090 · 24.0 GB`, or just the name when the adapter
@@ -67,12 +70,12 @@ class GpuInfo {
     return '${(bytes / (1024 * 1024)).round()} MB';
   }
 
-  static GpuInfo? _detect() {
-    if (!Platform.isWindows) return null;
+  static List<GpuInfo> _detect() {
+    if (!Platform.isWindows) return const [];
     try {
       return _enumerateDxgi();
     } catch (_) {
-      return null;
+      return const [];
     }
   }
 
@@ -99,7 +102,7 @@ class GpuInfo {
   static const int _offFlags = 304;
   static const int _flagSoftware = 2;
 
-  static GpuInfo? _enumerateDxgi() {
+  static List<GpuInfo> _enumerateDxgi() {
     final dxgi = DynamicLibrary.open('dxgi.dll');
     final createFactory = dxgi
         .lookupFunction<
@@ -114,9 +117,10 @@ class GpuInfo {
       for (var i = 0; i < _iidFactory1.length; i++) {
         iid[i] = _iidFactory1[i];
       }
-      if (createFactory(iid, out) != 0) return null;
+      if (createFactory(iid, out) != 0) return const [];
       final factory = out.value;
       try {
+        final cards = <GpuInfo>[];
         GpuInfo? fallback;
         for (var index = 0; index < 16; index++) {
           out.value = nullptr;
@@ -127,16 +131,22 @@ class GpuInfo {
           try {
             if (_getDesc1(adapter, desc) != 0) continue;
             final info = _readDesc(desc);
-            // Prefer the first real card. A software adapter is still worth
+            // Real cards in DXGI order. A software adapter is still worth
             // reporting if it's all there is — that *is* the answer — so it is
-            // kept as a fallback rather than dropped.
-            if (!info.isSoftware) return info;
-            fallback ??= info;
+            // kept as a fallback rather than dropped, but it never joins a
+            // list of real ones: "2 GPUs detected" must not mean "one card and
+            // the fallback Windows would use if it died".
+            if (info.isSoftware) {
+              fallback ??= info;
+            } else {
+              cards.add(info);
+            }
           } finally {
             _release(adapter);
           }
         }
-        return fallback;
+        if (cards.isNotEmpty) return cards;
+        return fallback == null ? const [] : [fallback];
       } finally {
         _release(factory);
       }

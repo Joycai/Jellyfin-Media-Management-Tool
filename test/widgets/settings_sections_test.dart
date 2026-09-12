@@ -89,9 +89,19 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('1.2.3'), findsOneWidget);
     expect(find.text('45'), findsOneWidget);
-    // Commit and branch are not stamped into the build yet, so they read as
-    // em dashes with a footnote rather than quietly disappearing.
-    expect(find.text('—'), findsNWidgets(2));
+    // Commit, branch and commit time are not stamped into the build yet, so
+    // they read as em dashes with a footnote rather than quietly disappearing.
+    expect(find.text('—'), findsNWidgets(3));
+    // The design's own third-party list has nowhere to open yet, so the row is
+    // drawn and labelled rather than dropped.
+    expect(find.text('Third-party licenses'), findsOneWidget);
+    // One system row, not a separate card for OS and architecture.
+    expect(find.text('System'), findsOneWidget);
+    // Artboard 24 puts the two info cards in one grid row, so they match
+    // height; the build-info note lives inside its card for that reason.
+    final build = tester.getRect(find.byType(SettingsCard).at(0));
+    final source = tester.getRect(find.byType(SettingsCard).at(1));
+    expect(build.height, moreOrLessEquals(source.height, epsilon: 0.5));
   });
 
   testWidgets('the model parameters page lays out', (tester) async {

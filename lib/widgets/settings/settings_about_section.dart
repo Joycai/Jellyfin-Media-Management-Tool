@@ -12,6 +12,8 @@ import 'settings_controls.dart';
 
 /// 6.4 · 关于（设计稿画板 24）。
 ///
+/// 版式照画板：头一行不入卡，两张等宽信息卡并排，图形设备整行铺在下面。
+///
 /// 设计稿的构建信息里有提交号、分支和提交时间 —— 那些要在打包时注入，现在没有。
 /// 按「画出来、标注、不假装」的规矩，这三行照旧占位显示 `—`，并在卡底说清原因；
 /// 悄悄删掉它们会让人以为这份构建信息本就只有这么多。
@@ -35,41 +37,47 @@ class AboutSection extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return SettingsPage(
       children: [
-        _Header(version: _versionName),
-        const SizedBox(height: AppSpacing.xl),
+        const _Header(),
+        const SizedBox(height: AppSpacing.lg),
         SettingsColumns(
+          // 24 的两张信息卡是 `1fr 1fr`，不是骨架默认的 112:100；同一行的格子
+          // 等高，所以两张卡都 `Expanded` 到这一行的高度。
+          leftFlex: 100,
+          equalHeight: true,
           left: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SettingsSectionTitle(
                 l10n.aboutBuildInfo,
-                trailing: SettingsMiniButton(
-                  l10n.privacyCopyPath,
+                // 设计稿把它画成卡头上的一个强调色文字链，不是一颗描边按钮 ——
+                // 幽灵按钮是这套控件里离「链接」最近的一档。
+                trailing: AppButton.ghost(
+                  label: l10n.privacyCopyPath,
+                  height: AppSizes.controlXs,
                   onPressed: () async {
                     await Clipboard.setData(
-                      ClipboardData(text: '$version · ${_runtime()}'),
+                      ClipboardData(
+                        text: '$version · ${_runtime()} · ${_system()}',
+                      ),
                     );
                   },
                 ),
               ),
-              SettingsRowsCard(
-                children: [
-                  _InfoRow(l10n.aboutVersion, _versionName),
-                  _InfoRow(l10n.aboutBuildNumber, _buildNumber),
-                  // 打包时还没有注入 git 元数据 —— 见卡底说明。
-                  _InfoRow(l10n.aboutCommit, '—', dim: true),
-                  _InfoRow(l10n.aboutBranch, '—', dim: true),
-                  _InfoRow(l10n.aboutRuntime, _runtime()),
-                ],
-              ),
-              SettingsFootnote(l10n.aboutBuildInfoPlaceholder),
-              const SizedBox(height: AppSpacing.xl),
-              SettingsSectionTitle(l10n.aboutSystem),
-              SettingsRowsCard(
-                children: [
-                  _InfoRow(l10n.aboutOs, _os()),
-                  _InfoRow(l10n.aboutArch, _arch()),
-                ],
+              Expanded(
+                child: SettingsRowsCard(
+                  children: [
+                    _InfoRow(l10n.aboutVersion, _versionName),
+                    _InfoRow(l10n.aboutBuildNumber, _buildNumber),
+                    // 打包时还没有注入 git 元数据 —— 见卡底说明。
+                    _InfoRow(l10n.aboutCommit, '—', dim: true),
+                    _InfoRow(l10n.aboutBranch, '—', dim: true),
+                    _InfoRow(l10n.aboutCommitTime, '—', dim: true),
+                    _InfoRow(l10n.aboutRuntime, _runtime()),
+                    // 说明留在卡里而不是卡下：卡下的话它会把左列撑高，两张
+                    // 等高的卡就再也对不齐了。
+                    SettingsFootnote(l10n.aboutBuildInfoPlaceholder),
+                  ],
+                ),
               ),
             ],
           ),
@@ -77,32 +85,44 @@ class AboutSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SettingsSectionTitle(l10n.aboutOpenSource),
-              SettingsRowsCard(
-                children: [
-                  _InfoRow(l10n.aboutLicense, 'MIT'),
-                  _LinkRow(
-                    label: l10n.aboutRepository,
-                    value: 'github.com/Joycai',
-                    url: _repoUrl,
-                  ),
-                  _LinkRow(
-                    label: l10n.aboutIssues,
-                    value: 'Issues',
-                    url: '$_repoUrl/issues',
-                  ),
-                  _LinkRow(
-                    label: l10n.aboutJellyfinNaming,
-                    value: 'jellyfin.org',
-                    url: _namingDocs,
-                  ),
-                  _InfoRow(l10n.aboutCopyright, l10n.aboutCopyrightValue),
-                ],
+              Expanded(
+                child: SettingsRowsCard(
+                  children: [
+                    _InfoRow(l10n.aboutLicense, 'MIT'),
+                    _LinkRow(
+                      label: l10n.aboutRepository,
+                      value: 'github.com/Joycai',
+                      url: _repoUrl,
+                    ),
+                    _LinkRow(
+                      label: l10n.aboutIssues,
+                      value: 'Issues',
+                      url: '$_repoUrl/issues',
+                    ),
+                    // 依赖清单要一个能翻的页面，而全页路由得自带二级顶栏，
+                    // 不是顺手能加的一行 —— 见 backlog B21。
+                    SettingsPlaceholder(
+                      child: _InfoRow(
+                        l10n.aboutThirdParty,
+                        l10n.comingSoon,
+                        dim: true,
+                      ),
+                    ),
+                    _LinkRow(
+                      label: l10n.aboutJellyfinNaming,
+                      value: 'jellyfin.org',
+                      url: _namingDocs,
+                    ),
+                    _InfoRow(l10n.aboutCopyright, l10n.aboutCopyrightValue),
+                    _InfoRow(l10n.aboutSystem, _system()),
+                  ],
+                ),
               ),
-              const SizedBox(height: AppSpacing.xl),
-              const _GraphicsSection(),
             ],
           ),
         ),
+        const SizedBox(height: AppSpacing.xl),
+        const _GraphicsSection(),
       ],
     );
   }
@@ -112,6 +132,9 @@ class AboutSection extends StatelessWidget {
     final dart = Platform.version.split(' ').first;
     return 'Dart $dart';
   }
+
+  /// 设计稿把系统与架构合成一行（`macOS 15.4 · Apple Silicon`）。
+  String _system() => '${_os()} · ${_arch()}';
 
   /// Windows 把产品名用引号裹起来（`"Windows 11 Pro" 10.0 (Build 26200)`），
   /// 那对引号在一行信息里只是噪音。
@@ -126,54 +149,59 @@ class AboutSection extends StatelessWidget {
 
 // ── 头 ──────────────────────────────────────────────────────────────────────
 
+/// 画板 24 的头一行不在卡里：52 的品牌方块、名字与一句话，右边两颗动作。
+/// 版本号不重复写在这里 —— 顶栏和「构建信息」各有一份，第三份只是噪音。
 class _Header extends StatelessWidget {
-  final String version;
-  const _Header({required this.version});
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final t = context.tokens;
-    return SettingsCard(
-      child: Row(
-        children: [
-          Container(
-            width: AppSizes.controlXs * 2,
-            height: AppSizes.controlXs * 2,
-            decoration: BoxDecoration(
-              gradient: t.brandGradient,
-              borderRadius: BorderRadius.circular(AppRadii.card),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              'J',
-              style: AppTypeScale.heading.copyWith(color: Colors.white),
-            ),
+    return Row(
+      children: [
+        Container(
+          width: AppSizes.topBar,
+          height: AppSizes.topBar,
+          decoration: BoxDecoration(
+            gradient: t.brandGradient,
+            borderRadius: BorderRadius.circular(AppRadii.panel),
+            boxShadow: t.accentShadow,
           ),
-          const SizedBox(width: AppSpacing.md12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.appBrand,
-                  style: AppTypeScale.title.copyWith(color: t.textTitle),
+          alignment: Alignment.center,
+          child: Text(
+            'J',
+            style: AppTypeScale.heading.copyWith(color: Colors.white),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.appBrand,
+                // 24 的产品名是 17/700；字阶上没有 17，最近的一级是 16。
+                style: AppTypeScale.title.copyWith(
+                  fontSize: AppTypeScale.sizeSubheading,
+                  fontWeight: FontWeight.w700,
+                  color: t.textTitle,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${l10n.aboutTagline} · v $version',
-                  style: AppTypeScale.caption.copyWith(color: t.textMuted),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                l10n.aboutTagline,
+                style: AppTypeScale.caption.copyWith(color: t.textMuted),
+              ),
+            ],
           ),
-          SettingsPlaceholder(child: SettingsMiniButton(l10n.aboutChangelog)),
-          const SizedBox(width: AppSpacing.sm),
-          SettingsPlaceholder(
-            child: SettingsMiniButton(l10n.aboutCheckUpdates),
-          ),
-        ],
-      ),
+        ),
+        SettingsPlaceholder(child: SettingsMiniButton(l10n.aboutChangelog)),
+        const SizedBox(width: AppSpacing.sm),
+        SettingsPlaceholder(
+          child: SettingsMiniButton(l10n.aboutCheckUpdates, accent: true),
+        ),
+      ],
     );
   }
 }
@@ -251,9 +279,12 @@ class _LinkRow extends StatelessWidget {
 
 // ── 图形设备 ────────────────────────────────────────────────────────────────
 
-/// 设计稿在这里画的是「每块 GPU 一行 + 当前运行 / 空闲」。
-/// [GpuInfo] 只报进程实际拿到的那一块（DXGI 的默认适配器），所以只有一行，而它
-/// 就是「当前运行」的那一块 —— 报不出来的第二块不会凭空写上去。
+/// 画板 24 的整行卡：一格一块适配器，进程实际用的那块打「当前运行」。
+///
+/// 设计稿在旁注里说单 GPU 的机器隐藏整块。这里没有照做：[GpuInfo] 存在的理由
+/// 就是回答「Windows 把哪块卡给了这个应用」，而那正是 Windows 的「按应用设置
+/// 显卡」改完之后要来核对的一行 —— 机器上只有一块时它依然是答案，藏掉就等于把
+/// 这个诊断删了（见 backlog C12）。
 class _GraphicsSection extends StatelessWidget {
   const _GraphicsSection();
 
@@ -262,27 +293,116 @@ class _GraphicsSection extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final t = context.tokens;
     // 非 Windows，或 DXGI 查询失败：整块不出现，而不是道歉。
-    final gpu = GpuInfo.current();
-    if (gpu == null) return const SizedBox.shrink();
+    final adapters = GpuInfo.all();
+    if (adapters.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsSectionTitle(l10n.aboutGraphics),
-        SettingsRowsCard(
-          children: [
-            SettingsRow(
-              leading: const SettingsRowIcon(Icons.memory_outlined),
-              title: gpu.name,
-              subtitle: gpu.dedicatedMemoryBytes > 0
-                  ? GpuInfo.formatBytes(gpu.dedicatedMemoryBytes)
-                  : l10n.aboutGpuShared,
-              subtitleMono: false,
-              trailing: [AppTag(label: l10n.aboutGpuRunning, color: t.success)],
-            ),
-          ],
+        SettingsSectionTitle(
+          l10n.aboutGraphics,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 只有一块时不挂这个徽标：「检测到 1 个 GPU」什么也没告诉人。
+              if (adapters.length > 1) ...[
+                AppTag(
+                  label: l10n.aboutGpuCount(adapters.length),
+                  color: t.accent,
+                ),
+                const SizedBox(width: AppSpacing.md),
+              ],
+              Text(
+                l10n.aboutGpuInfoOnly,
+                style: AppTypeScale.caption.copyWith(color: t.textMuted),
+              ),
+            ],
+          ),
         ),
-        SettingsFootnote(l10n.aboutGpuHint),
+        SettingsCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 等高的一排格子。`stretch` 在 `ListView` 里交叉轴无界会直接抛，
+              // 所以先用 `IntrinsicHeight` 把高度定下来 —— 同 `SettingsColumns`
+              // 的 `equalHeight`。
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < adapters.length; i++) ...[
+                      if (i > 0) const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: _GpuTile(gpu: adapters[i], running: i == 0),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              SettingsFootnote(l10n.aboutGpuHint),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _GpuTile extends StatelessWidget {
+  final GpuInfo gpu;
+
+  /// 列表第一项就是进程的默认适配器 —— 见 [GpuInfo]。
+  final bool running;
+
+  const _GpuTile({required this.gpu, required this.running});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md12,
+        vertical: AppSpacing.md12,
+      ),
+      decoration: BoxDecoration(
+        color: running ? t.accent.withValues(alpha: 0.10) : t.controlFill,
+        borderRadius: BorderRadius.circular(AppRadii.field),
+        border: Border.all(
+          color: running ? t.accent.withValues(alpha: 0.28) : t.stroke,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  gpu.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypeScale.controlStrong.copyWith(
+                    color: t.textTitle,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  gpu.dedicatedMemoryBytes > 0
+                      ? GpuInfo.formatBytes(gpu.dedicatedMemoryBytes)
+                      : l10n.aboutGpuShared,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          running
+              ? AppTag(label: l10n.aboutGpuRunning, color: t.success)
+              : AppTag.neutral(l10n.aboutGpuIdle),
+        ],
+      ),
     );
   }
 }
