@@ -74,6 +74,32 @@ class AiHttp {
     throw StateError('AiHttp.withRetry: unreachable');
   }
 
+  /// A one-line, UI-safe description of a transport failure.
+  ///
+  /// Never the exception's own text. `package:http` puts the request URL in
+  /// every `ClientException` it raises (`ClientException with …, uri=…`), and
+  /// Google's API carries the API key in that URL's query string — so
+  /// interpolating the exception would print the key into the settings page,
+  /// a SnackBar and anywhere either is copied. The cause is what a user can
+  /// act on; the URL is not, and they already know which endpoint they typed.
+  static String describeTransportError(Object error) {
+    final message = switch (error) {
+      SocketException(:final osError) =>
+        osError?.message.trim() ?? 'the server could not be reached',
+      HandshakeException() => 'the TLS handshake failed',
+      TlsException() => 'the TLS connection failed',
+      http.ClientException(:final message) => message.trim(),
+      FormatException() => 'the server sent a malformed reply',
+      _ => '',
+    };
+    return message.isEmpty
+        ? 'Network error.'
+        : 'Network error: ${_clip(message)}';
+  }
+
+  static String _clip(String message) =>
+      message.length > 200 ? '${message.substring(0, 200)}\u2026' : message;
+
   /// A one-line, UI-safe description of a failed response.
   ///
   /// OpenAI nests the text as `{"error": {"message": …}}`, but compatible

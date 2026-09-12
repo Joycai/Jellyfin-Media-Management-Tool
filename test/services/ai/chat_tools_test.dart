@@ -7,6 +7,7 @@ import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
 import 'package:jellyfin_media_management_tool/services/ai/google_genai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/openai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai_service.dart';
 
 import '../../helpers/ai.dart';
 
@@ -331,7 +332,8 @@ void main() {
         ]),
       ]);
 
-      expect(await AiConnectionCheck.probeTools(provider), isTrue);
+      final probe = await AiConnectionCheck.probeTools(provider);
+      expect(probe.outcome, ToolProbe.supported);
     });
 
     test(
@@ -339,7 +341,8 @@ void main() {
       () async {
         final provider = ScriptedChatProvider([(_) => textTurn('Hello!')]);
 
-        expect(await AiConnectionCheck.probeTools(provider), isFalse);
+        final probe = await AiConnectionCheck.probeTools(provider);
+        expect(probe.outcome, ToolProbe.unsupported);
         expect(provider.calls, 2);
       },
     );
@@ -352,8 +355,59 @@ void main() {
         ]),
       ]);
 
-      expect(await AiConnectionCheck.probeTools(provider), isTrue);
+      final probe = await AiConnectionCheck.probeTools(provider);
+      expect(probe.outcome, ToolProbe.supported);
     });
+
+    test('a transport failure is inconclusive, never a verdict', () async {
+      var calls = 0;
+      final provider = ThrowingChatProvider(() {
+        calls++;
+        return const AiNetworkException('Network error: Connection refused');
+      });
+
+      final probe = await AiConnectionCheck.probeTools(provider);
+
+      // A dropped connection says nothing about the model. Recording its
+      // `false` on the profile disables Organize and the scrape panel's LLM
+      // buttons until a human thinks to re-run the connection test.
+      expect(probe.outcome, ToolProbe.inconclusive);
+      expect(probe.error, contains('Connection refused'));
+      expect(calls, 2, reason: 'a blip gets the second attempt too');
+    });
+
+    test('a server that refuses the tools field settles it', () async {
+      final provider = ThrowingChatProvider(
+        () => const AiException("HTTP 400: Unsupported parameter: 'tools'"),
+      );
+
+      final probe = await AiConnectionCheck.probeTools(provider);
+
+      // The endpoint answered. That is a fact about this model.
+      expect(probe.outcome, ToolProbe.unsupported);
+    });
+
+    test(
+      'ensureTools reports the network failure, and records nothing',
+      () async {
+        final service = AiService();
+        final recorded = <bool>[];
+        service.onToolSupport = (_, supported) => recorded.add(supported);
+
+        await expectLater(
+          service.ensureTools(
+            AiConfig(
+              provider: AiProviderType.openAi,
+              endpoint: 'http://127.0.0.1:1/v1',
+              apiKey: '',
+              model: 'never-answers',
+            ),
+          ),
+          throwsA(isA<AiNetworkException>()),
+        );
+        expect(recorded, isEmpty);
+      },
+    );
 
     test(
       'a result only counts for the endpoint and model it was measured on',

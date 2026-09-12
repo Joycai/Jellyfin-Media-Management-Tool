@@ -112,6 +112,15 @@ class AiException implements Exception {
   String toString() => message;
 }
 
+/// An [AiException] the endpoint itself never produced: the request did not
+/// complete, so nothing was learned about the server or the model.
+///
+/// The distinction is what keeps a network blip from being recorded as a fact
+/// about a model — see [AiConnectionCheck.probeTools].
+class AiNetworkException extends AiException {
+  const AiNetworkException(super.message);
+}
+
 /// Whether a model called a tool when asked to, and which provider, endpoint
 /// and model that was measured against.
 class ToolSupport {

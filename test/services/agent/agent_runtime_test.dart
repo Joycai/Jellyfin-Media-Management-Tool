@@ -255,5 +255,95 @@ void main() {
       final messages = _seed();
       expect(AgentRuntime.trimHistory(messages, 4096), 0);
     });
+
+    test('the tool schemas come off the ceiling too', () {
+      List<ChatMessage> history() => [
+        const SystemMessage('system'),
+        const UserMessage('go'),
+        const AssistantMessage(
+          toolCalls: [ToolCall(id: 'c0', name: 'add', arguments: '{}')],
+        ),
+        ToolResultMessage(toolCallId: 'c0', name: 'add', content: 'x' * 2400),
+      ];
+
+      // The same history fits when only the messages are counted and does not
+      // once the request's own tool schemas are charged against the window.
+      expect(AgentRuntime.trimHistory(history(), 1600, reserve: 100), 0);
+      expect(
+        AgentRuntime.trimHistory(history(), 1600, reserve: 100, overhead: 600),
+        1,
+      );
+    });
+  });
+
+  group('one-shot reminders', () {
+    test('a reminder is retracted once it has been sent', () async {
+      final provider = ScriptedChatProvider([
+        (_) => textTurn('I think I am done.'),
+        (_) => toolTurn([
+          ('add', {'by': 2}),
+        ]),
+      ]);
+      final messages = _seed();
+      final seeded = messages.length;
+
+      final result = await AgentRuntime.run<_Tally>(
+        provider: provider,
+        messages: messages,
+        tools: [_Add()],
+        context: _Tally(),
+        maxRounds: 6,
+        isDone: () => provider.calls > 1,
+        nudge: () => 'Still undecided: g3, g7. Call add.',
+      );
+
+      expect(result.outcome, AgentOutcome.completed);
+      // The reminder was in the history for exactly the request it was
+      // written for.
+      expect(
+        (provider.seen[1].last as UserMessage).content,
+        'Still undecided: g3, g7. Call add.',
+      );
+      // …and afterwards the whole exchange is gone. A stale reminder left in
+      // the history stands as a permanent instruction — and this one carries
+      // state that is wrong by the next round — while the model's "I am done"
+      // turn would leave two assistant turns in a row once it resumed calling
+      // tools, which Gemini rejects. What is left is the seed plus the real
+      // round: one assistant turn and its tool result.
+      expect(messages, hasLength(seeded + 2));
+      expect(
+        messages.any(
+          (m) => m is UserMessage && m.content.contains('Still undecided'),
+        ),
+        isFalse,
+      );
+      expect(
+        messages.any(
+          (m) => m is AssistantMessage && m.content == 'I think I am done.',
+        ),
+        isFalse,
+      );
+      expect(messages[seeded], isA<AssistantMessage>());
+      expect(messages[seeded + 1], isA<ToolResultMessage>());
+    });
+
+    test('two reminders never pile up', () async {
+      final provider = ScriptedChatProvider([(_) => textTurn('Done!')]);
+
+      await _run(
+        provider,
+        _Tally(),
+        isDone: () => false,
+        nudge: () => 'Call add.',
+      );
+
+      expect(provider.calls, 3);
+      for (final history in provider.seen) {
+        expect(
+          history.where((m) => m is UserMessage && m.content == 'Call add.'),
+          hasLength(lessThanOrEqualTo(1)),
+        );
+      }
+    });
   });
 }

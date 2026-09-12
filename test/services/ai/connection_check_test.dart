@@ -57,7 +57,7 @@ void main() {
       // The greeting, then the tool check — asked twice, since this scripted
       // model only ever answers in prose.
       expect(provider.calls, 3);
-      expect(result.supportsTools, isFalse);
+      expect(result.supportsTools, ToolProbe.unsupported);
       expect(result.reply, 'Hello there!');
       expect(result.truncated, isFalse);
       expect(result.limits.isEmpty, isTrue);
