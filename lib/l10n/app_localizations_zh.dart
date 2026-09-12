@@ -1983,4 +1983,50 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ruleEditorComingSoon => '规则编辑暂未生效 —— 当前展示的是内置的 Jellyfin 命名约定。';
+
+  @override
+  String get windowMinimize => '最小化';
+
+  @override
+  String get windowMaximize => '最大化';
+
+  @override
+  String get windowRestore => '向下还原';
+
+  @override
+  String get windowClose => '关闭';
+
+  @override
+  String get togglePanel => '显示或隐藏右侧面板';
+
+  @override
+  String get toggleSidebar => '显示或隐藏侧边栏';
+
+  @override
+  String get searchHintShort => '搜索…';
+
+  @override
+  String statusItems(int selected, int total) {
+    return '已选 $selected 项 · 共 $total 项';
+  }
+
+  @override
+  String statusTotalSize(String size) {
+    return '总计 $size';
+  }
+
+  @override
+  String get planReady => '方案已就绪';
+
+  @override
+  String get dropFoldersTitle => '把文件夹拖到这里';
+
+  @override
+  String get dropFoldersHint => '支持单个或多个文件夹 · 视频、字幕、海报与元数据会一并扫描';
+
+  @override
+  String get orSeparator => '或';
+
+  @override
+  String get connectNas => '连接 NAS';
 }

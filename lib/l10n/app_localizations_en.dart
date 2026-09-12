@@ -2032,4 +2032,51 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ruleEditorComingSoon =>
       'Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention.';
+
+  @override
+  String get windowMinimize => 'Minimize';
+
+  @override
+  String get windowMaximize => 'Maximize';
+
+  @override
+  String get windowRestore => 'Restore';
+
+  @override
+  String get windowClose => 'Close';
+
+  @override
+  String get togglePanel => 'Show or hide the side panel';
+
+  @override
+  String get toggleSidebar => 'Show or hide the sidebar';
+
+  @override
+  String get searchHintShort => 'Search…';
+
+  @override
+  String statusItems(int selected, int total) {
+    return '$selected of $total selected';
+  }
+
+  @override
+  String statusTotalSize(String size) {
+    return '$size total';
+  }
+
+  @override
+  String get planReady => 'Plan ready';
+
+  @override
+  String get dropFoldersTitle => 'Drop folders here to start';
+
+  @override
+  String get dropFoldersHint =>
+      'Drag one or more folders into the window · video, subtitles, posters and metadata are scanned together';
+
+  @override
+  String get orSeparator => 'or';
+
+  @override
+  String get connectNas => 'Connect NAS';
 }

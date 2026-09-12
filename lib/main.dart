@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:media_kit/media_kit.dart';
@@ -20,6 +22,7 @@ import 'services/settings_service.dart';
 import 'services/task_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/onboarding/onboarding_screen.dart';
+import 'widgets/shell/window_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +35,21 @@ void main() async {
   // into a broken state.
   await windowManager.ensureInitialized();
   await windowManager.setMinimumSize(const Size(1024, 700));
+
+  // Design spec 2.1: ONE 48px bar carries the brand, the section tabs, the
+  // search field, the actions AND the window controls — so the OS title bar
+  // has to go. Windows and Linux get our own caption buttons (46x48, drawn to
+  // the spec in `WindowCaptionButtons`); macOS keeps the system traffic
+  // lights, which are the only correct-looking option there, and the bar
+  // simply reserves 84px on the left for them.
+  //
+  // The frame itself stays: `TitleBarStyle.hidden` keeps WS_THICKFRAME /
+  // the titled NSWindow, so resize edges, the system shadow and the OS's own
+  // rounded corners all still work. That is why `AppShell` does not clip.
+  await windowManager.setTitleBarStyle(
+    TitleBarStyle.hidden,
+    windowButtonVisibility: defaultTargetPlatform == TargetPlatform.macOS,
+  );
 
   // Init the AI profiles service FIRST so its one-time legacy-config.json
   // migration runs before SettingsService writes a config.json without the
@@ -78,6 +96,12 @@ void main() async {
   // scraper selects from.
   final scrapeService = ScrapeService(recipes: recipeStore);
 
+  // Focused / maximized / full-screen, read once and shared. Attaching one
+  // listener rather than one per widget: window_manager dispatches to every
+  // registered listener on every event, and they all want the same answer.
+  final windowState = WindowStateNotifier();
+  unawaited(windowState.attach());
+
   runApp(
     MultiProvider(
       providers: [
@@ -91,7 +115,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TaskService()),
         ChangeNotifierProvider(create: (_) => FileBrowserService()),
       ],
-      child: const MyApp(),
+      child: WindowStateScope(notifier: windowState, child: const MyApp()),
     ),
   );
 }

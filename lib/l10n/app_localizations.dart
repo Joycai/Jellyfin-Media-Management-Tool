@@ -3625,6 +3625,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention.'**
   String get ruleEditorComingSoon;
+
+  /// No description provided for @windowMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize'**
+  String get windowMinimize;
+
+  /// No description provided for @windowMaximize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximize'**
+  String get windowMaximize;
+
+  /// No description provided for @windowRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get windowRestore;
+
+  /// No description provided for @windowClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get windowClose;
+
+  /// No description provided for @togglePanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show or hide the side panel'**
+  String get togglePanel;
+
+  /// No description provided for @toggleSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Show or hide the sidebar'**
+  String get toggleSidebar;
+
+  /// No description provided for @searchHintShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Search…'**
+  String get searchHintShort;
+
+  /// No description provided for @statusItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{selected} of {total} selected'**
+  String statusItems(int selected, int total);
+
+  /// No description provided for @statusTotalSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} total'**
+  String statusTotalSize(String size);
+
+  /// No description provided for @planReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan ready'**
+  String get planReady;
+
+  /// No description provided for @dropFoldersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop folders here to start'**
+  String get dropFoldersTitle;
+
+  /// No description provided for @dropFoldersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag one or more folders into the window · video, subtitles, posters and metadata are scanned together'**
+  String get dropFoldersHint;
+
+  /// No description provided for @orSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get orSeparator;
+
+  /// No description provided for @connectNas.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect NAS'**
+  String get connectNas;
 }
 
 class _AppLocalizationsDelegate

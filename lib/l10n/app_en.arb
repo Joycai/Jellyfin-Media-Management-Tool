@@ -586,5 +586,21 @@
   "ruleEditorOutput": "Output",
   "ruleEditorOutputAi": "Output · AI inferred",
   "ruleEditorReset": "Reset",
-  "ruleEditorComingSoon": "Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention."
+  "ruleEditorComingSoon": "Editing rules is not wired up yet — this preview shows the built-in Jellyfin convention.",
+  "windowMinimize": "Minimize",
+  "windowMaximize": "Maximize",
+  "windowRestore": "Restore",
+  "windowClose": "Close",
+  "togglePanel": "Show or hide the side panel",
+  "toggleSidebar": "Show or hide the sidebar",
+  "searchHintShort": "Search…",
+  "statusItems": "{selected} of {total} selected",
+  "@statusItems": {"placeholders": {"selected": {"type": "int"}, "total": {"type": "int"}}},
+  "statusTotalSize": "{size} total",
+  "@statusTotalSize": {"placeholders": {"size": {"type": "String"}}},
+  "planReady": "Plan ready",
+  "dropFoldersTitle": "Drop folders here to start",
+  "dropFoldersHint": "Drag one or more folders into the window · video, subtitles, posters and metadata are scanned together",
+  "orSeparator": "or",
+  "connectNas": "Connect NAS"
 }
