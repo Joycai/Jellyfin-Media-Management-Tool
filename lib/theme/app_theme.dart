@@ -1,10 +1,16 @@
-import 'dart:io' show Platform;
-
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
-/// Carries the "liquid glass" tokens (panel fill, hairline border, accents and
-/// the scaffold backdrop gradient) so every widget can theme consistently and
-/// adapt to light/dark without hardcoding colors.
+import 'design_tokens.dart';
+
+export 'design_tokens.dart';
+
+/// 兼容层：把 [AppTokens] 的一部分暴露成旧的字段名。
+///
+/// 重做 UI 时 21 个 widget 还在读 `GlassTheme`。与其让整棵树在迁移完成前都编译
+/// 不过，不如让它继续存在但**完全由令牌派生** —— 于是「所有组件被同一套主题
+/// 令牌覆盖」在迁移中途也成立，而不是只在最后一刻成立。迁移完成后删除。
+@Deprecated('读 context.tokens（AppTokens）；本类只为迁移期保持编译。')
 @immutable
 class GlassTheme extends ThemeExtension<GlassTheme> {
   final Gradient backdrop;
@@ -13,18 +19,6 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
   final Color rowSelected;
   final Color sidebarFill;
   final double blurSigma;
-
-  /// Performance mode: the expensive chrome is off.
-  ///
-  /// Carried on the theme rather than read from `SettingsService` at each call
-  /// site because every glass widget already reads [GlassTheme], and a
-  /// `context.watch` per panel would rebuild them all on any settings change.
-  ///
-  /// When true, [blurSigma] is 0 and the fills have been flattened to opaque
-  /// equivalents, so a widget must skip its [BackdropFilter] entirely rather
-  /// than pass a zero sigma: a zero-sigma filter still splits the render pass
-  /// and reads back the whole target, which is where the cost actually is.
-  /// Widgets also drop their large-radius drop shadows.
   final bool reduceEffects;
 
   const GlassTheme({
@@ -36,6 +30,16 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
     required this.blurSigma,
     this.reduceEffects = false,
   });
+
+  factory GlassTheme.from(AppTokens t) => GlassTheme(
+    backdrop: t.backdrop,
+    panelFill: t.cardFill,
+    panelStroke: t.stroke,
+    rowSelected: t.selectionFill,
+    sidebarFill: t.panelFill,
+    blurSigma: t.blurPanel,
+    reduceEffects: t.reduceEffects,
+  );
 
   @override
   GlassTheme copyWith({
@@ -65,35 +69,28 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
       panelStroke: Color.lerp(panelStroke, other.panelStroke, t)!,
       rowSelected: Color.lerp(rowSelected, other.rowSelected, t)!,
       sidebarFill: Color.lerp(sidebarFill, other.sidebarFill, t)!,
-      blurSigma: lerpDouble(blurSigma, other.blurSigma, t),
-      // A flag has no midpoint; snap at the halfway mark.
+      blurSigma: blurSigma + (other.blurSigma - blurSigma) * t,
       reduceEffects: t < 0.5 ? reduceEffects : other.reduceEffects,
     );
   }
-
-  static double lerpDouble(double a, double b, double t) => a + (b - a) * t;
 }
 
+/// 从 [AppTokens] 构建 Material 主题。
+///
+/// 这里**不再定义任何取值** —— 每一个颜色、圆角、高度、字号都来自
+/// `design_tokens.dart`。Material 自带的控件主题（输入框、按钮、滑块、对话框）
+/// 被配成与设计稿 1.4 一致，这样即便某个还没迁移的界面用的是裸 Material 控件，
+/// 它也已经落在设计系统里，而不是 Material 的 seed 色板上。
 class AppTheme {
-  // Default accent trio sampled from the design mockups: a vivid blue primary,
-  // a violet for the brand/secondary accents, and a teal for confidence cues.
-  static const Color _blue = Color(0xFF3B6FF5);
-  static const Color _violet = Color(0xFF8B5CF6);
-  static const Color _teal = Color(0xFF22C9A9);
-
-  /// Built-in accent presets shown in the Appearance section's color picker.
+  /// 08 设置页的强调色预设（前五个，第六个是自定义取色）。
   static const List<Color> accentPresets = [
-    _blue,
-    Color(0xFF8B5CF6), // violet
-    Color(0xFF22C9A9), // teal
-    Color(0xFFEE7B3A), // orange
-    Color(0xFF6F69FF), // indigo
+    AppPalette.accent,
+    AppPalette.ai,
+    AppPalette.success,
+    Color(0xFFFF8A5B),
+    Color(0xFF6F69FF),
   ];
 
-  /// Build a theme. [accent] overrides the primary swatch; [glassIntensity]
-  /// (0–100) scales the backdrop blur on `GlassTheme`; [fontFamily] overrides
-  /// the default UI typeface (must already be registered via `FontLoader`).
-  /// All null = defaults.
   static ThemeData light({
     Color? accent,
     double? glassIntensity,
@@ -120,28 +117,16 @@ class AppTheme {
     reduceEffects: reduceEffects,
   );
 
-  /// The last theme built for each brightness, with the inputs that produced
-  /// it.
+  /// 每个亮度记住上一次构建的结果。
   ///
-  /// `MyApp.build` constructs both the light and the dark theme, and it runs on
-  /// every `SettingsService` / `FontService` notification — a favourite
-  /// toggled, a recent pushed, a column divider dragged. Almost all of those
-  /// pass exactly the same three inputs, so the work was not only repeated but
-  /// also handed `MaterialApp` a fresh `ThemeData` identity each time, which
-  /// rebuilt everything reading `Theme.of`.
+  /// `MyApp.build` 每次 `SettingsService` / `FontService` 通知都会同时要一份浅色
+  /// 和一份深色主题 —— 收藏被切换、最近被压栈、列宽被拖动。这些调用的入参几乎
+  /// 总是一样的，重建不仅白做，还会给 `MaterialApp` 一个新的 `ThemeData` 身份，
+  /// 把 `Theme.of` 之下的一切重建一遍。
   ///
-  /// One slot per brightness is the right size: the repeated calls are
-  /// identical, so they hit, while a genuine change (dragging the glass
-  /// intensity slider) misses and costs what it always cost. A map keyed by
-  /// the inputs would instead grow one entry per slider pixel.
+  /// 每个亮度一格正合适：重复调用完全相同因此命中，而真正的变化（拖玻璃强度
+  /// 滑块）落空并付出它本来就该付的代价。按入参做 Map 反而会每拖一个像素长一条。
   static final Map<Brightness, (String, ThemeData)> _memo = {};
-
-  static String _memoKey(
-    Color? accent,
-    double? glassIntensity,
-    String? fontFamily,
-    bool reduceEffects,
-  ) => '${accent?.toARGB32()}|$glassIntensity|$fontFamily|$reduceEffects';
 
   static ThemeData _build(
     Brightness brightness, {
@@ -150,7 +135,8 @@ class AppTheme {
     String? fontFamily,
     bool reduceEffects = false,
   }) {
-    final key = _memoKey(accent, glassIntensity, fontFamily, reduceEffects);
+    final key =
+        '${accent?.toARGB32()}|$glassIntensity|$fontFamily|$reduceEffects';
     final cached = _memo[brightness];
     if (cached != null && cached.$1 == key) return cached.$2;
     final built = _buildUncached(
@@ -171,55 +157,46 @@ class AppTheme {
     String? fontFamily,
     bool reduceEffects = false,
   }) {
-    final isDark = brightness == Brightness.dark;
-    final primary = accent ?? _blue;
-    final base = ColorScheme.fromSeed(
-      seedColor: primary,
+    final t = AppTokens.build(
       brightness: brightness,
+      accent: accent,
+      glassIntensity: glassIntensity ?? 70,
+      reduceEffects: reduceEffects,
     );
+    final isDark = t.isDark;
+    final fallback = AppTypeScale.cjkFallback(defaultTargetPlatform);
 
-    final scheme = base.copyWith(
-      primary: primary,
-      onPrimary: Colors.white,
-      secondary: _teal,
-      tertiary: _violet,
-      surface: isDark ? const Color(0xFF191A33) : base.surface,
-      onSurface: isDark ? const Color(0xFFE8EAF5) : base.onSurface,
-      onSurfaceVariant: isDark
-          ? const Color(0xFFADB2D0)
-          : base.onSurfaceVariant,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: t.accent,
+          brightness: brightness,
+        ).copyWith(
+          primary: t.accent,
+          onPrimary: t.badgeText,
+          secondary: t.success,
+          tertiary: t.ai,
+          error: t.danger,
+          onError: isDark ? AppPalette.darkBase : Colors.white,
+          surface: isDark ? const Color(0xFF16182B) : Colors.white,
+          onSurface: t.textBody,
+          onSurfaceVariant: t.textSecondary,
+          outline: t.strokeStrong,
+          outlineVariant: t.stroke,
+        );
 
-    final glass = isDark ? _darkGlass : _lightGlass;
-    final blurred = glassIntensity == null
-        ? glass
-        // 70 (default mockup value) maps to the original 24 sigma; cap at 48.
-        : glass.copyWith(
-            blurSigma: (glassIntensity / 70 * 24).clamp(0.0, 48.0),
-          );
-    final scaledGlass = reduceEffects ? _flatten(blurred) : blurred;
+    // ButtonStyle.textStyle 是**替换**而不是合并，裸 TextStyle 会把用户选的
+    // 界面字体从每个按钮上悄悄抹掉。字族与中文回落必须显式带上。
+    TextStyle text(TextStyle base) =>
+        base.copyWith(fontFamily: fontFamily, fontFamilyFallback: fallback);
 
-    // One control-metrics system for the whole app: 44px fields, 38px
-    // buttons, radius 10. Defined here rather than per widget so a dialog, a
-    // settings page and a panel cannot drift apart — a widget only overrides
-    // these for a deliberate compact variant, never to restate the default.
     OutlineInputBorder fieldBorder(Color color, [double width = 1]) =>
         OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadii.field),
           borderSide: BorderSide(color: color, width: width),
         );
+
     final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    );
-    // ButtonStyle.textStyle REPLACES the label's style rather than merging
-    // into it, so a bare TextStyle here silently drops the user-selected UI
-    // font on every button in the app. Carry the family and the CJK fallback
-    // explicitly.
-    TextStyle buttonText(double size, FontWeight weight) => TextStyle(
-      fontSize: size,
-      fontWeight: weight,
-      fontFamily: fontFamily,
-      fontFamilyFallback: _cjkFontFallback,
+      borderRadius: BorderRadius.circular(AppRadii.button),
     );
 
     return ThemeData(
@@ -227,6 +204,10 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.transparent,
+      canvasColor: Colors.transparent,
+      dividerColor: t.stroke,
+      splashFactory: NoSplash.splashFactory,
+      // 1.4f：只动不透明度、底色与 4px 内的位移；不做缩放、不做弹性曲线。
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.windows: _DesktopPageTransitionsBuilder(),
@@ -234,74 +215,161 @@ class AppTheme {
           TargetPlatform.macOS: _DesktopPageTransitionsBuilder(),
         },
       ),
-      // The glass field: faint fill, hairline border, primary ring on focus.
-      // 12px vertical padding + a dense one-line input lands on 44px; the
-      // prefix-icon override keeps Material's 48px icon minimum from breaking
-      // that (it is why two fields sharing a row used to disagree in height).
+      // 1.4b 输入框：高 32、圆角 10、内距 12。
       inputDecorationTheme: InputDecorationTheme(
         isDense: true,
         filled: true,
-        fillColor: scaledGlass.panelFill,
+        fillColor: t.controlFill,
+        hintStyle: text(AppTypeScale.control).copyWith(color: t.textMuted),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
+          horizontal: AppSpacing.md12,
+          vertical: AppSpacing.sm,
         ),
+        // Material 给前缀图标的 48px 最小高度会把同一行里的两个输入框顶得不
+        // 一样高；顶栏的搜索框和刮削面板都踩过这个坑。
         prefixIconConstraints: const BoxConstraints(
-          minWidth: 42,
-          minHeight: 40,
-          maxHeight: 40,
+          minWidth: 30,
+          minHeight: AppSizes.control,
+          maxHeight: AppSizes.control,
         ),
-        enabledBorder: fieldBorder(scaledGlass.panelStroke),
-        focusedBorder: fieldBorder(scheme.primary, 1.6),
-        errorBorder: fieldBorder(scheme.error),
-        focusedErrorBorder: fieldBorder(scheme.error, 1.6),
-        disabledBorder: fieldBorder(
-          scaledGlass.panelStroke.withValues(alpha: 0.5),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 24,
+          minHeight: AppSizes.control,
+          maxHeight: AppSizes.control,
         ),
-        border: fieldBorder(scaledGlass.panelStroke),
+        constraints: const BoxConstraints(minHeight: AppSizes.control),
+        enabledBorder: fieldBorder(Colors.transparent),
+        border: fieldBorder(Colors.transparent),
+        focusedBorder: fieldBorder(t.accent.withValues(alpha: 0.55)),
+        errorBorder: fieldBorder(t.danger.withValues(alpha: 0.50)),
+        focusedErrorBorder: fieldBorder(t.danger.withValues(alpha: 0.70)),
+        disabledBorder: fieldBorder(Colors.transparent),
+        errorStyle: text(
+          const TextStyle(fontSize: 11),
+        ).copyWith(color: t.dangerText),
       ),
+      // 1.4a 按钮：高 32、圆角 8、左右内距 14。
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(64, 38),
+          minimumSize: const Size(0, AppSizes.control),
           shape: buttonShape,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          textStyle: buttonText(13, FontWeight.w600),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          textStyle: text(AppTypeScale.controlStrong),
+          backgroundColor: t.accent,
+          foregroundColor: t.badgeText,
+          disabledBackgroundColor: t.accentDisabled,
+          disabledForegroundColor: t.badgeText.withValues(alpha: 0.55),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          minimumSize: const Size(64, 38),
+          minimumSize: const Size(0, AppSizes.control),
           shape: buttonShape,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          textStyle: buttonText(13, FontWeight.w600),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          textStyle: text(AppTypeScale.controlStrong),
+          backgroundColor: t.controlFill,
+          foregroundColor: t.textBody,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(64, 38),
+          minimumSize: const Size(0, AppSizes.control),
           shape: buttonShape,
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          textStyle: buttonText(13, FontWeight.w500),
+          textStyle: text(AppTypeScale.control),
+          foregroundColor: t.textBody,
+          backgroundColor: t.controlFill,
+          side: BorderSide(color: t.strokeStrong),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(48, 34),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          textStyle: buttonText(13, FontWeight.w500),
+          minimumSize: const Size(0, AppSizes.controlSm),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.button),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          textStyle: text(AppTypeScale.control),
+          foregroundColor: t.accentText,
         ),
       ),
-      sliderTheme: const SliderThemeData(trackHeight: 4),
-      // Fallbacks in the glass palette for surfaces not yet routed through a
-      // Glass* widget, so a stray dialog or context menu still matches the
-      // app instead of surfacing Material's seed-tinted slab. Dialogs should
-      // prefer GlassAlertDialog / GlassDialogSurface, which add the backdrop
-      // blur these static themes cannot.
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size(AppSizes.control, AppSizes.control),
+          fixedSize: const Size(AppSizes.control, AppSizes.control),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.icon),
+          ),
+          foregroundColor: t.textSecondary,
+          backgroundColor: t.controlFill,
+          hoverColor: t.controlFillHover,
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          textStyle: WidgetStatePropertyAll(text(AppTypeScale.caption)),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.tiny),
+            ),
+          ),
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.chip),
+        ),
+        side: BorderSide(color: t.strokeStrong, width: 1.5),
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) =>
+              s.contains(WidgetState.selected) ? t.accent : Colors.transparent,
+        ),
+        checkColor: WidgetStatePropertyAll(t.badgeText),
+        visualDensity: VisualDensity.compact,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: const WidgetStatePropertyAll(Colors.white),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? t.accent : t.strokeStrong,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+        trackOutlineWidth: const WidgetStatePropertyAll(0),
+      ),
+      sliderTheme: SliderThemeData(
+        trackHeight: 6,
+        activeTrackColor: t.accent,
+        inactiveTrackColor: t.strokeStrong,
+        thumbColor: Colors.white,
+        overlayColor: t.accent.withValues(alpha: 0.16),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+      ),
+      tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 400),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xF216182B) : const Color(0xF21A1D29),
+          borderRadius: BorderRadius.circular(AppRadii.button),
+          border: Border.all(color: t.strokeStrong),
+        ),
+        textStyle: text(AppTypeScale.caption).copyWith(color: Colors.white),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      ),
+      // 1.4e：对话框与菜单应当走 GlassAlertDialog / showGlassMenu，它们额外带
+      // 背景模糊。这里配成同一套取值，是为了让还没迁移的裸 Material 面也落在
+      // 设计系统里 —— 安全网，不是替代品。
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          side: BorderSide(color: t.strokeStrong),
+        ),
+        titleTextStyle: text(AppTypeScale.title).copyWith(color: t.textTitle),
+        contentTextStyle: text(
+          const TextStyle(fontSize: 12, height: AppTypeScale.leadingBody),
+        ).copyWith(color: t.textSecondary),
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: scheme.surface,
@@ -309,103 +377,78 @@ class AppTheme {
         elevation: 12,
         shadowColor: Colors.black.withValues(alpha: isDark ? 0.5 : 0.25),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: scaledGlass.panelStroke),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          side: BorderSide(color: t.strokeStrong),
+        ),
+        textStyle: text(AppTypeScale.control).copyWith(color: t.textBody),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(scheme.surface),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              side: BorderSide(color: t.strokeStrong),
+            ),
+          ),
         ),
       ),
-      // User-selected UI font (HarmonyOS Sans / MiSans); null = OS default.
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark
+            ? const Color(0xF016182B)
+            : const Color(0xF01A1D29),
+        contentTextStyle: text(
+          AppTypeScale.control,
+        ).copyWith(color: Colors.white),
+        actionTextColor: AppPalette.accentOnDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.field),
+        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl24),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: t.accent,
+        linearTrackColor: t.strokeStrong,
+        linearMinHeight: 4,
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thickness: const WidgetStatePropertyAll(6),
+        radius: const Radius.circular(3),
+        thumbColor: WidgetStatePropertyAll(
+          (isDark ? Colors.white : AppPalette.ink).withValues(alpha: 0.18),
+        ),
+      ),
+      textTheme: _textTheme(t, text),
       fontFamily: fontFamily,
-      // Latin glyphs keep the crisp OS default; CJK glyphs (missing from that
-      // default on Windows) resolve to each platform's flagship UI font so
-      // Chinese renders in a mainstream, well-hinted typeface everywhere.
-      fontFamilyFallback: _cjkFontFallback,
-      extensions: [scaledGlass],
+      // 拉丁字形保留系统默认的清晰度；中文字形（Windows 的默认字体没有）回落到
+      // 各平台的旗舰界面字体，让中文在哪儿都是一款主流、hinting 良好的字体。
+      fontFamilyFallback: fallback,
+      extensions: [t, GlassTheme.from(t)],
     );
   }
 
-  /// Per-platform stack of high-quality, pre-installed Chinese UI fonts, tried
-  /// in order for any glyph the primary font can't render:
-  /// 微软雅黑 on Windows, 苹方 (PingFang) on macOS, Noto/文泉驿 on Linux.
-  static List<String> get _cjkFontFallback {
-    if (Platform.isWindows) {
-      return const ['Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC'];
-    }
-    if (Platform.isMacOS) {
-      return const ['PingFang SC', 'Heiti SC', 'Noto Sans SC'];
-    }
-    // Linux and any other target.
-    return const [
-      'Noto Sans CJK SC',
-      'Noto Sans SC',
-      'Source Han Sans SC',
-      'WenQuanYi Micro Hei',
-    ];
-  }
-
-  /// Strip [GlassTheme] down to what a weak GPU can draw for free.
-  ///
-  /// Dropping the blur alone would leave the panels translucent over the
-  /// backdrop gradient, which is the look the blur was there to soften — text
-  /// sits on a moving-coloured ground and the panel edges stop reading as
-  /// edges. So the fills are also composited against the gradient here and
-  /// handed over opaque: same colour on screen, no per-frame work.
-  ///
-  /// Opaque fills are worth more than the tidier look. `GlassPanel` skips its
-  /// filter when the fill already hides the backdrop, and an opaque panel also
-  /// lets the rasteriser stop at the panel instead of drawing everything under
-  /// it — so this removes overdraw the blur was paying for twice.
-  ///
-  /// The backdrop's own stops are the reference: the sidebar sits at the
-  /// gradient's start, the centre card over its middle. Deriving them rather
-  /// than hardcoding means editing the gradient keeps performance mode honest.
-  static GlassTheme _flatten(GlassTheme glass) {
-    final stops = glass.backdrop.colors;
-    final start = stops.first;
-    final middle = stops[stops.length ~/ 2];
-    return glass.copyWith(
-      blurSigma: 0,
-      panelFill: Color.alphaBlend(glass.panelFill, middle),
-      sidebarFill: Color.alphaBlend(glass.sidebarFill, start),
-      reduceEffects: true,
-    );
-  }
-
-  static const GlassTheme _darkGlass = GlassTheme(
-    backdrop: LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [Color(0xFF14122E), Color(0xFF1A1840), Color(0xFF0F2E2B)],
-      stops: [0.0, 0.5, 1.0],
-    ),
-    panelFill: Color(0x14FFFFFF),
-    panelStroke: Color(0x1FFFFFFF),
-    rowSelected: Color(0x335B6CFF),
-    sidebarFill: Color(0x33000000),
-    blurSigma: 24,
-  );
-
-  static const GlassTheme _lightGlass = GlassTheme(
-    backdrop: LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [Color(0xFFE7E9F2), Color(0xFFECEAF4), Color(0xFFE6F1EC)],
-      stops: [0.0, 0.5, 1.0],
-    ),
-    // Center cards are crisp near-white so they pop off the neutral backdrop
-    // (the soft shadow does the separating, not translucency).
-    panelFill: Color(0xF5FFFFFF),
-    panelStroke: Color(0x12101430),
-    rowSelected: Color(0x1A4F6BFF),
-    // Flush columns (sidebar, AI panel, header) stay lightly translucent so the
-    // backdrop's faint lavender→mint shows through, like the mockup.
-    sidebarFill: Color(0xCCFFFFFF),
-    blurSigma: 24,
+  static TextTheme _textTheme(
+    AppTokens t,
+    TextStyle Function(TextStyle) text,
+  ) => TextTheme(
+    displaySmall: text(AppTypeScale.display).copyWith(color: t.textTitle),
+    headlineSmall: text(AppTypeScale.heading).copyWith(color: t.textTitle),
+    titleMedium: text(AppTypeScale.title).copyWith(color: t.textTitle),
+    titleSmall: text(AppTypeScale.controlStrong).copyWith(color: t.textTitle),
+    bodyMedium: text(AppTypeScale.body).copyWith(color: t.textBody),
+    bodySmall: text(AppTypeScale.caption).copyWith(color: t.textSecondary),
+    labelLarge: text(AppTypeScale.control).copyWith(color: t.textBody),
+    labelMedium: text(AppTypeScale.caption).copyWith(color: t.textSecondary),
+    labelSmall: text(AppTypeScale.groupLabel).copyWith(color: t.textMuted),
   );
 }
 
-/// 桌面端页面转场:淡入 + 1.5% 上浮。默认的 ZoomPageTransitionsBuilder 是
-/// 安卓系统的放大浮入,在桌面窗口里显得像手机应用;这里换成桌面惯用的
-/// 快速淡入,且不动退场中的旧页面。
+/// 桌面端页面转场：淡入 + 1.5% 上浮。
+///
+/// 默认的 `ZoomPageTransitionsBuilder` 是安卓的放大浮入，在桌面窗口里像手机
+/// 应用；这里换成桌面惯用的快速淡入，且不动退场中的旧页面。
 class _DesktopPageTransitionsBuilder extends PageTransitionsBuilder {
   const _DesktopPageTransitionsBuilder();
 
