@@ -109,7 +109,11 @@ class StructuredData {
     if (declared != null && declared.isNotEmpty) {
       try {
         final resolved = pageUrl.resolve(declared);
-        if (resolved.path != pageUrl.path || resolved.query != pageUrl.query) {
+        if (resolved.scheme != pageUrl.scheme ||
+            resolved.host != pageUrl.host ||
+            resolved.port != pageUrl.port ||
+            resolved.path != pageUrl.path ||
+            resolved.query != pageUrl.query) {
           return true;
         }
       } on FormatException {

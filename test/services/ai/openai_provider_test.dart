@@ -270,6 +270,75 @@ void main() {
     expect(response.completionTokens, 74);
   });
 
+  test('assembles cumulative tool-call id and name fragments once', () async {
+    final provider = OpenAiProvider(
+      _config('cumulative-tool-fragments'),
+      client: MockClient.streaming((request, _) async {
+        return http.StreamedResponse(
+          Stream.value(
+            utf8.encode(
+              [
+                _event({
+                  'choices': [
+                    {
+                      'delta': {
+                        'tool_calls': [
+                          {
+                            'index': 0,
+                            'id': 'call',
+                            'function': {'name': 'sub'},
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                }),
+                _event({
+                  'choices': [
+                    {
+                      'delta': {
+                        'tool_calls': [
+                          {
+                            'index': 0,
+                            'id': 'call_1',
+                            'function': {
+                              'name': 'submit_fields',
+                              'arguments': '{"title":"X"}',
+                            },
+                          },
+                        ],
+                      },
+                      'finish_reason': 'tool_calls',
+                    },
+                  ],
+                }),
+                'data: [DONE]\n\n',
+              ].join(),
+            ),
+          ),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    final response = await provider.chat(
+      messages: const [UserMessage('read the page')],
+      tools: const [
+        ToolDefinition(
+          name: 'submit_fields',
+          description: 'submit',
+          parameters: {'type': 'object'},
+        ),
+      ],
+    );
+
+    expect(response.toolCalls, hasLength(1));
+    expect(response.toolCalls.single.id, 'call_1');
+    expect(response.toolCalls.single.name, 'submit_fields');
+    expect(response.toolCalls.single.arguments, '{"title":"X"}');
+  });
+
   test('retries without stream_options when a server refuses them', () async {
     final bodies = <Map<String, dynamic>>[];
     final provider = OpenAiProvider(

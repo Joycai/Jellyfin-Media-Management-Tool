@@ -97,10 +97,15 @@ class MetadataActor {
   };
 
   factory MetadataActor.fromJson(Map<String, dynamic> json) => MetadataActor(
-    name: (json['name'] as String?)?.trim() ?? '',
-    role: (json['role'] as String?)?.trim(),
-    thumbUrl: (json['thumb'] as String?)?.trim(),
+    name: _textValue(json['name']) ?? '',
+    role: _textValue(json['role']),
+    thumbUrl: _textValue(json['thumb']),
   );
+
+  static String? _textValue(Object? value) {
+    final text = value is String ? value.trim() : value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -189,13 +194,7 @@ class MediaMetadata {
 
   /// True when nothing worth writing was found. The scrape service treats this
   /// as a failure and falls through to the next tier.
-  bool get isEmpty =>
-      (title == null || title!.isEmpty) &&
-      (code == null || code!.isEmpty) &&
-      (plot == null || plot!.isEmpty) &&
-      posterUrl == null &&
-      genres.isEmpty &&
-      actors.isEmpty;
+  bool get isEmpty => MetadataField.all.every(isBlank);
 
   /// Reads one field by its [MetadataField] key. Returns `String`, `int`,
   /// `double`, `List<String>` or `List<MetadataActor>` depending on the field.

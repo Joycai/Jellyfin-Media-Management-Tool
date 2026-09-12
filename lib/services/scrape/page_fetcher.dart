@@ -64,7 +64,7 @@ class FetchedPage {
 
   /// True when the server sent us somewhere else. A product page that answers
   /// with the site's front page is a failure wearing a 200.
-  bool get wasRedirected => url.path != requestedUrl.path;
+  bool get wasRedirected => url != requestedUrl;
 }
 
 /// A fetch that failed in a way worth showing the user.

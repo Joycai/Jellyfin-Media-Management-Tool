@@ -96,6 +96,18 @@ ScrapeRecipe _recipe({
 final _product = Uri.parse('https://gate.test/product/index.php?id=1');
 
 void main() {
+  test('redirect detection includes host and query changes', () {
+    final page = FetchedPage(
+      requestedUrl: Uri.parse('https://example.invalid/item?id=1'),
+      url: Uri.parse('https://other.invalid/item?id=1'),
+      html: '',
+      statusCode: 200,
+      charset: 'utf-8',
+    );
+
+    expect(page.wasRedirected, isTrue);
+  });
+
   group('session bootstrap', () {
     test('walks the gate, then reuses the session it was given', () async {
       // The whole point: a static `old_check=yes` is not a session. The gate
