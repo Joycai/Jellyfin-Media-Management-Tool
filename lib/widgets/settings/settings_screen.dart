@@ -12,6 +12,8 @@ import '../../services/thumbnail_service.dart';
 import '../../shortcuts/app_shortcuts.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
+import '../shell/app_shell.dart';
+import '../shell/secondary_title_bar.dart';
 import 'ai_services_screen.dart';
 import 'settings_appearance_section.dart';
 import 'settings_controls.dart';
@@ -52,73 +54,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final glass = context.tokens;
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: glass.backdrop),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _header(),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: 244,
-                      child: _Sidebar(
-                        section: _section,
-                        onChange: (s) => setState(() => _section = s),
-                      ),
-                    ),
-                    Expanded(child: _detail()),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _header() {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 24, 14),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_rounded),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            l10n.settings,
-            style: const TextStyle(
-              fontSize: AppTypeScale.sizeHeading,
-              fontWeight: FontWeight.w800,
+    final t = context.tokens;
+    return Scaffold(
+      // 整页路由盖住了主顶栏，窗口按钮与拖拽区都跟着没了 —— 二级顶栏把它们
+      // 带回来（见 SecondaryTitleBar）。
+      body: AppShell(
+        titleBar: SecondaryTitleBar(
+          backLabel: l10n.tabFiles,
+          onBack: () => Navigator.of(context).pop(),
+          title: l10n.settings,
+          subtitle: _breadcrumb(l10n),
+          actions: [
+            Text(
+              'v $_appVersion · ${l10n.versionUpToDate}',
+              style: AppTypeScale.monoTiny.copyWith(color: t.textMuted),
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            _breadcrumb(l10n),
-            style: TextStyle(
-              fontSize: AppTypeScale.sizeBody,
-              color: scheme.onSurfaceVariant,
+            const SizedBox(width: AppSpacing.md12),
+          ],
+        ),
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              // 6.x 的设置导航是 200，比主侧栏窄：它的标签都是两三个字，
+              // 244 只会在右边留一条空白。
+              width: 200,
+              child: _Sidebar(
+                section: _section,
+                onChange: (s) => setState(() => _section = s),
+              ),
             ),
-          ),
-          const Spacer(),
-          Text(
-            'v $_appVersion · ${l10n.versionUpToDate}',
-            style: TextStyle(
-              fontSize: AppTypeScale.sizeControl,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+            Expanded(child: _detail()),
+          ],
+        ),
       ),
     );
   }
