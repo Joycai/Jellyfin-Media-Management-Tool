@@ -598,7 +598,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: AppTypeScale.sizeCaption,
-                  fontFamily: 'monospace',
+                  fontFamily: AppTypeScale.mono,
+                  fontFamilyFallback: AppTypeScale.monoFallback,
                   color: scheme.onSurfaceVariant,
                 ),
               ),
@@ -676,7 +677,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: AppTypeScale.sizeMono,
-              fontFamily: 'monospace',
+              fontFamily: AppTypeScale.mono,
+              fontFamilyFallback: AppTypeScale.monoFallback,
               color: scheme.onSurfaceVariant,
             ),
           ),
@@ -756,7 +758,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
             ),
             style: const TextStyle(
               fontSize: AppTypeScale.sizeBody,
-              fontFamily: 'monospace',
+              fontFamily: AppTypeScale.mono,
+              fontFamilyFallback: AppTypeScale.monoFallback,
             ),
             onChanged: (_) => setState(() => _error = null),
             onSubmitted: (_) => _run(askLlm: false),
@@ -985,7 +988,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: AppTypeScale.sizeCaption,
-                    fontFamily: 'monospace',
+                    fontFamily: AppTypeScale.mono,
+                    fontFamilyFallback: AppTypeScale.monoFallback,
                   ),
                 ),
               ),
@@ -1168,7 +1172,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
                     ),
                     style: const TextStyle(
                       fontSize: AppTypeScale.sizeCaption,
-                      fontFamily: 'monospace',
+                      fontFamily: AppTypeScale.mono,
+                      fontFamilyFallback: AppTypeScale.monoFallback,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -1189,7 +1194,8 @@ class _ScrapePanelState extends State<ScrapePanel> {
                       maxLines: 5,
                       style: const TextStyle(
                         fontSize: AppTypeScale.sizeCaption,
-                        fontFamily: 'monospace',
+                        fontFamily: AppTypeScale.mono,
+                        fontFamilyFallback: AppTypeScale.monoFallback,
                       ),
                       decoration: InputDecoration(
                         labelText: l10n.scrapePasteHtml,
@@ -1283,7 +1289,8 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
       l10n.scrapeElapsed(widget.format(widget.elapsed.elapsed)),
       style: TextStyle(
         fontSize: AppTypeScale.sizeCaption,
-        fontFamily: 'monospace',
+        fontFamily: AppTypeScale.mono,
+        fontFamilyFallback: AppTypeScale.monoFallback,
         color: scheme.onSurfaceVariant,
       ),
     );

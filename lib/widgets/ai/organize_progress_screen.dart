@@ -373,7 +373,8 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
           const Text(
             'activity.log',
             style: TextStyle(
-              fontFamily: 'monospace',
+              fontFamily: AppTypeScale.mono,
+              fontFamilyFallback: AppTypeScale.monoFallback,
               fontSize: AppTypeScale.sizeBody,
               color: AppPalette.onTerminalMuted,
               fontWeight: FontWeight.w600,
@@ -424,7 +425,8 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
         child: Text(
           label,
           style: TextStyle(
-            fontFamily: 'monospace',
+            fontFamily: AppTypeScale.mono,
+            fontFamilyFallback: AppTypeScale.monoFallback,
             fontSize: AppTypeScale.sizeCaption,
             fontWeight: FontWeight.w700,
             color: on ? color : _mutedOnTerminal,
@@ -445,7 +447,8 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       child: Text.rich(
         TextSpan(
           style: const TextStyle(
-            fontFamily: 'monospace',
+            fontFamily: AppTypeScale.mono,
+            fontFamilyFallback: AppTypeScale.monoFallback,
             fontSize: AppTypeScale.sizeBody,
             height: 1.3,
           ),

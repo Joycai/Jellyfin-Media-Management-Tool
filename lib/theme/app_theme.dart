@@ -94,7 +94,15 @@ class AppTheme {
       reduceEffects: reduceEffects,
     );
     final isDark = t.isDark;
-    final fallback = AppTypeScale.cjkFallback(defaultTargetPlatform);
+    // 「系统默认」= 字族交给引擎，中文回落照旧。
+    // 选了自定义字体 = 它**只接管中文**：系统的拉丁字体排首位，自定义字体排在
+    // 它后面，靠「这个字族里没有这个字形」自然分流。见 [AppTypeScale.latinUi]。
+    final cjk = AppTypeScale.cjkFallback(defaultTargetPlatform);
+    final latin = AppTypeScale.latinUi(defaultTargetPlatform);
+    final family = fontFamily == null ? null : latin.first;
+    final fallback = fontFamily == null
+        ? cjk
+        : [...latin.skip(1), fontFamily, ...cjk];
 
     final scheme =
         ColorScheme.fromSeed(
@@ -117,7 +125,7 @@ class AppTheme {
     // ButtonStyle.textStyle 是**替换**而不是合并，裸 TextStyle 会把用户选的
     // 界面字体从每个按钮上悄悄抹掉。字族与中文回落必须显式带上。
     TextStyle text(TextStyle base) =>
-        base.copyWith(fontFamily: fontFamily, fontFamilyFallback: fallback);
+        base.copyWith(fontFamily: family, fontFamilyFallback: fallback);
 
     OutlineInputBorder fieldBorder(Color color, [double width = 1]) =>
         OutlineInputBorder(
@@ -351,9 +359,9 @@ class AppTheme {
         ),
       ),
       textTheme: _textTheme(t, text),
-      fontFamily: fontFamily,
+      fontFamily: family,
       // 拉丁字形保留系统默认的清晰度；中文字形（Windows 的默认字体没有）回落到
-      // 各平台的旗舰界面字体，让中文在哪儿都是一款主流、hinting 良好的字体。
+      // 用户挑的那款，没挑就回落到各平台的旗舰界面字体。
       fontFamilyFallback: fallback,
       extensions: [t],
     );

@@ -87,7 +87,7 @@ class AppStatusBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
             horizontal: AppSizes.contentPaddingH,
           ),
-          child: DefaultTextStyle(
+          child: DefaultTextStyle.merge(
             style: AppTypeScale.caption.copyWith(color: t.textSecondary),
             child: Row(
               children: [

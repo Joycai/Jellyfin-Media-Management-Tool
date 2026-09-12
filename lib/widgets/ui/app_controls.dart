@@ -995,7 +995,7 @@ class AppColumnHeader extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: t.stroke)),
       ),
-      child: DefaultTextStyle(
+      child: DefaultTextStyle.merge(
         style: AppTypeScale.columnHeader.copyWith(color: t.textMuted),
         child: Row(children: children),
       ),

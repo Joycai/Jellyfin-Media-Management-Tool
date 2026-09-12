@@ -463,7 +463,8 @@ class _MovesDialog extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontFamily: 'monospace',
+                              fontFamily: AppTypeScale.mono,
+                              fontFamilyFallback: AppTypeScale.monoFallback,
                               fontSize: AppTypeScale.sizeBody,
                               color: scheme.onSurfaceVariant,
                             ),
@@ -483,7 +484,9 @@ class _MovesDialog extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontFamily: 'monospace',
+                                    fontFamily: AppTypeScale.mono,
+                                    fontFamilyFallback:
+                                        AppTypeScale.monoFallback,
                                     fontSize: AppTypeScale.sizeBody,
                                     color: scheme.onSurface,
                                   ),

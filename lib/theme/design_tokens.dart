@@ -198,6 +198,39 @@ abstract final class AppMotion {
 abstract final class AppTypeScale {
   static const String mono = 'JetBrains Mono';
 
+  /// 等宽字体的回落链。
+  ///
+  /// 设计稿点名 JetBrains Mono，而它既没打进包里、也不是任何一个系统自带的
+  /// 字体；`'monospace'` 更是 CSS / Android 的通名，Windows 与 macOS 上根本
+  /// 没有这个字族。两者都匹配不上时，引擎会直接走到 `fontFamilyFallback` ——
+  /// 而那原本是主题给的中文回落，于是所有路径、版本号、token 数最后都是用
+  /// 微软雅黑画的：既不等宽，也不是用户在设置里挑的那款字。
+  ///
+  /// 一张平铺的名单管三个平台：匹配不上的名字会被跳过。末尾接上中文字族，
+  /// 因为这里写了 `fontFamilyFallback` 就会把主题那份顶掉，而路径里是有中文
+  /// 目录名的。
+  static const List<String> monoFallback = [
+    // Windows
+    'Cascadia Mono',
+    'Consolas',
+    // macOS
+    'SF Mono',
+    'Menlo',
+    'Monaco',
+    // Linux
+    'DejaVu Sans Mono',
+    'Liberation Mono',
+    'Noto Sans Mono',
+    'Courier New',
+    // 等宽字体里没有的中文字形，仍要落到界面中文字体上。
+    'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    'PingFang SC',
+    'Heiti SC',
+    'Noto Sans CJK SC',
+    'Noto Sans SC',
+  ];
+
   /// 全局字间距；22px 以上标题收紧到 [tightTracking]。
   static const double tracking = -0.005;
   static const double tightTracking = -0.02;
@@ -271,18 +304,21 @@ abstract final class AppTypeScale {
   /// 11 / 500 · mono — 路径、数值、快捷键。
   static const TextStyle monoSmall = TextStyle(
     fontFamily: mono,
+    fontFamilyFallback: monoFallback,
     fontSize: 11,
     fontWeight: FontWeight.w500,
     height: 1.4,
   );
   static const TextStyle monoTiny = TextStyle(
     fontFamily: mono,
+    fontFamilyFallback: monoFallback,
     fontSize: 10,
     fontWeight: FontWeight.w500,
     height: 1.3,
   );
   static const TextStyle monoBody = TextStyle(
     fontFamily: mono,
+    fontFamilyFallback: monoFallback,
     fontSize: 12.5,
     height: 1.4,
   );
@@ -304,6 +340,27 @@ abstract final class AppTypeScale {
   );
 
   /// 每个平台的中文回落字体，按设计稿：PingFang SC / Microsoft YaHei。
+  /// 各平台的系统界面**拉丁**字体。
+  ///
+  /// 用户在设置里挑的是一款中文字体，挑它是为了中文 —— 顺手把拉丁字形也换掉
+  /// 并不是同一个决定，而这些字体的拉丁部分通常也不如系统那款。所以自定义字体
+  /// 不当首选字族，而是排在系统拉丁字体后面：一个字族里没有的字形，引擎自己会
+  /// 往后找，中文正好落到它身上。
+  ///
+  /// 每一项的首位必须与 Flutter `Typography` 在该平台用的字族一致 —— 那正是
+  /// 「没选字体时」界面上的拉丁字形。首位换成别的，就等于选了中文字体之后拉丁
+  /// 字形也跟着变了，而这恰恰是不该发生的事。后面几项只是兜底，匹配不上的名字
+  /// 会被跳过。
+  static List<String> latinUi(TargetPlatform platform) => switch (platform) {
+    TargetPlatform.windows => const ['Segoe UI', 'Tahoma'],
+    TargetPlatform.macOS || TargetPlatform.iOS => const [
+      '.SF UI Text',
+      '.AppleSystemUIFont',
+      'Helvetica Neue',
+    ],
+    _ => const ['Roboto', 'Cantarell', 'DejaVu Sans', 'Liberation Sans'],
+  };
+
   static List<String> cjkFallback(TargetPlatform platform) =>
       switch (platform) {
         TargetPlatform.windows => const [

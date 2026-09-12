@@ -163,7 +163,8 @@ class _EditActionDialogState extends State<EditActionDialog> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontFamily: 'monospace',
+                fontFamily: AppTypeScale.mono,
+                fontFamilyFallback: AppTypeScale.monoFallback,
                 fontSize: AppTypeScale.sizeControl,
                 color: scheme.onSurfaceVariant,
               ),
@@ -174,7 +175,8 @@ class _EditActionDialogState extends State<EditActionDialog> {
               autofocus: true,
               maxLines: null,
               style: const TextStyle(
-                fontFamily: 'monospace',
+                fontFamily: AppTypeScale.mono,
+                fontFamilyFallback: AppTypeScale.monoFallback,
                 fontSize: AppTypeScale.sizeBody,
               ),
               decoration: InputDecoration(

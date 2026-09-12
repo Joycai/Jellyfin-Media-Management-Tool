@@ -122,10 +122,21 @@ class FontService extends ChangeNotifier {
     if (!await dir.exists()) return const [];
     return dir
         .list()
-        .where((e) => e is File && e.path.toLowerCase().endsWith('.ttf'))
+        .where(
+          (e) =>
+              e is File &&
+              e.path.toLowerCase().endsWith('.ttf') &&
+              !_isAppleDouble(e.path),
+        )
         .cast<File>()
         .toList();
   }
+
+  /// `._MiSans-Regular.ttf` 之类的 AppleDouble 附属档 —— 在 macOS 上打的 zip
+  /// 里每个文件都跟着一个，几百字节，装的是资源分叉而不是字体。名字以真文件名
+  /// 结尾，所以它能照样通过按文件名结尾做的匹配；喂给 `FontLoader`
+  /// 之后整批注册一起失败，于是用户选了 MiSans、界面却一直是系统字体。
+  static bool _isAppleDouble(String path) => p.basename(path).startsWith('._');
 
   Future<bool> isDownloaded(AppFontChoice choice) async {
     if (choice == AppFontChoice.system) return true;
@@ -134,14 +145,21 @@ class FontService extends ChangeNotifier {
 
   /// Registers the downloaded TTFs of [choice] with the engine, if present.
   /// Safe to call on every startup; no-op when nothing is downloaded.
+  ///
+  /// Never throws. This runs in `main()` before `runApp`, and a font that
+  /// cannot be parsed must cost the user their font choice, not the app.
   Future<void> loadIfDownloaded(AppFontChoice choice) async {
     if (choice == AppFontChoice.system || _loaded.contains(choice)) return;
-    final files = await _localFontFiles(choice);
-    if (files.isEmpty) return;
-    await _register(_specs[choice]!.family, files);
-    _loaded.add(choice);
-    _downloadedOnDisk.add(choice);
-    notifyListeners();
+    try {
+      final files = await _localFontFiles(choice);
+      if (files.isEmpty) return;
+      await _register(_specs[choice]!.family, files);
+      _loaded.add(choice);
+      _downloadedOnDisk.add(choice);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Font ${choice.id} failed to load: $e');
+    }
   }
 
   /// Downloads the official font package, extracts the needed TTFs and
@@ -257,6 +275,9 @@ List<String> _extractFonts(List<String> args) {
     if (!entry.isFile) continue;
     if (!re.hasMatch(entry.name)) continue;
     final name = p.basename(entry.name);
+    // macOS 打的 zip 里，每个文件旁边都有一份 `__MACOSX/…/._<名字>` 的资源
+    // 分叉。它以真文件名结尾，所以照样能通过上面的匹配 —— 而它不是字体。
+    if (name.startsWith('._') || entry.name.startsWith('__MACOSX/')) continue;
     if (!seen.add(name.toLowerCase())) continue;
     final file = File(p.join(outDir, name));
     file.writeAsBytesSync(entry.content as List<int>);
