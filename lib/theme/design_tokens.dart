@@ -378,6 +378,17 @@ abstract final class AppPalette {
   /// 4.3 「写入」主按钮的深墨字，压在成功色实底上。
   static const Color onSuccessSolid = Color(0xFF04211A);
 
+  /// 3.1 的文件类型图标色。
+  ///
+  /// 设计稿只给了视频（橙）、剧集（青）、海报（紫）三种有色的，字幕与元数据是
+  /// 中性的。凡是稿子没点名的类型都留在中性档，而不是各发一个色相 —— 一列
+  /// 彩虹图标会把「这一行需要注意」这件事稀释掉。
+  static const Color typeVideo = Color(0xFFFF9A6C);
+  static const Color typeSeries = success;
+  static const Color typeImage = ai;
+  static const Color typeNeutral = Color(0xFF8FA3C8);
+  static const Color typeFolder = warning;
+
   /// 厂商品牌色（6.1 / 6.3 的服务卡）。
   ///
   /// 这几个**不是**主题色：它们标识的是 OpenAI、Google 这些外部服务，跟着强调色

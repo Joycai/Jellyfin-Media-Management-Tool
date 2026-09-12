@@ -109,7 +109,7 @@ class _OrganizeProgressScreenState extends State<OrganizeProgressScreen> {
       // 整页路由盖住主顶栏，窗口按钮与拖拽区必须由这一条带回来。
       body: AppShell(
         titleBar: SecondaryTitleBar(
-          backLabel: l10n.tabFiles,
+          backLabel: l10n.back,
           onBack: () => Navigator.of(context).pop(),
           title: _title(c, l10n),
           subtitle: c.status == ApplyStatus.running && c.eta != null

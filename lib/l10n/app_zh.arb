@@ -603,5 +603,6 @@
   "connectNas": "连接 NAS",
   "historyAllRecords": "全部记录",
   "historyIrreversible": "不可撤销",
-  "historyToday": "今天"
+  "historyToday": "今天",
+  "back": "返回"
 }

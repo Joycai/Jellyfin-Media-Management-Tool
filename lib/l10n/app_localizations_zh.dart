@@ -2038,4 +2038,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get historyToday => '今天';
+
+  @override
+  String get back => '返回';
 }

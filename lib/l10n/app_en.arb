@@ -620,5 +620,6 @@
   "connectNas": "Connect NAS",
   "historyAllRecords": "All records",
   "historyIrreversible": "Cannot be undone",
-  "historyToday": "Today"
+  "historyToday": "Today",
+  "back": "Back"
 }

@@ -13,6 +13,7 @@ import '../../shortcuts/app_shortcuts.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../shell/app_shell.dart';
+import '../ui/glass_surface.dart';
 import '../shell/secondary_title_bar.dart';
 import 'ai_services_screen.dart';
 import 'settings_appearance_section.dart';
@@ -61,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // 带回来（见 SecondaryTitleBar）。
       body: AppShell(
         titleBar: SecondaryTitleBar(
-          backLabel: l10n.tabFiles,
+          backLabel: l10n.back,
           onBack: () => Navigator.of(context).pop(),
           title: l10n.settings,
           subtitle: _breadcrumb(l10n),
@@ -126,37 +127,46 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
     final glass = context.tokens;
 
+    // 6.x 的导航行：padding 7/12、圆角 8、12.5px；选中 accent 14% + 描边 22%。
     Widget tile(_Section s, IconData icon, String label) {
       final on = s == section;
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md12,
+          vertical: 1,
+        ),
         child: Material(
-          color: on
-              ? scheme.primary.withValues(alpha: 0.14)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.card),
+          color: on ? glass.selectionFill : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadii.button),
           child: InkWell(
-            borderRadius: BorderRadius.circular(AppRadii.card),
+            borderRadius: BorderRadius.circular(AppRadii.button),
             onTap: () => onChange(s),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadii.button),
+                border: on
+                    ? Border.all(color: glass.selectionStroke)
+                    : Border.all(color: Colors.transparent),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md12,
+                vertical: 7,
+              ),
               child: Row(
                 children: [
                   Icon(
                     icon,
-                    size: 17,
-                    color: on ? scheme.primary : scheme.onSurfaceVariant,
+                    size: 14,
+                    color: on ? glass.textTitle : glass.textSecondary,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpacing.sm),
                   Text(
                     label,
-                    style: TextStyle(
-                      fontSize: AppTypeScale.sizeBody,
-                      fontWeight: on ? FontWeight.w600 : FontWeight.w500,
-                      color: on ? scheme.onSurface : scheme.onSurfaceVariant,
+                    style: AppTypeScale.control.copyWith(
+                      fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                      color: on ? glass.textTitle : glass.textSecondary,
                     ),
                   ),
                 ],
@@ -167,12 +177,10 @@ class _Sidebar extends StatelessWidget {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: glass.stroke)),
-      ),
+    return AppGlassPane(
+      border: Border(right: BorderSide(color: glass.stroke)),
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
         children: [
           tile(_Section.appearance, Icons.palette_outlined, l10n.secAppearance),
           tile(_Section.language, Icons.public, l10n.secLanguage),

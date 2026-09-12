@@ -375,23 +375,33 @@ class _ThemePreview extends StatelessWidget {
     );
 
     if (mode == ThemeMode.system) {
-      // Half white / half dark, split diagonally — mirrors the mockup.
+      // 135° 硬分割：左上浅、右下深，取两套主题各自的窗口底色而不是纯黑白 ——
+      // 这张卡是「这两个主题长什么样」的缩略图，用不属于任何一边的颜色画它，
+      // 缩略图就不再是缩略图了。
       return ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.card),
         child: Stack(
           children: [
-            Positioned.fill(child: Container(color: Colors.white)),
+            Positioned.fill(
+              child: ColoredBox(color: AppPalette.perfTopBarLight),
+            ),
             ClipPath(
               clipper: _DiagonalClipper(),
-              child: Container(color: const Color(0xFF111126)),
+              child: const ColoredBox(
+                color: AppPalette.darkBase,
+                child: SizedBox.expand(),
+              ),
             ),
-            // Subtle line on top to hint at structure.
+            // 顶栏提示条也跟着分割，否则右半边看起来像被切掉了一块。
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               child: Container(
-                height: 6,
+                height: 8,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.6),
+                  gradient: const LinearGradient(
+                    stops: [0.5, 0.5],
+                    colors: [Color(0xCCFFFFFF), Color(0x26FFFFFF)],
+                  ),
                   borderRadius: BorderRadius.circular(AppRadii.chip),
                 ),
               ),

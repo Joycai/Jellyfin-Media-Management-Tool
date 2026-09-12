@@ -45,7 +45,7 @@ class _OrganizeHistoryScreenState extends State<OrganizeHistoryScreen> {
     return Scaffold(
       body: AppShell(
         titleBar: SecondaryTitleBar(
-          backLabel: l10n.tabFiles,
+          backLabel: l10n.back,
           onBack: () => Navigator.of(context).pop(),
           title: l10n.historyTitle,
           subtitle: l10n.historyRetention(HistoryService.retentionDays),
