@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
@@ -19,25 +20,47 @@ TextStyle _styleOf(WidgetTester tester, Finder text) {
   return (rich.text as TextSpan).style!;
 }
 
-Future<void> _pump(WidgetTester tester, Widget child) async {
+Future<void> _pump(
+  WidgetTester tester,
+  Widget child, {
+  String? fontFamily = _picked,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
-      theme: AppTheme.light(fontFamily: _picked),
+      theme: AppTheme.light(fontFamily: fontFamily),
       home: Scaffold(body: child),
     ),
   );
   await tester.pump();
 }
 
+List<String> get _latin => AppTypeScale.latinUi(defaultTargetPlatform);
+List<String> get _cjk => AppTypeScale.cjkFallback(defaultTargetPlatform);
+
 void main() {
-  testWidgets('ordinary text carries the picked family and the CJK fallback', (
+  testWidgets('the picked font takes the CJK glyphs, not the Latin ones', (
     tester,
   ) async {
     await _pump(tester, const Text('plain'));
 
     final style = _styleOf(tester, find.text('plain'));
-    expect(style.fontFamily, _picked);
-    expect(style.fontFamilyFallback, isNotEmpty);
+    // Picking a Chinese UI font is a decision about Chinese. Latin stays on
+    // the system face, so the system face leads and the picked font sits
+    // behind it — the engine reaches it only for glyphs Segoe UI (or SF, or
+    // Cantarell) does not have, which is exactly the CJK block.
+    expect(style.fontFamily, _latin.first);
+    expect(style.fontFamilyFallback, [..._latin.skip(1), _picked, ..._cjk]);
+  });
+
+  testWidgets('the system choice names no family at all', (tester) async {
+    await _pump(tester, const Text('plain'), fontFamily: null);
+
+    final style = _styleOf(tester, find.text('plain'));
+    // Nothing of ours is imposed, so `Typography` answers for Latin — which
+    // is the same family `latinUi` leads with, and the reason it has to. The
+    // CJK list is there because that family has no Chinese glyphs.
+    expect(style.fontFamily, isNot(_picked));
+    expect(style.fontFamilyFallback, _cjk);
   });
 
   testWidgets('a mono style names a family that exists on this platform', (
@@ -60,19 +83,19 @@ void main() {
     expect(style.fontFamilyFallback, contains('Microsoft YaHei UI'));
   });
 
-  testWidgets('a column header keeps the picked family', (tester) async {
+  testWidgets('a column header keeps the theme family', (tester) async {
     // `DefaultTextStyle` replaces the ambient style; only `.merge` keeps the
     // family and the fallback. Three surfaces used the plain constructor —
     // the status bar, the table footer and this header — so they stayed on
     // the platform font whatever the user chose.
     await _pump(tester, const AppColumnHeader(children: [Text('Name')]));
 
-    expect(_styleOf(tester, find.text('Name')).fontFamily, _picked);
+    expect(_styleOf(tester, find.text('Name')).fontFamily, _latin.first);
   });
 
-  testWidgets('the status bar keeps the picked family', (tester) async {
+  testWidgets('the status bar keeps the theme family', (tester) async {
     await _pump(tester, const AppStatusBar(leading: [Text('12 items')]));
 
-    expect(_styleOf(tester, find.text('12 items')).fontFamily, _picked);
+    expect(_styleOf(tester, find.text('12 items')).fontFamily, _latin.first);
   });
 }

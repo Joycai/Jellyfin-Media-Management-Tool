@@ -340,6 +340,27 @@ abstract final class AppTypeScale {
   );
 
   /// 每个平台的中文回落字体，按设计稿：PingFang SC / Microsoft YaHei。
+  /// 各平台的系统界面**拉丁**字体。
+  ///
+  /// 用户在设置里挑的是一款中文字体，挑它是为了中文 —— 顺手把拉丁字形也换掉
+  /// 并不是同一个决定，而这些字体的拉丁部分通常也不如系统那款。所以自定义字体
+  /// 不当首选字族，而是排在系统拉丁字体后面：一个字族里没有的字形，引擎自己会
+  /// 往后找，中文正好落到它身上。
+  ///
+  /// 每一项的首位必须与 Flutter `Typography` 在该平台用的字族一致 —— 那正是
+  /// 「没选字体时」界面上的拉丁字形。首位换成别的，就等于选了中文字体之后拉丁
+  /// 字形也跟着变了，而这恰恰是不该发生的事。后面几项只是兜底，匹配不上的名字
+  /// 会被跳过。
+  static List<String> latinUi(TargetPlatform platform) => switch (platform) {
+    TargetPlatform.windows => const ['Segoe UI', 'Tahoma'],
+    TargetPlatform.macOS || TargetPlatform.iOS => const [
+      '.SF UI Text',
+      '.AppleSystemUIFont',
+      'Helvetica Neue',
+    ],
+    _ => const ['Roboto', 'Cantarell', 'DejaVu Sans', 'Liberation Sans'],
+  };
+
   static List<String> cjkFallback(TargetPlatform platform) =>
       switch (platform) {
         TargetPlatform.windows => const [
