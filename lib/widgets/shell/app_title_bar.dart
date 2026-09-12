@@ -31,6 +31,10 @@ class AppTitleBar extends StatelessWidget {
   final String searchShortcut;
 
   final VoidCallback onHistory;
+
+  /// 历史浮层要锚在这颗按钮下方（5.4），所以它的 key 由外面持有 —— 键盘快捷键
+  /// 打开浮层时也要拿到同一个矩形。
+  final GlobalKey historyButtonKey;
   final VoidCallback onRefresh;
   final VoidCallback onSettings;
 
@@ -53,6 +57,7 @@ class AppTitleBar extends StatelessWidget {
     required this.onSearch,
     required this.searchShortcut,
     required this.onHistory,
+    required this.historyButtonKey,
     required this.onRefresh,
     required this.onSettings,
     this.historyHasNews = false,
@@ -170,6 +175,7 @@ class AppTitleBar extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           AppIconButton(
+                            key: historyButtonKey,
                             icon: Icons.history_rounded,
                             tooltip: l10n.historyTitle,
                             onPressed: onHistory,

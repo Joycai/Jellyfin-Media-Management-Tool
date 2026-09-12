@@ -600,5 +600,8 @@
   "dropFoldersTitle": "把文件夹拖到这里",
   "dropFoldersHint": "支持单个或多个文件夹 · 视频、字幕、海报与元数据会一并扫描",
   "orSeparator": "或",
-  "connectNas": "连接 NAS"
+  "connectNas": "连接 NAS",
+  "historyAllRecords": "全部记录",
+  "historyIrreversible": "不可撤销",
+  "historyToday": "今天"
 }

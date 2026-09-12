@@ -2029,4 +2029,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get connectNas => '连接 NAS';
+
+  @override
+  String get historyAllRecords => '全部记录';
+
+  @override
+  String get historyIrreversible => '不可撤销';
+
+  @override
+  String get historyToday => '今天';
 }

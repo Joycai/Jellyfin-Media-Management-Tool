@@ -525,10 +525,15 @@ class _Breadcrumb extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      reverse: true,
-      child: Row(children: children),
+    // reverse 让**溢出时**保留末级目录（最有信息量的一段），但没溢出时
+    // `reverse` 会把整条面包屑推到右边贴着按钮 —— 所以在外面再包一层左对齐。
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        reverse: true,
+        child: Row(children: children),
+      ),
     );
   }
 }
@@ -783,11 +788,14 @@ class _FileRowState extends State<_FileRow> {
     );
     final needsReview = action?.status == ActionStatus.needsReview;
     final showCheckbox = _hovered || checked;
+    // 1.4c：单行 34、双行 44。副行只有在有 AI 建议或需要确认时才存在，没有它
+    // 的时候用 44 会让一屏少放三四行，全是空气。
+    final twoLine = needsReview || widget.relativeDir != null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: AppListRow(
-        height: AppSizes.rowTall,
+        height: twoLine ? AppSizes.rowTall : AppSizes.row,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         selected: selected,
         checked: checked && !selected,

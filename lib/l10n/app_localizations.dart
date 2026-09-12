@@ -3709,6 +3709,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect NAS'**
   String get connectNas;
+
+  /// No description provided for @historyAllRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'All records'**
+  String get historyAllRecords;
+
+  /// No description provided for @historyIrreversible.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot be undone'**
+  String get historyIrreversible;
+
+  /// No description provided for @historyToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get historyToday;
 }
 
 class _AppLocalizationsDelegate

@@ -595,12 +595,30 @@
   "toggleSidebar": "Show or hide the sidebar",
   "searchHintShort": "Search…",
   "statusItems": "{selected} of {total} selected",
-  "@statusItems": {"placeholders": {"selected": {"type": "int"}, "total": {"type": "int"}}},
+  "@statusItems": {
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "statusTotalSize": "{size} total",
-  "@statusTotalSize": {"placeholders": {"size": {"type": "String"}}},
+  "@statusTotalSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "planReady": "Plan ready",
   "dropFoldersTitle": "Drop folders here to start",
   "dropFoldersHint": "Drag one or more folders into the window · video, subtitles, posters and metadata are scanned together",
   "orSeparator": "or",
-  "connectNas": "Connect NAS"
+  "connectNas": "Connect NAS",
+  "historyAllRecords": "All records",
+  "historyIrreversible": "Cannot be undone",
+  "historyToday": "Today"
 }

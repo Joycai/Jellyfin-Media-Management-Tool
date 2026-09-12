@@ -2079,4 +2079,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get connectNas => 'Connect NAS';
+
+  @override
+  String get historyAllRecords => 'All records';
+
+  @override
+  String get historyIrreversible => 'Cannot be undone';
+
+  @override
+  String get historyToday => 'Today';
 }

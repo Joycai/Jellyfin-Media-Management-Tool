@@ -13,6 +13,7 @@ import '../shortcuts/app_shortcuts.dart';
 import '../theme/design_tokens.dart';
 import '../utils/format.dart';
 import '../widgets/ai/ai_assistant_panel.dart';
+import '../widgets/ai/history_popover.dart';
 import '../widgets/ai/organize_history_screen.dart';
 import '../widgets/dialogs/title_hint_dialog.dart';
 import '../widgets/file_browser/file_context_menu.dart';
@@ -52,6 +53,12 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 历史角标只在「最近一条操作可撤销且用户尚未打开过浮层」时出现，
   /// 打开即消失，不做数字计数（5.4）。
   bool _historySeen = false;
+
+  /// 顶栏历史按钮的位置，浮层锚在它下方。
+  final _historyButtonKey = GlobalKey();
+
+  /// 浮层打开中 —— 按钮保持强调色底，与其他动作按钮区分（5.4）。
+  bool _historyOpen = false;
 
   @override
   void dispose() {
@@ -190,9 +197,22 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<SettingsService>().toggleFavorite(dir);
   }
 
-  void _openHistory() {
-    setState(() => _historySeen = true);
-    OrganizeHistoryScreen.show(context);
+  Future<void> _openHistory() async {
+    final box =
+        _historyButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      // 顶栏不在场（例如从别处触发快捷键）时退回到独立窗口，而不是把浮层
+      // 钉在屏幕角落。
+      OrganizeHistoryScreen.show(context);
+      return;
+    }
+    final origin = box.localToGlobal(Offset.zero);
+    setState(() {
+      _historySeen = true;
+      _historyOpen = true;
+    });
+    await showHistoryPopover(context, anchor: origin & box.size);
+    if (mounted) setState(() => _historyOpen = false);
   }
 
   Map<AppShortcutId, VoidCallback> _shortcutHandlers() {
@@ -250,9 +270,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onSearch: (v) => setState(() => _search = v),
               searchShortcut: shortcutLabel(AppShortcutId.focusSearch),
               onHistory: _openHistory,
+              historyButtonKey: _historyButtonKey,
               onRefresh: context.read<FileBrowserService>().refresh,
               onSettings: () => SettingsScreen.show(context),
               historyHasNews: hasUndoable && !_historySeen,
+              historyOpen: _historyOpen,
               historyEmpty: !hasUndoable,
             ),
             statusBar: _statusBar(),
