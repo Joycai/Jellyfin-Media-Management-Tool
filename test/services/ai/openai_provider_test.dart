@@ -365,6 +365,94 @@ void main() {
     );
     expect(sends, 1);
   });
+
+  group('endpoint normalization', () {
+    Future<Uri> requestedFor(String endpoint) async {
+      late http.BaseRequest seen;
+      await OpenAiProvider(
+        AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: endpoint,
+          apiKey: '',
+          model: 'local-model',
+        ),
+        client: MockClient((request) async {
+          seen = request;
+          return _reply('{}');
+        }),
+      ).complete(systemPrompt: 's', userPrompt: 'u');
+      return seen.url;
+    }
+
+    test('a bare origin gets /v1, trailing slashes and all', () async {
+      expect(
+        (await requestedFor('http://bare-origin:1234')).toString(),
+        'http://bare-origin:1234/v1/chat/completions',
+      );
+      expect(
+        (await requestedFor('http://trailing:1234///')).toString(),
+        'http://trailing:1234/v1/chat/completions',
+      );
+    });
+
+    test('a URL that already has a path is left exactly as typed', () async {
+      // A relay routes below its own prefix and Azure below a deployment
+      // name. Appending a version segment there is a 404 whose cause is
+      // invisible, on the one kind of endpoint users type most carefully.
+      expect(
+        (await requestedFor('https://relay.example.com/api/openai')).toString(),
+        'https://relay.example.com/api/openai/chat/completions',
+      );
+      expect(
+        (await requestedFor('https://host/v1')).toString(),
+        'https://host/v1/chat/completions',
+      );
+    });
+  });
+
+  test('what one key was refused is not applied to another', () async {
+    AiConfig keyed(String key) => AiConfig(
+      provider: AiProviderType.openAi,
+      endpoint: 'http://shared-endpoint:1234',
+      apiKey: key,
+      model: 'local-model',
+      maxOutputTokens: 256,
+      topK: 40,
+    );
+
+    final bodies = <Map<String, dynamic>>[];
+    http.Client refusesTopKFor(String key) => MockClient((request) async {
+      bodies.add(_body(request));
+      if (request.headers['Authorization'] == 'Bearer $key' &&
+          bodies.last.containsKey('top_k')) {
+        return http.Response(
+          jsonEncode({
+            'error': {'message': "Unsupported parameter: 'top_k'"},
+          }),
+          400,
+        );
+      }
+      return _reply('{}');
+    });
+
+    await OpenAiProvider(
+      keyed('sk-first'),
+      client: refusesTopKFor('sk-first'),
+    ).complete(systemPrompt: 's', userPrompt: 'u');
+    expect(bodies, hasLength(2), reason: 'refused once, then dropped');
+    expect(bodies.last.containsKey('top_k'), isFalse);
+
+    bodies.clear();
+    await OpenAiProvider(
+      keyed('sk-second'),
+      client: refusesTopKFor('sk-first'),
+    ).complete(systemPrompt: 's', userPrompt: 'u');
+
+    // The second account shares the URL and the model but not the refusal:
+    // a gateway that routes by token can serve the two quite differently.
+    expect(bodies, hasLength(1));
+    expect(bodies.single['top_k'], 40);
+  });
 }
 
 String _event(Map<String, Object?> event) => 'data: ${jsonEncode(event)}\n\n';

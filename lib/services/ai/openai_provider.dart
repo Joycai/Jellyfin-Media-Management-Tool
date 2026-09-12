@@ -73,17 +73,22 @@ class OpenAiProvider implements AiProvider {
   /// The server kind behind each API root, detected once per session.
   static final Map<String, Future<ServerKind>> _serverKinds = {};
 
-  /// Normalized base URL ending in `/v1` (or whatever versioned suffix the
-  /// user supplied). Used to derive `/chat/completions` and `/models`.
+  /// Normalized base URL. Used to derive `/chat/completions` and `/models`.
+  ///
+  /// `/v1` is appended only to a bare origin — `http://localhost:1234`, which
+  /// is what LM Studio, Ollama and llama.cpp print at startup and what users
+  /// paste. A URL that already carries a path is left exactly as typed: a
+  /// relay or gateway routes below its own prefix (`…/api/openai`, Azure's
+  /// `…/openai/deployments/<name>`), and "helpfully" appending a version
+  /// segment there produces a 404 the user cannot see the cause of, on the one
+  /// kind of endpoint where they were most careful about the URL.
   String get _base {
     var base = config.endpoint.trim();
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
-    if (!base.endsWith('/v1') && !base.contains('/v1/')) {
-      base = '$base/v1';
-    }
-    return base;
+    final path = Uri.tryParse(base)?.path ?? '';
+    return path.isEmpty ? '$base/v1' : base;
   }
 
   /// [_base] without its `/v1` — where LM Studio, Ollama and llama.cpp serve
@@ -93,7 +98,16 @@ class OpenAiProvider implements AiProvider {
     return base.endsWith('/v1') ? base.substring(0, base.length - 3) : base;
   }
 
-  String get _cacheKey => '$_base|${config.model}';
+  /// What the per-server memories below are keyed by.
+  ///
+  /// The key includes the credential, not just the URL and model: two profiles
+  /// can point at one endpoint through different keys — a personal and a work
+  /// account, a gateway that routes by token — and what one of them was
+  /// refused says nothing about the other. The key itself is never stored,
+  /// only its hash, so none of these process-lifetime maps holds a secret.
+  String get _cacheKey =>
+      '${config.provider.id}|$_base|${config.model}|'
+      '${config.apiKey.trim().hashCode}';
 
   Uri get _chatUri => Uri.parse('$_base/chat/completions');
 
