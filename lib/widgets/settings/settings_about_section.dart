@@ -289,22 +289,16 @@ class _GraphicsSection extends StatelessWidget {
           SettingsCardHeader(
             l10n.aboutGraphics,
             emphasis: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 只有一块时不挂这个徽标：「检测到 1 个 GPU」什么也没告诉人。
-                if (adapters.length > 1) ...[
-                  AppTag(
+            // 只有一块时不挂这个徽标：「检测到 1 个 GPU」什么也没告诉人。
+            badge: adapters.length > 1
+                ? AppTag(
                     label: l10n.aboutGpuCount(adapters.length),
                     color: t.accent,
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                ],
-                Text(
-                  l10n.aboutGpuInfoOnly,
-                  style: AppTypeScale.caption.copyWith(color: t.textMuted),
-                ),
-              ],
+                  )
+                : null,
+            trailing: Text(
+              l10n.aboutGpuInfoOnly,
+              style: AppTypeScale.caption.copyWith(color: t.textMuted),
             ),
           ),
           const SizedBox(height: AppSpacing.md),

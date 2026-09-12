@@ -134,12 +134,18 @@ class SettingsRowsCard extends StatelessWidget {
 /// [emphasis] 换成 12.5 / 600 的卡片标题档 —— 画板 24 的「图形设备」用的是它。
 class SettingsCardHeader extends StatelessWidget {
   final String text;
+
+  /// 紧跟在标题后面的徽标。它属于标题，不属于右边那一栏 —— 画板 24 的卡头上
+  /// 只有旁注带 `margin-left:auto`，徽标是标题的一部分。
+  final Widget? badge;
+
   final Widget? trailing;
   final bool emphasis;
 
   const SettingsCardHeader(
     this.text, {
     super.key,
+    this.badge,
     this.trailing,
     this.emphasis = false,
   });
@@ -163,6 +169,7 @@ class SettingsCardHeader extends StatelessWidget {
                     color: t.textMuted,
                   ),
           ),
+          if (badge != null) ...[const SizedBox(width: AppSpacing.md), badge!],
           const Spacer(),
           ?trailing,
         ],
