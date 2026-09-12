@@ -665,121 +665,8 @@ class AppVerticalDivider extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 段控 · 开关
+// 1.4b 开关
 // ---------------------------------------------------------------------------
-
-/// 段控。外框 `padding 2–3` · r7–9，段 r5–6。
-class AppSegmented<T> extends StatelessWidget {
-  final List<(T value, String label)> segments;
-  final T value;
-  final ValueChanged<T> onChanged;
-  final double height;
-
-  /// 选中段用强调色渐变（设计稿在「替换」这类肯定语义上用它），
-  /// 否则用中性 white 10%。
-  final bool accentSelection;
-
-  const AppSegmented({
-    super.key,
-    required this.segments,
-    required this.value,
-    required this.onChanged,
-    this.height = 20,
-    this.accentSelection = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: t.isDark
-            ? Colors.white.withValues(alpha: 0.05)
-            : AppPalette.ink.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppRadii.tiny + 1),
-        border: Border.all(color: t.stroke),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (v, label) in segments)
-            _Segment(
-              label: label,
-              selected: v == value,
-              accent: accentSelection,
-              height: height,
-              onTap: () => onChanged(v),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Segment extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final bool accent;
-  final double height;
-  final VoidCallback onTap;
-
-  const _Segment({
-    required this.label,
-    required this.selected,
-    required this.accent,
-    required this.height,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppMotion.respecting(context, AppMotion.hover),
-          height: height,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md12),
-          decoration: BoxDecoration(
-            color: !selected
-                ? Colors.transparent
-                : accent
-                ? t.accent
-                : t.controlFillHover,
-            borderRadius: BorderRadius.circular(AppRadii.chip),
-            boxShadow: selected && accent
-                ? [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.30),
-                      offset: const Offset(0, 1),
-                      blurRadius: 0,
-                      spreadRadius: -0.5,
-                    ),
-                  ]
-                : null,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: AppTypeScale.sizeLabel,
-              height: 1.2,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              color: !selected
-                  ? t.textMuted
-                  : accent
-                  ? t.badgeText
-                  : t.textTitle,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// 开关 34×20 / 38×22（设计稿两处都出现过）· r11。
 class AppToggle extends StatelessWidget {
@@ -841,8 +728,6 @@ class AppToggle extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // 1.4c 列表行
 // ---------------------------------------------------------------------------
-
-enum AppRowState { normal, hovered, selected, checked, running, failed, muted }
 
 /// 单行 34 / 双行 44、圆角 9、行间距 2。整行可点，右侧操作只在悬停时出现。
 ///

@@ -2,64 +2,160 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev/)
 [![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev/)
-[![Material 3](https://img.shields.io/badge/Material--3-%236750A4.svg?style=for-the-badge&logo=material-design&logoColor=white)](https://m3.material.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=for-the-badge)](https://flutter.dev/desktop)
 
-A powerful, cross-platform desktop application built with Flutter to help you organize and manage your media library according to Jellyfin's naming standards.
+A desktop app that renames and reorganizes a messy media folder into the layout
+[Jellyfin expects](https://jellyfin.org/docs/general/server/media/naming/), and
+writes the `.nfo` metadata and artwork to go with it.
 
-## 🚀 Features
+It **never talks to a Jellyfin server** — there is no API client and no login.
+Everything it does is local filesystem work, so it is equally useful for Emby,
+Kodi, or a library you have not pointed a server at yet.
 
-### 📂 Advanced File Browser
-- **Multi-format Support**: Visual icons for Video, Audio, Images, Subtitles, and Metadata.
-- **Smart Sorting**: Sort by Name, Type, Date Modified, or Size (Ascending/Descending).
-- **Directory Monitoring**: Automatically detects changes in the file system and refreshes the view.
-- **Context Menu**: Right-click or long-press to quickly rename files and folders.
-- **Navigation**: Easy "Go to Parent" and "Create Folder" operations.
+Windows, macOS and Linux. English and 中文.
 
-### 🔍 Rich Media Preview
-- **Video Metadata**: View duration and resolution for MKV, MP4, and other common formats.
-- **Interactive Image Viewer**: Zoom and pan previews for posters and backdrops.
-- **Text Preview**: Monospaced view for subtitle files and NFO metadata.
-- **System Integration**: One-click to open files in your system's default player or editor.
+## Install
 
-### 🏷️ Jellyfin Naming Operations
-Automate tedious renaming tasks with built-in rules:
-- **Match Folder**: Instantly rename a file to match its parent directory.
-- **Extras Support**: Quickly tag files as `-featurette` or `-interview`.
-- **Part Sequencing**: Easy dialog to handle multi-part movies (`-part1`, `-part2`, etc.).
-- **TV Show Naming**: Smart `SxxExx` formatting that remembers your last episode number for batch processing.
-- **Subtitle Standardization**: Link subtitles to video files with language codes (e.g., `.chi.default.ass`).
+Grab an installer from
+[Releases](https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases):
+a Windows installer or portable ZIP, or a macOS DMG. Linux is supported but not
+yet published as a binary — [build it from source](#build-from-source).
 
-### 🎨 Modern UI & UX
-- **Material 3 Design**: Clean, responsive interface designed for desktop use.
-- **Theme Support**: Light, Dark, and System-adaptive themes.
-- **Localization**: Full support for English and Chinese (中文).
-- **Persistent Settings**: Your preferences and last-used directory are saved locally in a `config.json` file.
+## Organizing a folder
 
-## 🛠️ Tech Stack
-- **Framework**: Flutter (Material 3)
-- **State Management**: Provider
-- **Storage**: Local JSON configuration
+This is the main workflow, and it is deliberately a **three-step one with a stop
+in the middle**:
 
-## 📦 Getting Started
+1. **Point it at a folder.** Open a directory (or select part of one) and press
+   Organize. Optionally give it a canonical title and say whether the folder is
+   a movie or a series.
+2. **Read the plan.** A language model works out what each group of files *is* —
+   the title, movie or series, year, season, episode numbering — while the app's
+   own code does everything that has a right answer: parsing episode numbers out
+   of filenames, keeping subtitles and posters with the video they belong to,
+   and spelling every destination path by Jellyfin's rules. **The model never
+   writes a path.**
+3. **Apply it, or don't.** The preview is the only dry run and the only gate.
+   Every move is listed, every target is editable in place, and anything the
+   model was unsure about is flagged and skipped rather than quietly guessed.
+   Cancel and nothing has touched the disk.
 
-### Prerequisites
-- Flutter SDK (>= 3.10.4)
+Applying runs as a pausable, cancellable background task. A 26-episode series is
+one decision, not 26 chances to spell a path differently, and a folder that is
+too large for one request is decided in batches — a cancelled or failed run
+resumes with only the groups it never got to.
 
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/Jellyfin-Media-Management-Tool.git
-   ```
-2. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
-3. Run the application:
-   ```bash
-   flutter run -d windows # or macos / linux
-   ```
+### Undo
 
-## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Every applied batch can record an undo manifest, and undoing walks the moves
+back in reverse. Manifests are kept for 7 days. Corrections are remembered too —
+a target you fixed in a preview you then applied stays fixed on the next run of
+that folder.
+
+## AI backends
+
+Two wire protocols, which between them cover nearly everything:
+
+- **OpenAI-compatible** `/chat/completions` — OpenAI, Azure, OpenRouter and
+  other relays, and local servers: **LM Studio, Ollama, llama.cpp, vLLM**. A
+  local server usually needs no API key at all, and pasting the URL it prints at
+  startup is enough.
+- **Google Generative Language API** `:generateContent`.
+
+Several named profiles can coexist; the connection test is a real completion
+rather than a model listing, because a server can list models happily while
+rejecting every generation.
+
+**Local models are a first-class target, not an afterthought.** The app ships
+the sampling parameters model authors publish for their own families (Qwen,
+DeepSeek-R1, Gemma, Mistral, GLM, Llama and more, each row citing its model
+card), turns reasoning off by default — trying the several incompatible ways
+servers spell that, and telling you if none of them took — and treats the
+context window as a budget it must stay inside rather than a setting it can ask
+for. Organizing needs a model that can **call tools**; the app probes for that
+and says so plainly instead of failing halfway through a run.
+
+## Metadata scraping
+
+A second pipeline for filling in `.nfo` files and artwork. Give it a product
+page URL and it extracts title, code, synopsis, cast and images, shows you a
+field-by-field diff against whatever NFO is already on disk, and only writes
+what you accept.
+
+It tries the cheap routes first — embedded JSON-LD/OpenGraph, then a declarative
+per-site recipe — and only pays for the model when there is nothing else to try.
+A recipe the model writes is never saved without your say-so.
+
+Artwork is picked from a grid of real thumbnails, and right-clicking a tile
+assigns its Jellyfin role — `folder.jpg`, `backdrop.jpg` and so on — because
+Jellyfin identifies artwork by file name. Saving images is its own action,
+separate from writing metadata. Overwritten NFOs are really backed up, not just
+logged.
+
+A whole folder can be refreshed at once against the pages it was originally
+scraped from.
+
+## Browsing and previewing
+
+- Multi-select, sorting, resizable columns, live directory watching.
+- Video thumbnails rendered per platform (AVFoundation / Media Foundation /
+  FFmpeg), cached on disk and keyed so a re-encode never shows a stale frame.
+- Inline preview: video playback, zoomable images, monospaced text for subtitles
+  and NFOs.
+- Search sites you configure yourself, for looking a title up in a browser.
+- Keyboard shortcuts throughout — the full table is in Settings → Shortcuts.
+
+## Interface
+
+A frosted-glass desktop shell with its own 48px title bar (native Snap Layouts
+on Windows 11, real traffic lights on macOS), light and dark themes, a
+user-chosen accent colour that previews live, and a **performance mode** that
+swaps the blur for pre-mixed opaque surfaces — measured at roughly double the
+frame rate on an integrated GPU driving 4K.
+
+English and 中文, with optional downloadable CJK UI fonts (HarmonyOS Sans SC,
+MiSans) for machines whose system font is not to your taste.
+
+## Not yet
+
+The **Library** section (poster grid, filters, series detail) is drawn to the
+design but not implemented — it needs a persisted library model the app does not
+have. Other designed-but-unbuilt pieces are drawn as visibly disabled
+placeholders rather than hidden or faked; each one is listed in
+[`docs/spec/ui-redesign/backlog.md`](docs/spec/ui-redesign/backlog.md).
+
+## Build from source
+
+Requires the Flutter SDK (Dart `^3.10.4`; CI builds on Flutter 3.44.2).
+
+```bash
+git clone https://github.com/Joycai/Jellyfin-Media-Management-Tool.git
+cd Jellyfin-Media-Management-Tool
+flutter pub get
+flutter run -d windows   # or macos / linux
+```
+
+Platform notes:
+
+- **Linux** needs libmpv for video playback (`apt install libmpv-dev mpv`), plus
+  system FFmpeg and libjpeg for thumbnails. Without them, previews and
+  thumbnails degrade to icons; nothing else is affected.
+- **Windows and macOS** bundle libmpv already.
+- A Windows installer is built by running Inno Setup on
+  [`scripts/inno_setup.iss`](scripts/inno_setup.iss) after `flutter build
+  windows`; `dart run msix:create` produces an MSIX.
+
+## Contributing
+
+[CLAUDE.md](CLAUDE.md) is the architecture document — the invariants worth
+knowing before changing anything are in there, and it is kept current.
+The UI design spec lives in [`docs/spec/ui-redesign/`](docs/spec/ui-redesign/).
+
+CI runs `dart format --set-exit-if-changed`, `flutter analyze --fatal-infos` and
+`flutter test` on every pull request. A lint *info* fails the build, so run all
+three locally first.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

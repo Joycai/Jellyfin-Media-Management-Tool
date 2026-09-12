@@ -9,49 +9,16 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'Jellyfin 媒体管理工具';
-
-  @override
   String get manager => '管理';
 
   @override
   String get settings => '设置';
 
   @override
-  String get mediaManager => '媒体管理器';
-
-  @override
-  String get pickDirectory => '选择目录';
-
-  @override
-  String get openDirectory => '打开目录';
-
-  @override
   String get parentFolder => '上级目录';
 
   @override
-  String get createNewFolder => '新建文件夹';
-
-  @override
   String get refresh => '刷新';
-
-  @override
-  String get sortBy => '排序方式';
-
-  @override
-  String get sortByName => '按名称排序';
-
-  @override
-  String get sortByType => '按类型排序';
-
-  @override
-  String get sortByDate => '按日期排序';
-
-  @override
-  String get sortBySize => '按大小排序';
-
-  @override
-  String get ascending => '升序';
 
   @override
   String get descending => '降序';
@@ -70,12 +37,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get folderName => '文件夹名称';
-
-  @override
-  String get playVideo => '播放视频';
-
-  @override
-  String get openFile => '打开文件';
 
   @override
   String get renameFile => '重命名文件';
@@ -102,15 +63,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get jellyfinSubtitle => 'Jellyfin 标准字幕...';
 
   @override
-  String get confirmRename => '确认重命名';
-
-  @override
-  String get renameFrom => '原名称:';
-
-  @override
-  String get renameTo => '新名称:';
-
-  @override
   String get themeMode => '主题模式';
 
   @override
@@ -126,28 +78,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get language => '语言';
 
   @override
-  String get searchFromWeb => '从网页搜索';
-
-  @override
-  String get searchKeyword => '搜索关键词';
-
-  @override
-  String get searchSite => '搜索站点';
-
-  @override
   String get search => '搜索';
-
-  @override
-  String get editSearchSites => '编辑搜索站点';
-
-  @override
-  String get siteName => '站点名称';
-
-  @override
-  String get searchUrl => '搜索 URL';
-
-  @override
-  String get addSite => '添加站点';
 
   @override
   String get delete => '删除';
@@ -159,52 +90,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openConfigFolder => '打开配置文件夹';
 
   @override
-  String get areYouSure => '您确定吗？';
-
-  @override
   String sizeLabel(Object size) {
     return '大小: $size';
   }
 
   @override
-  String durationLabel(Object duration) {
-    return '时长: $duration';
-  }
-
-  @override
-  String resolutionLabel(Object resolution) {
-    return '分辨率: $resolution';
-  }
-
-  @override
-  String get noDirectorySelected => '未选择目录';
-
-  @override
-  String get pleaseSelectDirectory => '请选择一个目录';
-
-  @override
   String get noPreviewAvailable => '无可用预览';
-
-  @override
-  String get directoriesCannotBePreviewed => '无法预览目录';
-
-  @override
-  String errorAccessingDirectory(Object error) {
-    return '访问目录出错: $error';
-  }
-
-  @override
-  String errorCreatingFolder(Object error) {
-    return '创建文件夹出错: $error';
-  }
 
   @override
   String errorRenaming(Object error) {
     return '重命名出错: $error';
   }
-
-  @override
-  String get noSearchSitesConfigured => '设置中未配置搜索站点';
 
   @override
   String get season => '季';
@@ -400,9 +296,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openFolder => '打开文件夹';
 
   @override
-  String get noFolderOpen => '打开一个文件夹以开始';
-
-  @override
   String get folderEmpty => '此文件夹为空';
 
   @override
@@ -496,14 +389,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get confirmApplyTitle => '应用整理？';
-
-  @override
-  String confirmApplyBody(Object count) {
-    return '将把 $count 个文件移动并重命名为 Jellyfin 结构。';
-  }
-
-  @override
   String applyDone(Object count) {
     return '已整理 $count 个文件';
   }
@@ -514,21 +399,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String analyzeFailed(Object error) {
-    return '失败：$error';
-  }
-
-  @override
-  String get aiSettings => 'AI 服务';
-
-  @override
   String get provider => '服务商';
-
-  @override
-  String get providerOpenAi => 'OpenAI 兼容';
-
-  @override
-  String get providerGoogle => 'Google GenAI';
 
   @override
   String get endpoint => '接入点';
@@ -543,21 +414,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get testConnection => '测试连接';
 
   @override
-  String get connectionOk => '连接成功';
-
-  @override
   String connectionFailed(Object error) {
     return '连接失败：$error';
   }
 
   @override
   String get appearance => '外观';
-
-  @override
-  String get aiServicesTitle => 'AI 服务管理';
-
-  @override
-  String get aiServicesSubtitle => '配置用于整理媒体的语言模型';
 
   @override
   String get aiServiceDetailHint => '用于媒体整理和元数据匹配的 AI 端点';
@@ -1026,9 +888,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get secPaths => '路径与位置';
 
   @override
-  String get breadcrumbPaths => '路径';
-
-  @override
   String get secAiServices => 'AI 服务';
 
   @override
@@ -1073,22 +932,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get behaviorVideoThumbnails => '在文件列表中显示视频缩略图';
-
-  @override
-  String get privacyStorage => '本地存储';
-
-  @override
-  String get privacyConfigBody => '设置、AI 密钥和撤销清单都仅保存在本机。';
-
-  @override
-  String privacyClearHistory(Object count) {
-    return '撤销全部 $count 条记录';
-  }
-
-  @override
-  String privacyClearThumbnails(Object size) {
-    return '清除缩略图缓存（$size）';
-  }
 
   @override
   String get shortcutGroupNavigation => '导航';
@@ -1155,9 +998,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutJellyfinNaming => 'Jellyfin 命名规范';
-
-  @override
-  String get aboutGpu => '显卡';
 
   @override
   String get aboutGpuHint =>
@@ -1366,9 +1206,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get batchScrapeTitle => '刷新元数据';
 
   @override
-  String get batchScrapeScanning => '正在查找可刷新的条目…';
-
-  @override
   String batchScrapeFound(Object count) {
     return '有 $count 个条目记录了当初的来源页。';
   }
@@ -1409,20 +1246,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcutScrape => '为当前项刮削元数据';
 
   @override
-  String get scrapeUrlTitle => '刮削元数据';
-
-  @override
-  String scrapeUrlSubtitle(Object target) {
-    return '元数据将写入 $target 旁边';
-  }
-
-  @override
-  String get scrapeUrlLabel => '作品页地址';
-
-  @override
-  String get scrapeUrlHint => 'https://example.com/product/12345';
-
-  @override
   String get scrapeUrlInvalid => '请填写完整地址，需包含 http:// 或 https://';
 
   @override
@@ -1431,42 +1254,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String scrapeSearchOnSite(Object site) {
-    return '在 $site 搜索';
-  }
-
-  @override
   String get scrapePasteHtml => '改为直接粘贴页面 HTML';
 
   @override
   String get scrapePasteHtmlHint => '在此粘贴页面源码';
-
-  @override
-  String get scrapePasteNeedsUrl => '地址仍然必填 —— 粘贴的 HTML 里的相对链接要靠它来解析。';
-
-  @override
-  String get scrapeCookieBuiltIn => '该站点已内置访问 Cookie。';
-
-  @override
-  String get scrapeCookieMissing =>
-      '该站点未配置 Cookie。若抓取失败，可在「设置 → 刮削」里导入 cookies.txt。';
-
-  @override
-  String get scrapeStart => '开始刮削';
-
-  @override
-  String get scrapeStarted => '刮削已开始 —— 可在「任务」中查看进度';
-
-  @override
-  String scrapeFailed(Object error) {
-    return '刮削失败：$error';
-  }
-
-  @override
-  String get scrapeReady => '刮削完成 —— 请查看结果';
-
-  @override
-  String get scrapeReview => '查看';
 
   @override
   String get scrapeNoFolder => '请先打开一个文件夹';
@@ -1518,9 +1309,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapeRecipeName => '配方';
-
-  @override
-  String get scrapeRecipeNone => '无';
 
   @override
   String get scrapeColumnField => '字段';
@@ -1584,9 +1372,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapeNfoFileName => 'NFO 文件名';
-
-  @override
-  String get scrapeWrite => '写入';
 
   @override
   String scrapeEditValue(Object field) {
@@ -1796,11 +1581,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeKindTvShow => '剧集';
 
   @override
-  String scrapeNfoAutoDetected(Object name) {
-    return '根据 $name 自动识别';
-  }
-
-  @override
   String get scrapePanelTitle => '刮削元数据';
 
   @override
@@ -1811,9 +1591,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapeBackToSetup => '返回';
-
-  @override
-  String get scrapeRetry => '重试';
 
   @override
   String get scrapeAdvanced => '高级';
@@ -1961,12 +1738,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ruleEditorVariables => '可用变量';
 
   @override
-  String get ruleEditorAiFill => 'AI 智能填充';
-
-  @override
-  String get ruleEditorAiFillHint => '当文件名无法解析时，自动调用 AI 推断标题、年份与语言。';
-
-  @override
   String get ruleEditorPreview => '实时预览';
 
   @override
@@ -1998,9 +1769,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get togglePanel => '显示或隐藏右侧面板';
-
-  @override
-  String get toggleSidebar => '显示或隐藏侧边栏';
 
   @override
   String get searchHintShort => '搜索…';
@@ -2276,12 +2044,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutSystem => '系统';
-
-  @override
-  String get aboutOs => '操作系统';
-
-  @override
-  String get aboutArch => '架构';
 
   @override
   String get aboutOpenSource => '开源与版权';

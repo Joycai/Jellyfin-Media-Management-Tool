@@ -76,8 +76,4 @@ class FileLabelService {
         return AppPalette.typeNeutral;
     }
   }
-
-  static void addLabel(String extension, String label) {
-    _extensionToLabel[extension.toLowerCase()] = label;
-  }
 }
