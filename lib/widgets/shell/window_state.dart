@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -15,10 +16,26 @@ class WindowStateNotifier extends ChangeNotifier with WindowListener {
   bool _maximized = false;
   bool _fullScreen = false;
   bool _attached = false;
+  bool _maximizeHovered = false;
+  bool _maximizePressed = false;
 
   bool get isFocused => _focused;
   bool get isMaximized => _maximized;
   bool get isFullScreen => _fullScreen;
+
+  /// 最大化按钮的悬停 / 按下，**由原生侧推过来**。
+  ///
+  /// Windows 只在最大化按钮于 `WM_NCHITTEST` 返回 `HTMAXBUTTON` 时才弹 Snap
+  /// Layouts，而一旦这样声明，那块矩形上的鼠标输入就走非客户区，Flutter 再也
+  /// 收不到 hover 或 click。所以 runner 把这两个状态转发回来，按钮才不会在
+  /// 指针底下变成一块死区。其它平台永远是 false，按钮走自己的 [MouseRegion]。
+  bool get maximizeHovered => _maximizeHovered;
+  bool get maximizePressed => _maximizePressed;
+
+  /// 与 `windows/runner/flutter_window.cpp` 约定的通道名。
+  static const MethodChannel _captionChannel = MethodChannel(
+    'jellyfin/window_caption',
+  );
 
   /// 桌面之外（测试、web 构建产物）没有窗口，直接维持默认值。
   static bool get supported =>
@@ -31,6 +48,9 @@ class WindowStateNotifier extends ChangeNotifier with WindowListener {
     if (_attached || !supported) return;
     _attached = true;
     windowManager.addListener(this);
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      _captionChannel.setMethodCallHandler(_onCaptionCall);
+    }
     // 首帧之前把真实状态读回来：从最大化状态恢复会话时，顶栏不应该先画一帧
     // 圆角再跳成直角。
     await _sync();
@@ -38,8 +58,28 @@ class WindowStateNotifier extends ChangeNotifier with WindowListener {
 
   @override
   void dispose() {
-    if (_attached) windowManager.removeListener(this);
+    if (_attached) {
+      windowManager.removeListener(this);
+      if (defaultTargetPlatform == TargetPlatform.windows) {
+        _captionChannel.setMethodCallHandler(null);
+      }
+    }
     super.dispose();
+  }
+
+  Future<void> _onCaptionCall(MethodCall call) async {
+    final value = call.arguments == true;
+    switch (call.method) {
+      case 'maximizeHover':
+        if (_maximizeHovered == value) return;
+        _maximizeHovered = value;
+      case 'maximizePressed':
+        if (_maximizePressed == value) return;
+        _maximizePressed = value;
+      default:
+        return;
+    }
+    notifyListeners();
   }
 
   Future<void> _sync() async {

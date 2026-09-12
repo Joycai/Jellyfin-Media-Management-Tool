@@ -38,6 +38,10 @@ class WindowCaptionButtons extends StatelessWidget {
             painter: window.isMaximized
                 ? const _RestoreIcon()
                 : const _MaximizeIcon(),
+            // Windows 上这颗按钮的输入走非客户区（Snap Layouts 的代价），
+            // 所以悬停 / 按下由原生转发，`onPressed` 只是非 Windows 的路径。
+            externalHover: window.maximizeHovered,
+            externalPressed: window.maximizePressed,
             onPressed: window.toggleMaximize,
           ),
           _CaptionButton(
@@ -58,11 +62,17 @@ class _CaptionButton extends StatefulWidget {
   final VoidCallback onPressed;
   final bool isClose;
 
+  /// 原生侧推过来的状态，与本地 [MouseRegion] 取或。
+  final bool externalHover;
+  final bool externalPressed;
+
   const _CaptionButton({
     required this.tooltip,
     required this.painter,
     required this.onPressed,
     this.isClose = false,
+    this.externalHover = false,
+    this.externalPressed = false,
   });
 
   @override
@@ -70,8 +80,11 @@ class _CaptionButton extends StatefulWidget {
 }
 
 class _CaptionButtonState extends State<_CaptionButton> {
-  bool _hover = false;
-  bool _pressed = false;
+  bool _localHover = false;
+  bool _localPressed = false;
+
+  bool get _hover => _localHover || widget.externalHover;
+  bool get _pressed => _localPressed || widget.externalPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -99,10 +112,10 @@ class _CaptionButtonState extends State<_CaptionButton> {
     return Tooltip(
       message: widget.tooltip,
       child: MouseRegion(
-        onEnter: (_) => setState(() => _hover = true),
+        onEnter: (_) => setState(() => _localHover = true),
         onExit: (_) => setState(() {
-          _hover = false;
-          _pressed = false;
+          _localHover = false;
+          _localPressed = false;
         }),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -110,9 +123,9 @@ class _CaptionButtonState extends State<_CaptionButton> {
           // 顺带把窗口最大化。
           onDoubleTap: () {},
           onSecondaryTap: () {},
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTapCancel: () => setState(() => _pressed = false),
+          onTapDown: (_) => setState(() => _localPressed = true),
+          onTapUp: (_) => setState(() => _localPressed = false),
+          onTapCancel: () => setState(() => _localPressed = false),
           onTap: widget.onPressed,
           child: AnimatedContainer(
             duration: AppMotion.respecting(context, AppMotion.hover),
