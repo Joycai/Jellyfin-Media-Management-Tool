@@ -106,7 +106,7 @@ Tab 激活态：暗 `accent 18%` + 描边 `accent 32%` + `inset 0 1px 0 rgba(255
 
 > 落地说明：下面这套常量挂在**玻璃强度滑杆的 `0` 档**上，没有单独的「性能模式」开关。
 > 两个控件会互相矛盾（「性能模式开着 + 强度 50」不表示任何东西），理由见
-> [CLAUDE.md](../../../CLAUDE.md) 的「Theming」一节。
+> [`docs/architecture/rendering-and-theming.md`](../../architecture/rendering-and-theming.md) 的「Settings screen」一节。
 
 | 项 | 深色 / 浅色 |
 |---|---|

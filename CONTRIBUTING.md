@@ -129,8 +129,8 @@ docs: record that Snap Layouts is verified broken, not merely unverified
 
 Branch off `main`, keep a pull request to one subject, and say in the
 description what you verified — "838 tests pass" and "measured at 4K maximized"
-are the useful kind. If your change invalidates something CLAUDE.md asserts,
-**update CLAUDE.md in the same pull request**; a stale architecture note is
+are the useful kind. If your change invalidates something CLAUDE.md or
+`docs/architecture/` asserts, **update both in the same pull request**; a stale architecture note is
 worse than no note.
 
 ## Versioning and releases
@@ -151,8 +151,9 @@ Release. User-facing changes get a line in [CHANGELOG.md](CHANGELOG.md) under
 |---|---|
 | [README.md](README.md) | Someone deciding whether to use the app |
 | [CHANGELOG.md](CHANGELOG.md) | Someone asking what changed between two versions |
-| [CLAUDE.md](CLAUDE.md) | Someone about to change the code — architecture and invariants |
-| [docs/](docs/) | The design and module specs the code is written against |
+| [CLAUDE.md](CLAUDE.md) | Someone about to change the code — the invariants, one line each |
+| [docs/architecture/](docs/architecture/) | The reasons and measurements behind those invariants, per subsystem |
+| [docs/spec/](docs/spec/) | The design and module specs the code is written against |
 
 ## License
 
