@@ -226,6 +226,7 @@ class _HistoryCard extends StatelessWidget {
     HistoryKind.manualRename => l10n.historyTitleManual(entry.itemCount),
     HistoryKind.metadataRefresh => l10n.historyTitleMetadata,
     HistoryKind.batchImport => l10n.historyTitleImport(entry.itemCount),
+    HistoryKind.fileTransfer => l10n.historyTitleTransfer(entry.itemCount),
   };
 
   String _subtitle(AppLocalizations l10n) {
@@ -347,6 +348,11 @@ class _KindBadge extends StatelessWidget {
         AppPalette.ai,
         AppPalette.ai,
         Icons.cloud_download_outlined,
+      ),
+      HistoryKind.fileTransfer => (
+        AppPalette.accent,
+        AppPalette.accent,
+        Icons.drive_file_move_outlined,
       ),
     };
     return Container(

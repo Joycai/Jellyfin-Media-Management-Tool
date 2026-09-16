@@ -11,6 +11,24 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-16
+
+### Added
+
+- **Copy, cut, paste and move in the file browser.** Copy / Cut / Paste /
+  Move to… in the row context menu, with ⌘C / ⌘X / ⌘V (Ctrl on Windows and
+  Linux). Cut rows dim until pasted; the table footer shows the pending
+  clipboard with a "Paste here" link. A paste never overwrites: a taken name
+  asks to skip or keep both (`name (2).ext`). Every paste runs in the Tasks
+  tab with byte progress and a Stop button, and can be undone from History.
+  The clipboard is app-internal for now (no exchange with Finder / Explorer).
+
+### Fixed
+
+- Keyboard shortcuts marked as yielding to text fields (⌘A, Delete, F2, …)
+  really do so now. They used to swallow the key when the search box had
+  focus, so ⌘A selected files instead of the search text.
+
 ### Changed
 
 - Repository layout: `lib/` is now organized by feature throughout, and `test/`
@@ -68,5 +86,6 @@ Changes before this point were not tracked in this file; the git log and the
 page have them.
 
 [Unreleased]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/compare/main...HEAD
+[1.2.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.1.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.0.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases

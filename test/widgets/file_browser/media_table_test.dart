@@ -7,9 +7,11 @@ import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
 import 'package:jellyfin_media_management_tool/services/file_browser_service.dart';
 import 'package:jellyfin_media_management_tool/services/settings_service.dart';
+import 'package:jellyfin_media_management_tool/services/transfer/file_clipboard.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/file_browser/media_columns.dart';
 import 'package:jellyfin_media_management_tool/widgets/file_browser/media_table.dart';
+import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
 import 'package:provider/provider.dart';
 
 /// Records what the table asks the settings to persist, and counts reads of
@@ -65,7 +67,9 @@ double _headerWidth(WidgetTester tester, String label) => tester
     )
     .width!;
 
-Future<(_ProbeSettings, FileBrowserService)> _pumpTable(
+void _ignore() {}
+
+Future<(_ProbeSettings, FileBrowserService, FileClipboard)> _pumpTable(
   WidgetTester tester,
 ) async {
   await tester.binding.setSurfaceSize(const Size(1280, 800));
@@ -79,6 +83,8 @@ Future<(_ProbeSettings, FileBrowserService)> _pumpTable(
   final settings = _ProbeSettings();
   final browser = FileBrowserService();
   addTearDown(browser.dispose);
+  final clipboard = FileClipboard();
+  addTearDown(clipboard.dispose);
 
   // Real directory I/O: it only completes outside the fake-async zone the
   // widget binding installs, so the listing has to be awaited in runAsync
@@ -94,6 +100,7 @@ Future<(_ProbeSettings, FileBrowserService)> _pumpTable(
         ChangeNotifierProvider<SettingsService>.value(value: settings),
         ChangeNotifierProvider<AiService>.value(value: AiService()),
         ChangeNotifierProvider<FileBrowserService>.value(value: browser),
+        ChangeNotifierProvider<FileClipboard>.value(value: clipboard),
       ],
       child: MaterialApp(
         localizationsDelegates: const [
@@ -118,14 +125,14 @@ Future<(_ProbeSettings, FileBrowserService)> _pumpTable(
   );
   await tester.pumpAndSettle();
   expect(find.text('alpha.txt'), findsOneWidget, reason: 'folder did not load');
-  return (settings, browser);
+  return (settings, browser, clipboard);
 }
 
 void main() {
   testWidgets('a column drag is local until the pointer is released', (
     tester,
   ) async {
-    final (settings, _) = await _pumpTable(tester);
+    final (settings, _, _) = await _pumpTable(tester);
     final before = _headerWidth(tester, 'NAME');
 
     final gesture = await tester.startGesture(
@@ -157,7 +164,7 @@ void main() {
   testWidgets('a cancelled drag keeps the width it left on screen', (
     tester,
   ) async {
-    final (settings, _) = await _pumpTable(tester);
+    final (settings, _, _) = await _pumpTable(tester);
     final before = _headerWidth(tester, 'NAME');
     final gesture = await tester.startGesture(
       tester.getCenter(find.byTooltip(_resizeTooltip).first),
@@ -179,7 +186,7 @@ void main() {
   });
 
   testWidgets('selecting a row does not rebuild the table', (tester) async {
-    final (settings, _) = await _pumpTable(tester);
+    final (settings, _, _) = await _pumpTable(tester);
     final before = settings.tableBuilds;
 
     await tester.tap(find.text('alpha.txt'));
@@ -195,7 +202,7 @@ void main() {
   testWidgets('a directory change does rebuild the table', (tester) async {
     // The counterpart: narrowing the subscriptions must not have narrowed
     // them past the point of noticing new contents.
-    final (settings, browser) = await _pumpTable(tester);
+    final (settings, browser, _) = await _pumpTable(tester);
     final before = settings.tableBuilds;
 
     final other = Directory.systemTemp.createTempSync('media_table_test2');
@@ -214,6 +221,35 @@ void main() {
     expect(find.text('gamma.txt'), findsOneWidget);
     expect(find.text('alpha.txt'), findsNothing);
   });
-}
 
-void _ignore() {}
+  testWidgets('a cut row dims and the footer offers to paste it', (
+    tester,
+  ) async {
+    final (_, browser, clipboard) = await _pumpTable(tester);
+    final alpha = browser.files.firstWhere((e) => e.name == 'alpha.txt');
+
+    expect(find.byType(ShortcutPill), findsNothing);
+
+    clipboard.set([alpha.path], ClipboardMode.cut);
+    await tester.pumpAndSettle();
+
+    // The dimmed row: an Opacity below the alpha row's text at the
+    // disabled-row level, and none below beta's.
+    Opacity rowOpacity(String name) => tester.widget<Opacity>(
+      find.ancestor(of: find.text(name), matching: find.byType(Opacity)).first,
+    );
+    expect(rowOpacity('alpha.txt').opacity, AppTokens.disabledRowOpacity);
+    expect(rowOpacity('beta.txt').opacity, 1);
+
+    expect(find.text('1 items cut'), findsOneWidget);
+    expect(find.text('Paste here'), findsOneWidget);
+    expect(find.byType(ShortcutPill), findsOneWidget);
+
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+
+    expect(clipboard.isEmpty, isTrue);
+    expect(find.text('Paste here'), findsNothing);
+    expect(rowOpacity('alpha.txt').opacity, 1);
+  });
+}

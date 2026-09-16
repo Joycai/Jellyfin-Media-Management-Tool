@@ -2152,4 +2152,128 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pathsRootExampleShows => '/Volumes/Media/Shows';
+
+  @override
+  String historyTitleTransfer(Object count) {
+    return '复制 / 移动 · $count 项';
+  }
+
+  @override
+  String tasksCopyLabel(Object target) {
+    return '复制 · $target';
+  }
+
+  @override
+  String tasksMoveLabel(Object target) {
+    return '移动 · $target';
+  }
+
+  @override
+  String get shortcutCopy => '复制选中项';
+
+  @override
+  String get shortcutCut => '剪切选中项';
+
+  @override
+  String get shortcutPaste => '粘贴到当前文件夹';
+
+  @override
+  String get menuCopy => '复制';
+
+  @override
+  String get menuCut => '剪切';
+
+  @override
+  String get menuPaste => '粘贴';
+
+  @override
+  String get menuPasteIntoFolder => '粘贴到此文件夹';
+
+  @override
+  String get menuMoveTo => '移动到…';
+
+  @override
+  String clipboardCopiedCount(Object count) {
+    return '已复制 $count 项';
+  }
+
+  @override
+  String clipboardCutCount(Object count) {
+    return '已剪切 $count 项';
+  }
+
+  @override
+  String get clipboardPasteHere => '粘贴到这里';
+
+  @override
+  String get clipboardClear => '清除';
+
+  @override
+  String transferConflictTitle(Object count, Object folder) {
+    return '$folder 中已有 $count 个同名项';
+  }
+
+  @override
+  String get transferConflictBody => '不会覆盖任何文件。可以跳过已存在的项，或两者都保留 —— 新副本会加上编号。';
+
+  @override
+  String get transferSkipExisting => '跳过已存在的';
+
+  @override
+  String get transferKeepBoth => '两者都保留';
+
+  @override
+  String get transferNothingToDo => '这里没有可粘贴的内容';
+
+  @override
+  String transferRefusedMissing(Object count) {
+    return '$count 项已不存在';
+  }
+
+  @override
+  String get transferRefusedIntoItself => '文件夹不能粘贴到自身内部';
+
+  @override
+  String transferRefusedSameFolder(Object count) {
+    return '$count 项已在此文件夹中';
+  }
+
+  @override
+  String transferCopiedCount(Object count) {
+    return '已复制 $count 项';
+  }
+
+  @override
+  String transferMovedCount(Object count) {
+    return '已移动 $count 项';
+  }
+
+  @override
+  String transferFailedCount(Object count) {
+    return '$count 项失败';
+  }
+
+  @override
+  String transferStopped(Object count) {
+    return '已在 $count 项后停止';
+  }
+
+  @override
+  String get transferNoUndo => '无法撤销';
+
+  @override
+  String get transferDestinationMissing => '目标文件夹不可用';
+
+  @override
+  String get moveToTitle => '移动到文件夹';
+
+  @override
+  String transferRefusedLink(Object count) {
+    return '$count 项是符号链接或包含符号链接';
+  }
+
+  @override
+  String transferRefusedUnreadable(Object count) {
+    return '$count 项无法读取';
+  }
 }

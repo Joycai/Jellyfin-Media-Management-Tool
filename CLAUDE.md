@@ -9,7 +9,7 @@ It states the rules in a line each. The reasons, measurements and history behind
 - Flutter **desktop** app for Windows/macOS/Linux. There are no `android/`, `ios/` or `web/` directories — those targets are not supported, and `flutter create` scaffolding for them should not be re-added.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `1.1.0+2`.
+- Dart SDK `^3.10.4`. Current app version: `1.2.0+3`.
 
 ## Common commands
 
@@ -31,7 +31,7 @@ It states the rules in a line each. The reasons, measurements and history behind
 - The checkable conventions are lints in `analysis_options.yaml`: `prefer_relative_imports`, `directives_ordering`, `prefer_single_quotes`, `always_declare_return_types`, `use_super_parameters`, `unawaited_futures`. A future deliberately not awaited is wrapped in `unawaited(...)`.
 - A new library goes in its feature's folder, and its test goes at the mirrored path under `test/` in the same commit (see [Source layout](#source-layout)). New top-level directories under `lib/` need a reason.
 - All path manipulation goes through the `path` package — never string concatenation.
-- Any code that writes to disk must go through `applyOrganizeAction` (or `MetadataWriter` for scrape output) or justify why not, and must validate with `PathSafety.isWithin(..., context:)`.
+- Any code that writes to disk must go through `applyOrganizeAction` (or `MetadataWriter` for scrape output, `executeTransfer` for a copy/cut/paste) or justify why not, and must validate with `PathSafety.isWithin(..., context:)`.
 - Every user-facing string uses `AppLocalizations.of(context)!.<key>` and is added to **both** `lib/l10n/app_en.arb` and `lib/l10n/app_zh.arb` (codegen via `l10n.yaml` + `flutter: generate: true`). Never hand-edit the generated `lib/l10n/app_localizations*.dart`.
 - New keyboard shortcuts go in `lib/shortcuts/app_shortcuts.dart` — no bare `SingleActivator` in a widget. That list also feeds `HomeScreen`'s `CallbackShortcuts` and renders Settings → Shortcuts, so a shortcut is one entry. Activators are platform-aware (`meta:` on macOS, `control:` elsewhere).
 - Failures are reported via `ScaffoldMessenger`; batch operations report counts, not just the first error.
@@ -48,7 +48,7 @@ It states the rules in a line each. The reasons, measurements and history behind
 
 `lib/` is organized by **feature, not by layer**. Every UI area is a folder under `lib/widgets/` (`ai`, `dialogs`, `file_browser`, `glass`, `home`, `onboarding`, `scrape`, `settings`, `shell`, `sidebar`, `tasks`, `ui`), and the screen that owns an area lives in it — `HomeScreen` in `lib/widgets/home/`, `SettingsScreen` beside its section files. There is no `lib/screens/`.
 
-`lib/services/` splits the same way: a service belonging to one pipeline lives in that pipeline's folder — `ai/`, `organize/`, `scrape/`, `metadata/`, `agent/`, `thumbnails/`. Only app-wide services stay loose at the top (`settings_service`, `file_browser_service`, `file_label_service`, `font_service`, `history_service`, `task_service`), with the two pure helpers every pipeline uses, `path_safety` and `gpu_info`.
+`lib/services/` splits the same way: a service belonging to one pipeline lives in that pipeline's folder — `ai/`, `organize/`, `scrape/`, `metadata/`, `agent/`, `thumbnails/`, `transfer/`. Only app-wide services stay loose at the top (`settings_service`, `file_browser_service`, `file_label_service`, `font_service`, `history_service`, `task_service`), with the two pure helpers every pipeline uses, `path_safety` and `gpu_info`.
 
 **`test/` mirrors `lib/` path for path** (`test/main_test.dart` boots `lib/main.dart`), so "is this covered?" is answered by looking. A moved library moves its test in the same commit. `test/helpers/` (in-memory FS, scripted AI provider) and `test/fixtures/` are the only exceptions.
 
@@ -69,7 +69,7 @@ Title bar, Snap Layouts, macOS traffic lights, GPU adapter and the thumbnail wor
 
 ### Services
 
-Nine `ChangeNotifier`s are registered in `lib/main.dart`:
+Ten `ChangeNotifier`s are registered in `lib/main.dart`:
 
 | Service | Owns |
 |---|---|
@@ -82,8 +82,9 @@ Nine `ChangeNotifier`s are registered in `lib/main.dart`:
 | [font_service.dart](lib/services/font_service.dart) | Optional downloadable CJK UI fonts (HarmonyOS Sans SC, MiSans) |
 | [recipe_store.dart](lib/services/scrape/recipe_store.dart) | Learned / user-edited scrape recipes → `scrapers.json`, plus per-recipe health counters |
 | [scrape_service.dart](lib/services/scrape/scrape_service.dart) | One scrape at a time: fetch → extract → merge plan → commit |
+| [file_clipboard.dart](lib/services/transfer/file_clipboard.dart) | The file browser's copy/cut clipboard: absolute paths + mode, in memory only |
 
-[apply_controller.dart](lib/services/organize/apply_controller.dart) is a `ChangeNotifier` but **not** registered — one per apply, owned by its `OrganizerTask`. Everything else is plain: the `AiProvider`s, `AiHttp`, `AiCancelToken`, the agent runtime and its agents, `path_safety`, `organize_service` (one top-level function), `gpu_info`, and all models.
+[apply_controller.dart](lib/services/organize/apply_controller.dart) and [transfer_controller.dart](lib/services/transfer/transfer_controller.dart) are `ChangeNotifier`s but **not** registered — one per apply / per paste, owned by its `OrganizerTask`. Everything else is plain: the `AiProvider`s, `AiHttp`, `AiCancelToken`, the agent runtime and its agents, `path_safety`, `organize_service` (one top-level function), `gpu_info`, and all models.
 
 `AiService.updateConfig` is called from a widget `build()`, so it early-returns when unchanged and defers `notifyListeners` to a post-frame callback. Breaking either causes "setState() during build".
 
@@ -114,6 +115,20 @@ Flow: `_organize()` in [home_screen.dart](lib/widgets/home/home_screen.dart) (em
 
 `MetadataWriter` is the second chokepoint, for scrape output — same obligations, but it writes new content and may overwrite.
 
+`executeTransfer` in [file_transfer.dart](lib/services/transfer/file_transfer.dart) is the third, for the file browser's copy/cut/paste — see [File browser transfers](#file-browser-transfers).
+
+### File browser transfers
+
+Read [file-browser.md](docs/architecture/file-browser.md) before touching `lib/services/transfer/` or `lib/widgets/file_browser/file_transfer_flow.dart`.
+
+Flow: copy/cut (context menu, ⌘C/⌘X, whole selection or the focused row) → `FileClipboard` → paste (⌘V, a folder row's menu, or the table footer's clipboard chip) → `planTransfer` → conflict dialog when a name is taken → `TransferController` under `TaskService.startTransfer` → `executeTransfer` per item → undo manifest.
+
+- **The clipboard is app-internal** (paths in memory, not the OS clipboard — backlog B25). A cut only dims its rows; nothing moves until the paste, and Esc with nothing selected calls a cut off.
+- **A paste never overwrites.** A taken name is either skipped or numbered `name (2).ext`; the policy is chosen once per paste and applied at run time, so a file that appeared after planning is still safe.
+- **Refused before running**: a missing or unreadable source, a symbolic link or a folder holding one, a folder pasted into itself or a child of itself, a move into the folder the item already sits in. Every refusal is reported, even when the rest goes ahead.
+- **Directories**: a move tries one `rename` and records each file inside for undo; across volumes it copies, then removes the source **file by file** once the whole tree copied — a source that cannot be fully removed keeps the copy and fails the item, never the reverse. A stop or failure mid-copy removes the partial copy. Undo does not recreate empty subfolders at the source, and an empty folder's move records nothing (`no undo`).
+- **Undo** is a `HistoryKind.fileTransfer` manifest — moves in `moves`, copies in `created` — whose `baseDir` is the deepest folder holding every path. Two Windows drives share none, so that paste records nothing and the summary says `no undo`.
+
 ### Undo
 
 [history_service.dart](lib/services/history_service.dart) writes `<appSupport>/undo/op-<millis>.json`. A manifest holds `moves` (reversed in reverse order; an already-present source counts as success), `created` (deleted on undo) and `restored` (copied back from `<appSupport>/undo/blobs/<opId>/`).
@@ -122,6 +137,7 @@ Flow: `_organize()` in [home_screen.dart](lib/widgets/home/home_screen.dart) (em
 - Full success deletes manifest and blobs; **partial success rewrites the manifest with only the unrecovered work**.
 - `refresh()` pruning at `retentionDays = 7` (manifests, and blob dirs by newest file) *is* the UI's 7-day promise. Undo does not remove directories the operation created.
 - All path work goes through `_fs.path` with `context:` passed to `PathSafety`.
+- `record` is the organize manifest, `recordScrape` the scrape one and `recordTransfer` the copy/cut/paste one; a transfer with nothing moved or created writes no manifest.
 
 ### Metadata scraping
 

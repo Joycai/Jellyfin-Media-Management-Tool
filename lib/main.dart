@@ -20,6 +20,7 @@ import 'services/scrape/recipe_store.dart';
 import 'services/scrape/scrape_service.dart';
 import 'services/settings_service.dart';
 import 'services/task_service.dart';
+import 'services/transfer/file_clipboard.dart';
 import 'theme/app_theme.dart';
 import 'widgets/onboarding/onboarding_screen.dart';
 import 'widgets/shell/window_state.dart';
@@ -119,6 +120,7 @@ void main() async {
         ChangeNotifierProvider.value(value: scrapeService),
         ChangeNotifierProvider(create: (_) => TaskService()),
         ChangeNotifierProvider(create: (_) => FileBrowserService()),
+        ChangeNotifierProvider(create: (_) => FileClipboard()),
       ],
       child: WindowStateScope(
         notifier: windowState,

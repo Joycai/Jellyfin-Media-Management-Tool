@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/organize/apply_controller.dart';
 import '../../services/task_service.dart';
+import '../../services/transfer/file_transfer.dart';
+import '../../services/transfer/transfer_controller.dart';
 import '../../theme/design_tokens.dart';
+import '../../utils/format.dart';
 import '../ai/organize_progress_screen.dart';
 import '../ui/app_controls.dart';
 import '../ui/glass_surface.dart';
@@ -163,10 +166,10 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Live-rebuild on the controller's tick when this is an apply task; for
     // analyze tasks the parent's TaskService.notifyListeners is enough.
-    final controller = task.controller;
-    if (controller == null) return _buildCard(context);
+    final live = task.controller ?? task.transfer;
+    if (live == null) return _buildCard(context);
     return AnimatedBuilder(
-      animation: controller,
+      animation: live,
       builder: (_, _) => _buildCard(context),
     );
   }
@@ -176,8 +179,11 @@ class _TaskCard extends StatelessWidget {
     final t = context.tokens;
     final controller = task.controller;
 
+    final transfer = task.transfer;
+
     final progress =
         controller?.fraction ??
+        transfer?.fraction ??
         task.progress ??
         (task.status == TaskStatus.done ? 1.0 : null);
 
@@ -188,6 +194,12 @@ class _TaskCard extends StatelessWidget {
       TaskKind.apply => (Icons.drive_file_move_outlined, t.accent),
       TaskKind.scrape => (Icons.travel_explore_outlined, t.success),
       TaskKind.scrapeCommit => (Icons.sim_card_download_outlined, t.success),
+      TaskKind.transfer => (
+        transfer?.mode == TransferMode.copy
+            ? Icons.file_copy_outlined
+            : Icons.drive_file_move_outlined,
+        t.accent,
+      ),
     };
 
     final title = switch (task.kind) {
@@ -195,6 +207,10 @@ class _TaskCard extends StatelessWidget {
       TaskKind.apply => l10n.tasksApplyLabel(task.label),
       TaskKind.scrape => l10n.tasksScrapeLabel(task.label),
       TaskKind.scrapeCommit => l10n.tasksScrapeCommitLabel(task.label),
+      TaskKind.transfer =>
+        transfer?.mode == TransferMode.copy
+            ? l10n.tasksCopyLabel(task.label)
+            : l10n.tasksMoveLabel(task.label),
     };
 
     return AppCard(
@@ -340,10 +356,24 @@ class _TaskCard extends StatelessWidget {
     if (c != null && task.status == TaskStatus.running) {
       return '${c.done}/${c.total}';
     }
+    final tr = task.transfer;
+    if (tr != null && task.status == TaskStatus.running) {
+      return _transferLine(l10n, tr);
+    }
     if (task.status == TaskStatus.failed) return l10n.tasksFailed;
     if (task.status == TaskStatus.stopped) return l10n.statusStopped;
     if (task.summary != null) return task.summary!;
     return '';
+  }
+
+  /// `1.2 GB / 4.8 GB · 3 min left` — bytes rather than items, because one
+  /// item can be a 40 GB folder and a count would sit at 0/1 for an hour.
+  String _transferLine(AppLocalizations l10n, TransferController tr) {
+    final bytes =
+        '${formatBytes(tr.bytesDone)} / ${formatBytes(tr.bytesTotal)}';
+    final eta = tr.eta;
+    if (eta == null || eta == Duration.zero) return bytes;
+    return '$bytes · ${l10n.etaRemaining(eta.inMinutes, eta.inSeconds % 60)}';
   }
 
   Future<void> _openDetail(BuildContext context, ApplyController controller) {

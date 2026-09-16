@@ -419,6 +419,10 @@ class _PopoverRowState extends State<_PopoverRow> {
               ? Colors.white.withValues(alpha: 0.07)
               : AppPalette.ink.withValues(alpha: 0.07),
         ),
+        HistoryKind.fileTransfer => (
+          Icons.drive_file_move_outlined,
+          t.accent.withValues(alpha: 0.20),
+        ),
       };
 
   static String _title(AppLocalizations l10n, HistoryEntry e) =>
@@ -427,6 +431,7 @@ class _PopoverRowState extends State<_PopoverRow> {
         HistoryKind.manualRename => l10n.historyTitleManual(e.itemCount),
         HistoryKind.metadataRefresh => l10n.historyTitleMetadata,
         HistoryKind.batchImport => l10n.historyTitleImport(e.itemCount),
+        HistoryKind.fileTransfer => l10n.historyTitleTransfer(e.itemCount),
       };
 
   static String _time(DateTime t) =>
