@@ -1,6 +1,6 @@
 # Documentation
 
-Four kinds of document, and they answer different questions. Start with the one
+Six kinds of document, and they answer different questions. Start with the one
 that matches yours:
 
 | Document | Answers |
@@ -8,18 +8,32 @@ that matches yours:
 | [`../README.md`](../README.md) | What does this app do, and how do I install it? |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | What changed between two versions? |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | How do I set up, build, test and submit a change? |
-| [`../CLAUDE.md`](../CLAUDE.md) | Why is the code shaped like this, and what will break if I change it? |
-| **`docs/`** (here) | What was the app *specified* to be? |
+| [`../CLAUDE.md`](../CLAUDE.md) | What will break if I change this? — the rules, one line each |
+| [`architecture/`](architecture/) | Why is the code shaped like this? — the reasons and measurements behind those rules |
+| [`spec/`](spec/) | What was the app *specified* to be? |
 
-Everything under `docs/` is a **spec** — the design and analysis the code was
+Everything under `docs/spec/` is a **spec** — the design and analysis the code was
 written against. Specs are a record of a source (a design project, a page
-teardown), so they are not rewritten when the code moves on. Where the two
-disagree, **CLAUDE.md describes what exists** and is the one to trust; the spec
-carries a short note saying where it landed, and anything designed but not yet
+teardown), so they are not rewritten when the code moves on. Where a spec and the
+code disagree, **CLAUDE.md and `architecture/` describe what exists** and are the
+ones to trust; the spec carries a short note saying where it landed, and anything designed but not yet
 built is listed in [`spec/ui-redesign/backlog.md`](spec/ui-redesign/backlog.md)
 rather than quietly dropped.
 
 The specs are written in Chinese; the rest of the documentation is in English.
+
+## Architecture notes
+
+The long form of CLAUDE.md, one file per subsystem. CLAUDE.md states each rule
+in a line and links here; read the matching file before changing the subsystem,
+and change both together.
+
+| | |
+|---|---|
+| [organize-pipeline.md](architecture/organize-pipeline.md) | The AI organize flow, providers, timeouts, reasoning and sampling, tool probing, the agent runtime |
+| [metadata-scraping.md](architecture/metadata-scraping.md) | The extraction ladder, page fetching, cookies and age gates, the scrape panel, artwork roles, NFO naming, folder refresh |
+| [rendering-and-theming.md](architecture/rendering-and-theming.md) | Design tokens, fonts, `GlassSurface`, the baked backdrop and blur with their measurements, the settings screen grid |
+| [window-and-native.md](architecture/window-and-native.md) | The custom title bar, Snap Layouts (B15), macOS traffic lights, the GPU adapter, the Windows thumbnail worker |
 
 ## UI redesign spec
 
@@ -44,7 +58,7 @@ implements it:
 
 | | |
 |---|---|
-| [`spec/scrape-module-spec.md`](spec/scrape-module-spec.md) | The feasibility study and architecture for the metadata pipeline — the four-tier extraction ladder, age gates, encoding, NFO merge. Implemented; see CLAUDE.md § Metadata scraping for what shipped. |
+| [`spec/scrape-module-spec.md`](spec/scrape-module-spec.md) | The feasibility study and architecture for the metadata pipeline — the four-tier extraction ladder, age gates, encoding, NFO merge. Implemented; see [architecture/metadata-scraping.md](architecture/metadata-scraping.md) for what shipped. |
 | [`spec/scrape-giga-recipe.md`](spec/scrape-giga-recipe.md) | A worked teardown of one real site, and the verified recipe for it. This is where the traps are documented — the folded/expanded synopsis that makes a learned recipe look healthy while it stores truncated text, and why a learned recipe is therefore never saved without a human saying so. |
 
 The trimmed fixture for that teardown lives at

@@ -17,7 +17,8 @@ reconstructed at release time.
   mirrors it path for path. No behaviour changed — every moved library kept its
   API — but import paths did, so a branch started before this needs a rebase.
 - New contributor documentation: `CONTRIBUTING.md`, this changelog, an index
-  under `docs/`, and issue/PR templates.
+  under `docs/`, and issue/PR templates. `CLAUDE.md` now states its rules
+  briefly and keeps the reasoning in `docs/architecture/`.
 - The conventions a linter can check are now enforced in
   `analysis_options.yaml` rather than only written down.
 
