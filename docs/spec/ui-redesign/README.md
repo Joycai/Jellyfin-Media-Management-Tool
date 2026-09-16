@@ -10,7 +10,7 @@
 |---|---|---|
 | [01 通用标准](01-foundations.md) | 色彩、字体与排版、间距圆角尺寸、层级投影、五类组件的全部状态、动效时长 | `lib/theme/design_tokens.dart`、`lib/widgets/ui/` |
 | [02 程序外壳](02-shell.md) | 顶栏选型、Windows / macOS 两套 48px 顶栏、窗口状态、拖拽热区、性能模式、布局骨架 | `lib/widgets/shell/`、`windows/runner/flutter_window.cpp`、`macos/Runner/MainFlutterWindow.swift` |
-| [03 浏览与详情](03-browse.md) | 主界面、文件列表面板、媒体库网格与详情、空状态、右键菜单 | `lib/screens/home_screen.dart`、`lib/widgets/file_browser/`、`lib/widgets/sidebar/`、`lib/widgets/ai/ai_assistant_panel.dart` |
+| [03 浏览与详情](03-browse.md) | 主界面、文件列表面板、媒体库网格与详情、空状态、右键菜单 | `lib/widgets/home/home_screen.dart`、`lib/widgets/file_browser/`、`lib/widgets/sidebar/`、`lib/widgets/ai/ai_assistant_panel.dart` |
 | [04 刮削](04-scrape.md) | 配置对话框、任务执行、结果确认与图片分配 | `lib/widgets/scrape/` |
 | [05 整理](05-organize.md) | 命名规则、整理预览、执行与日志、撤销与历史三形态 | `lib/widgets/ai/` |
 | [06 配置](06-config.md) | AI 服务与模型参数、设置各分区、取色浮层、首次引导 | `lib/widgets/settings/`、`lib/widgets/onboarding/` |
@@ -36,5 +36,5 @@ AppTypeScale.body, AppTypeScale.sizeControl
    压在浅底上的文字用 `t.accentText`（会按亮度重新推导），不要直接用 `t.accent`。
 
 模糊只有一个入口：`GlassSurface`。它带着三条实测出来的规矩（底色不透明就丢掉
-滤镜、性能模式整块跳过而不是传 0、没有裁剪不开模糊），不要在别处再写
+滤镜、强度 0 整块跳过而不是传 sigma 0、没有裁剪不开模糊），不要在别处再写
 `BackdropFilter`。

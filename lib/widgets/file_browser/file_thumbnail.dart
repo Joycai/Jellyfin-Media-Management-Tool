@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/file_entry.dart';
 import '../../services/file_label_service.dart';
-import '../../services/thumbnail_service.dart';
+import '../../services/thumbnails/thumbnail_service.dart';
 import '../../theme/design_tokens.dart';
 
 /// The leading tile of a file row: the type icon, upgraded to a video poster

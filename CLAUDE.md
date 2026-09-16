@@ -14,8 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `flutter pub get` — install dependencies
 - `flutter run -d windows` (or `macos` / `linux`) — run the app
 - `flutter gen-l10n` — regenerate localization from ARB files (`flutter run` does this automatically)
-- `flutter test` — run all tests (`test/` mirrors `lib/`: `models/`, `services/`, `utils/`, `widgets/`)
-- `flutter test test/services/organize_service_test.dart` — run a single test file
+- `flutter test` — run all tests (`test/` mirrors `lib/` path for path; see Source layout)
+- `flutter test test/services/organize/organize_service_test.dart` — run a single test file
 - `flutter analyze` — lint (uses `package:flutter_lints/flutter.yaml` per `analysis_options.yaml`)
 - `flutter build windows` (or `macos` / `linux`) — release build
 - Windows installer: run Inno Setup on `scripts/inno_setup.iss` after `flutter build windows`
@@ -23,6 +23,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Version bumps: use the `sync-version` skill (`.claude/skills/sync-version/`) — the version is hardcoded in four places and they drift otherwise.
 
 ## Architecture
+
+### Source layout
+
+`lib/` is organized by **feature, not by layer**. Every area of the UI is a folder under `lib/widgets/`, and the screen that owns an area lives in that folder with it: `SettingsScreen` beside the section files it builds, `HomeScreen` alone in `lib/widgets/home/`. There is no `lib/screens/` — a layer directory that held one screen while the other seven sat beside their features was a rule nobody could apply twice.
+
+`lib/services/` splits the same way. A service belonging to one pipeline lives in that pipeline's folder — `ai/`, `organize/`, `scrape/`, `metadata/`, `agent/`, `thumbnails/` — so `ai_service.dart` sits beside the providers it drives and `organize_service.dart` beside the agent whose plan it applies. Only app-wide services stay loose at the top (`settings_service`, `file_browser_service`, `file_label_service`, `font_service`, `history_service`, `task_service`), together with the two pure helpers every pipeline reaches for, `path_safety` and `gpu_info`.
+
+**`test/` mirrors `lib/` path for path**: `lib/widgets/scrape/scrape_panel.dart` is tested under `test/widgets/scrape/`, and `test/main_test.dart` boots `lib/main.dart`. The mirror is what makes "is this covered?" answerable by looking rather than by grepping, which is why a moved library moves its test in the same commit. `test/helpers/` and `test/fixtures/` are the two deliberate exceptions, shared by everything.
+
+Imports inside `lib/` are **relative** (`../services/…`), as the Dart style guide asks; tests reach into the app by `package:` URI.
 
 ### App shell
 
@@ -35,7 +45,7 @@ Two consequences to keep in mind:
 - **Every full-page route needs its own bar or the window loses its controls.** A `Navigator.push` covers the main bar, and with it every drag region and every window button. Settings, History and the apply-progress screen therefore wear [secondary_title_bar.dart](lib/widgets/shell/secondary_title_bar.dart) — the same 48px surface with the brand and search swapped for a back button and a breadcrumb. A new full-page surface must do the same.
 - **Window state is read once, centrally.** [window_state.dart](lib/widgets/shell/window_state.dart) holds focus / maximized / full-screen in one `WindowStateNotifier` behind a `WindowStateScope`; `window_manager` dispatches every event to every registered listener, so ten widgets each attaching a `WindowListener` would compute the same answer ten times. With no scope in context it falls back to an inert "focused, never maximized" instance rather than asserting — the honest answer in a widget test, and it saves every shell-adjacent test a scaffold.
 
-[home_screen.dart](lib/screens/home_screen.dart) is the shell under that bar: `AppSidebar` (244px) | `MediaTable` (flex) | `AiAssistantPanel` (352px), over a 28px status bar. Three sections: Files, Library (placeholder), Tasks. Two breakpoints from spec 2.6: below 1180 the sidebar collapses to a 64px icon rail and the product name is hidden (hidden, not ellipsized — half a product name is worse than none); below 1400 the right panel defaults to closed, and its open/closed state is remembered per section.
+[home_screen.dart](lib/widgets/home/home_screen.dart) is the shell under that bar: `AppSidebar` (244px) | `MediaTable` (flex) | `AiAssistantPanel` (352px), over a 28px status bar. Three sections: Files, Library (placeholder), Tasks. Two breakpoints from spec 2.6: below 1180 the sidebar collapses to a 64px icon rail and the product name is hidden (hidden, not ellipsized — half a product name is worse than none); below 1400 the right panel defaults to closed, and its open/closed state is remembered per section.
 
 **Snap Layouts is attempted natively, and does not currently work** (verified on Win11 26200, 2026-09-12; backlog B15). The intent is in [flutter_window.cpp](windows/runner/flutter_window.cpp): Windows 11 pops its snap flyout only for a maximize button that returns `HTMAXBUTTON` from `WM_NCHITTEST` over a hit area of at least 46x32 — which is why the caption buttons are 46x48 and why no app content may sit in the top-right 138px. Claiming it costs something: Windows routes mouse input over that rectangle as *non-client*, so Flutter sees neither hover nor click there, and the handler therefore performs the maximize itself and forwards hover/pressed to Dart over the `jellyfin/window_caption` method channel.
 
@@ -54,8 +64,8 @@ Nine `ChangeNotifier`s are registered in `lib/main.dart`:
 | Service | Owns |
 |---|---|
 | [settings_service.dart](lib/services/settings_service.dart) | Theme, locale, accent, glass intensity, font choice, favorites, recents (cap 8), onboarding flag → `config.json`; search sites → `sites.json` |
-| [ai_profiles_service.dart](lib/services/ai_profiles_service.dart) | Named AI endpoint profiles + active id → `ai_profiles.json` |
-| [ai_service.dart](lib/services/ai_service.dart) | Live `AiConfig`, connection status, **the single current `OrganizePlan`**, usage stats |
+| [ai_profiles_service.dart](lib/services/ai/ai_profiles_service.dart) | Named AI endpoint profiles + active id → `ai_profiles.json` |
+| [ai_service.dart](lib/services/ai/ai_service.dart) | Live `AiConfig`, connection status, **the single current `OrganizePlan`**, usage stats |
 | [file_browser_service.dart](lib/services/file_browser_service.dart) | Current directory, file list, focus + multi-selection, sort state, `FileSystemEvent` watcher |
 | [task_service.dart](lib/services/task_service.dart) | The Tasks-tab list of running/finished analyze + apply tasks |
 | [history_service.dart](lib/services/history_service.dart) | Undo manifests under `undo/op-*.json`, 7-day retention |
@@ -63,9 +73,9 @@ Nine `ChangeNotifier`s are registered in `lib/main.dart`:
 | [recipe_store.dart](lib/services/scrape/recipe_store.dart) | Learned / user-edited scrape recipes → `scrapers.json`, plus per-recipe health counters |
 | [scrape_service.dart](lib/services/scrape/scrape_service.dart) | One scrape at a time: fetch → extract → merge plan → commit |
 
-[apply_controller.dart](lib/services/apply_controller.dart) is also a `ChangeNotifier` but is **not** registered — one instance is created per apply and owned by its `OrganizerTask`.
+[apply_controller.dart](lib/services/organize/apply_controller.dart) is also a `ChangeNotifier` but is **not** registered — one instance is created per apply and owned by its `OrganizerTask`.
 
-Pure/plain (no Provider): the `AiProvider` implementations, `AiHttp`, `AiCancelToken`, the agent runtime and every agent built on it, [path_safety.dart](lib/services/path_safety.dart), [organize_service.dart](lib/services/organize_service.dart) (a single top-level function), [gpu_info.dart](lib/services/gpu_info.dart), and all models.
+Pure/plain (no Provider): the `AiProvider` implementations, `AiHttp`, `AiCancelToken`, the agent runtime and every agent built on it, [path_safety.dart](lib/services/path_safety.dart), [organize_service.dart](lib/services/organize/organize_service.dart) (a single top-level function), [gpu_info.dart](lib/services/gpu_info.dart), and all models.
 
 [gpu_info.dart](lib/services/gpu_info.dart) names the graphics adapter shown on the About page, by enumerating DXGI through raw `dart:ffi` COM vtable calls (Windows only; null everywhere else, and the row is then absent). It reports the first **hardware** adapter because that is the default DXGI adapter for the process, which is what ANGLE builds Flutter's D3D11 device on — and what Windows' per-app GPU preference reorders. So the answer tracks that setting rather than just listing the machine's cards. It is inferred, not read back from the live GL context, which no Dart API exposes. A software rasterizer is kept only as a fallback when there is no real card, and every failure yields null: a diagnostic must never take down the screen that displays it.
 
@@ -73,7 +83,7 @@ Pure/plain (no Provider): the `AiProvider` implementations, `AiHttp`, `AiCancelT
 
 This is the core flow; understand it before touching anything under `lib/services/ai/` or `lib/widgets/ai/`.
 
-1. **Trigger** — `_organize()` in [home_screen.dart](lib/screens/home_screen.dart). An empty multi-selection means "the whole folder"; a non-empty one restricts the scan.
+1. **Trigger** — `_organize()` in [home_screen.dart](lib/widgets/home/home_screen.dart). An empty multi-selection means "the whole folder"; a non-empty one restricts the scan.
 2. **Hint** — `showTitleHintDialog` collects an optional canonical title and a movie/series/auto hint.
 3. **Task** — `TaskService.startAnalyze(...)` mints an `AiCancelToken`, inserts a running task, and fires `AiService.analyzeFolder` unawaited. The Tasks tab badge tracks `runningCount`.
 4. **Analyze** — `AiService.analyzeFolder` walks the tree (**capped at 400 files**, dotfiles skipped) and hands it to [organize_agent.dart](lib/services/organize/organize_agent.dart). Code does everything that has a right answer: `FilenameParser` reads season / episode / year / language tokens, `Grouping` puts one title's videos and their companions (subtitles, artwork, NFOs) in one group, and `JellyfinNaming.plan` spells every path. The model decides only what a group *is* — title, movie or series, year, season, episode offset — through tools (`list_groups`, `list_group_files`, `read_existing_nfo`, `submit_group`, `split_group`, `mark_unsure`), so a 26-episode series is one decision rather than 26 paths to spell identically. Each submission's reply lists the paths it produced and any file it could not place, which is how a wrong season gets corrected before the preview. A large folder is decided in **batches** of at most 12 groups (fewer when the context window is small), each a fresh session seeded with a table of the titles decided so far (`find_decided` looks up the rest), so a session's context does not grow with the folder. A batch that throws is retried once, then its groups are marked failed and the rest go on; an `erratic` batch is not retried. The Tasks card shows the fraction of groups decided, and the finished task reports counts (decided, remembered, to review, failed).
@@ -120,14 +130,14 @@ Underneath, `AiProvider.chat` accumulates OpenAI `tool_calls` fragments by index
 
 ### Filesystem writes
 
-**`applyOrganizeAction` in [organize_service.dart](lib/services/organize_service.dart) is the single chokepoint for moves.** It:
+**`applyOrganizeAction` in [organize_service.dart](lib/services/organize/organize_service.dart) is the single chokepoint for moves.** It:
 
 - validates both source and target with `PathSafety.isWithin(baseDir, ...)` — pass `context:` so an injected in-memory POSIX filesystem isn't parsed with Windows rules;
 - refuses to clobber an existing target, except for case-only renames;
 - falls back to copy+delete across volumes, and deletes the copy if the source delete fails so no silent duplicate is left;
 - mutates `action.status`/`action.error` and never aborts the batch on one failure.
 
-It takes a `FileSystem` (package `file`) so tests can run against an in-memory FS — see `test/services/organize_service_test.dart`.
+It takes a `FileSystem` (package `file`) so tests can run against an in-memory FS — see `test/services/organize/organize_service_test.dart`.
 
 ### Undo
 
@@ -228,9 +238,9 @@ Playback was evaluated against `video_player` + `video_player_win` and deliberat
 
 ### Thumbnails
 
-[thumbnail_service.dart](lib/services/thumbnail_service.dart) renders video poster frames for file-table rows. Its cache is an in-memory LRU plus JPEGs under `<appSupport>/thumbnails/`, keyed by `sha1(path|mtime|size)` so a re-encoded file never shows a stale frame. Pruned to 64 MB, oldest-first, once per session.
+[thumbnail_service.dart](lib/services/thumbnails/thumbnail_service.dart) renders video poster frames for file-table rows. Its cache is an in-memory LRU plus JPEGs under `<appSupport>/thumbnails/`, keyed by `sha1(path|mtime|size)` so a re-encoded file never shows a stale frame. Pruned to 64 MB, oldest-first, once per session.
 
-**Windows does not use the plugin.** `fc_native_video_thumbnail` has no threading in its Windows implementation at all: `HandleMethodCall` runs the blocking Shell extraction inline and replies on the **Flutter platform thread**, which is the thread pumping the window's message loop. For a file on a NAS that means reading video over SMB there — entering such a folder measured 21 ms → 46.6 ms per frame, and the Dart-side `_maxConcurrent = 3` bought nothing, because all three slots serialised behind that one thread. So Windows goes through [windows_thumbnailer.dart](lib/services/windows_thumbnailer.dart) to the runner's own `jellyfin/thumbnail` channel ([thumbnail_channel.cpp](windows/runner/thumbnail_channel.cpp)), which extracts on a three-thread pool and encodes JPEG with WIC. macOS and Linux keep the plugin, whose backends already thread; a runner older than the channel raises `MissingPluginException`, which latches the service back onto the plugin rather than losing thumbnails.
+**Windows does not use the plugin.** `fc_native_video_thumbnail` has no threading in its Windows implementation at all: `HandleMethodCall` runs the blocking Shell extraction inline and replies on the **Flutter platform thread**, which is the thread pumping the window's message loop. For a file on a NAS that means reading video over SMB there — entering such a folder measured 21 ms → 46.6 ms per frame, and the Dart-side `_maxConcurrent = 3` bought nothing, because all three slots serialised behind that one thread. So Windows goes through [windows_thumbnailer.dart](lib/services/thumbnails/windows_thumbnailer.dart) to the runner's own `jellyfin/thumbnail` channel ([thumbnail_channel.cpp](windows/runner/thumbnail_channel.cpp)), which extracts on a three-thread pool and encodes JPEG with WIC. macOS and Linux keep the plugin, whose backends already thread; a runner older than the channel raises `MissingPluginException`, which latches the service back onto the plugin rather than losing thumbnails.
 
 Four things in that C++ that are not obvious:
 
@@ -272,9 +282,9 @@ And a style that names its own `fontFamily` must bring `AppTypeScale.monoFallbac
 - **The filter is dropped when the fill is opaque.** A `BackdropFilter` paints its child over the blurred backdrop, so an opaque child hides the result entirely — which is exactly what the light theme's centre-table gradient does. Asking for blur is therefore not a guarantee of getting it; making a fill opaque is also a decision to give up its frost.
 - **Glass intensity 0 skips the widget rather than passing sigma 0.** A zero-sigma filter still ends the render pass and reads back the whole target, which is where the cost is.
 - **The cost is per filter, not per sigma.** Impeller downsamples before blurring, so the radius is nearly free: maximized at 4K, intensity 50 measured 82.0 ms and intensity 100 measured 83.8 ms. Removing the four filters saved 46 ms. The slider is a *look* control; only its 0 stop is a performance control.
-- **Co-planar filters share one backdrop snapshot.** `GlassSurface` uses `BackdropFilter.grouped` when it finds a `BackdropGroup` ancestor, which `AppShell` puts around the shell chrome — measured 80.4 ms → 64.6 ms maximized at 4K. It keys off the *ancestor* rather than a parameter because that is exactly the right split: dialogs, menus and popovers are pushed routes, so they never find the group, and they must not — they sit **on top of** the panels and have to blur the panels themselves, and Flutter's own docs warn that overlapping filters sharing a key render as though only one ran. `test/widgets/backdrop_group_test.dart` pins both halves.
+- **Co-planar filters share one backdrop snapshot.** `GlassSurface` uses `BackdropFilter.grouped` when it finds a `BackdropGroup` ancestor, which `AppShell` puts around the shell chrome — measured 80.4 ms → 64.6 ms maximized at 4K. It keys off the *ancestor* rather than a parameter because that is exactly the right split: dialogs, menus and popovers are pushed routes, so they never find the group, and they must not — they sit **on top of** the panels and have to blur the panels themselves, and Flutter's own docs warn that overlapping filters sharing a key render as though only one ran. `test/widgets/ui/backdrop_group_test.dart` pins both halves.
 - **When the backdrop is static, so is the blur — draw the pre-baked one.** The shell's glass tiles sit on nothing but `AppBackdrop`'s baked image, so `AppBackdrop` blurs that image once per sigma and `GlassSurface` draws the crop belonging to its own rectangle instead of running a filter at all. Measured maximized at 4K: **32.0 ms → 1.74 ms**, the same frame time as turning the blur off entirely, with 99.92% of pixels bit-identical (see below). On by default, behind Settings → Appearance → Behavior → *Pre-render the glass blur*; off, it is the grouped live path above.
-- **The baked path is a structural claim, not a flag.** It is correct only while nothing dynamic sits *behind* a glass tile. Nesting is handled: a `GlassSurface` that takes the baked path shadows `BakedBackdropScope` with null for its own subtree, so an inner surface — whose backdrop includes the outer one's fill and content — falls back to a real filter. Pushed routes never reach the scope at all, the same split that keeps them out of the `BackdropGroup`. What is *not* handled is someone putting live content behind a tile at the same level. `test/widgets/baked_glass_test.dart` pins all of it, including that the tiles still filter live for the first frames before the first bake lands.
+- **The baked path is a structural claim, not a flag.** It is correct only while nothing dynamic sits *behind* a glass tile. Nesting is handled: a `GlassSurface` that takes the baked path shadows `BakedBackdropScope` with null for its own subtree, so an inner surface — whose backdrop includes the outer one's fill and content — falls back to a real filter. Pushed routes never reach the scope at all, the same split that keeps them out of the `BackdropGroup`. What is *not* handled is someone putting live content behind a tile at the same level. `test/widgets/ui/baked_glass_test.dart` pins all of it, including that the tiles still filter live for the first frames before the first bake lands.
 - **No blur without a clip**, or it samples past the rounded corner.
 - **Nothing blurs while an opaque route covers it.** `GlassCoverScope` ([glass_cover.dart](lib/widgets/ui/glass_cover.dart)) tracks the navigator stack through an `OpaqueCoverObserver` registered in `main()`, and `GlassSurface` asks it whether the route it lives in is buried. It follows the stack rather than `ModalRoute.secondaryAnimation` because *any* pushed route drives that animation, dialogs and menus included — and those are translucent, so flattening the page behind one is visible. It also keeps a popped route on the stack until its exit animation finishes: `didPop` fires when the pop *starts*, and removing it there let the page below blur again through the whole 180ms nobody could see it (measured: 3 ms/frame). The observer defers `notifyListeners` when a build is in flight — the navigator flushes observer notifications *during* build, and the scope sits above `MaterialApp`.
 
@@ -333,12 +343,14 @@ ARB files at `lib/l10n/app_en.arb` and `lib/l10n/app_zh.arb`. `flutter: generate
 
 ### Legacy
 
-[rename_service.dart](lib/services/rename_service.dart) predates the AI pipeline and is down to two statics, `buildName` and `baseNameForTarget`, both called by [edit_action_dialog.dart](lib/widgets/ai/edit_action_dialog.dart) to suggest a corrected filename for a *planned* target. The rule worth preserving: `baseNameForTarget` walks *past* `Season NN` / `Specials` container folders up to the series folder, otherwise TV renames produce `Season 01.S01E01.mkv`.
+[rename_service.dart](lib/services/organize/rename_service.dart) predates the AI pipeline and is down to two statics, `buildName` and `baseNameForTarget`, both called by [edit_action_dialog.dart](lib/widgets/ai/edit_action_dialog.dart) to suggest a corrected filename for a *planned* target. The rule worth preserving: `baseNameForTarget` walks *past* `Season NN` / `Specials` container folders up to the series folder, otherwise TV renames produce `Season 01.S01E01.mkv`.
 
 `lib/widgets/dialogs/{tv_show,part,subtitle}_dialog.dart` look like leftovers from that same manual workflow and are not. `EditActionDialog` builds all three -- `PartDialog`, `TVShowDialog`, `SubtitleDialog` -- whenever a rule needs input beyond the base name, and the organize preview reaches it from its per-action edit menu. They are live code on the AI path, so editing them edits the preview dialog. Do not delete them as dead.
 
 ## Conventions
 
+- The conventions below that a linter can check are switched on in `analysis_options.yaml` (`prefer_relative_imports`, `directives_ordering`, `prefer_single_quotes`, `always_declare_return_types`, `use_super_parameters`, `unawaited_futures`). CI runs `--fatal-infos`, so they are gates, not suggestions.
+- A new library goes in its feature's folder, and its test goes at the mirrored path under `test/` in the same commit (see Source layout). New top-level directories under `lib/` need a reason.
 - All path manipulation goes through the `path` package — never string concatenation. Required for cross-platform correctness.
 - Any code that writes to disk must go through `applyOrganizeAction` or justify why not, and must validate with `PathSafety.isWithin`.
 - Every user-facing string must use `AppLocalizations.of(context)!.<key>` and must be added to **both** `app_en.arb` and `app_zh.arb`.

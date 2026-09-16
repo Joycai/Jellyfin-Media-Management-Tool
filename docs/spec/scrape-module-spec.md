@@ -1,6 +1,8 @@
 # 网页元数据抓取（刮削）模块 — 可行性评估与架构设计
 
-> 状态：设计稿（未写代码）
+> 状态：**已实现**。本文是当初的可行性评估与架构设计，保留为设计依据；
+> 代码落点在 `lib/services/scrape/`、`lib/services/metadata/` 与 `lib/widgets/scrape/`，
+> 实现与本文的出入以 [CLAUDE.md](../../CLAUDE.md) 的「Metadata scraping」一节为准。
 > 目标：给定一个作品页 URL，抓取标题 / 简介 / 演员 / 番号 / 发行日 / 封面 / 缩略图等信息，
 > 在应用内预览并允许人工修改，确认后生成 Jellyfin NFO 并把图片落盘；
 > 若目标位置已有 NFO，支持按字段选择覆盖。

@@ -5,10 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/ai_service_profile.dart';
+import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_provider.dart';
+import '../../services/ai/ai_service.dart';
 import '../../services/ai/connection_check.dart';
-import '../../services/ai_profiles_service.dart';
-import '../../services/ai_service.dart';
 import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 import '../ui/app_controls.dart';
@@ -600,7 +600,7 @@ class _ServiceDetailState extends State<_ServiceDetail> {
       ),
     );
     if (confirm == true) {
-      profiles.delete(widget.profile.id);
+      await profiles.delete(widget.profile.id);
     }
   }
 

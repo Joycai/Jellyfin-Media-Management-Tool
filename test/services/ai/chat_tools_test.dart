@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
 import 'package:jellyfin_media_management_tool/services/ai/google_genai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/openai_provider.dart';
-import 'package:jellyfin_media_management_tool/services/ai_service.dart';
 
 import '../../helpers/ai.dart';
 

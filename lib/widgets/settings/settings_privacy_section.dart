@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/history_service.dart';
 import '../../services/settings_service.dart';
-import '../../services/thumbnail_service.dart';
+import '../../services/thumbnails/thumbnail_service.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../ui/app_controls.dart';

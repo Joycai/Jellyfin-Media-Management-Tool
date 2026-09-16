@@ -6,10 +6,10 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/organize_plan.dart';
-import '../../services/ai_service.dart';
-import '../../services/apply_controller.dart';
+import '../../services/ai/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/history_service.dart';
+import '../../services/organize/apply_controller.dart';
 import '../../services/task_service.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/path_tree.dart';

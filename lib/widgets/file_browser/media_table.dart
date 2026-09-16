@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../models/organize_plan.dart';
-import '../../services/ai_service.dart';
+import '../../services/ai/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/file_label_service.dart';
 import '../../services/settings_service.dart';
