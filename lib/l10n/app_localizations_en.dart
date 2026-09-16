@@ -2211,4 +2211,131 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pathsRootExampleShows => '/Volumes/Media/Shows';
+
+  @override
+  String historyTitleTransfer(Object count) {
+    return 'Copy / move · $count items';
+  }
+
+  @override
+  String tasksCopyLabel(Object target) {
+    return 'Copy · $target';
+  }
+
+  @override
+  String tasksMoveLabel(Object target) {
+    return 'Move · $target';
+  }
+
+  @override
+  String get shortcutCopy => 'Copy the selection';
+
+  @override
+  String get shortcutCut => 'Cut the selection';
+
+  @override
+  String get shortcutPaste => 'Paste into the current folder';
+
+  @override
+  String get menuCopy => 'Copy';
+
+  @override
+  String get menuCut => 'Cut';
+
+  @override
+  String get menuPaste => 'Paste';
+
+  @override
+  String get menuPasteIntoFolder => 'Paste into this folder';
+
+  @override
+  String get menuMoveTo => 'Move to…';
+
+  @override
+  String clipboardCopiedCount(Object count) {
+    return '$count items copied';
+  }
+
+  @override
+  String clipboardCutCount(Object count) {
+    return '$count items cut';
+  }
+
+  @override
+  String get clipboardPasteHere => 'Paste here';
+
+  @override
+  String get clipboardClear => 'Clear';
+
+  @override
+  String transferConflictTitle(Object count, Object folder) {
+    return '$count items already exist in $folder';
+  }
+
+  @override
+  String get transferConflictBody =>
+      'Nothing is overwritten. Skip the ones that exist, or keep both and the new copies get a numbered name.';
+
+  @override
+  String get transferSkipExisting => 'Skip existing';
+
+  @override
+  String get transferKeepBoth => 'Keep both';
+
+  @override
+  String get transferNothingToDo => 'Nothing to paste here';
+
+  @override
+  String transferRefusedMissing(Object count) {
+    return '$count items no longer exist';
+  }
+
+  @override
+  String get transferRefusedIntoItself =>
+      'A folder cannot be pasted into itself';
+
+  @override
+  String transferRefusedSameFolder(Object count) {
+    return '$count items are already in this folder';
+  }
+
+  @override
+  String transferCopiedCount(Object count) {
+    return 'Copied $count items';
+  }
+
+  @override
+  String transferMovedCount(Object count) {
+    return 'Moved $count items';
+  }
+
+  @override
+  String transferFailedCount(Object count) {
+    return '$count failed';
+  }
+
+  @override
+  String transferStopped(Object count) {
+    return 'Stopped after $count items';
+  }
+
+  @override
+  String get transferNoUndo => 'no undo';
+
+  @override
+  String get transferDestinationMissing =>
+      'The destination folder is not available';
+
+  @override
+  String get moveToTitle => 'Move to folder';
+
+  @override
+  String transferRefusedLink(Object count) {
+    return '$count items are symbolic links or contain them';
+  }
+
+  @override
+  String transferRefusedUnreadable(Object count) {
+    return '$count items could not be read';
+  }
 }

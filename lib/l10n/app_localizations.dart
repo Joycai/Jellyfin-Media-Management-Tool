@@ -3973,6 +3973,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'/Volumes/Media/Shows'**
   String get pathsRootExampleShows;
+
+  /// No description provided for @historyTitleTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy / move · {count} items'**
+  String historyTitleTransfer(Object count);
+
+  /// No description provided for @tasksCopyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy · {target}'**
+  String tasksCopyLabel(Object target);
+
+  /// No description provided for @tasksMoveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Move · {target}'**
+  String tasksMoveLabel(Object target);
+
+  /// No description provided for @shortcutCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the selection'**
+  String get shortcutCopy;
+
+  /// No description provided for @shortcutCut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut the selection'**
+  String get shortcutCut;
+
+  /// No description provided for @shortcutPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste into the current folder'**
+  String get shortcutPaste;
+
+  /// No description provided for @menuCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get menuCopy;
+
+  /// No description provided for @menuCut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut'**
+  String get menuCut;
+
+  /// No description provided for @menuPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get menuPaste;
+
+  /// No description provided for @menuPasteIntoFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste into this folder'**
+  String get menuPasteIntoFolder;
+
+  /// No description provided for @menuMoveTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to…'**
+  String get menuMoveTo;
+
+  /// No description provided for @clipboardCopiedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items copied'**
+  String clipboardCopiedCount(Object count);
+
+  /// No description provided for @clipboardCutCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items cut'**
+  String clipboardCutCount(Object count);
+
+  /// No description provided for @clipboardPasteHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste here'**
+  String get clipboardPasteHere;
+
+  /// No description provided for @clipboardClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clipboardClear;
+
+  /// No description provided for @transferConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items already exist in {folder}'**
+  String transferConflictTitle(Object count, Object folder);
+
+  /// No description provided for @transferConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is overwritten. Skip the ones that exist, or keep both and the new copies get a numbered name.'**
+  String get transferConflictBody;
+
+  /// No description provided for @transferSkipExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip existing'**
+  String get transferSkipExisting;
+
+  /// No description provided for @transferKeepBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep both'**
+  String get transferKeepBoth;
+
+  /// No description provided for @transferNothingToDo.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to paste here'**
+  String get transferNothingToDo;
+
+  /// No description provided for @transferRefusedMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items no longer exist'**
+  String transferRefusedMissing(Object count);
+
+  /// No description provided for @transferRefusedIntoItself.
+  ///
+  /// In en, this message translates to:
+  /// **'A folder cannot be pasted into itself'**
+  String get transferRefusedIntoItself;
+
+  /// No description provided for @transferRefusedSameFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items are already in this folder'**
+  String transferRefusedSameFolder(Object count);
+
+  /// No description provided for @transferCopiedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied {count} items'**
+  String transferCopiedCount(Object count);
+
+  /// No description provided for @transferMovedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved {count} items'**
+  String transferMovedCount(Object count);
+
+  /// No description provided for @transferFailedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} failed'**
+  String transferFailedCount(Object count);
+
+  /// No description provided for @transferStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped after {count} items'**
+  String transferStopped(Object count);
+
+  /// No description provided for @transferNoUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'no undo'**
+  String get transferNoUndo;
+
+  /// No description provided for @transferDestinationMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The destination folder is not available'**
+  String get transferDestinationMissing;
+
+  /// No description provided for @moveToTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to folder'**
+  String get moveToTitle;
+
+  /// No description provided for @transferRefusedLink.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items are symbolic links or contain them'**
+  String transferRefusedLink(Object count);
+
+  /// No description provided for @transferRefusedUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items could not be read'**
+  String transferRefusedUnreadable(Object count);
 }
 
 class _AppLocalizationsDelegate

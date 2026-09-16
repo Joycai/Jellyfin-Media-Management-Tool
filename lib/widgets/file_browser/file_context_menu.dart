@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/file_entry.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/file_label_service.dart';
+import '../../services/transfer/file_clipboard.dart';
 import '../../shortcuts/app_shortcuts.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
@@ -17,12 +18,17 @@ import '../dialogs/preview_dialog.dart';
 import '../glass/glass_dialog.dart';
 import '../glass/glass_menu.dart';
 import '../scrape/scrape_flow.dart';
+import 'file_transfer_flow.dart';
 import 'media_table.dart';
 
 enum _MenuAction {
   preview,
   scrape,
   rescrapeFolder,
+  copy,
+  cut,
+  paste,
+  moveTo,
   rename,
   delete,
   properties,
@@ -31,8 +37,10 @@ enum _MenuAction {
 
 /// Right-click / long-press context menu for a file-table row.
 ///
-/// Actions operate on [entry], except delete: when [entry] is part of a
-/// multi-selection the whole selection is deleted (Explorer/Finder behavior).
+/// Actions operate on [entry], except delete, copy, cut and move: when
+/// [entry] is part of a multi-selection the whole selection is taken
+/// (Explorer/Finder behavior). Paste goes into [entry] when it is a folder,
+/// otherwise into the folder being viewed.
 Future<void> showFileContextMenu(
   BuildContext context, {
   required Offset globalPosition,
@@ -50,6 +58,11 @@ Future<void> showFileContextMenu(
   final multiDelete =
       browser.isSelected(entry.path) && browser.selectionCount > 1;
   final deleteCount = multiDelete ? browser.selectionCount : 1;
+  final batch = multiDelete ? browser.selectedEntries : [entry];
+  final clipboard = context.read<FileClipboard>();
+  final pasteDir = entry.isDirectory
+      ? entry.path
+      : browser.currentDirectory ?? p.dirname(entry.path);
 
   final action = await showGlassMenu<_MenuAction>(
     context,
@@ -83,6 +96,35 @@ Future<void> showFileContextMenu(
           icon: Icons.refresh_rounded,
           label: l10n.menuRescrapeFolder,
         ),
+      const PopupMenuDivider(),
+      glassMenuItem(
+        context,
+        value: _MenuAction.copy,
+        icon: Icons.content_copy_rounded,
+        label: l10n.menuCopy,
+        trailing: shortcutLabel(AppShortcutId.copy),
+      ),
+      glassMenuItem(
+        context,
+        value: _MenuAction.cut,
+        icon: Icons.content_cut_rounded,
+        label: l10n.menuCut,
+        trailing: shortcutLabel(AppShortcutId.cut),
+      ),
+      glassMenuItem(
+        context,
+        value: _MenuAction.paste,
+        icon: Icons.content_paste_rounded,
+        label: entry.isDirectory ? l10n.menuPasteIntoFolder : l10n.menuPaste,
+        trailing: shortcutLabel(AppShortcutId.paste),
+        enabled: clipboard.isNotEmpty,
+      ),
+      glassMenuItem(
+        context,
+        value: _MenuAction.moveTo,
+        icon: Icons.drive_file_move_outlined,
+        label: l10n.menuMoveTo,
+      ),
       const PopupMenuDivider(),
       glassMenuItem(
         context,
@@ -132,6 +174,14 @@ Future<void> showFileContextMenu(
       );
     case _MenuAction.rescrapeFolder:
       await startBatchScrapeFlow(context, dir: entry.path);
+    case _MenuAction.copy:
+      copyEntries(context, batch);
+    case _MenuAction.cut:
+      cutEntries(context, batch);
+    case _MenuAction.paste:
+      await pasteClipboard(context, destinationDir: pasteDir);
+    case _MenuAction.moveTo:
+      await moveEntriesTo(context, batch);
     case _MenuAction.rename:
       await renameEntry(context, entry);
     case _MenuAction.delete:

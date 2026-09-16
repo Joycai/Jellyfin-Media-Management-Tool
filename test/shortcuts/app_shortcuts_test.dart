@@ -16,8 +16,12 @@ String _sig(SingleActivator a) =>
 /// The bindings map re-keyed by [_sig] so tests can address entries by value.
 Map<String, VoidCallback> _bySignature(
   Map<ShortcutActivator, VoidCallback> bindings,
-) => {
-  for (final e in bindings.entries) _sig(e.key as SingleActivator): e.value,
+) => {for (final e in bindings.entries) _sig(_unwrap(e.key)): e.value};
+
+SingleActivator _unwrap(ShortcutActivator a) => switch (a) {
+  TypingAwareActivator(:final inner) => inner,
+  SingleActivator() => a,
+  _ => throw StateError('unexpected activator $a'),
 };
 
 void main() {

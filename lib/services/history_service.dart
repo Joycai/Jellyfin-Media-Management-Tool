@@ -203,6 +203,48 @@ class HistoryService extends ChangeNotifier {
     return entry;
   }
 
+  /// Writes a manifest for one copy/cut/paste from the file browser.
+  ///
+  /// A move lands in [moves] and a copy in [created] — the same two halves
+  /// the organize and scrape manifests use, so undo needs no new code path.
+  /// [baseDir] is the deepest folder holding every path, computed by the
+  /// caller; a paste between two Windows drives has none and records nothing.
+  Future<HistoryEntry?> recordTransfer({
+    required String baseDir,
+    required int itemCount,
+    required int totalBytes,
+    required List<Map<String, String>> moves,
+    required List<String> created,
+  }) async {
+    if (moves.isEmpty && created.isEmpty) return null;
+
+    final dir = await _dir();
+    final createdAt = DateTime.now();
+    final file = _manifestFile(dir);
+    final renames = moves
+        .where(
+          (m) => _fs.path.basename(m['from']!) != _fs.path.basename(m['to']!),
+        )
+        .length;
+    final manifest = HistoryEntry.buildManifest(
+      kind: HistoryKind.fileTransfer,
+      createdAt: createdAt,
+      baseDir: baseDir,
+      itemCount: itemCount,
+      moveCount: moves.length - renames,
+      renameCount: renames,
+      totalBytes: totalBytes,
+      moves: moves,
+      created: created,
+    );
+    await file.writeAsString(jsonEncode(manifest));
+
+    final entry = HistoryEntry.fromJson(file.path, manifest);
+    _entries = [entry, ..._entries];
+    notifyListeners();
+    return entry;
+  }
+
   /// Generates a collision-resistant manifest name. Millisecond timestamps
   /// can collide when two short operations finish in the same event-loop turn,
   /// which would silently replace the first undo entry.

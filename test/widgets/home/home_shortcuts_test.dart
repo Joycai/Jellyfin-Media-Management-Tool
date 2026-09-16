@@ -10,6 +10,7 @@ import 'package:jellyfin_media_management_tool/services/font_service.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
 import 'package:jellyfin_media_management_tool/services/settings_service.dart';
 import 'package:jellyfin_media_management_tool/services/task_service.dart';
+import 'package:jellyfin_media_management_tool/services/transfer/file_clipboard.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/home/home_screen.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +31,7 @@ Future<void> _pumpHome(WidgetTester tester) async {
         ChangeNotifierProvider<HistoryService>.value(value: HistoryService()),
         ChangeNotifierProvider(create: (_) => TaskService()),
         ChangeNotifierProvider(create: (_) => FileBrowserService()),
+        ChangeNotifierProvider(create: (_) => FileClipboard()),
       ],
       child: MaterialApp(
         localizationsDelegates: const [
@@ -130,5 +132,24 @@ void main() {
     await tester.pump();
 
     expect(_searchHasFocus(tester), isFalse);
+  });
+
+  testWidgets('a focused text field keeps the editing keys', (tester) async {
+    await _pumpHome(tester);
+    await _pressCtrl(tester, LogicalKeyboardKey.keyK);
+    expect(_searchHasFocus(tester), isTrue);
+    await tester.enterText(find.byType(EditableText).first, 'dune');
+    await tester.pump();
+
+    // Ctrl+A is bound to select-all-files and Ctrl+C to copy; both are
+    // skipWhileTyping. The field must still see them — a binding that only
+    // returned early would have eaten the key (CallbackShortcuts marks a
+    // matched activator handled whatever the callback does).
+    await _pressCtrl(tester, LogicalKeyboardKey.keyA);
+    final editable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(editable.controller.selection.textInside('dune'), 'dune');
+    expect(editable.controller.text, 'dune');
   });
 }

@@ -16,6 +16,7 @@ import 'scrape/image_cache.dart';
 import 'scrape/image_downloader.dart';
 import 'scrape/recipe_learner.dart';
 import 'scrape/scrape_service.dart';
+import 'transfer/transfer_controller.dart';
 
 /// What kind of work a [OrganizerTask] is doing.
 enum TaskKind {
@@ -30,6 +31,9 @@ enum TaskKind {
 
   /// The reviewed metadata is being written (NFO + artwork downloads).
   scrapeCommit,
+
+  /// A copy/cut/paste from the file browser is moving bytes.
+  transfer,
 }
 
 enum TaskStatus { running, done, failed, stopped }
@@ -51,6 +55,9 @@ class OrganizerTask {
   /// Apply-only: the controller actually running the move loop. Watch it for
   /// live progress; pause/stop go through it directly.
   final ApplyController? controller;
+
+  /// Transfer-only: the controller copying or moving the pasted items.
+  final TransferController? transfer;
 
   /// Analyze-only: aborts the folder walk and the in-flight model request.
   final AiCancelToken? cancelToken;
@@ -75,6 +82,7 @@ class OrganizerTask {
     required this.label,
     required this.startedAt,
     this.controller,
+    this.transfer,
     this.cancelToken,
     this.status = TaskStatus.running,
     this.finishedAt,
@@ -88,7 +96,7 @@ class OrganizerTask {
   /// Whether the user can stop this task where it currently stands.
   bool get isCancellable =>
       status == TaskStatus.running &&
-      (cancelToken != null || controller != null);
+      (cancelToken != null || controller != null || transfer != null);
 }
 
 /// Tracks AI analyze + apply tasks the user has kicked off so the Tasks tab
@@ -192,6 +200,47 @@ class TaskService extends ChangeNotifier {
       controller.removeListener(listener);
       notifyListeners();
       if (onDone != null) onDone();
+    }
+
+    controller.addListener(listener);
+    unawaited(controller.start());
+
+    return task;
+  }
+
+  /// Registers a paste (copy or move) wrapping [controller] and starts it.
+  /// Same shape as [startApply]: the controller's own notifications drive the
+  /// card, this only bookkeeps the status transition. [onDone] fires on every
+  /// terminal state so the caller can refresh the listing and report counts.
+  OrganizerTask startTransfer({
+    required TransferController controller,
+    required String label,
+    void Function(TransferController)? onDone,
+  }) {
+    final task = OrganizerTask(
+      id: newId(),
+      kind: TaskKind.transfer,
+      label: label,
+      startedAt: DateTime.now(),
+      transfer: controller,
+    );
+    _tasks.insert(0, task);
+    notifyListeners();
+
+    void listener() {
+      if (controller.status == TransferStatus.running) return;
+      task
+        ..status = switch (controller.status) {
+          TransferStatus.stopped => TaskStatus.stopped,
+          TransferStatus.failed => TaskStatus.failed,
+          _ => TaskStatus.done,
+        }
+        ..error = controller.error
+        ..finishedAt ??= DateTime.now()
+        ..summary = _transferSummary(controller);
+      controller.removeListener(listener);
+      notifyListeners();
+      onDone?.call(controller);
     }
 
     controller.addListener(listener);
@@ -420,9 +469,11 @@ class TaskService extends ChangeNotifier {
     if (i < 0) return;
     final t = _tasks[i];
     if (t.isFinished) return;
-    // Apply: the controller's own listener flips the task to stopped once the
-    // loop unwinds, so the count of moved files stays accurate.
+    // Apply / transfer: the controller's own listener flips the task to
+    // stopped once the loop unwinds, so the count of moved files stays
+    // accurate.
     t.controller?.stop();
+    t.transfer?.stop();
     // Analyze: closing the socket makes analyzeFolder throw AiCancelled, and
     // the catch above records the stop. Mark it now so the UI reacts on click
     // instead of waiting for the request to unwind.
@@ -501,6 +552,24 @@ class TaskService extends ChangeNotifier {
       return '${c.done} ok · ${c.failed} failed';
     }
     return '${c.done}/${c.total}';
+  }
+
+  String _transferSummary(TransferController c) {
+    final r = c.result;
+    if (r == null) return '';
+    if (c.undoError != null || c.undoUnavailable) {
+      return '${r.succeeded}/${c.total} · no undo';
+    }
+    if (c.status == TransferStatus.stopped) {
+      return '${r.succeeded}/${c.total} · stopped';
+    }
+    return [
+      if (r.failed > 0)
+        '${r.succeeded} ok · ${r.failed} failed'
+      else
+        '${r.succeeded}/${c.total}',
+      if (r.skipped > 0) '${r.skipped} skipped',
+    ].join(' · ');
   }
 
   TaskStatus _statusFromApply(ApplyStatus s) => switch (s) {

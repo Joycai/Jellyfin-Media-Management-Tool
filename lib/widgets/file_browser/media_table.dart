@@ -10,6 +10,8 @@ import '../../services/ai/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/file_label_service.dart';
 import '../../services/settings_service.dart';
+import '../../services/transfer/file_clipboard.dart';
+import '../../shortcuts/app_shortcuts.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
 import '../dialogs/preview_dialog.dart';
@@ -17,6 +19,7 @@ import '../ui/app_controls.dart';
 import '../ui/glass_surface.dart';
 import 'file_context_menu.dart';
 import 'file_thumbnail.dart';
+import 'file_transfer_flow.dart';
 import 'media_columns.dart';
 
 /// 主内容区（3.1）：工具条 + 面包屑在面板之上，文件列表面板在其下。
@@ -786,6 +789,9 @@ class _FileRowState extends State<_FileRow> {
     final checked = context.select<FileBrowserService, bool>(
       (b) => b.isSelected(path),
     );
+    // A cut row dims until it is pasted or the cut is cleared — the only
+    // sign that a paste elsewhere will take it away.
+    final cut = context.select<FileClipboard, bool>((c) => c.isCut(path));
     final needsReview = action?.status == ActionStatus.needsReview;
     final showCheckbox = _hovered || checked;
     // 1.4c：单行 34、双行 44。副行只有在有 AI 建议或需要确认时才存在，没有它
@@ -805,119 +811,125 @@ class _FileRowState extends State<_FileRow> {
         child: MouseRegion(
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
-          child: Row(
-            children: [
-              SizedBox(
-                width: MediaColumnLayout.gutter,
-                child: AnimatedOpacity(
-                  opacity: showCheckbox ? 1.0 : 0.0,
-                  duration: AppMotion.respecting(context, AppMotion.overlayOut),
-                  curve: AppMotion.standard,
-                  child: IgnorePointer(
-                    ignoring: !showCheckbox,
-                    child: Checkbox(
-                      value: checked,
-                      onChanged: (_) => widget.onCheck(),
+          child: Opacity(
+            opacity: cut ? AppTokens.disabledRowOpacity : 1,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: MediaColumnLayout.gutter,
+                  child: AnimatedOpacity(
+                    opacity: showCheckbox ? 1.0 : 0.0,
+                    duration: AppMotion.respecting(
+                      context,
+                      AppMotion.overlayOut,
                     ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: widget.widths[MediaColumn.name],
-                child: Row(
-                  children: [
-                    FileThumbnail(
-                      entry: entry,
-                      label: label,
-                      iconColor: iconColor,
-                      enabled: widget.showThumbnail,
-                      size: 22,
-                    ),
-                    const SizedBox(width: AppSpacing.md12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Tooltip(
-                            message: name,
-                            waitDuration: AppMotion.progress,
-                            child: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypeScale.body.copyWith(
-                                fontWeight: selected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: t.textTitle,
-                              ),
-                            ),
-                          ),
-                          if (needsReview)
-                            Text(
-                              '⚠ ${l10n.needsReview}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypeScale.caption.copyWith(
-                                fontSize: AppTypeScale.sizeMono,
-                                color: t.warningText,
-                              ),
-                            )
-                          else if (widget.relativeDir != null)
-                            Text(
-                              widget.relativeDir!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.tokens.monoSmall.copyWith(
-                                color: t.textMuted,
-                              ),
-                            ),
-                        ],
+                    curve: AppMotion.standard,
+                    child: IgnorePointer(
+                      ignoring: !showCheckbox,
+                      child: Checkbox(
+                        value: checked,
+                        onChanged: (_) => widget.onCheck(),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              // Each cell mirrors the header's gap so the two stay in step;
-              // the gap is where the header's drag handle sits.
-              const SizedBox(width: MediaColumnLayout.dividerHitWidth),
-              SizedBox(
-                width: widget.widths[MediaColumn.type],
-                child: Text(
-                  MediaTable.localizedType(l10n, label, isDir),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypeScale.caption.copyWith(
-                    fontSize: AppTypeScale.sizeCaption,
-                    color: t.textSecondary,
                   ),
                 ),
-              ),
-              const SizedBox(width: MediaColumnLayout.dividerHitWidth),
-              SizedBox(
-                width: widget.widths[MediaColumn.size],
-                child: Text(
-                  size,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.tokens.monoSmall.copyWith(
-                    fontSize: AppTypeScale.sizeCaption,
-                    color: t.textSecondary,
+                SizedBox(
+                  width: widget.widths[MediaColumn.name],
+                  child: Row(
+                    children: [
+                      FileThumbnail(
+                        entry: entry,
+                        label: label,
+                        iconColor: iconColor,
+                        enabled: widget.showThumbnail,
+                        size: 22,
+                      ),
+                      const SizedBox(width: AppSpacing.md12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Tooltip(
+                              message: name,
+                              waitDuration: AppMotion.progress,
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypeScale.body.copyWith(
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: t.textTitle,
+                                ),
+                              ),
+                            ),
+                            if (needsReview)
+                              Text(
+                                '⚠ ${l10n.needsReview}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypeScale.caption.copyWith(
+                                  fontSize: AppTypeScale.sizeMono,
+                                  color: t.warningText,
+                                ),
+                              )
+                            else if (widget.relativeDir != null)
+                              Text(
+                                widget.relativeDir!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.tokens.monoSmall.copyWith(
+                                  color: t.textMuted,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: MediaColumnLayout.dividerHitWidth),
-              SizedBox(
-                width: widget.widths[MediaColumn.suggestion],
-                child: _SuggestionCell(action: action),
-              ),
-              const SizedBox(width: MediaColumnLayout.dividerHitWidth),
-              SizedBox(
-                width: widget.widths[MediaColumn.confidence],
-                child: _ConfidenceCell(action: action),
-              ),
-            ],
+                // Each cell mirrors the header's gap so the two stay in step;
+                // the gap is where the header's drag handle sits.
+                const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                SizedBox(
+                  width: widget.widths[MediaColumn.type],
+                  child: Text(
+                    MediaTable.localizedType(l10n, label, isDir),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypeScale.caption.copyWith(
+                      fontSize: AppTypeScale.sizeCaption,
+                      color: t.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                SizedBox(
+                  width: widget.widths[MediaColumn.size],
+                  child: Text(
+                    size,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.tokens.monoSmall.copyWith(
+                      fontSize: AppTypeScale.sizeCaption,
+                      color: t.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                SizedBox(
+                  width: widget.widths[MediaColumn.suggestion],
+                  child: _SuggestionCell(action: action),
+                ),
+                const SizedBox(width: MediaColumnLayout.dividerHitWidth),
+                SizedBox(
+                  width: widget.widths[MediaColumn.confidence],
+                  child: _ConfidenceCell(action: action),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1106,6 +1118,7 @@ class _FooterBar extends StatelessWidget {
                 ),
               ),
             ],
+            if (dir != null) _ClipboardChip(destinationDir: dir),
             const Spacer(),
             Container(
               width: 6,
@@ -1120,6 +1133,101 @@ class _FooterBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The footer's clipboard state: "3 items cut · Paste here ⌘V · Clear".
+///
+/// This is where a paste lands when nothing is right-clicked — the list has
+/// no empty-area menu — and the one place the user can see a cut is pending
+/// after navigating away from the rows that dimmed. Hidden when the
+/// clipboard is empty; two narrow selects, not a watch.
+class _ClipboardChip extends StatelessWidget {
+  final String destinationDir;
+  const _ClipboardChip({required this.destinationDir});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final t = context.tokens;
+    final (count, mode) = context.select<FileClipboard, (int, ClipboardMode)>(
+      (c) => (c.count, c.mode),
+    );
+    if (count == 0) return const SizedBox.shrink();
+    final cut = mode == ClipboardMode.cut;
+
+    Widget link(String label, VoidCallback onTap, {Color? color}) =>
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Text(
+              label,
+              style: AppTypeScale.caption.copyWith(
+                color: color ?? t.textSecondary,
+                fontWeight: color == null ? FontWeight.w400 : FontWeight.w500,
+              ),
+            ),
+          ),
+        );
+    Text dot() => Text('·', style: TextStyle(color: t.textDisabled));
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 14px divider and 12px glyph: the footer chip on the design canvas
+        // (Files artboard) sits inside an 11.5px text row, not a 32px control.
+        const AppVerticalDivider(height: 14, margin: AppSpacing.md),
+        Container(
+          height: AppSizes.controlXs,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.sm,
+            0,
+            AppSpacing.md,
+            0,
+          ),
+          decoration: BoxDecoration(
+            color: t.tabActiveFill,
+            borderRadius: BorderRadius.circular(AppRadii.tiny),
+            border: Border.all(color: t.tabActiveStroke),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                cut ? Icons.content_cut_rounded : Icons.content_copy_rounded,
+                size: 12,
+                color: t.accentText,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                cut
+                    ? l10n.clipboardCutCount(count)
+                    : l10n.clipboardCopiedCount(count),
+                style: AppTypeScale.caption.copyWith(color: t.textBody),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              dot(),
+              const SizedBox(width: AppSpacing.sm),
+              link(
+                l10n.clipboardPasteHere,
+                () => pasteClipboard(context, destinationDir: destinationDir),
+                color: t.accentText,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              ShortcutPill(shortcutLabel(AppShortcutId.paste)),
+              const SizedBox(width: AppSpacing.sm),
+              dot(),
+              const SizedBox(width: AppSpacing.sm),
+              link(
+                l10n.clipboardClear,
+                () => context.read<FileClipboard>().clear(),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

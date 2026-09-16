@@ -23,6 +23,9 @@ enum AppShortcutId {
   openFolder,
   selectAll,
   escape,
+  copy,
+  cut,
+  paste,
   rename,
   delete,
   organize,
@@ -158,6 +161,29 @@ List<AppShortcut> appShortcuts({bool? isMac}) {
     ),
 
     // ── Files ───────────────────────────────────────────────────────────────
+    // Copy / cut / paste bind the keys every file manager uses. All three are
+    // skipWhileTyping: a text field owns them while it has focus.
+    AppShortcut(
+      id: AppShortcutId.copy,
+      group: AppShortcutGroup.files,
+      activators: [cmd(LogicalKeyboardKey.keyC)],
+      describe: (l) => l.shortcutCopy,
+      skipWhileTyping: true,
+    ),
+    AppShortcut(
+      id: AppShortcutId.cut,
+      group: AppShortcutGroup.files,
+      activators: [cmd(LogicalKeyboardKey.keyX)],
+      describe: (l) => l.shortcutCut,
+      skipWhileTyping: true,
+    ),
+    AppShortcut(
+      id: AppShortcutId.paste,
+      group: AppShortcutGroup.files,
+      activators: [cmd(LogicalKeyboardKey.keyV)],
+      describe: (l) => l.shortcutPaste,
+      skipWhileTyping: true,
+    ),
     AppShortcut(
       id: AppShortcutId.rename,
       group: AppShortcutGroup.files,
@@ -238,8 +264,32 @@ bool isTextFieldFocused() {
   return context.findAncestorWidgetOfExactType<EditableText>() != null;
 }
 
+/// A [SingleActivator] that stands down while a text field has focus.
+///
+/// The guard has to live in [accepts], not in the callback: `CallbackShortcuts`
+/// marks a key event handled as soon as an activator *matches*, whatever the
+/// callback then does, and the text field's own editing shortcuts sit above
+/// `HomeScreen` in the tree. A callback that merely returned early still ate
+/// the key — ⌘V in the search box pasted nothing once ⌘V was bound.
+class TypingAwareActivator extends ShortcutActivator {
+  final SingleActivator inner;
+  const TypingAwareActivator(this.inner);
+
+  @override
+  bool accepts(KeyEvent event, HardwareKeyboard state) =>
+      !isTextFieldFocused() && inner.accepts(event, state);
+
+  @override
+  Iterable<LogicalKeyboardKey>? get triggers => inner.triggers;
+
+  @override
+  String debugDescribeKeys() => inner.debugDescribeKeys();
+}
+
 /// Builds the `CallbackShortcuts` map from [appShortcuts], wiring each id to
-/// its handler. Ids absent from [handlers] are left unbound.
+/// its handler. Ids absent from [handlers] are left unbound. A
+/// [AppShortcut.skipWhileTyping] activator is wrapped in
+/// [TypingAwareActivator] so a focused text field keeps the key.
 Map<ShortcutActivator, VoidCallback> buildShortcutBindings(
   Map<AppShortcutId, VoidCallback> handlers, {
   bool? isMac,
@@ -248,14 +298,11 @@ Map<ShortcutActivator, VoidCallback> buildShortcutBindings(
   for (final shortcut in appShortcuts(isMac: isMac)) {
     final handler = handlers[shortcut.id];
     if (handler == null) continue;
-    final guarded = shortcut.skipWhileTyping
-        ? () {
-            if (isTextFieldFocused()) return;
-            handler();
-          }
-        : handler;
     for (final activator in shortcut.activators) {
-      bindings[activator] = guarded;
+      bindings[shortcut.skipWhileTyping
+              ? TypingAwareActivator(activator)
+              : activator] =
+          handler;
     }
   }
   return bindings;

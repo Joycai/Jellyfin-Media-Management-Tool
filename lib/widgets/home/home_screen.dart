@@ -6,11 +6,13 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/file_entry.dart';
 import '../../services/ai/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/history_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/task_service.dart';
+import '../../services/transfer/file_clipboard.dart';
 import '../../shortcuts/app_shortcuts.dart';
 import '../../theme/design_tokens.dart';
 import '../../utils/format.dart';
@@ -19,6 +21,7 @@ import '../ai/history_popover.dart';
 import '../ai/organize_history_screen.dart';
 import '../dialogs/title_hint_dialog.dart';
 import '../file_browser/file_context_menu.dart';
+import '../file_browser/file_transfer_flow.dart';
 import '../file_browser/media_table.dart';
 import '../scrape/scrape_flow.dart';
 import '../settings/settings_screen.dart';
@@ -171,7 +174,42 @@ class _HomeScreenState extends State<HomeScreen> {
       _searchFocus.unfocus();
       return;
     }
-    context.read<FileBrowserService>().clearSelection();
+    if (!_onFiles) return;
+    final browser = context.read<FileBrowserService>();
+    if (browser.selectionCount > 0 || browser.selectedFile != null) {
+      browser.clearSelection();
+      return;
+    }
+    // Last layer, and only for a cut: Esc calls off a pending move the way
+    // Explorer does. A copy stays — it costs nothing to keep.
+    final clipboard = context.read<FileClipboard>();
+    if (clipboard.mode == ClipboardMode.cut) clipboard.clear();
+  }
+
+  /// What the file shortcuts act on: an explicit multi-selection wins,
+  /// otherwise the focused row. Mirrors the context menu.
+  List<FileEntry> _actionTargets() {
+    final browser = context.read<FileBrowserService>();
+    if (browser.selectedEntries.isNotEmpty) return browser.selectedEntries;
+    final focused = browser.selectedFile;
+    return focused == null ? const [] : [focused];
+  }
+
+  void _copySelection() {
+    if (!_onFiles) return;
+    copyEntries(context, _actionTargets());
+  }
+
+  void _cutSelection() {
+    if (!_onFiles) return;
+    cutEntries(context, _actionTargets());
+  }
+
+  Future<void> _paste() async {
+    if (!_onFiles) return;
+    final dir = context.read<FileBrowserService>().currentDirectory;
+    if (dir == null) return;
+    await pasteClipboard(context, destinationDir: dir);
   }
 
   Future<void> _renameFocused() async {
@@ -183,13 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _deleteSelection() async {
     if (!_onFiles) return;
-    final browser = context.read<FileBrowserService>();
-    // Mirrors the context menu: an explicit multi-selection wins, otherwise
-    // the focused row.
-    final targets = browser.selectedEntries.isNotEmpty
-        ? browser.selectedEntries
-        : [if (browser.selectedFile != null) browser.selectedFile!];
-    await deleteEntries(context, targets);
+    await deleteEntries(context, _actionTargets());
   }
 
   void _toggleFavorite() {
@@ -226,6 +258,9 @@ class _HomeScreenState extends State<HomeScreen> {
       AppShortcutId.openFolder: _pickFolder,
       AppShortcutId.selectAll: _selectAll,
       AppShortcutId.escape: _escape,
+      AppShortcutId.copy: _copySelection,
+      AppShortcutId.cut: _cutSelection,
+      AppShortcutId.paste: _paste,
       AppShortcutId.rename: _renameFocused,
       AppShortcutId.delete: _deleteSelection,
       AppShortcutId.organize: _organize,

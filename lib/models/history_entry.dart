@@ -1,25 +1,29 @@
 import 'package:path/path.dart' as p;
 
 /// Coarse kind for visual styling and grouping in the history list.
-/// [aiOrganize] comes from the organize pipeline and [metadataRefresh] from a
-/// scrape commit; the remaining two are placeholders.
+/// [aiOrganize] comes from the organize pipeline, [metadataRefresh] from a
+/// scrape commit and [fileTransfer] from a copy/cut/paste in the file
+/// browser; the remaining two are placeholders.
 enum HistoryKind {
   aiOrganize,
   manualRename,
   metadataRefresh,
-  batchImport;
+  batchImport,
+  fileTransfer;
 
   String get id => switch (this) {
     HistoryKind.aiOrganize => 'ai_organize',
     HistoryKind.manualRename => 'manual_rename',
     HistoryKind.metadataRefresh => 'metadata_refresh',
     HistoryKind.batchImport => 'batch_import',
+    HistoryKind.fileTransfer => 'file_transfer',
   };
 
   static HistoryKind fromId(String? id) => switch (id) {
     'manual_rename' => HistoryKind.manualRename,
     'metadata_refresh' => HistoryKind.metadataRefresh,
     'batch_import' => HistoryKind.batchImport,
+    'file_transfer' => HistoryKind.fileTransfer,
     _ => HistoryKind.aiOrganize,
   };
 }
