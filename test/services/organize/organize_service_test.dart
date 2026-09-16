@@ -1,9 +1,9 @@
 import 'package:file/file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/organize_plan.dart';
-import 'package:jellyfin_media_management_tool/services/organize_service.dart';
+import 'package:jellyfin_media_management_tool/services/organize/organize_service.dart';
 
-import '../helpers/fs.dart';
+import '../../helpers/fs.dart';
 
 OrganizeAction _act(String source, String target) => OrganizeAction(
   source: source,

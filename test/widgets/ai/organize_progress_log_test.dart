@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/models/organize_plan.dart';
-import 'package:jellyfin_media_management_tool/services/apply_controller.dart';
+import 'package:jellyfin_media_management_tool/services/organize/apply_controller.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/ai/organize_progress_screen.dart';
 import 'package:provider/provider.dart';

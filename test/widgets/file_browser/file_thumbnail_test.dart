@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/file_entry.dart';
-import 'package:jellyfin_media_management_tool/services/thumbnail_service.dart';
+import 'package:jellyfin_media_management_tool/services/thumbnails/thumbnail_service.dart';
 import 'package:jellyfin_media_management_tool/widgets/file_browser/file_thumbnail.dart';
 
 /// A 1x1 PNG. Image.memory sniffs the container, so the service's "jpeg"

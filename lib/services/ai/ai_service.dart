@@ -4,17 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 
-import '../models/organize_plan.dart';
-import 'ai/ai_cancel_token.dart';
-import 'ai/ai_provider.dart';
-import 'ai/connection_check.dart';
-import 'ai/google_genai_provider.dart';
-import 'ai/openai_provider.dart';
-import 'organize/filename_parser.dart';
-import 'organize/grouping.dart';
-import 'organize/jellyfin_naming.dart';
-import 'organize/organize_agent.dart';
-import 'organize/organize_workspace.dart';
+import '../../models/organize_plan.dart';
+import '../organize/filename_parser.dart';
+import '../organize/grouping.dart';
+import '../organize/jellyfin_naming.dart';
+import '../organize/organize_agent.dart';
+import '../organize/organize_workspace.dart';
+import './ai_cancel_token.dart';
+import './ai_provider.dart';
+import './connection_check.dart';
+import './google_genai_provider.dart';
+import './openai_provider.dart';
 
 enum ConnectionStatus { unknown, testing, connected, error }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../services/apply_controller.dart';
+import '../../services/organize/apply_controller.dart';
 import '../../services/task_service.dart';
 import '../../theme/design_tokens.dart';
 import '../ai/organize_progress_screen.dart';

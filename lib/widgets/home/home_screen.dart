@@ -1,31 +1,33 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
-import '../l10n/app_localizations.dart';
-import '../services/ai_service.dart';
-import '../services/file_browser_service.dart';
-import '../services/history_service.dart';
-import '../services/settings_service.dart';
-import '../services/task_service.dart';
-import '../shortcuts/app_shortcuts.dart';
-import '../theme/design_tokens.dart';
-import '../utils/format.dart';
-import '../widgets/ai/ai_assistant_panel.dart';
-import '../widgets/ai/history_popover.dart';
-import '../widgets/ai/organize_history_screen.dart';
-import '../widgets/dialogs/title_hint_dialog.dart';
-import '../widgets/file_browser/file_context_menu.dart';
-import '../widgets/file_browser/media_table.dart';
-import '../widgets/scrape/scrape_flow.dart';
-import '../widgets/settings/settings_screen.dart';
-import '../widgets/shell/app_shell.dart';
-import '../widgets/shell/app_title_bar.dart';
-import '../widgets/shell/window_state.dart';
-import '../widgets/sidebar/app_sidebar.dart';
-import '../widgets/tasks/tasks_screen.dart';
-import '../widgets/ui/glass_surface.dart';
+import '../../l10n/app_localizations.dart';
+import '../../services/ai/ai_service.dart';
+import '../../services/file_browser_service.dart';
+import '../../services/history_service.dart';
+import '../../services/settings_service.dart';
+import '../../services/task_service.dart';
+import '../../shortcuts/app_shortcuts.dart';
+import '../../theme/design_tokens.dart';
+import '../../utils/format.dart';
+import '../ai/ai_assistant_panel.dart';
+import '../ai/history_popover.dart';
+import '../ai/organize_history_screen.dart';
+import '../dialogs/title_hint_dialog.dart';
+import '../file_browser/file_context_menu.dart';
+import '../file_browser/media_table.dart';
+import '../scrape/scrape_flow.dart';
+import '../settings/settings_screen.dart';
+import '../shell/app_shell.dart';
+import '../shell/app_title_bar.dart';
+import '../shell/window_state.dart';
+import '../sidebar/app_sidebar.dart';
+import '../tasks/tasks_screen.dart';
+import '../ui/glass_surface.dart';
 
 /// 应用外壳：一条 48px 统一顶栏之下的三栏骨架（2.6）。
 ///
@@ -73,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final dir = await FilePicker.getDirectoryPath();
     if (dir != null) {
       browser.setCurrentDirectory(dir);
-      settings.pushRecent(dir);
+      await settings.pushRecent(dir);
     }
   }
 
@@ -203,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (box == null || !box.hasSize) {
       // 顶栏不在场（例如从别处触发快捷键）时退回到独立窗口，而不是把浮层
       // 钉在屏幕角落。
-      OrganizeHistoryScreen.show(context);
+      unawaited(OrganizeHistoryScreen.show(context));
       return;
     }
     final origin = box.localToGlobal(Offset.zero);

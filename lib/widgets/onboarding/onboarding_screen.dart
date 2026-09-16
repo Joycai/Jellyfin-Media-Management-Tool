@@ -6,9 +6,9 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/ai_service_profile.dart';
+import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_provider.dart';
-import '../../services/ai_profiles_service.dart';
-import '../../services/ai_service.dart';
+import '../../services/ai/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';

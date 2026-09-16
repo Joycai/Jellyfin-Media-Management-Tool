@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/file_entry.dart';
-import 'package:jellyfin_media_management_tool/services/thumbnail_service.dart';
+import 'package:jellyfin_media_management_tool/services/thumbnails/thumbnail_service.dart';
 
 final _pixel = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',

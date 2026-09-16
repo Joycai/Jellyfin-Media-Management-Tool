@@ -20,12 +20,13 @@ library;
 
 import 'dart:convert';
 
+import 'package:html/dom.dart';
+
 import '../../models/media_metadata.dart';
 import '../../models/scrape_recipe.dart';
 import '../agent/agent_runtime.dart';
 import '../ai/ai_cancel_token.dart';
 import '../ai/ai_provider.dart';
-import 'package:html/dom.dart';
 import 'page_tools.dart';
 import 'recipe_applier.dart';
 import 'scrape_prompt.dart';

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../services/ai_profiles_service.dart';
-import '../../services/ai_service.dart';
+import '../../services/ai/ai_profiles_service.dart';
+import '../../services/ai/ai_service.dart';
 import '../../theme/app_theme.dart';
 import '../shell/app_shell.dart';
 import '../shell/secondary_title_bar.dart';

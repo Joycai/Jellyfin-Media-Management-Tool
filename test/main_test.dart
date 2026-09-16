@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:jellyfin_media_management_tool/main.dart';
-import 'package:jellyfin_media_management_tool/services/ai_profiles_service.dart';
-import 'package:jellyfin_media_management_tool/services/ai_service.dart';
-import 'package:jellyfin_media_management_tool/services/font_service.dart';
-import 'package:jellyfin_media_management_tool/services/settings_service.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
 import 'package:jellyfin_media_management_tool/services/file_browser_service.dart';
+import 'package:jellyfin_media_management_tool/services/font_service.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
+import 'package:jellyfin_media_management_tool/services/settings_service.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/glass_cover.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('Fresh install shows the onboarding welcome step', (

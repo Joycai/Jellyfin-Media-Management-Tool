@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
-import '../models/history_entry.dart';
-import '../models/organize_plan.dart';
-import 'history_service.dart';
-import 'organize_service.dart';
+import '../../models/history_entry.dart';
+import '../../models/organize_plan.dart';
+import '../history_service.dart';
+import './organize_service.dart';
 
 enum ApplyStatus { running, paused, stopped, done }
 

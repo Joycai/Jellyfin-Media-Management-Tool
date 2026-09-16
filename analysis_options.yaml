@@ -29,9 +29,22 @@ linter:
   # or a specific dart file by using the `// ignore: name_of_lint` and
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
+  # Every rule below was already the house style before it was switched on, so
+  # none of them is a new opinion — they are the ones CLAUDE.md and
+  # CONTRIBUTING.md state in prose, made enforceable. CI runs
+  # `flutter analyze --fatal-infos`, so a violation fails the build.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # lib/ reaches its own libraries relatively (CLAUDE.md, Source layout).
+    - prefer_relative_imports
+    # dart: / package: / relative, alphabetical within each group.
+    - directives_ordering
+    - prefer_single_quotes
+    - always_declare_return_types
+    - use_super_parameters
+    # A future the code deliberately does not await says so with unawaited(),
+    # so "fire and forget" stays distinguishable from "forgot to await" — the
+    # organize pipeline launches tasks both ways.
+    - unawaited_futures
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

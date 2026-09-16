@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../services/ai_service.dart';
+import '../../services/ai/ai_service.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';

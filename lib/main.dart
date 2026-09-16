@@ -8,10 +8,10 @@ import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
+import './services/ai/ai_profiles_service.dart';
+import './services/ai/ai_service.dart';
+import './widgets/home/home_screen.dart';
 import 'l10n/app_localizations.dart';
-import 'screens/home_screen.dart';
-import 'services/ai_profiles_service.dart';
-import 'services/ai_service.dart';
 import 'services/file_browser_service.dart';
 import 'services/font_service.dart';
 import 'services/history_service.dart';

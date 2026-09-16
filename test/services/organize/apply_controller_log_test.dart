@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/organize_plan.dart';
-import 'package:jellyfin_media_management_tool/services/apply_controller.dart';
+import 'package:jellyfin_media_management_tool/services/organize/apply_controller.dart';
 import 'package:path/path.dart' as p;
 
 /// Five real files under a temp base dir, so [ApplyController.start] has

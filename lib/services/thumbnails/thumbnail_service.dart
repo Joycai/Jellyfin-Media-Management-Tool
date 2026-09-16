@@ -13,8 +13,8 @@ import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../models/file_entry.dart';
-import 'windows_thumbnailer.dart';
+import '../../models/file_entry.dart';
+import './windows_thumbnailer.dart';
 
 /// Poster frames for video rows in the file table.
 ///

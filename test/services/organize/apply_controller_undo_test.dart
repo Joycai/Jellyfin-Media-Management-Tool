@@ -5,11 +5,11 @@ import 'package:file/file.dart' show FileSystem;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/history_entry.dart';
 import 'package:jellyfin_media_management_tool/models/organize_plan.dart';
-import 'package:jellyfin_media_management_tool/services/apply_controller.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
+import 'package:jellyfin_media_management_tool/services/organize/apply_controller.dart';
 import 'package:path/path.dart' as p;
 
-import '../helpers/fs.dart';
+import '../../helpers/fs.dart';
 
 const _count = 5;
 

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_media_management_tool/services/rename_service.dart';
+import 'package:jellyfin_media_management_tool/services/organize/rename_service.dart';
 
 /// rename_service.dart had no test at all, and CLAUDE.md singles out one of
 /// its rules as worth preserving: baseNameForTarget has to walk *past* the

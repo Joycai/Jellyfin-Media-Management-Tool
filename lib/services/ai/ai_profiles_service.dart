@@ -6,9 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../models/ai_service_profile.dart';
-import '../utils/ids.dart';
-import 'ai/ai_provider.dart';
+import '../../models/ai_service_profile.dart';
+import '../../utils/ids.dart';
+import './ai_provider.dart';
 
 /// Owns the user-configured AI service profiles and the currently active
 /// selection. Persists to its own `ai_profiles.json` so editing a profile

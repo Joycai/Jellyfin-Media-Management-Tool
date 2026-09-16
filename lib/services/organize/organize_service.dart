@@ -1,8 +1,8 @@
 import 'package:file/file.dart';
 import 'package:file/local.dart';
 
-import '../models/organize_plan.dart';
-import 'path_safety.dart';
+import '../../models/organize_plan.dart';
+import '../path_safety.dart';
 
 /// Outcome of applying a whole plan.
 class ApplyResult {

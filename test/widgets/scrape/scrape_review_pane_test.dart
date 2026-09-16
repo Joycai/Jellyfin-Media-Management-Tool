@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_merge.dart';
-import 'package:jellyfin_media_management_tool/services/scrape/scrape_service.dart';
-import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/image_cache.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/page_fetcher.dart';
+import 'package:jellyfin_media_management_tool/services/scrape/scrape_service.dart';
+import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/scrape/image_gallery.dart';
 import 'package:jellyfin_media_management_tool/widgets/scrape/scrape_review_pane.dart';
 
