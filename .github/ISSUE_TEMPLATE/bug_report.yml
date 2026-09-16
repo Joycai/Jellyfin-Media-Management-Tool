@@ -1,0 +1,75 @@
+name: Bug report
+description: Something the app does wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This app only touches the local filesystem — it never talks to a
+        Jellyfin server. If the problem is Jellyfin not picking up files this
+        app already renamed correctly, that is a Jellyfin question.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: |
+        If it involves organizing, the shape of the folder matters more than
+        its contents — a few example file names (redacted as you like) is
+        usually enough.
+      placeholder: |
+        1. Open a folder containing …
+        2. Press Organize with hint "series"
+        3. The preview shows …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Settings → About.
+      placeholder: "1.1.0+2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: "Windows 11 26200 / macOS 15.2 / Ubuntu 24.04"
+
+  - type: input
+    id: ai-backend
+    attributes:
+      label: AI backend, if the problem involves Organize or Scrape
+      description: |
+        Which server and which model — a local 8B model and a frontier API
+        behave very differently here, and "the model stopped calling tools" is
+        usually the answer. Never paste an API key.
+      placeholder: "LM Studio 0.3.x, qwen3-30b-a3b / Google, gemini-2.5-pro"
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, the task log from the Tasks tab, console output.

@@ -108,11 +108,16 @@ scraped from.
 
 ## Interface
 
-A frosted-glass desktop shell with its own 48px title bar (native Snap Layouts
-on Windows 11, real traffic lights on macOS), light and dark themes, a
-user-chosen accent colour that previews live, and a **performance mode** that
-swaps the blur for pre-mixed opaque surfaces — measured at roughly double the
-frame rate on an integrated GPU driving 4K.
+A frosted-glass desktop shell with its own 48px title bar — its own window
+buttons on Windows and Linux, the real traffic lights on macOS — light and dark
+themes, and a user-chosen accent colour that previews live while you drag it.
+
+The frost is not expensive. Both the window backdrop and the blur behind each
+glass panel are pre-rendered, so a maximized 4K frame on an integrated GPU costs
+the same whether the effect is on or off: **80.4 ms → 1.74 ms** per frame,
+measured. A glass-intensity slider runs from full frost down to `0`, which
+swaps every translucent surface for the design's pre-mixed opaque one — the
+escape hatch for a weak GPU, and the only one you need.
 
 English and 中文, with optional downloadable CJK UI fonts (HarmonyOS Sans SC,
 MiSans) for machines whose system font is not to your taste.
@@ -148,9 +153,12 @@ Platform notes:
 
 ## Contributing
 
-[CLAUDE.md](CLAUDE.md) is the architecture document — the invariants worth
-knowing before changing anything are in there, and it is kept current.
-The UI design spec lives in [`docs/spec/ui-redesign/`](docs/spec/ui-redesign/).
+[CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the build gates and the
+conventions. [CLAUDE.md](CLAUDE.md) is the architecture document — the
+invariants worth knowing before changing anything are in there, and it is kept
+current. The design and module specs the code is written against are indexed in
+[`docs/`](docs/), and [CHANGELOG.md](CHANGELOG.md) says what changed between
+versions.
 
 CI runs `dart format --set-exit-if-changed`, `flutter analyze --fatal-infos` and
 `flutter test` on every pull request. A lint *info* fails the build, so run all
