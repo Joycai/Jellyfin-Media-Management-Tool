@@ -395,6 +395,10 @@ class _PlatformPicker extends StatelessWidget {
         children: [
           AiFieldLabel(l10n.aiPlatformLabel),
           DropdownButton<String?>(
+            // The theme's canvas is transparent for the glass backdrop; the
+            // menu needs the same opaque fill as every other popup.
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadii.field),
             value: channel.platformId,
             isExpanded: true,
             isDense: true,

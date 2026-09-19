@@ -1050,6 +1050,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
               _SectionLabel(l10n.scrapeBackend),
               const SizedBox(height: 8),
               DropdownButtonFormField<String?>(
+                // The theme's canvas is transparent for the glass backdrop; the
+                // menu needs the same opaque fill as every other popup.
+                dropdownColor: Theme.of(context).colorScheme.surface,
                 // Rebuilt when the picked model disappears in Settings, so the
                 // field never holds an id that is no longer an item.
                 key: ValueKey(

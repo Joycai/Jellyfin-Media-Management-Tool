@@ -622,6 +622,9 @@ class _TaskPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String?>(
+          // The theme's canvas is transparent for the glass backdrop; the
+          // menu needs the same opaque fill as every other popup.
+          dropdownColor: Theme.of(context).colorScheme.surface,
           initialValue: value,
           key: ValueKey('${task.id}|$value|${items.length}'),
           isExpanded: true,

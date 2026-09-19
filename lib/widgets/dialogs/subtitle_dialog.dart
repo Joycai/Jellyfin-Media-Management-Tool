@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../../l10n/app_localizations.dart';
+import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 
 class SubtitleDialog extends StatefulWidget {
@@ -59,6 +60,10 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
           // and 'Traditional Chinese . zh-Hant' is wider than a 420px dialog
           // minus its padding -- the row overflowed by 150px on the right.
           DropdownButtonFormField<File>(
+            // The theme's canvas is transparent for the glass backdrop; the
+            // menu needs the same opaque fill as every other popup.
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadii.field),
             initialValue: _selectedVideo,
             isExpanded: true,
             decoration: InputDecoration(labelText: l10n.video),
@@ -77,6 +82,10 @@ class _SubtitleDialogState extends State<SubtitleDialog> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
+            // The theme's canvas is transparent for the glass backdrop; the
+            // menu needs the same opaque fill as every other popup.
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadii.field),
             initialValue: _selectedLang,
             isExpanded: true,
             decoration: InputDecoration(labelText: l10n.languageLabel),

@@ -11,6 +11,12 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+### Fixed
+
+- Drop-down menus (task assignment, platform, model pickers, subtitle and
+  season dialogs) were see-through over the frosted background; they now use
+  the same opaque fill as other menus.
+
 ## [1.3.0] - 2026-09-19
 
 ### Added
