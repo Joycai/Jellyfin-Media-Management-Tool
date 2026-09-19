@@ -204,6 +204,10 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
                     child: ListView(
                       children: [
                         DropdownButtonFormField<String>(
+                          // The theme's canvas is transparent for the glass backdrop; the
+                          // menu needs the same opaque fill as every other popup.
+                          dropdownColor: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(AppRadii.field),
                           initialValue: entry?.model.id,
                           isExpanded: true,
                           isDense: true,

@@ -46,6 +46,10 @@ class _TVShowDialogState extends State<TVShowDialog> {
               Text('${l10n.season}: '),
               const Spacer(),
               DropdownButton<int>(
+                // The theme's canvas is transparent for the glass backdrop; the
+                // menu needs the same opaque fill as every other popup.
+                dropdownColor: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(AppRadii.field),
                 value: _season,
                 items: List.generate(11, (i) => i).map((i) {
                   return DropdownMenuItem(value: i, child: Text(_formatNum(i)));
