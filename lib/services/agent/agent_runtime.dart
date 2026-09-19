@@ -217,6 +217,8 @@ abstract final class AgentRuntime {
           }
           continue;
         }
+        // "In a row": a whole reply between two cut-off ones starts over.
+        truncatedRounds = 0;
         final reminder = nudges < maxNudges ? nudge?.call() : null;
         if (reminder == null) return finish(AgentOutcome.stopped, round);
         nudges++;

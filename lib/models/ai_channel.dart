@@ -284,8 +284,11 @@ class AiChannel {
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
-    final path = own ?? platform.routes[protocol]?.defaultPath ?? '';
-    return '$base$path';
+    if (own != null) return '$base$own';
+    final path = platform.routes[protocol]?.defaultPath ?? '';
+    // A host pasted the way vendor docs print it already ends in the path
+    // (`https://api.openai.com/v1`); adding it again would 404.
+    return base.endsWith(path) ? base : '$base$path';
   }
 
   /// Whether the endpoint for [protocol] replaces the host rather than
@@ -315,8 +318,9 @@ class AiChannel {
       apiKey: apiKey,
       model: model.upstream,
       // A route on a host of its own belongs to that host's platform.
-      platform:
-          platformId ?? PlatformProfiles.forHost(endpointFor(protocol))?.id,
+      platform: hasOwnHost(protocol)
+          ? PlatformProfiles.forHost(endpointFor(protocol))?.id ?? platformId
+          : platformId ?? PlatformProfiles.forHost(endpointFor(protocol))?.id,
       temperature: params.temperature,
       topP: params.topP,
       topK: params.topK,
@@ -369,12 +373,15 @@ class AiChannel {
     }
 
     final old = bare(baseUrl);
+    // Only a real host can be moved from: a half-typed `https:` would match
+    // every route on every host.
+    final movable = Uri.tryParse(old)?.host.isNotEmpty ?? false;
     return copyWith(
       baseUrl: value,
       routes: [
         for (final route in routes)
           if (route.endpoint case final own?
-              when old.isNotEmpty &&
+              when movable &&
                   !own.startsWith('/') &&
                   (bare(own) == old || own.startsWith('$old/')))
             route.withEndpoint('${bare(value)}${own.substring(old.length)}')

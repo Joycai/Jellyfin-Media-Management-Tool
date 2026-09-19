@@ -715,6 +715,33 @@ void main() {
       expect(_lastResult(provider, 1), contains('could not be read'));
     });
 
+    test('a failed lookup flags nothing decided after it', () async {
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        (_) => toolTurn([
+          (
+            'submit_group',
+            {
+              'group': 'g1',
+              'mediaType': 'movie',
+              'title': 'A',
+              'confidence': 1,
+            },
+          ),
+        ]),
+      ]);
+      final run = await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: unnamed,
+        lookAtFrames: (_) async =>
+            throw const AiException('HTTP 401: invalid key'),
+      );
+      expect(run.plan.actions.every((a) => a.confidence >= 0.6), isTrue);
+      expect(run.plan.actions.first.note, isNot(contains('video frames')));
+    });
+
     test('lookups are capped per run', () async {
       var looked = 0;
       final provider = ScriptedChatProvider([

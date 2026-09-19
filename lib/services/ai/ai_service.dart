@@ -297,8 +297,9 @@ class AiService extends ChangeNotifier {
                 : (relativePath) async {
                     final current = visionConfig?.call();
                     if (current == null || !current.isComplete) {
-                      return 'Frame recognition was turned off. Decide from '
-                          'the names, or call mark_unsure.';
+                      throw const FramesUnavailable(
+                        'Frame recognition was turned off.',
+                      );
                     }
                     return FrameVision(
                       provider: providerFor(current),

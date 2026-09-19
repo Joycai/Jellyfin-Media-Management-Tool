@@ -247,6 +247,21 @@ void main() {
     expect(provider.calls, AgentRuntime.maxTruncatedRounds);
   });
 
+  test('cut-off replies that are not in a row do not end the run', () async {
+    const cut = ChatResult(text: 'Let me think', finishReason: 'length');
+    const whole = ChatResult(text: 'Done, I think.');
+    final provider = ScriptedChatProvider([
+      (_) => cut,
+      (_) => whole,
+      (_) => cut,
+      (_) => whole,
+    ]);
+
+    final result = await _run(provider, _Tally(), nudge: () => 'keep going');
+
+    expect(result.outcome, isNot(AgentOutcome.truncated));
+  });
+
   test('the truncation message names the current output cap', () {
     expect(AgentRuntime.truncatedMessage(4096), contains('4096'));
     expect(AgentRuntime.truncatedMessage(null), isNot(contains('null')));

@@ -77,6 +77,100 @@ void main() {
     );
   });
 
+  test('a host pasted with its version path does not get it twice', () {
+    final channel = AiChannel.create(
+      platform: PlatformProfiles.byId('openai'),
+      name: 'o',
+      baseUrl: 'https://api.openai.com/v1/',
+    );
+    expect(
+      channel.endpointFor(AiProviderType.openAi),
+      'https://api.openai.com/v1',
+    );
+  });
+
+  test('a route on a host of its own takes that host\'s platform', () {
+    final channel =
+        AiChannel.create(
+          platform: PlatformProfiles.relay,
+          name: 'r',
+          baseUrl: 'https://relay.example.com',
+        ).copyWith(
+          routes: const [
+            AiRoute(
+              protocol: AiProviderType.openAi,
+              endpoint: 'https://api.deepseek.com',
+            ),
+          ],
+        );
+    final model = AiModelEntry.create(
+      upstream: 'deepseek-chat',
+      route: AiProviderType.openAi,
+    );
+    expect(channel.configFor(model).platform, 'deepseek');
+  });
+
+  test('a half-typed host moves no route', () {
+    final channel =
+        AiChannel.create(
+          platform: PlatformProfiles.relay,
+          name: 'r',
+          baseUrl: 'https://',
+        ).copyWith(
+          routes: const [
+            AiRoute(
+              protocol: AiProviderType.openAi,
+              endpoint: 'https://api.b.example.com/v1',
+            ),
+          ],
+        );
+    expect(
+      channel.withBaseUrl('https://n').endpointFor(AiProviderType.openAi),
+      'https://api.b.example.com/v1',
+    );
+  });
+
+  test('typing a host key by key moves only the routes built on it', () {
+    final start =
+        AiChannel.create(
+          platform: PlatformProfiles.relay,
+          name: 'r',
+          baseUrl: 'https://a.example.com',
+        ).copyWith(
+          routes: const [
+            AiRoute(
+              protocol: AiProviderType.openAi,
+              endpoint: 'https://a.example.com/v1',
+            ),
+            AiRoute(
+              protocol: AiProviderType.anthropic,
+              endpoint: 'https://api.b.example.com/v1',
+            ),
+          ],
+        );
+    // What the channel page does: every keystroke from the same start.
+    AiChannel typed = start;
+    for (final value in [
+      'https://a.example.co',
+      'https://',
+      'https://n',
+      'https://new.example.com',
+    ]) {
+      typed = typed.copyWith(
+        baseUrl: value,
+        routes: start.withBaseUrl(value).routes,
+      );
+    }
+    expect(
+      typed.endpointFor(AiProviderType.openAi),
+      'https://new.example.com/v1',
+    );
+    expect(
+      typed.endpointFor(AiProviderType.anthropic),
+      'https://api.b.example.com/v1',
+    );
+  });
+
   test('an endpoint of its own wins and may be another host', () {
     final channel =
         AiChannel.create(

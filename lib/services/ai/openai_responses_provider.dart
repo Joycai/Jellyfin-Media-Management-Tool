@@ -356,7 +356,7 @@ class OpenAiResponsesProvider implements AiProvider {
       onEvent: (event) {
         switch (event['type']) {
           case 'error':
-            throw AiException('Model error: ${event['message'] ?? event}');
+            throw streamError(event);
           case 'response.output_item.done':
             final item = event['item'];
             if (item is Map) {
@@ -399,22 +399,39 @@ class OpenAiResponsesProvider implements AiProvider {
     }, model: config.model);
   }
 
+  /// An `error` event mid-stream. The request was accepted, so this is the
+  /// server's failure — unless it names the request as the problem. Public
+  /// for tests.
+  static AiException streamError(Map<dynamic, dynamic> event) {
+    final code = '${event['code'] ?? ''}';
+    final message = 'Model error: ${event['message'] ?? event}';
+    return code.startsWith('invalid') || event['param'] != null
+        ? AiException(message)
+        : AiNetworkException(message);
+  }
+
   /// One finished response object. Public for tests.
   static ChatResult parseResponse(
     Map<dynamic, dynamic> json, {
     required String model,
   }) {
     final error = json['error'];
+    final status = json['status'];
+    // `response.failed` always carries `error` too; it is the server's
+    // failure, which settles nothing about the model.
+    if (status == 'failed') {
+      throw AiNetworkException(
+        error is Map && error['message'] is String
+            ? 'The response failed on the server: ${error['message']}'
+            : 'The response failed on the server.',
+      );
+    }
     if (error != null) {
       throw AiException(
         'Model error: ${error is Map ? error['message'] : error}',
       );
     }
-    final status = json['status'];
     String? finishReason = status is String ? status : null;
-    if (status == 'failed') {
-      throw const AiNetworkException('The response failed on the server.');
-    }
     if (status == 'incomplete') {
       final details = json['incomplete_details'];
       final reason = details is Map ? details['reason'] : null;

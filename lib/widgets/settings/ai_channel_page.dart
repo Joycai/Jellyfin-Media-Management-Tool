@@ -41,6 +41,12 @@ class _AiChannelPageState extends State<AiChannelPage> {
   final Map<AiProviderType, TextEditingController> _paths = {};
   bool _obscureKey = true;
 
+  /// The channel as it was before the current run of host edits. Every
+  /// keystroke moves the routes from here, never from the half-typed host
+  /// the previous keystroke left — `https://` alone would otherwise match
+  /// every route on any host. A route edit starts a new run.
+  AiChannel? _hostEditFrom;
+
   AiChannel get _channel =>
       context.read<AiProfilesService>().channelById(widget.channelId)!;
 
@@ -78,7 +84,24 @@ class _AiChannelPageState extends State<AiChannelPage> {
   Future<void> _save(AiChannel Function(AiChannel) change) =>
       context.read<AiProfilesService>().updateChannel(change(_channel));
 
-  Future<void> _setRoute(AiProviderType protocol, String path) => _save(
+  Future<void> _saveRoutes(AiChannel Function(AiChannel) change) {
+    _hostEditFrom = null;
+    return _save(change);
+  }
+
+  Future<void> _setHost(String value) {
+    final moved = (_hostEditFrom ??= _channel).withBaseUrl(value);
+    return _save(
+      (c) => c.copyWith(
+        baseUrl: value,
+        routes: [
+          for (final route in c.routes) moved.routeFor(route.protocol) ?? route,
+        ],
+      ),
+    );
+  }
+
+  Future<void> _setRoute(AiProviderType protocol, String path) => _saveRoutes(
     (c) => c.copyWith(
       routes: [
         for (final route in c.routes)
@@ -87,7 +110,7 @@ class _AiChannelPageState extends State<AiChannelPage> {
     ),
   );
 
-  Future<void> _enable(AiProviderType protocol) => _save(
+  Future<void> _enable(AiProviderType protocol) => _saveRoutes(
     (c) => c.copyWith(
       routes: [
         ...c.routes,
@@ -96,13 +119,13 @@ class _AiChannelPageState extends State<AiChannelPage> {
     ),
   );
 
-  Future<void> _disable(AiProviderType protocol) => _save(
+  Future<void> _disable(AiProviderType protocol) => _saveRoutes(
     (c) => c.copyWith(
       routes: c.routes.where((r) => r.protocol != protocol).toList(),
     ),
   );
 
-  Future<void> _makePrimary(AiProviderType protocol) => _save((c) {
+  Future<void> _makePrimary(AiProviderType protocol) => _saveRoutes((c) {
     final route = c.routeFor(protocol)!;
     return c.copyWith(
       routes: [route, ...c.routes.where((r) => r.protocol != protocol)],
@@ -225,7 +248,7 @@ class _AiChannelPageState extends State<AiChannelPage> {
                       controller: _host,
                       mono: true,
                       onChanged: (v) async {
-                        await _save((c) => c.withBaseUrl(v));
+                        await _setHost(v);
                         // Routes built on the old host moved with it; their
                         // fields must show where they point now.
                         final moved = _channel;

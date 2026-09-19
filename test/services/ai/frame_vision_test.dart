@@ -41,11 +41,24 @@ void main() {
 
   test('no frames means no request', () async {
     final provider = ScriptedChatProvider([(_) => const ChatResult()]);
-    final seen = await FrameVision(
-      provider: provider,
-      frames: const _Frames(0),
-    ).identify('/videos/a.mp4');
+    await expectLater(
+      FrameVision(
+        provider: provider,
+        frames: const _Frames(0),
+      ).identify('/videos/a.mp4'),
+      throwsA(isA<FramesUnavailable>()),
+    );
     expect(provider.calls, 0);
-    expect(seen, contains('No frames'));
+  });
+
+  test('an empty reading is not on-screen text', () async {
+    final provider = ScriptedChatProvider([(_) => const ChatResult(text: ' ')]);
+    await expectLater(
+      FrameVision(
+        provider: provider,
+        frames: const _Frames(1),
+      ).identify('/videos/a.mp4'),
+      throwsA(isA<FramesUnavailable>()),
+    );
   });
 }

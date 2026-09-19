@@ -248,7 +248,12 @@ class GoogleGenAiProvider implements AiProvider {
 
       final ChatResult result;
       try {
-        result = _merge(await _events(res, cancelToken), model: config.model);
+        final read = await _events(res, cancelToken);
+        result = _merge(
+          read.events,
+          model: config.model,
+          streamed: read.streamed,
+        );
       } on Object catch (e) {
         log(
           status: res.statusCode,
@@ -260,6 +265,10 @@ class GoogleGenAiProvider implements AiProvider {
       }
       log(status: res.statusCode, result: result);
       if (off == null || !result.reasoned) return result;
+      // `levelLow` is the least Gemini 3 thinks, never none: still reasoning
+      // is what it does, not a sign it was ignored. Dropping it would send
+      // no thinkingConfig at all and run at the default, highest level.
+      if (off == _ThinkingOff.levelLow) return result;
       // Accepted and ignored — a relay that does not implement thinkingConfig
       // drops it silently. The next request tries the next way.
       offFailed();
@@ -356,7 +365,7 @@ class GoogleGenAiProvider implements AiProvider {
   /// Reads every response object the server sent: one per `data:` event, or
   /// — from a relay that ignored `alt=sse` — the whole body as one object or
   /// an array of them. Times out on silence, as the class explains.
-  Future<List<Map<dynamic, dynamic>>> _events(
+  Future<({List<Map<dynamic, dynamic>> events, bool streamed})> _events(
     http.StreamedResponse res,
     AiCancelToken? cancelToken,
   ) async {
@@ -445,7 +454,7 @@ class GoogleGenAiProvider implements AiProvider {
       if (body is Map) events.add(body);
       if (body is List) events.addAll(body.whereType<Map<dynamic, dynamic>>());
     }
-    return events;
+    return (events: events, streamed: sse == true);
   }
 
   /// Folds the streamed responses into one [ChatResult].
@@ -459,6 +468,7 @@ class GoogleGenAiProvider implements AiProvider {
   static ChatResult _merge(
     List<Map<dynamic, dynamic>> events, {
     required String model,
+    bool streamed = false,
   }) {
     final rawParts = <Object?>[];
     String? finishReason;
@@ -494,6 +504,14 @@ class GoogleGenAiProvider implements AiProvider {
       }
     }
     if (!sawCandidate) throw const AiException('Empty response from model.');
+    // Gemini's last streamed chunk always carries the finish reason. A
+    // stream closed without one was cut off, and what arrived is not the
+    // whole answer. (A relay answering with one JSON object may omit it.)
+    if (streamed && finishReason == null) {
+      throw const AiNetworkException(
+        'The stream ended before the reply was complete.',
+      );
+    }
 
     final parts = rawParts.whereType<Map<dynamic, dynamic>>().toList();
     final toolCalls = <ToolCall>[
@@ -548,7 +566,8 @@ class GoogleGenAiProvider implements AiProvider {
   /// `TOO_MANY_TOOL_CALLS`, `MALFORMED_RESPONSE` or `OTHER`. Read as a short
   /// reply, any of them looks to the agent loop like a model that stopped
   /// calling tools. `MAX_TOKENS` is a real answer cut short, which
-  /// [ChatResult.truncated] reports. A missing reason is not a failure.
+  /// [ChatResult.truncated] reports. A missing reason is checked by the
+  /// caller: fine in one JSON object, a cut-off in a stream.
   static void _throwOnFailedFinish(String? finishReason) {
     switch (finishReason?.toUpperCase()) {
       case null || 'STOP' || 'MAX_TOKENS' || 'FINISH_REASON_UNSPECIFIED':

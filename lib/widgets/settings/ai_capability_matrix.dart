@@ -235,7 +235,18 @@ CapabilityCell capabilityCell(
   if (!protocolInBuild(protocol)) {
     return (state: unavailable, text: l10n.aiCellNotInBuild);
   }
-  final config = channel.configFor(model.switchedTo(protocol));
+  // `configFor` falls back to the primary route for a protocol the channel
+  // lacks; an offered column must show that protocol, measured or not.
+  final config =
+      (channel.routeFor(protocol) != null
+              ? channel
+              : channel.copyWith(
+                  routes: [
+                    ...channel.routes,
+                    AiRoute(protocol: protocol),
+                  ],
+                ))
+          .configFor(model.switchedTo(protocol));
   // The route on a channel that does not have it yet still has a URL, so
   // what the provider learned there (nothing, usually) can be read.
   final learned = channel.routeFor(protocol) == null

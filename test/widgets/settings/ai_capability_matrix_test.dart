@@ -40,6 +40,17 @@ void main() {
     );
   });
 
+  test('a route the channel does not have shows nothing measured', () {
+    final measured = model.withCurrentParams(
+      RouteParams.fromConfig(channel.configFor(model).withToolSupport(true)),
+    );
+    // Only Chat Completions is enabled; its measurement is not Anthropic's.
+    expect(
+      cell(measured, AiProviderType.anthropic, Capability.tools).state,
+      CapabilityState.unmeasured,
+    );
+  });
+
   test('each protocol answers the questions it has its own way', () {
     expect(
       cell(model, AiProviderType.anthropic, Capability.json).text,

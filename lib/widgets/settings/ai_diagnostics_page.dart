@@ -134,8 +134,11 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
     if (!mounted) return;
     setState(() {
       _testing = false;
-      _result = outcome.result;
-      _error = outcome.error;
+      // Shown only under the model it was measured on.
+      if (_modelId == entry.model.id) {
+        _result = outcome.result;
+        _error = outcome.error;
+      }
     });
     await _loadLog();
   }
@@ -218,11 +221,13 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
                                 ),
                               ),
                           ],
-                          onChanged: (id) => setState(() {
-                            _modelId = id;
-                            _result = null;
-                            _error = null;
-                          }),
+                          onChanged: _testing
+                              ? null
+                              : (id) => setState(() {
+                                  _modelId = id;
+                                  _result = null;
+                                  _error = null;
+                                }),
                         ),
                         if (entry != null) ...[
                           const SizedBox(height: AppSpacing.xs),
@@ -351,12 +356,18 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
                   )
                 : ListView.builder(
                     itemCount: _entries.length,
-                    itemBuilder: (_, i) => _LogRow(
-                      entry: _entries[i],
-                      expanded: _expanded == i,
-                      onTap: () =>
-                          setState(() => _expanded = _expanded == i ? null : i),
-                    ),
+                    itemBuilder: (_, i) {
+                      final entry = _entries[i];
+                      // The sequence restarts with the app, the time does not.
+                      final id = '${entry['at']}#${entry['seq']}';
+                      return _LogRow(
+                        entry: entry,
+                        expanded: _expanded == id,
+                        onTap: () => setState(
+                          () => _expanded = _expanded == id ? null : id,
+                        ),
+                      );
+                    },
                   ),
           ),
           const SizedBox(height: AppSpacing.sm),

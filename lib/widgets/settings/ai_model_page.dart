@@ -139,7 +139,9 @@ class _AiModelPageState extends State<AiModelPage> {
       to: to,
     );
     if (!confirmed || !mounted) return;
-    await _saveModel(entry.model.switchedTo(to));
+    // Re-read: a task may have recorded something on this model while the
+    // dialog was open, and the copy from before it would erase that.
+    await _saveModel(_entry.model.switchedTo(to));
     if (!mounted) return;
     setState(() {
       _lastCheck = null;
@@ -152,11 +154,13 @@ class _AiModelPageState extends State<AiModelPage> {
     final messenger = ScaffoldMessenger.of(context);
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _testing = true);
+    final tested = _entry.model.route;
     final outcome = await runRouteTest(context, _entry);
     if (!mounted) return;
     setState(() {
       _testing = false;
-      _lastCheck = outcome.result;
+      // Limits served on one route say nothing about another.
+      _lastCheck = _entry.model.route == tested ? outcome.result : null;
     });
     messenger.showSnackBar(
       SnackBar(
@@ -300,12 +304,16 @@ class _AiModelPageState extends State<AiModelPage> {
         for (final route in channel.routes)
           MouseRegion(
             cursor:
-                route.protocol == current || !protocolInBuild(route.protocol)
+                route.protocol == current ||
+                    !protocolInBuild(route.protocol) ||
+                    _testing
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
             child: GestureDetector(
               onTap:
-                  route.protocol == current || !protocolInBuild(route.protocol)
+                  route.protocol == current ||
+                      !protocolInBuild(route.protocol) ||
+                      _testing
                   ? null
                   : () => _switch(route.protocol),
               child: ProtocolChip(

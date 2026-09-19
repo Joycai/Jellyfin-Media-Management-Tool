@@ -15,6 +15,13 @@ import '../thumbnails/video_frames.dart';
 import 'ai_cancel_token.dart';
 import 'ai_provider.dart';
 
+/// A frame lookup that produced nothing to read. Thrown rather than returned
+/// so the caller cannot mistake it for on-screen text: only a real reading
+/// flags later decisions for review.
+class FramesUnavailable extends AiException {
+  const FramesUnavailable(super.message);
+}
+
 /// Asks the vision model what a video's frames show.
 class FrameVision {
   final AiProvider provider;
@@ -30,12 +37,14 @@ class FrameVision {
       'and script. Do not guess a title from the look of the scenes; if '
       'nothing on screen names it, say "nothing identifying on screen".';
 
-  /// What the model reads off the frames of [path], or a sentence saying
-  /// why there is nothing to read.
+  /// What the model reads off the frames of [path]. Throws
+  /// [FramesUnavailable] when there is nothing to read.
   Future<String> identify(String path, {AiCancelToken? cancelToken}) async {
     final images = await frames.framesOf(path, cancelToken: cancelToken);
     if (images.isEmpty) {
-      return 'No frames could be taken from this video.';
+      throw const FramesUnavailable(
+        'No frames could be taken from this video.',
+      );
     }
     final reply = await provider.chat(
       messages: [UserMessage(prompt, images: images)],
@@ -43,6 +52,9 @@ class FrameVision {
       cancelToken: cancelToken,
     );
     final text = reply.text.trim();
-    return text.isEmpty ? 'The vision model returned nothing.' : text;
+    if (text.isEmpty) {
+      throw const FramesUnavailable('The vision model returned nothing.');
+    }
+    return text;
   }
 }

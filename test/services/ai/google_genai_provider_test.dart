@@ -147,6 +147,40 @@ void main() {
         expect(first.thinkingOffPending, isTrue);
       },
     );
+
+    test('the lowest level is kept even though it still reasons', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = GoogleGenAiProvider(
+        _config('floor', model: 'gemini-3-pro'),
+        client: MockClient((request) async {
+          bodies.add(_body(request));
+          final config =
+              bodies.last['generationConfig'] as Map<String, dynamic>;
+          final thinking = config['thinkingConfig'] as Map<String, Object?>?;
+          if (thinking != null && thinking.containsKey('thinkingBudget')) {
+            return http.Response(
+              jsonEncode({
+                'error': {'message': 'thinking_budget is not supported.'},
+              }),
+              400,
+            );
+          }
+          return _text(
+            'hi',
+            usage: const {'candidatesTokenCount': 2, 'thoughtsTokenCount': 90},
+          );
+        }),
+      );
+
+      final first = await provider.complete(systemPrompt: 's', userPrompt: 'u');
+      await provider.complete(systemPrompt: 's', userPrompt: 'u');
+
+      // Gemini 3 cannot stop thinking; "low" is the floor, not a failure.
+      expect(first.thinkingOffPending, isFalse);
+      expect((bodies.last['generationConfig'] as Map)['thinkingConfig'], {
+        'thinkingLevel': 'low',
+      });
+    });
   });
 
   group('usage', () {
@@ -458,6 +492,31 @@ void main() {
       expect(result.promptTokens, 7);
       expect(result.completionTokens, 5);
       expect(result.finishReason, 'STOP');
+    });
+
+    test('a stream that ends without a finish reason was cut off', () async {
+      final provider = GoogleGenAiProvider(
+        _config('sse-cut'),
+        client: MockClient(
+          (_) async => sse([
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'half an'},
+                    ],
+                  },
+                },
+              ],
+            },
+          ]),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiNetworkException>()),
+      );
     });
 
     test('an event split over data lines, after a comment, is read', () async {

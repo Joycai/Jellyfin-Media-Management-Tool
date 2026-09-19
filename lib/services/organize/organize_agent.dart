@@ -1113,8 +1113,6 @@ class _IdentifyFromFramesTool extends AgentTool<OrganizeState> {
       (v) => v.extraType == null,
       orElse: () => videos.first,
     );
-    g.framesUsed = true;
-    context.framesSeen = true;
     final String seen;
     try {
       seen = await look(video.relativePath);
@@ -1122,10 +1120,14 @@ class _IdentifyFromFramesTool extends AgentTool<OrganizeState> {
       rethrow;
     } on Exception catch (e) {
       // The vision model's failure is not the organize model's: reported as
-      // an answer, it never counts toward ending the run as erratic.
+      // an answer, it never counts toward ending the run as erratic. Nothing
+      // was read, so nothing decided after it is flagged.
       return 'The frames could not be read (${_describe(e)}). Decide from '
           'the names, or call mark_unsure.';
     }
+    // Flagged only once something was read off the screen.
+    g.framesUsed = true;
+    context.framesSeen = true;
     return 'On screen in ${video.relativePath}:\n$seen\n'
         'Decisions from here on are flagged for the user to review.';
   }

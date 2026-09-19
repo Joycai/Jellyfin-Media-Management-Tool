@@ -283,6 +283,37 @@ void main() {
     );
   });
 
+  test('a failed response with its error still settles nothing', () {
+    // What a real `response.failed` looks like: it always carries `error`.
+    expect(
+      () => OpenAiResponsesProvider.parseResponse({
+        'status': 'failed',
+        'error': {'code': 'server_error', 'message': 'boom'},
+      }, model: 'm'),
+      throwsA(isA<AiNetworkException>()),
+    );
+  });
+
+  test('a server error event mid-stream settles nothing', () {
+    expect(
+      OpenAiResponsesProvider.streamError({
+        'type': 'error',
+        'code': 'server_error',
+        'message': 'boom',
+      }),
+      isA<AiNetworkException>(),
+    );
+    expect(
+      OpenAiResponsesProvider.streamError({
+        'type': 'error',
+        'code': 'invalid_request_error',
+        'message': 'bad',
+        'param': 'tools',
+      }),
+      isNot(isA<AiNetworkException>()),
+    );
+  });
+
   test('an image goes as an input_image data URL', () {
     final input = OpenAiResponsesProvider.input([
       UserMessage(
