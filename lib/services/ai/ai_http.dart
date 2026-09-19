@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'ai_cancel_token.dart';
+import 'ai_provider.dart';
 
 /// Shared HTTP machinery for the AI providers: a process-wide client (so
 /// connections get reused across calls) and a small retry helper for the
@@ -18,7 +19,8 @@ class AiHttp {
   /// Statuses that LLM endpoints commonly fail with transiently. We retry
   /// these; anything else (4xx auth errors, 400 validation, etc.) is
   /// returned to the caller so they can render the real error.
-  static const _retryableStatuses = {408, 429, 502, 503, 504};
+  /// 529 is Anthropic's "overloaded".
+  static const _retryableStatuses = {408, 429, 502, 503, 504, 529};
 
   /// Calls [send] up to [maxAttempts] times with exponential backoff between
   /// retries. Retries on:
@@ -96,6 +98,15 @@ class AiHttp {
         ? 'Network error.'
         : 'Network error: ${_clip(message)}';
   }
+
+  /// What a log may say about [error]: an [AiException]'s own message, which
+  /// is written to be shown, or else [describeTransportError] — never the
+  /// exception's text, which can carry the request URL.
+  static String describeFailure(Object error) => switch (error) {
+    AiCancelled() => 'cancelled',
+    AiException(:final message) => message,
+    _ => describeTransportError(error),
+  };
 
   static String _clip(String message) =>
       message.length > 200 ? '${message.substring(0, 200)}\u2026' : message;

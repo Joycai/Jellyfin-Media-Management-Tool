@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/agent/agent_runtime.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_cancel_token.dart';
-import 'package:jellyfin_media_management_tool/services/ai/chat.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 
 import '../../helpers/ai.dart';
 
@@ -34,6 +35,19 @@ class _Add extends AgentTool<_Tally> {
     context.cancelOnAdd?.cancel();
     return 'count is ${context.count}';
   }
+}
+
+class _Cancels extends AgentTool<_Tally> {
+  @override
+  ToolDefinition get definition => const ToolDefinition(
+    name: 'cancel',
+    description: 'Is cancelled while it runs.',
+    parameters: {'type': 'object'},
+  );
+
+  @override
+  String execute(Map<String, dynamic> arguments, _Tally context) =>
+      throw const AiCancelled();
 }
 
 List<ChatMessage> _seed() => [
@@ -161,6 +175,33 @@ void main() {
     },
   );
 
+  test('a cancel inside a tool still answers every call', () async {
+    final messages = _seed();
+    final provider = ScriptedChatProvider([
+      (_) => toolTurn([
+        ('cancel', <String, Object?>{}),
+        ('add', {'by': 1}),
+      ]),
+    ]);
+    await expectLater(
+      AgentRuntime.run<_Tally>(
+        provider: provider,
+        messages: messages,
+        tools: [_Add(), _Cancels()],
+        context: _Tally(),
+        maxRounds: 3,
+        isDone: () => false,
+      ),
+      throwsA(isA<AiCancelled>()),
+    );
+    final results = messages.whereType<ToolResultMessage>().toList();
+    expect(results.map((r) => r.toolCallId), ['c0', 'c1']);
+    expect(
+      results.every((r) => r.content == AgentRuntime.notRunResult),
+      isTrue,
+    );
+  });
+
   test('rounds of nothing but failed calls end the run', () async {
     final provider = ScriptedChatProvider([
       (_) => toolTurn([('multiply', <String, Object?>{})]),
@@ -170,6 +211,60 @@ void main() {
 
     expect(result.outcome, AgentOutcome.erratic);
     expect(provider.calls, AgentRuntime.maxErraticRounds);
+  });
+
+  test('cut-off tool calls end as truncated, not erratic', () async {
+    final provider = ScriptedChatProvider([
+      (_) => const ChatResult(
+        toolCalls: [ToolCall(id: 'c0', name: 'add', arguments: '{"by": ')],
+        finishReason: 'length',
+      ),
+    ]);
+
+    final result = await _run(provider, _Tally(), isDone: () => false);
+
+    expect(result.outcome, AgentOutcome.truncated);
+    expect(provider.calls, AgentRuntime.maxTruncatedRounds);
+  });
+
+  test('a reply cut off without a tool call is retried, not nudged', () async {
+    var nudged = 0;
+    final provider = ScriptedChatProvider([
+      (_) => const ChatResult(text: 'Let me think', finishReason: 'length'),
+    ]);
+
+    final result = await _run(
+      provider,
+      _Tally(),
+      nudge: () {
+        nudged++;
+        return 'keep going';
+      },
+    );
+
+    expect(result.outcome, AgentOutcome.truncated);
+    expect(nudged, 0);
+    expect(provider.calls, AgentRuntime.maxTruncatedRounds);
+  });
+
+  test('cut-off replies that are not in a row do not end the run', () async {
+    const cut = ChatResult(text: 'Let me think', finishReason: 'length');
+    const whole = ChatResult(text: 'Done, I think.');
+    final provider = ScriptedChatProvider([
+      (_) => cut,
+      (_) => whole,
+      (_) => cut,
+      (_) => whole,
+    ]);
+
+    final result = await _run(provider, _Tally(), nudge: () => 'keep going');
+
+    expect(result.outcome, isNot(AgentOutcome.truncated));
+  });
+
+  test('the truncation message names the current output cap', () {
+    expect(AgentRuntime.truncatedMessage(4096), contains('4096'));
+    expect(AgentRuntime.truncatedMessage(null), isNot(contains('null')));
   });
 
   test('the round limit ends a run that never finishes', () async {
@@ -249,6 +344,48 @@ void main() {
       );
       expect((messages[5] as ToolResultMessage).content, big);
       expect((messages[0] as SystemMessage).content, 'system');
+    });
+
+    test('counts what an assistant turn sends back', () {
+      final call = [const ToolCall(id: 'c0', name: 'add', arguments: '{}')];
+      final plain = AgentRuntime.estimate(AssistantMessage(toolCalls: call));
+      final withReasoning = AgentRuntime.estimate(
+        AssistantMessage(
+          toolCalls: call,
+          reasoning: (field: 'reasoning_content', text: 'x' * 4000),
+        ),
+      );
+      final withParts = AgentRuntime.estimate(
+        AssistantMessage(
+          toolCalls: call,
+          raw: ProviderTurn(
+            protocol: AiProviderType.googleGenAi,
+            model: 'm',
+            parts: [
+              {
+                'functionCall': {'name': 'add', 'args': <String, Object?>{}},
+                'thoughtSignature': 'y' * 4000,
+              },
+            ],
+          ),
+        ),
+      );
+      expect(withReasoning, greaterThan(plain + 500));
+      // The signature is opaque: it is sent, but not counted as text.
+      expect(withParts, lessThan(plain + 100));
+    });
+
+    test('an image is counted by what it costs, not its bytes', () {
+      final text = AgentRuntime.estimate(const UserMessage('look'));
+      final withImages = AgentRuntime.estimate(
+        UserMessage(
+          'look',
+          images: [
+            for (var i = 0; i < 3; i++) ImagePart(bytes: Uint8List(100000)),
+          ],
+        ),
+      );
+      expect(withImages - text, 3 * AgentRuntime.imageTokens);
     });
 
     test('leaves a history that fits alone', () {

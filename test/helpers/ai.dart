@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:jellyfin_media_management_tool/services/ai/ai_cancel_token.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 
 /// Replays canned model responses in order and records what it was asked.
 ///
@@ -48,6 +49,18 @@ class ScriptedProvider implements AiProvider {
 
   @override
   Future<ServerKind> detectServerKind() async => ServerKind.unknown;
+
+  @override
+  void forgetLearned() {}
+
+  @override
+  LearnedBehaviour get learned => LearnedBehaviour.empty;
+
+  @override
+  Future<RequestPreview?> previewRequest({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+  }) async => null;
 }
 
 /// One scripted model turn: sees the history so far, returns the reply.
@@ -92,6 +105,18 @@ class ScriptedChatProvider implements AiProvider {
 
   @override
   Future<ServerKind> detectServerKind() async => ServerKind.unknown;
+
+  @override
+  void forgetLearned() {}
+
+  @override
+  LearnedBehaviour get learned => LearnedBehaviour.empty;
+
+  @override
+  Future<RequestPreview?> previewRequest({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+  }) async => null;
 }
 
 /// A turn that calls tools: `[('add', {'by': 2}), …]`, with ids `c0`, `c1`, …
@@ -141,4 +166,16 @@ class ThrowingChatProvider implements AiProvider {
 
   @override
   Future<ServerKind> detectServerKind() async => ServerKind.unknown;
+
+  @override
+  void forgetLearned() {}
+
+  @override
+  LearnedBehaviour get learned => LearnedBehaviour.empty;
+
+  @override
+  Future<RequestPreview?> previewRequest({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+  }) async => null;
 }

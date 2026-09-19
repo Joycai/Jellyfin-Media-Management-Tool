@@ -9,7 +9,7 @@ It states the rules in a line each. The reasons, measurements and history behind
 - Flutter **desktop** app for Windows/macOS/Linux. There are no `android/`, `ios/` or `web/` directories — those targets are not supported, and `flutter create` scaffolding for them should not be re-added.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `1.2.0+3`.
+- Dart SDK `^3.10.4`. Current app version: `1.3.0+4`.
 
 ## Common commands
 
@@ -74,7 +74,7 @@ Ten `ChangeNotifier`s are registered in `lib/main.dart`:
 | Service | Owns |
 |---|---|
 | [settings_service.dart](lib/services/settings_service.dart) | Theme, locale, accent, glass intensity, font choice, favorites, recents (cap 8), onboarding flag → `config.json`; search sites → `sites.json` |
-| [ai_profiles_service.dart](lib/services/ai/ai_profiles_service.dart) | Named AI endpoint profiles + active id → `ai_profiles.json` |
+| [ai_profiles_service.dart](lib/services/ai/ai_profiles_service.dart) | AI channels (key + host), their routes (protocols) and models, and which model each task runs on → `ai_profiles.json` |
 | [ai_service.dart](lib/services/ai/ai_service.dart) | Live `AiConfig`, connection status, **the single current `OrganizePlan`**, usage stats |
 | [file_browser_service.dart](lib/services/file_browser_service.dart) | Current directory, file list, focus + multi-selection, sort state, `FileSystemEvent` watcher |
 | [task_service.dart](lib/services/task_service.dart) | The Tasks-tab list of running/finished analyze, apply and scrape-commit tasks |
@@ -95,19 +95,19 @@ Read [organize-pipeline.md](docs/architecture/organize-pipeline.md) before touch
 Flow: `_organize()` in [home_screen.dart](lib/widgets/home/home_screen.dart) (empty selection = whole folder) → title hint dialog → `TaskService.startAnalyze` (fires `AiService.analyzeFolder` unawaited) → [organize_agent.dart](lib/services/organize/organize_agent.dart) → `OrganizeState.buildPlan` → `OrganizePreviewDialog` → `ApplyController` → `applyOrganizeAction` per action → undo manifest.
 
 - **The preview is the only dry run and the only gate.** Cancel means nothing touched disk. Apply **skips `needsReview` actions** (confidence `< 0.6`, unsure/undecided groups, unplaceable files, and both sides of a target collision).
-- **The model never writes or names a path.** It refers to groups by id and files by number; `source` comes from the scan and `target` from `JellyfinNaming`. Code does everything with a right answer (`FilenameParser`, `Grouping`, `JellyfinNaming`); the model only decides what a group *is*. Keep new organize tools to that contract.
+- **The model never writes or names a path.** It refers to groups by id and files by number; `source` comes from the scan and `target` from `JellyfinNaming`. Code does everything with a right answer (`FilenameParser`, `Grouping`, `JellyfinNaming`); the model only decides what a group *is*. Keep new organize tools to that contract. `identify_from_frames` (opt-in, frames to a model allowed image input) only reports on-screen text, and a group decided after it is always flagged for review.
 - **Only one plan exists app-wide.** A second `analyzeFolder` nulls the current one (last writer wins). The scan is capped at 400 files, dotfiles skipped; large folders go in batches of ≤12 groups, each a fresh session.
 - **`OrganizeAction.target` is mutable on purpose** so the preview can correct it in memory; every disk write stays behind `ApplyController`.
 - **`backup` copies nothing** in organize — it only gates writing the undo manifest. (In scraping it really copies.)
 - **Decisions are remembered by fingerprint** (path + size + mtime, [organize_workspace.dart](lib/services/organize/organize_workspace.dart)); only an *applied* preview's edits are remembered. A changed fingerprint is a miss, an unreadable cache is empty.
-- **Every AI task needs a tool-calling model; there is no single-shot fallback.** Tool support is probed and stored per provider | endpoint | model. The probe has **three** outcomes — a transport failure is `inconclusive` and is never recorded as `unsupported`.
+- **Every AI task needs a tool-calling model; there is no single-shot fallback.** Tool support is probed and stored per provider | endpoint | model, on the model's route parameters. One adapter per protocol family (Chat Completions, Gemini, Anthropic, Responses); vendor differences (paths, reasoning switches) live in `PlatformProfiles` as data, never as vendor branches. A turn that must go back verbatim (signatures, encrypted reasoning) is a `ProviderTurn`, returned only to the protocol and model that wrote it — see [Channels, routes and models](docs/architecture/organize-pipeline.md#channels-routes-and-models). The probe has **three** outcomes — a transport failure is `inconclusive` and is never recorded as `unsupported`.
 - **Cancellation closes the token's own `http.Client`**, so cancellable requests must never use the shared `AiHttp.client`.
 - **Never interpolate a transport exception into UI or logs** (`'Network error: $e'`): `ClientException` carries the URL, and Google's URL carries the API key. Use `AiHttp.describeTransportError`.
-- Timeouts are on *silence*, not duration, and a timed-out generation is never retried (the server is still running it). Per-server memories (JSON mode, refused fields, how reasoning was turned off) are keyed by provider | base URL | model | key hash.
+- Timeouts are on *silence*, not duration, and a timed-out generation is never retried (the server is still running it). Per-server memories (JSON mode, refused fields, how reasoning was turned off) are keyed by provider | base URL | model | key hash, persisted in `ai_learned.json` (30 days), and forgotten by the connection test, which is how a user makes the app find out again.
 - `/v1` is appended only to a bare origin; a URL with a path is used as typed. A blank key on an OpenAI-compatible profile sends no `Authorization` header.
 - `AiConfig.contextWindow` is a client-side budget, not a server setting; `AgentRuntime.trimHistory` shrinks old tool results to stay inside it and **never removes a message**.
 - Sampling comes from ordered per-family presets ([sampling_presets.dart](lib/services/ai/sampling_presets.dart)): more specific families first, every row cites its model card, no invented presets, values always sent explicitly. Reasoning is off by default and judged by whether the reply still reasoned.
-- [agent_runtime.dart](lib/services/agent/agent_runtime.dart) is the one tool loop: every tool call gets a reply (even on cancel), a bad call is a `ToolError` phrased as the next step, three failed rounds end the run as `erratic`, nudges are retracted after sending, and nothing relies on a forced `tool_choice`.
+- [agent_runtime.dart](lib/services/agent/agent_runtime.dart) is the one tool loop: every tool call gets a reply (even on cancel), a bad call is a `ToolError` phrased as the next step, three failed rounds end the run as `erratic` (unless the replies were cut off at the output limit — that is `truncated`), nudges are retracted after sending, and nothing relies on a forced `tool_choice`.
 
 ### Filesystem writes
 
@@ -161,7 +161,9 @@ Not done yet: the Library section, recipe import/export, feeding scraped title/y
 Everything lives in the `path_provider` application-support directory, as hand-rolled JSON in the owning service:
 
 - `config.json` — settings (debounced 250ms, flushed on dispose). A legacy `performance_mode: true` migrates to `glass_intensity: 0` and the key is dropped. `baked_glass` defaults to true.
-- `ai_profiles.json` — AI profiles and API keys, kept separate so a slider drag never rewrites keys
+- `ai_profiles.json` — AI channels, routes, models, task assignments and keys (`"v": 2`), kept separate so a slider drag never rewrites keys. A file without `channels` is read as flat profiles, byte-identically; a flat `ai_services` mirror is still written for older builds
+- `ai_learned.json` — what each route refused or ignored ([learned_behaviour.dart](lib/services/ai/learned_behaviour.dart)); holds a key hash, never a key
+- `logs/api-<date>.jsonl` — the opt-in AI request log ([api_log.dart](lib/services/ai/api_log.dart), Settings → Privacy, 7 days): every body sent, no headers, no query strings, long strings and images replaced by their length
 - `sites.json` — custom search sites
 - `scrapers.json` — learned / user-edited scrape recipes (built-ins live in code)
 - `undo/op-*.json`, `undo/blobs/` — undo manifests and backup copies
@@ -214,6 +216,6 @@ Used for exactly one thing: playing a local video in [preview_dialog.dart](lib/w
 - **macOS entitlements are split**: `DebugProfile.entitlements` (JIT, network server for `flutter run`) and `Release.entitlements` (stricter). A new capability goes in **both**.
 - **macOS still uses CocoaPods** because `media_kit_video` 2.0.1 and `media_kit_libs_macos_video` 1.1.4 ship no `Package.swift`. `macos/Podfile` and `Podfile.lock` are **required — do not delete**, and keep the `#include? ".../Pods-Runner.*.xcconfig"` lines in `macos/Flutter/Flutter-{Debug,Release}.xcconfig` *above* the `ephemeral/Flutter-Generated.xcconfig` include. The "plugins do not support Swift Package Manager" warning is expected. Drop CocoaPods once [media-kit#1412](https://github.com/media-kit/media-kit/pull/1412) is published (track [#1399](https://github.com/media-kit/media-kit/issues/1399), [#1435](https://github.com/media-kit/media-kit/pull/1435)).
 - **`intl` is pinned to `0.20.2`**, not a caret range — `flutter_localizations` pins it exactly, and `^0.20.3` fails version solving.
-- **Google GenAI sends the API key in the query string**, not a header. Keep it out of logs.
+- **Google GenAI sends the API key in the `x-goog-api-key` header**, never as `?key=` (a query string lands in every proxy's access log).
 - **Linux** needs system FFmpeg + libjpeg for thumbnails and libmpv for playback; without them both degrade to icons.
 - **Identity:** org `joycai.cn`; product name `Jellyfin Media Management Tool`, set in `macos/Runner/Configs/AppInfo.xcconfig` (`PRODUCT_NAME`, which names the `.app`; `Info.plist` derives its bundle names from it), `windows/runner/Runner.rc` + `main.cpp`, `linux/runner/my_application.cc`, `scripts/inno_setup.iss` (`MyAppName`), the release workflow's DMG paths, `appBrand` / `onboardingWelcomeTitle` in both ARB files, and the window title in `MainFlutterWindow.swift`. The Windows/Linux **binary** stays `jellyfin_media_management_tool` (`BINARY_NAME` is also the CMake target, which cannot contain spaces).

@@ -29,7 +29,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../models/ai_service_profile.dart';
+import '../../models/ai_channel.dart';
 import '../../services/ai/ai_cancel_token.dart';
 import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_provider.dart';
@@ -141,6 +141,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
     });
   }
 
+  /// The model picked for this scrape, or null to follow the task
+  /// assignments in Settings (learning a recipe and reading the page may run
+  /// on different models).
   String? _backendId;
   bool _showPaste = false;
   bool _showAdvanced = false;
@@ -172,12 +175,6 @@ class _ScrapePanelState extends State<ScrapePanel> {
   int _resultGeneration = 0;
 
   @override
-  void initState() {
-    super.initState();
-    _backendId = context.read<AiProfilesService>().active?.id;
-  }
-
-  @override
   void dispose() {
     _url.dispose();
     _html.dispose();
@@ -190,22 +187,21 @@ class _ScrapePanelState extends State<ScrapePanel> {
 
   // ── Running ───────────────────────────────────────────────────────────────
 
-  AiServiceProfile? get _backend {
-    final profiles = context.read<AiProfilesService>().services;
-    if (profiles.isEmpty) return null;
-    return profiles.firstWhere(
-      (s) => s.id == _backendId,
-      orElse: () => profiles.first,
-    );
+  /// The model [task] runs on for this scrape: the one picked here, else
+  /// the one Settings assigns to the task.
+  AiConfig? _backend(AiTask task) {
+    final profiles = context.read<AiProfilesService>();
+    final entry = profiles.modelById(_backendId) ?? profiles.resolve(task);
+    return entry?.channel.configFor(entry.model);
   }
 
-  /// The backend's provider, or null when there is nothing the LLM paths can
-  /// use: no complete backend, or one already known not to call tools — both
-  /// LLM paths are tool loops, and a button that can only fail is worse than
-  /// no button. A backend never checked still gets a provider; the run checks
-  /// it first.
-  AiProvider? _provider() {
-    final config = _backend?.toAiConfig();
+  /// [task]'s provider, or null when there is nothing the LLM paths can use:
+  /// no complete backend, or one already known not to call tools — both LLM
+  /// paths are tool loops, and a button that can only fail is worse than no
+  /// button. A backend never checked still gets a provider; the run checks it
+  /// first.
+  AiProvider? _provider(AiTask task) {
+    final config = _backend(task);
     if (config == null || !config.isComplete || config.supportsTools == false) {
       return null;
     }
@@ -254,8 +250,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
       });
       return;
     }
-    final provider = _provider();
-    if (askLlm && provider == null) {
+    final learnProvider = _provider(AiTask.scrapeLearn);
+    final directProvider = _provider(AiTask.scrapeDirect);
+    if (askLlm && directProvider == null) {
       setState(() => _error = l10n.scrapeBackendNone);
       return;
     }
@@ -286,13 +283,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
       // Both LLM paths run as tool loops, so each first makes sure the model
       // calls tools — probing once when it was never checked — and fails with
       // that reason rather than with an empty result.
-      final backend = provider?.config;
-      Future<void> ready() => ai.ensureTools(backend!, cancelToken: token);
+      Future<void> Function() ready(AiProvider provider) =>
+          () => ai.ensureTools(provider.config, cancelToken: token);
       // Tier 3 is only offered when there is a backend to ask; without one the
       // ladder simply stops at tier 2.
-      final learner = provider == null
+      final learner = learnProvider == null
           ? null
-          : RecipeLearner(provider, beforeStart: ready);
+          : RecipeLearner(learnProvider, beforeStart: ready(learnProvider));
       var result = pasted.isEmpty
           ? await scraper.scrapeUrl(
               url.toString(),
@@ -317,7 +314,10 @@ class _ScrapePanelState extends State<ScrapePanel> {
         if (mounted) setState(() => _scrapeStage = ScrapeStage.extracting);
         result = await scraper.askLlm(
           result: result,
-          extractor: DirectExtractor(provider!, beforeStart: ready),
+          extractor: DirectExtractor(
+            directProvider!,
+            beforeStart: ready(directProvider),
+          ),
           instructions: _instructions.text,
         );
       }
@@ -1038,7 +1038,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
   }
 
   Widget _backendRow(AppLocalizations l10n, ColorScheme scheme) {
-    final profiles = context.watch<AiProfilesService>().services;
+    final models = context.watch<AiProfilesService>().allModels;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1049,25 +1049,46 @@ class _ScrapePanelState extends State<ScrapePanel> {
             children: [
               _SectionLabel(l10n.scrapeBackend),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: _backend?.id,
+              DropdownButtonFormField<String?>(
+                // Rebuilt when the picked model disappears in Settings, so the
+                // field never holds an id that is no longer an item.
+                key: ValueKey(
+                  models.any((m) => m.model.id == _backendId)
+                      ? _backendId
+                      : null,
+                ),
+                initialValue: models.any((m) => m.model.id == _backendId)
+                    ? _backendId
+                    : null,
                 isExpanded: true,
                 isDense: true,
                 borderRadius: BorderRadius.circular(AppRadii.field),
                 decoration: InputDecoration(
-                  helperText: profiles.isEmpty ? l10n.scrapeBackendNone : null,
+                  helperText: models.isEmpty ? l10n.scrapeBackendNone : null,
                 ),
                 items: [
-                  for (final s in profiles)
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text(
+                      l10n.scrapeBackendAssigned,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: AppTypeScale.sizeControl,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  for (final (:channel, :model) in models)
                     DropdownMenuItem(
-                      value: s.id,
+                      value: model.id,
                       child: Row(
                         children: [
-                          _BackendAvatar(name: s.name),
+                          _BackendAvatar(name: channel.name),
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
-                              s.name,
+                              '${model.upstream} · ${channel.name}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -1076,7 +1097,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                               ),
                             ),
                           ),
-                          if (s.toAiConfig().isComplete) ...[
+                          if (channel.configFor(model).isComplete) ...[
                             const SizedBox(width: 6),
                             Container(
                               width: 6,
@@ -1091,7 +1112,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
                       ),
                     ),
                 ],
-                onChanged: profiles.isEmpty
+                onChanged: models.isEmpty
                     ? null
                     : (v) => setState(() => _backendId = v),
               ),
@@ -1218,7 +1239,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
         children: [
           if (working)
             _ElapsedLabel(elapsed: _elapsed, format: _format)
-          else if (_provider() != null)
+          else if (_provider(AiTask.scrapeDirect) != null)
             OutlinedButton.icon(
               onPressed: () => _run(askLlm: true),
               icon: const Icon(Icons.auto_awesome_outlined, size: 15),

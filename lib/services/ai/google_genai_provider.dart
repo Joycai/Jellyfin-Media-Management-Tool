@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'ai_cancel_token.dart';
 import 'ai_http.dart';
 import 'ai_provider.dart';
+import 'api_log.dart';
+import 'learned_behaviour.dart';
 
 /// A way of asking Gemini for no reasoning, in the order they are tried.
 ///
@@ -23,7 +25,23 @@ enum _ThinkingOff {
   levelLow,
 }
 
-/// Talks to the Google Generative Language REST API (`:generateContent`).
+/// Talks to the Google Generative Language REST API
+/// (`:streamGenerateContent?alt=sse`).
+///
+/// **Why a stream.** A whole tool-calling turn, not a greeting: a thinking
+/// model working through an organize batch regularly spends minutes. The
+/// request used to be one `generateContent` with a 10-minute budget for the
+/// whole reply, which cut off a long generation the server was still running
+/// — and billing for — and made a hung connection wait out the full ten
+/// minutes. A stream is timed on silence instead, like [OpenAiProvider]:
+/// [firstEventTimeout] until the first event, [idleTimeout] for any gap after
+/// it. Closing the stream, on timeout or cancel, is what stops the
+/// generation. A timeout is never retried.
+///
+/// Each streamed event is a complete `GenerateContentResponse` holding the
+/// parts produced since the last one; they are appended, never merged as
+/// deltas. A relay that ignores `alt=sse` and answers with one JSON object,
+/// or a JSON array of them, is read the same way.
 class GoogleGenAiProvider implements AiProvider {
   @override
   final AiConfig config;
@@ -31,31 +49,39 @@ class GoogleGenAiProvider implements AiProvider {
   /// Replaces the transport in tests; see [OpenAiProvider].
   final http.Client? _client;
 
-  /// How long one generation may take.
-  ///
-  /// A whole tool-calling turn, not a greeting: a thinking model working
-  /// through an organize batch regularly spends minutes. A timeout is never
-  /// retried — `Future.timeout` does not close the socket, so the request the
-  /// server is still working on keeps running and a retry would start a second
-  /// one beside it and bill for both.
-  final Duration timeout;
+  /// How long to wait for the first streamed event: loading and reading the
+  /// prompt, plus any thinking before the first part.
+  final Duration firstEventTimeout;
+
+  /// How long the stream may fall silent once it has started.
+  final Duration idleTimeout;
 
   GoogleGenAiProvider(
     this.config, {
     http.Client? client,
-    this.timeout = const Duration(minutes: 10),
+    this.firstEventTimeout = const Duration(minutes: 10),
+    this.idleTimeout = const Duration(minutes: 2),
   }) : _client = client;
 
-  /// Which [_ThinkingOff] way each endpoint + model is on. Process-wide, so
-  /// only the first request of a session pays for a rejection.
-  static final Map<String, int> _thinkingOffAttempts = {};
+  /// Which [_ThinkingOff] way each route is on, kept across launches — see
+  /// [LearnedStore]. Keyed by the credential as well as the URL and model:
+  /// two profiles can point at one endpoint through different keys, and what
+  /// one was refused says nothing about the other. Only the key's hash is
+  /// used, so this holds no secret.
+  String get _cacheKey => LearnedStore.routeKey(
+    protocol: config.provider.id,
+    base: _base,
+    model: config.model,
+    apiKey: config.apiKey,
+  );
 
-  /// Keyed by the credential as well as the URL and model: two profiles can
-  /// point at one endpoint through different keys, and what one was refused
-  /// says nothing about the other. Only the key's hash is used, so this holds
-  /// no secret.
-  String get _cacheKey =>
-      '$_base|${config.model}|${config.apiKey.trim().hashCode}';
+  static LearnedStore get _learned => LearnedStore.instance;
+
+  @override
+  void forgetLearned() => _learned.forget(_cacheKey);
+
+  @override
+  LearnedBehaviour get learned => _learned.of(_cacheKey);
 
   /// Normalized base URL with a `/v1*` segment, e.g.
   /// `https://generativelanguage.googleapis.com/v1beta`.
@@ -70,15 +96,21 @@ class GoogleGenAiProvider implements AiProvider {
     return base;
   }
 
-  String get _keyQuery {
+  /// The key travels in `x-goog-api-key`, never as `?key=`. A query string
+  /// ends up in every relay's, proxy's and packet capture's access log, and in
+  /// any error that quotes the request URL.
+  Map<String, String> get _headers {
     final key = config.apiKey.trim();
-    return key.isEmpty ? '' : '?key=${Uri.encodeQueryComponent(key)}';
+    return {
+      'Content-Type': 'application/json',
+      if (key.isNotEmpty) 'x-goog-api-key': key,
+    };
   }
 
   Uri _generateUri() =>
-      Uri.parse('$_base/models/${config.model}:generateContent$_keyQuery');
+      Uri.parse('$_base/models/${config.model}:streamGenerateContent?alt=sse');
 
-  Uri _modelUri() => Uri.parse('$_base/models/${config.model}$_keyQuery');
+  Uri _modelUri() => Uri.parse('$_base/models/${config.model}');
 
   @override
   Future<AiResponse> complete({
@@ -112,107 +144,209 @@ class GoogleGenAiProvider implements AiProvider {
     required bool jsonMode,
     AiCancelToken? cancelToken,
   }) async {
-    final sampling = config.sampling.values;
-    final system = messages
-        .whereType<SystemMessage>()
-        .map((m) => m.content)
-        .join('\n\n');
-    final contents = GoogleGenAiProvider.contents(messages);
     // A cancellable call goes through the token's own client so cancelling can
     // close the socket; otherwise reuse the shared pooled client.
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
 
     while (true) {
-      final attempt = _thinkingOffAttempts[_cacheKey] ?? 0;
-      final off =
-          config.thinkingEnabled || attempt >= _ThinkingOff.values.length
+      final key = _cacheKey;
+      final tried = _learned.of(key).thinkingOffTried;
+      final off = config.thinkingEnabled
           ? null
-          : _ThinkingOff.values[attempt];
+          : _ThinkingOff.values
+                .where((w) => !tried.contains(w.name))
+                .firstOrNull;
+      void offFailed() => _learned.update(
+        key,
+        (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
+      );
 
-      final body = jsonEncode({
-        if (system.isNotEmpty)
-          'systemInstruction': {
-            'parts': [
-              {'text': system},
-            ],
-          },
-        'contents': contents,
-        if (tools.isNotEmpty)
-          'tools': [
-            {
-              'functionDeclarations': [
-                for (final tool in tools)
-                  {
-                    'name': tool.name,
-                    'description': tool.description,
-                    'parameters': tool.parameters,
+      final payload = _payload(messages, tools, jsonMode: jsonMode, off: off);
+      final body = jsonEncode(payload);
+      final started = DateTime.now();
+      void log({int? status, ChatResult? result, String? error}) =>
+          ApiLog.instance.record(
+            protocol: 'gemini',
+            model: config.model,
+            url: _generateUri(),
+            request: payload,
+            status: status,
+            response: result == null
+                ? null
+                : {
+                    'finish_reason': result.finishReason,
+                    'text': result.text,
+                    if (result.toolCalls.isNotEmpty)
+                      'tool_calls': [
+                        for (final call in result.toolCalls)
+                          {'name': call.name, 'arguments': call.arguments},
+                      ],
+                    if (result.reasoned) 'reasoned': true,
+                    'usage': {
+                      'prompt': result.promptTokens,
+                      'completion': result.completionTokens,
+                    },
                   },
-              ],
-            },
-          ],
-        'generationConfig': {
-          'temperature': ?sampling.temperature,
-          'topP': ?sampling.topP,
-          'topK': ?sampling.topK,
-          'presencePenalty': ?sampling.presencePenalty,
-          if (jsonMode) 'responseMimeType': 'application/json',
-          'maxOutputTokens': ?config.maxOutputTokens,
-          if (off == _ThinkingOff.budgetZero)
-            'thinkingConfig': const {'thinkingBudget': 0},
-          if (off == _ThinkingOff.levelLow)
-            'thinkingConfig': const {'thinkingLevel': 'low'},
-        },
-      });
+            error: error,
+            elapsed: DateTime.now().difference(started),
+          );
 
-      http.Response res;
+      http.StreamedResponse res;
       try {
         res = await AiHttp.withRetry(
           () => client
-              .post(
-                _generateUri(),
-                headers: {'Content-Type': 'application/json'},
-                body: body,
+              .send(
+                http.Request('POST', _generateUri())
+                  ..headers.addAll(_headers)
+                  ..body = body,
               )
-              .timeout(timeout),
+              .timeout(firstEventTimeout),
           cancelToken: cancelToken,
           retryTimeouts: false,
         );
       } on AiCancelled {
+        log(error: 'cancelled');
         rethrow;
       } on TimeoutException {
-        if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiNetworkException(
-          'No response from the server within ${timeout.inMinutes} min.',
-        );
+        if (cancelToken?.isCancelled ?? false) {
+          log(error: 'cancelled');
+          throw const AiCancelled();
+        }
+        final error = _noResponse(firstEventTimeout);
+        log(error: error);
+        throw AiNetworkException(error);
       } catch (e) {
         // Closing the client to cancel surfaces as a generic ClientException;
         // report it as a cancellation, not a network failure.
-        if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiNetworkException(AiHttp.describeTransportError(e));
+        if (cancelToken?.isCancelled ?? false) {
+          log(error: 'cancelled');
+          throw const AiCancelled();
+        }
+        final error = AiHttp.describeTransportError(e);
+        log(error: error);
+        throw AiNetworkException(error);
       }
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        final error = AiHttp.describeError(res);
+        String error;
+        try {
+          error = AiHttp.describeError(await http.Response.fromStream(res));
+        } catch (_) {
+          error = 'HTTP ${res.statusCode}';
+        }
+        log(status: res.statusCode, error: error);
         // This way of asking for no reasoning is not this model's; try the
         // next. Checked before throwing, exactly as the OpenAI provider does.
         if ((res.statusCode == 400 || res.statusCode == 422) &&
             off != null &&
             _namesThinking(error.toLowerCase())) {
-          _thinkingOffAttempts[_cacheKey] = attempt + 1;
+          offFailed();
           continue;
         }
         throw AiException(error);
       }
 
-      final result = _read(res);
+      final ChatResult result;
+      try {
+        final read = await _events(res, cancelToken);
+        result = _merge(
+          read.events,
+          model: config.model,
+          streamed: read.streamed,
+        );
+      } on Object catch (e) {
+        log(
+          status: res.statusCode,
+          error: (cancelToken?.isCancelled ?? false)
+              ? 'cancelled'
+              : AiHttp.describeFailure(e),
+        );
+        rethrow;
+      }
+      log(status: res.statusCode, result: result);
       if (off == null || !result.reasoned) return result;
+      // `levelLow` is the least Gemini 3 thinks, never none: still reasoning
+      // is what it does, not a sign it was ignored. Dropping it would send
+      // no thinkingConfig at all and run at the default, highest level.
+      if (off == _ThinkingOff.levelLow) return result;
       // Accepted and ignored — a relay that does not implement thinkingConfig
       // drops it silently. The next request tries the next way.
-      _thinkingOffAttempts[_cacheKey] = attempt + 1;
+      offFailed();
       return result.withThinkingOffPending(
-        attempt + 1 < _ThinkingOff.values.length,
+        _ThinkingOff.values.any((w) => w != off && !tried.contains(w.name)),
       );
     }
+  }
+
+  /// The request body for one attempt — the one place it is built, so the
+  /// settings preview shows exactly what a task sends. Keys stay camelCase:
+  /// a relay that forwards the body verbatim passes snake_case through to a
+  /// Gemini that ignores it.
+  Map<String, Object?> _payload(
+    List<ChatMessage> messages,
+    List<ToolDefinition> tools, {
+    required bool jsonMode,
+    required _ThinkingOff? off,
+  }) {
+    final sampling = config.sampling.values;
+    final system = messages
+        .whereType<SystemMessage>()
+        .map((m) => m.content)
+        .join('\n\n');
+    return {
+      if (system.isNotEmpty)
+        'systemInstruction': {
+          'parts': [
+            {'text': system},
+          ],
+        },
+      'contents': contents(messages, model: config.model),
+      if (tools.isNotEmpty)
+        'tools': [
+          {
+            'functionDeclarations': [
+              for (final tool in tools)
+                {
+                  'name': tool.name,
+                  'description': tool.description,
+                  'parameters': tool.parameters,
+                },
+            ],
+          },
+        ],
+      'generationConfig': {
+        'temperature': ?sampling.temperature,
+        'topP': ?sampling.topP,
+        'topK': ?sampling.topK,
+        'presencePenalty': ?sampling.presencePenalty,
+        if (jsonMode) 'responseMimeType': 'application/json',
+        'maxOutputTokens': ?config.maxOutputTokens,
+        if (off == _ThinkingOff.budgetZero)
+          'thinkingConfig': const {'thinkingBudget': 0},
+        if (off == _ThinkingOff.levelLow)
+          'thinkingConfig': const {'thinkingLevel': 'low'},
+      },
+    };
+  }
+
+  @override
+  Future<RequestPreview> previewRequest({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+  }) async {
+    final tried = _learned.of(_cacheKey).thinkingOffTried;
+    final off = config.thinkingEnabled
+        ? null
+        : _ThinkingOff.values.where((w) => !tried.contains(w.name)).firstOrNull;
+    final key = config.apiKey.trim();
+    return RequestPreview(
+      url: _generateUri(),
+      headers: {
+        'Content-Type': 'application/json',
+        if (key.isNotEmpty) 'x-goog-api-key': RequestPreview.mask(key),
+      },
+      body: _payload(messages, tools, jsonMode: false, off: off),
+    );
   }
 
   static bool _namesThinking(String detail) =>
@@ -222,7 +356,108 @@ class GoogleGenAiProvider implements AiProvider {
       detail.contains('thinking_budget') ||
       detail.contains('thinking_level');
 
-  /// Turns one `generateContent` response into a [ChatResult].
+  static String _noResponse(Duration timeout) =>
+      'No response from the server within ${_duration(timeout)}.';
+
+  static String _duration(Duration d) =>
+      d.inMinutes >= 1 ? '${d.inMinutes} min' : '${d.inSeconds} s';
+
+  /// Reads every response object the server sent: one per `data:` event, or
+  /// — from a relay that ignored `alt=sse` — the whole body as one object or
+  /// an array of them. Times out on silence, as the class explains.
+  Future<({List<Map<dynamic, dynamic>> events, bool streamed})> _events(
+    http.StreamedResponse res,
+    AiCancelToken? cancelToken,
+  ) async {
+    final lines = StreamIterator(
+      res.stream.transform(utf8.decoder).transform(const LineSplitter()),
+    );
+    final events = <Map<dynamic, dynamic>>[];
+    final plain = StringBuffer();
+    // One event's `data:` lines. SSE lets an event span several of them,
+    // joined by newlines, ended by a blank line.
+    final data = <String>[];
+    bool? sse = res.headers['content-type']?.contains('text/event-stream');
+    var started = false;
+
+    // An event that does not parse is a broken stream, not something to
+    // skip: the one dropped could be the function call or the finish reason.
+    void flush() {
+      if (data.isEmpty) return;
+      final Object? event;
+      try {
+        event = jsonDecode(data.join('\n'));
+      } on FormatException {
+        throw const AiNetworkException(
+          'The server sent a malformed stream event.',
+        );
+      } finally {
+        data.clear();
+      }
+      if (event is Map) events.add(event);
+    }
+
+    try {
+      while (true) {
+        final bool more;
+        try {
+          more = await lines.moveNext().timeout(
+            started ? idleTimeout : firstEventTimeout,
+          );
+        } on TimeoutException {
+          throw AiNetworkException(
+            started
+                ? 'The server stopped sending for ${_duration(idleTimeout)} '
+                      'partway through the reply.'
+                : _noResponse(firstEventTimeout),
+          );
+        }
+        if (!more) break;
+        final line = lines.current;
+        if (line.trim().isEmpty) {
+          if (sse == true) flush();
+          continue;
+        }
+        started = true;
+        // A stream may open with a comment, an event name or an id before
+        // its first data line; any of them says it is a stream.
+        sse ??=
+            line.startsWith('data:') ||
+            line.startsWith('event:') ||
+            line.startsWith('id:') ||
+            line.startsWith(':');
+        if (!sse) {
+          plain.writeln(line);
+          continue;
+        }
+        if (!line.startsWith('data:')) continue;
+        data.add(line.substring(5).trimLeft());
+      }
+      if (sse == true) flush();
+    } on AiException {
+      rethrow;
+    } catch (e) {
+      if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
+      throw AiNetworkException(AiHttp.describeTransportError(e));
+    } finally {
+      // On an early exit this closes the connection, which is what tells the
+      // server to stop generating.
+      await lines.cancel();
+    }
+    if (sse != true && plain.isNotEmpty) {
+      final Object? body;
+      try {
+        body = jsonDecode(plain.toString());
+      } on FormatException {
+        throw const AiException('Empty response from model.');
+      }
+      if (body is Map) events.add(body);
+      if (body is List) events.addAll(body.whereType<Map<dynamic, dynamic>>());
+    }
+    return (events: events, streamed: sse == true);
+  }
+
+  /// Folds the streamed responses into one [ChatResult].
   ///
   /// A blocked request and a blocked answer are both failures, not empty
   /// replies. Gemini reports the first as `promptFeedback.blockReason` and the
@@ -230,46 +465,73 @@ class GoogleGenAiProvider implements AiProvider {
   /// and often after some text — so returning what arrived would hand the
   /// caller a partial answer it cannot tell from a complete one, and the agent
   /// loop would read the silence as "the model stopped calling tools".
-  ChatResult _read(http.Response res) {
-    final Map<String, dynamic> json = jsonDecode(utf8.decode(res.bodyBytes));
-    if (json['promptFeedback'] case final Map<String, dynamic> feedback) {
-      if (feedback['blockReason'] case final String reason) {
-        throw AiException('The request was blocked by Google: $reason.');
+  static ChatResult _merge(
+    List<Map<dynamic, dynamic>> events, {
+    required String model,
+    bool streamed = false,
+  }) {
+    final rawParts = <Object?>[];
+    String? finishReason;
+    Map<dynamic, dynamic>? usage;
+    var sawCandidate = false;
+    for (final event in events) {
+      if (event['error'] case final Object error) {
+        final message = error is Map ? error['message'] : error;
+        throw AiException('Model error: $message');
+      }
+      if (event['promptFeedback'] case final Map<dynamic, dynamic> feedback) {
+        if (feedback['blockReason'] case final String reason) {
+          throw AiException('The request was blocked by Google: $reason.');
+        }
+      }
+      if (event['usageMetadata'] case final Map<dynamic, dynamic> u) {
+        usage = u;
+      }
+      final candidates = event['candidates'];
+      if (candidates is! List ||
+          candidates.isEmpty ||
+          candidates.first is! Map) {
+        continue;
+      }
+      sawCandidate = true;
+      final candidate = candidates.first as Map;
+      final content = candidate['content'];
+      if (content is Map && content['parts'] is List) {
+        rawParts.addAll(content['parts'] as List);
+      }
+      if (candidate['finishReason'] case final String reason) {
+        finishReason = reason;
       }
     }
-    final candidates = json['candidates'] as List<dynamic>?;
-    if (candidates == null || candidates.isEmpty) {
-      throw const AiException('Empty response from model.');
+    if (!sawCandidate) throw const AiException('Empty response from model.');
+    // Gemini's last streamed chunk always carries the finish reason. A
+    // stream closed without one was cut off, and what arrived is not the
+    // whole answer. (A relay answering with one JSON object may omit it.)
+    if (streamed && finishReason == null) {
+      throw const AiNetworkException(
+        'The stream ended before the reply was complete.',
+      );
     }
-    final candidate = candidates.first as Map<String, dynamic>;
-    final rawParts = candidate['content']?['parts'] as List<dynamic>? ?? [];
-    final parts = rawParts.whereType<Map<dynamic, dynamic>>().toList();
-    final usage = json['usageMetadata'] as Map<String, dynamic>?;
-    final finishReason = candidate['finishReason'] as String?;
 
+    final parts = rawParts.whereType<Map<dynamic, dynamic>>().toList();
     final toolCalls = <ToolCall>[
       for (final (index, part) in parts.indexed)
         if (part['functionCall'] case final Map<dynamic, dynamic> call)
           ToolCall(
-            id: call['id'] as String? ?? 'call_$index',
-            name: call['name'] as String? ?? '',
+            id: call['id'] is String ? call['id'] as String : 'call_$index',
+            name: call['name'] is String ? call['name'] as String : '',
             arguments: jsonEncode(call['args'] ?? const <String, Object?>{}),
           ),
     ];
 
-    if (_blocked(finishReason)) {
-      throw AiException(
-        'The model stopped with "$finishReason" and its answer was '
-        'discarded.',
-      );
-    }
+    _throwOnFailedFinish(finishReason);
 
+    int count(String key) => (usage?[key] as num?)?.toInt() ?? 0;
     // Thinking is billed on top of the answer and Google reports it beside
     // `candidatesTokenCount`, never inside it. Reading only the latter
     // under-reports the most expensive part of a reasoning run.
     final completionTokens =
-        ((usage?['candidatesTokenCount'] as num?)?.toInt() ?? 0) +
-        ((usage?['thoughtsTokenCount'] as num?)?.toInt() ?? 0);
+        count('candidatesTokenCount') + count('thoughtsTokenCount');
 
     return ChatResult(
       // Thought parts are reasoning, not the answer.
@@ -279,69 +541,111 @@ class GoogleGenAiProvider implements AiProvider {
           .join(),
       toolCalls: toolCalls,
       // Sent back verbatim: function-call parts can carry thought signatures.
-      geminiParts: toolCalls.isEmpty ? null : List<Object?>.of(rawParts),
-      promptTokens: (usage?['promptTokenCount'] as num?)?.toInt() ?? 0,
+      raw: toolCalls.isEmpty
+          ? null
+          : ProviderTurn(
+              protocol: AiProviderType.googleGenAi,
+              model: model,
+              parts: rawParts,
+            ),
+      promptTokens: count('promptTokenCount'),
       completionTokens: completionTokens,
       finishReason: finishReason,
       reasoned:
           parts.any((p) => p['thought'] == true) ||
-          ((usage?['thoughtsTokenCount'] as num?)?.toInt() ?? 0) > 0,
+          count('thoughtsTokenCount') > 0,
     );
   }
 
-  /// Finish reasons that mean the answer must not be used.
+  /// Only `STOP` and `MAX_TOKENS` are an answer; every other finish reason
+  /// throws.
   ///
-  /// `MAX_TOKENS` is deliberately absent: it is a real, usable answer that was
-  /// cut short, and [ChatResult.truncated] already reports it.
-  static bool _blocked(String? finishReason) =>
-      switch (finishReason?.toUpperCase()) {
-        'SAFETY' ||
-        'RECITATION' ||
-        'BLOCKLIST' ||
-        'PROHIBITED_CONTENT' ||
-        'SPII' ||
-        'IMAGE_SAFETY' ||
-        'MALFORMED_FUNCTION_CALL' => true,
-        _ => false,
-      };
+  /// The check is an allow-list because the failures keep growing and all of
+  /// them arrive with HTTP 200: besides the content-safety set, Gemini ends a
+  /// turn with `MISSING_THOUGHT_SIGNATURE`, `UNEXPECTED_TOOL_CALL`,
+  /// `TOO_MANY_TOOL_CALLS`, `MALFORMED_RESPONSE` or `OTHER`. Read as a short
+  /// reply, any of them looks to the agent loop like a model that stopped
+  /// calling tools. `MAX_TOKENS` is a real answer cut short, which
+  /// [ChatResult.truncated] reports. A missing reason is checked by the
+  /// caller: fine in one JSON object, a cut-off in a stream.
+  static void _throwOnFailedFinish(String? finishReason) {
+    switch (finishReason?.toUpperCase()) {
+      case null || 'STOP' || 'MAX_TOKENS' || 'FINISH_REASON_UNSPECIFIED':
+        return;
+      // The request is what was wrong here, not the model or the files: a
+      // thought signature from an earlier turn did not come back intact.
+      case 'MISSING_THOUGHT_SIGNATURE':
+        throw AiNetworkException(
+          'Gemini rejected the conversation ("$finishReason"): a reasoning '
+          'signature from an earlier turn was not sent back. This is a '
+          'request the app built wrongly, not a problem with your files.',
+        );
+      // Says nothing settled about the model — `OTHER` is Google's own
+      // catch-all, and a model that over- or mis-calls tools does call them —
+      // so the tool probe must read these as inconclusive, not as "no tools".
+      case 'OTHER' ||
+          'MALFORMED_RESPONSE' ||
+          'UNEXPECTED_TOOL_CALL' ||
+          'TOO_MANY_TOOL_CALLS':
+        throw AiNetworkException(
+          'The model stopped with "$finishReason" and its answer was '
+          'discarded.',
+        );
+      default:
+        throw AiException(
+          'The model stopped with "$finishReason" and its answer was '
+          'discarded.',
+        );
+    }
+  }
 
   /// Converts the conversation to Gemini `contents`.
   ///
   /// System messages travel separately as `systemInstruction`. A round's tool
   /// results go back as one user turn of `functionResponse` parts, matching the
   /// single model turn whose calls they answer.
-  static List<Map<String, Object?>> contents(List<ChatMessage> messages) {
+  /// A turn from another protocol or model is rebuilt from its text and
+  /// calls; [model] null accepts any Gemini turn (tests).
+  static List<Map<String, Object?>> contents(
+    List<ChatMessage> messages, {
+    String? model,
+  }) {
     final out = <Map<String, Object?>>[];
     for (final message in messages) {
       switch (message) {
         case SystemMessage():
           break;
-        case UserMessage(:final content):
+        case UserMessage(:final content, :final images):
           out.add({
             'role': 'user',
             'parts': [
               {'text': content},
+              for (final image in images)
+                {
+                  'inlineData': {
+                    'mimeType': image.mimeType,
+                    'data': image.base64,
+                  },
+                },
             ],
           });
-        case AssistantMessage(
-          :final content,
-          :final toolCalls,
-          :final geminiParts,
-        ):
+        case AssistantMessage(:final content, :final toolCalls, :final raw):
           out.add({
             'role': 'model',
             'parts':
-                geminiParts ??
-                [
-                  if (content.isNotEmpty) {'text': content},
-                  for (final call in toolCalls)
-                    {
-                      'functionCall': {
-                        'name': call.name,
-                        'args': call.decodedArguments ?? const {},
+                raw != null &&
+                    raw.fits(AiProviderType.googleGenAi, model ?? raw.model)
+                ? raw.parts
+                : [
+                    if (content.isNotEmpty) {'text': content},
+                    for (final call in toolCalls)
+                      {
+                        'functionCall': {
+                          'name': call.name,
+                          'args': call.decodedArguments ?? const {},
+                        },
                       },
-                    },
-                ],
+                  ],
           });
         case ToolResultMessage(:final name, :final content):
           final part = {
@@ -376,7 +680,7 @@ class GoogleGenAiProvider implements AiProvider {
   Future<ModelLimits> detectLimits() async {
     try {
       final res = await (_client ?? AiHttp.client)
-          .get(_modelUri())
+          .get(_modelUri(), headers: _headers)
           .timeout(const Duration(seconds: 5));
       if (res.statusCode < 200 || res.statusCode >= 300) {
         return ModelLimits.unknown;

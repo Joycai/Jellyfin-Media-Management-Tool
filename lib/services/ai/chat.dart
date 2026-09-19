@@ -9,6 +9,9 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'ai_provider.dart' show AiProviderType;
 
 sealed class ChatMessage {
   const ChatMessage();
@@ -21,12 +24,53 @@ class SystemMessage extends ChatMessage {
 
 class UserMessage extends ChatMessage {
   final String content;
-  const UserMessage(this.content);
+
+  /// Images sent with the text — video frames for a vision model. Each
+  /// protocol has its own part shape; the adapters map them.
+  final List<ImagePart> images;
+
+  const UserMessage(this.content, {this.images = const []});
+}
+
+/// One inline image.
+class ImagePart {
+  final Uint8List bytes;
+  final String mimeType;
+
+  const ImagePart({required this.bytes, this.mimeType = 'image/jpeg'});
+
+  String get base64 => base64Encode(bytes);
+
+  /// `data:` URL, the form Chat Completions and Responses take.
+  String get dataUrl => 'data:$mimeType;base64,$base64';
 }
 
 /// Reasoning kept with the turn that produced it, under the field name the
 /// server used.
 typedef ReasoningPassback = ({String field, String text});
+
+/// An assistant turn exactly as a protocol returned it: Gemini's parts with
+/// their thought signatures, Anthropic's content blocks with thinking and
+/// signatures, the Responses API's output items with encrypted reasoning.
+///
+/// Sent back unchanged, and only to the protocol and model that produced it:
+/// a signature is checked against the model that wrote it, so after a
+/// switch the turn is rebuilt from its text and calls instead.
+class ProviderTurn {
+  final AiProviderType protocol;
+  final String model;
+  final List<Object?> parts;
+
+  const ProviderTurn({
+    required this.protocol,
+    required this.model,
+    required this.parts,
+  });
+
+  /// Whether this turn may go back verbatim to [protocol] on [model].
+  bool fits(AiProviderType protocol, String model) =>
+      this.protocol == protocol && this.model == model;
+}
 
 class AssistantMessage extends ChatMessage {
   final String content;
@@ -37,15 +81,14 @@ class AssistantMessage extends ChatMessage {
   /// calls; attaching it exactly when there are calls satisfies both.
   final ReasoningPassback? reasoning;
 
-  /// Gemini's raw model parts, which carry thought signatures that must return
-  /// unchanged.
-  final List<Object?>? geminiParts;
+  /// The turn as the protocol returned it; see [ProviderTurn].
+  final ProviderTurn? raw;
 
   const AssistantMessage({
     this.content = '',
     this.toolCalls = const [],
     this.reasoning,
-    this.geminiParts,
+    this.raw,
   });
 }
 
@@ -108,7 +151,7 @@ class ChatResult {
   final String text;
   final List<ToolCall> toolCalls;
   final ReasoningPassback? reasoning;
-  final List<Object?>? geminiParts;
+  final ProviderTurn? raw;
   final int promptTokens;
   final int completionTokens;
   final String? finishReason;
@@ -125,7 +168,7 @@ class ChatResult {
     this.text = '',
     this.toolCalls = const [],
     this.reasoning,
-    this.geminiParts,
+    this.raw,
     this.promptTokens = 0,
     this.completionTokens = 0,
     this.finishReason,
@@ -133,28 +176,65 @@ class ChatResult {
     this.thinkingOffPending = false,
   });
 
-  bool get truncated => switch (finishReason?.toLowerCase()) {
-    'length' || 'max_tokens' => true,
-    _ => false,
-  };
+  bool get truncated => FinishReasons.isTruncation(finishReason);
 
   /// The assistant turn to append to the history.
   AssistantMessage toMessage() => AssistantMessage(
     content: text,
     toolCalls: toolCalls,
     reasoning: toolCalls.isEmpty ? null : reasoning,
-    geminiParts: geminiParts,
+    raw: raw,
   );
 
   ChatResult withThinkingOffPending(bool pending) => ChatResult(
     text: text,
     toolCalls: toolCalls,
     reasoning: reasoning,
-    geminiParts: geminiParts,
+    raw: raw,
     promptTokens: promptTokens,
     completionTokens: completionTokens,
     finishReason: finishReason,
     reasoned: reasoned,
     thinkingOffPending: pending,
   );
+}
+
+/// Why a reply that arrived with HTTP 200 must still not be used.
+enum FinishFailure {
+  /// A content filter stopped the reply: Azure and gateways say
+  /// `content_filter`, Zhipu `sensitive`. Whatever arrived before is partial.
+  filtered,
+
+  /// The upstream model failed partway (Zhipu's `network_error`,
+  /// OpenRouter's `error`). Nothing was learned about the model, so this
+  /// counts as a transport failure.
+  upstream,
+
+  /// Prompt and reply together outgrew the model's context window. Unlike an
+  /// output-cap cut, a larger output cap makes this worse: the history is
+  /// what has to shrink.
+  contextExceeded,
+}
+
+/// Reads the `finish_reason` values that are not a normal end.
+///
+/// Every one of them arrives inside a successful stream. Returning what came
+/// before them hands the caller a partial answer it cannot tell from a whole,
+/// and the agent loop reads the silence as "the model stopped calling tools"
+/// — so the user goes off changing prompts and models when the reply was in
+/// fact blocked, or cut short upstream.
+abstract final class FinishReasons {
+  /// The reply hit the output limit. It is real text, cut short.
+  static bool isTruncation(String? reason) => switch (reason?.toLowerCase()) {
+    'length' || 'max_tokens' => true,
+    _ => false,
+  };
+
+  static FinishFailure? failure(String? reason) =>
+      switch (reason?.toLowerCase()) {
+        'content_filter' || 'sensitive' => FinishFailure.filtered,
+        'network_error' || 'error' => FinishFailure.upstream,
+        'model_context_window_exceeded' => FinishFailure.contextExceeded,
+        _ => null,
+      };
 }

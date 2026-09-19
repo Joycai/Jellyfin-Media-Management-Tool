@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_http.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
+import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
 import 'package:jellyfin_media_management_tool/services/ai/google_genai_provider.dart';
 
 // Each test uses its own host: the provider remembers per endpoint + model
@@ -144,6 +147,40 @@ void main() {
         expect(first.thinkingOffPending, isTrue);
       },
     );
+
+    test('the lowest level is kept even though it still reasons', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = GoogleGenAiProvider(
+        _config('floor', model: 'gemini-3-pro'),
+        client: MockClient((request) async {
+          bodies.add(_body(request));
+          final config =
+              bodies.last['generationConfig'] as Map<String, dynamic>;
+          final thinking = config['thinkingConfig'] as Map<String, Object?>?;
+          if (thinking != null && thinking.containsKey('thinkingBudget')) {
+            return http.Response(
+              jsonEncode({
+                'error': {'message': 'thinking_budget is not supported.'},
+              }),
+              400,
+            );
+          }
+          return _text(
+            'hi',
+            usage: const {'candidatesTokenCount': 2, 'thoughtsTokenCount': 90},
+          );
+        }),
+      );
+
+      final first = await provider.complete(systemPrompt: 's', userPrompt: 'u');
+      await provider.complete(systemPrompt: 's', userPrompt: 'u');
+
+      // Gemini 3 cannot stop thinking; "low" is the floor, not a failure.
+      expect(first.thinkingOffPending, isFalse);
+      expect((bodies.last['generationConfig'] as Map)['thinkingConfig'], {
+        'thinkingLevel': 'low',
+      });
+    });
   });
 
   group('usage', () {
@@ -209,6 +246,60 @@ void main() {
       );
     });
 
+    for (final reason in [
+      'UNEXPECTED_TOOL_CALL',
+      'TOO_MANY_TOOL_CALLS',
+      'MALFORMED_RESPONSE',
+      'OTHER',
+      'SOMETHING_NEW',
+    ]) {
+      test('$reason is a failure, not a short reply', () async {
+        final provider = GoogleGenAiProvider(
+          _config('finish-${reason.toLowerCase()}'),
+          client: MockClient((_) async => _text('ok', finishReason: reason)),
+        );
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(
+            isA<AiException>().having(
+              (e) => e.message,
+              'message',
+              contains(reason),
+            ),
+          ),
+        );
+      });
+    }
+
+    test('a catch-all stop leaves tool support undecided', () async {
+      final probe = await AiConnectionCheck.probeTools(
+        GoogleGenAiProvider(
+          _config('finish-other-probe'),
+          client: MockClient((_) async => _text('', finishReason: 'OTHER')),
+        ),
+      );
+      expect(probe.outcome, ToolProbe.inconclusive);
+    });
+
+    test('a missing thought signature blames the request', () async {
+      final provider = GoogleGenAiProvider(
+        _config('finish-signature'),
+        client: MockClient(
+          (_) async => _text('', finishReason: 'MISSING_THOUGHT_SIGNATURE'),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            contains('not a problem with your files'),
+          ),
+        ),
+      );
+    });
+
     test('MAX_TOKENS is a usable answer, reported as truncated', () async {
       final result = await GoogleGenAiProvider(
         _config('capped'),
@@ -225,7 +316,7 @@ void main() {
   group('transport failures', () {
     test('a network error never carries the API key', () async {
       final uri = Uri.parse(
-        'https://leak/v1beta/models/gemini-2.5-flash:generateContent'
+        'https://leak/v1beta/models/gemini-2.5-flash:streamGenerateContent'
         '?key=secret-key-value',
       );
       final provider = GoogleGenAiProvider(
@@ -256,6 +347,52 @@ void main() {
       );
     });
 
+    test('the request log never holds the key', () async {
+      final dir = await Directory.systemTemp.createTemp('gemini_log');
+      addTearDown(() async {
+        ApiLog.instance
+          ..enabled = false
+          ..directory = null;
+        await dir.delete(recursive: true);
+      });
+      ApiLog.instance
+        ..directory = dir
+        ..enabled = true;
+
+      await GoogleGenAiProvider(
+        _config('logged-gemini'),
+        client: MockClient((_) async => _text('ok')),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      await ApiLog.instance.flush();
+
+      final text = await ApiLog.instance.currentFile!.readAsString();
+      expect(text, contains('"protocol":"gemini"'));
+      expect(text, isNot(contains('secret-key-value')));
+      expect(text, isNot(contains('key=')));
+    });
+
+    test('the key travels in a header, never in the URL', () async {
+      final seen = <http.BaseRequest>[];
+      final provider = GoogleGenAiProvider(
+        _config('key-header'),
+        client: MockClient((request) async {
+          seen.add(request);
+          return request.method == 'GET'
+              ? http.Response('{}', 404)
+              : _text('ok');
+        }),
+      );
+
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      await provider.detectLimits();
+
+      expect(seen, hasLength(2));
+      for (final request in seen) {
+        expect(request.url.queryParameters.containsKey('key'), isFalse);
+        expect(request.headers['x-goog-api-key'], 'secret-key-value');
+      }
+    });
+
     test('a socket failure is reported by its cause alone', () {
       final described = AiHttp.describeTransportError(
         const SocketException(
@@ -271,7 +408,7 @@ void main() {
       var calls = 0;
       final provider = GoogleGenAiProvider(
         _config('slow'),
-        timeout: const Duration(milliseconds: 30),
+        firstEventTimeout: const Duration(milliseconds: 30),
         client: MockClient((_) async {
           calls++;
           await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -289,7 +426,219 @@ void main() {
     });
   });
 
+  group('streaming', () {
+    http.Response sse(List<Map<String, Object?>> events) => http.Response(
+      [for (final e in events) 'data: ${jsonEncode(e)}\n\n'].join(),
+      200,
+      headers: const {'content-type': 'text/event-stream'},
+    );
+
+    test('asks for a stream and appends each event\'s parts', () async {
+      late http.BaseRequest seen;
+      final provider = GoogleGenAiProvider(
+        _config('sse'),
+        client: MockClient((request) async {
+          seen = request;
+          return sse([
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'Hel'},
+                    ],
+                  },
+                },
+              ],
+            },
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'lo'},
+                      {
+                        'functionCall': {
+                          'name': 'f',
+                          'args': {'a': 1},
+                        },
+                        'thoughtSignature': 'sig',
+                      },
+                    ],
+                  },
+                  'finishReason': 'STOP',
+                },
+              ],
+              'usageMetadata': {
+                'promptTokenCount': 7,
+                'candidatesTokenCount': 3,
+                'thoughtsTokenCount': 2,
+              },
+            },
+          ]);
+        }),
+      );
+
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+
+      expect(seen.url.path, endsWith(':streamGenerateContent'));
+      expect(seen.url.queryParameters['alt'], 'sse');
+      expect(result.text, 'Hello');
+      expect(result.toolCalls.single.name, 'f');
+      expect(result.raw?.parts, hasLength(3));
+      expect(result.promptTokens, 7);
+      expect(result.completionTokens, 5);
+      expect(result.finishReason, 'STOP');
+    });
+
+    test('a stream that ends without a finish reason was cut off', () async {
+      final provider = GoogleGenAiProvider(
+        _config('sse-cut'),
+        client: MockClient(
+          (_) async => sse([
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'half an'},
+                    ],
+                  },
+                },
+              ],
+            },
+          ]),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('an event split over data lines, after a comment, is read', () async {
+      final event = jsonEncode({
+        'candidates': [
+          {
+            'content': {
+              'parts': [
+                {'text': 'joined'},
+              ],
+            },
+            'finishReason': 'STOP',
+          },
+        ],
+      });
+      // SSE joins an event's data lines with a newline, which is only valid
+      // JSON between tokens — where a real sender splits.
+      final half = event.indexOf('[') + 1;
+      final provider = GoogleGenAiProvider(
+        _config('sse-multiline'),
+        client: MockClient(
+          (_) async => http.Response(
+            ': keep-alive\n\ndata: ${event.substring(0, half)}\n'
+            'data: ${event.substring(half)}\n\n',
+            200,
+          ),
+        ),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+      expect(result.text, 'joined');
+    });
+
+    test('a relay that answers with a JSON array is read too', () async {
+      final provider = GoogleGenAiProvider(
+        _config('array'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode([
+              {
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {'text': 'a'},
+                      ],
+                    },
+                  },
+                ],
+              },
+              {
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {'text': 'b'},
+                      ],
+                    },
+                    'finishReason': 'STOP',
+                  },
+                ],
+              },
+            ]),
+            200,
+          ),
+        ),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+      expect(result.text, 'ab');
+    });
+
+    test('a failed finish in the last event throws', () async {
+      final provider = GoogleGenAiProvider(
+        _config('sse-safety'),
+        client: MockClient(
+          (_) async => sse([
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'partial'},
+                    ],
+                  },
+                },
+              ],
+            },
+            {
+              'candidates': [
+                {'finishReason': 'SAFETY'},
+              ],
+            },
+          ]),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiException>()),
+      );
+    });
+  });
+
   group('request shape', () {
+    test('an image goes as inlineData', () {
+      final contents = GoogleGenAiProvider.contents([
+        UserMessage(
+          'look',
+          images: [
+            ImagePart(bytes: Uint8List.fromList([1, 2, 3])),
+          ],
+        ),
+      ]);
+      expect((contents.single['parts'] as List).last, {
+        'inlineData': {'mimeType': 'image/jpeg', 'data': 'AQID'},
+      });
+    });
+
     test('the system message travels as systemInstruction', () async {
       late http.BaseRequest seen;
       await GoogleGenAiProvider(
@@ -351,8 +700,8 @@ void main() {
       expect(result.toolCalls.single.name, 'submit');
       expect(result.toolCalls.single.decodedArguments, {'title': 'Frieren'});
       // The signature has to return unchanged on the next turn.
-      expect(result.geminiParts, hasLength(2));
-      expect((result.geminiParts![1] as Map)['thoughtSignature'], 'sig-abc');
+      expect(result.raw?.parts, hasLength(2));
+      expect((result.raw!.parts[1] as Map)['thoughtSignature'], 'sig-abc');
     });
   });
 }

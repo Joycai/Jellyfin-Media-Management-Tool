@@ -41,10 +41,14 @@ class DirectExtraction {
   final int promptTokens;
   final int completionTokens;
 
+  /// The run ended at the output limit, so fields may be missing.
+  final bool truncated;
+
   const DirectExtraction({
     required this.metadata,
     this.promptTokens = 0,
     this.completionTokens = 0,
+    this.truncated = false,
   });
 }
 
@@ -112,11 +116,19 @@ class DirectExtractor {
       cancelToken: cancelToken,
     );
 
-    if (state.metadata.isEmpty) return null;
+    if (state.metadata.isEmpty) {
+      if (run.outcome == AgentOutcome.truncated) {
+        throw AiException(
+          AgentRuntime.truncatedMessage(provider.config.maxOutputTokens),
+        );
+      }
+      return null;
+    }
     return DirectExtraction(
       metadata: state.metadata,
       promptTokens: run.promptTokens,
       completionTokens: run.completionTokens,
+      truncated: run.outcome == AgentOutcome.truncated,
     );
   }
 

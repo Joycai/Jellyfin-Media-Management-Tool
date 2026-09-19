@@ -5,13 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../models/ai_service_profile.dart';
+import '../../models/ai_channel.dart';
 import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_provider.dart';
 import '../../services/ai/ai_service.dart';
+import '../../services/ai/platform_profiles.dart';
 import '../../services/file_browser_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';
+import '../settings/ai_add_channel_dialog.dart';
 
 /// 3-step first-run guide: welcome → pick library root → choose AI protocol.
 ///
@@ -48,20 +50,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final profiles = context.read<AiProfilesService>();
     final ai = context.read<AiService>();
     final browser = context.read<FileBrowserService>();
-    final openAiName = AppLocalizations.of(context)!.onboardingProviderOpenAi;
 
     if (_pickedRoot != null) {
       browser.setCurrentDirectory(_pickedRoot);
       await settings.pushRecent(_pickedRoot!);
     }
     if (_pickedProvider != null) {
-      final profile = AiServiceProfile.create(
-        provider: _pickedProvider!,
-        name: _pickedProvider == AiProviderType.googleGenAi
-            ? 'Google GenAI'
-            : openAiName,
+      // A channel on the picked platform, with no model yet: a model name is
+      // the user's to choose, in Settings, next to the key it needs.
+      final platform = _pickedProvider == AiProviderType.googleGenAi
+          ? PlatformProfiles.google
+          : PlatformProfiles.openAi;
+      await profiles.addChannel(
+        AiChannel.create(
+          platform: platform,
+          name: platform.name,
+        ).copyWith(routes: initialRoutes(platform)),
       );
-      await profiles.add(profile);
       ai.updateConfig(profiles.aiConfig);
     }
     await settings.setOnboardingSeen(true);
@@ -668,7 +673,7 @@ class _StepAi extends StatelessWidget {
               const SizedBox(height: 14),
               _ProviderCard(
                 title: 'Google GenAI',
-                subtitle: 'Gemini 2.0 Flash · Pro',
+                subtitle: 'Gemini',
                 badge: 'G',
                 badgeColor: AppPalette.vendorGoogle.first,
                 selected: picked == AiProviderType.googleGenAi,

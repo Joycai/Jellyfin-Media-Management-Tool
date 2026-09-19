@@ -10,11 +10,15 @@ import '../organize/grouping.dart';
 import '../organize/jellyfin_naming.dart';
 import '../organize/organize_agent.dart';
 import '../organize/organize_workspace.dart';
+import '../thumbnails/video_frames.dart';
 import './ai_cancel_token.dart';
 import './ai_provider.dart';
+import './anthropic_provider.dart';
 import './connection_check.dart';
+import './frame_vision.dart';
 import './google_genai_provider.dart';
 import './openai_provider.dart';
+import './openai_responses_provider.dart';
 
 enum ConnectionStatus { unknown, testing, connected, error }
 
@@ -85,6 +89,8 @@ class AiService extends ChangeNotifier {
   static AiProvider providerFor(AiConfig config) => switch (config.provider) {
     AiProviderType.googleGenAi => GoogleGenAiProvider(config),
     AiProviderType.openAi => OpenAiProvider(config),
+    AiProviderType.anthropic => AnthropicProvider(config),
+    AiProviderType.openAiResponses => OpenAiResponsesProvider(config),
   };
 
   /// Syncs config from settings. Resets the connection status when the target
@@ -110,6 +116,16 @@ class AiService extends ChangeNotifier {
     }
     _notifySafely();
   }
+
+  /// The frame-recognition model; null keeps frames on this computer. Read
+  /// when an analysis starts, to decide whether the tool is offered, and
+  /// again before every lookup, so withdrawing consent or reassigning the
+  /// task mid-run takes effect at once. Wired in `main.dart` from the task
+  /// assignment and the user's consent.
+  AiConfig? Function()? visionConfig;
+
+  /// Where frames come from; replaced in tests.
+  FrameSource frameSource = VideoFrameExtractor();
 
   /// Told when a run finds out whether a model calls tools, so the owner of
   /// the profiles can record it. Wired in `main.dart`.
@@ -255,6 +271,8 @@ class AiService extends ChangeNotifier {
       final overrides = await _overrides(baseDir, stamps);
 
       final config = _config;
+      final vision = visionConfig?.call();
+      final framesOffered = vision != null && vision.isComplete;
       final sw = Stopwatch()..start();
       final run =
           await OrganizeAgent(
@@ -274,6 +292,23 @@ class AiService extends ChangeNotifier {
                 _readSmallFile(p.join(baseDir, relativePath)),
             remembered: remembered,
             overrides: overrides,
+            lookAtFrames: !framesOffered
+                ? null
+                : (relativePath) async {
+                    final current = visionConfig?.call();
+                    if (current == null || !current.isComplete) {
+                      throw const FramesUnavailable(
+                        'Frame recognition was turned off.',
+                      );
+                    }
+                    return FrameVision(
+                      provider: providerFor(current),
+                      frames: frameSource,
+                    ).identify(
+                      p.join(baseDir, relativePath),
+                      cancelToken: cancelToken,
+                    );
+                  },
             cancelToken: cancelToken,
             onProgress: onProgress == null
                 ? null

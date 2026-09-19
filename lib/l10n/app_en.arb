@@ -124,22 +124,9 @@
   "testConnection": "Test Connection",
   "connectionFailed": "Connection failed: {error}",
   "appearance": "Appearance",
-  "aiServiceDetailHint": "Primary AI endpoint for organization and metadata matching",
-  "addService": "Add service",
-  "addAnotherEndpoint": "Add another endpoint",
-  "newServiceName": "New Service",
-  "statusActive": "Active",
-  "useThisService": "Use this service",
-  "statusStandby": "Standby",
-  "statusOffline": "Offline",
-  "endpointProtocol": "Endpoint protocol",
-  "protocolOpenAi": "OpenAI compatible",
-  "protocolGoogle": "Google GenAI",
-  "displayName": "Display name",
   "baseUrl": "Base URL",
   "showKey": "Show",
   "hideKey": "Hide",
-  "defaultModel": "Default model",
   "temperature": "Temperature",
   "apiKeyOptionalHint": "Optional for local servers (LM Studio, Ollama…)",
   "contextWindow": "Context window (tokens)",
@@ -174,16 +161,11 @@
   "thinkingEffortOnly": "This model's reasoning cannot be turned off; with thinking off it runs at low effort.",
   "thinkingVerifiedOff": "Last test: reasoning was off.",
   "thinkingStillOn": "Last test: the model still reasoned. Turn thinking off in the server's own model settings (in LM Studio: Enable Thinking).",
-  "toolsSupported": "Tool calling: supported. This model can organize folders and scrape metadata.",
-  "toolsUnsupported": "Tool calling: not supported. This model cannot be used to organize folders or scrape metadata.",
   "presetNeedsSystemPrompt": "This model's card requires its own system prompt; results may suffer without it.",
   "ollamaIgnoresSampling": "Ollama's OpenAI-compatible API ignores Top K, Min P and Repeat penalty; set them in the Modelfile instead.",
   "tokensThisSession": "Tokens this session",
   "requests": "Requests",
   "avgLatency": "Avg latency",
-  "selectServiceHint": "Select a service to configure",
-  "deleteServiceTitle": "Delete service",
-  "deleteServiceConfirm": "Delete \"{name}\"? This cannot be undone.",
   "previewTitle": "Organize {count} items into Jellyfin structure",
   "previewSubtitle": "Move {folders} folders, {size} · avg AI confidence {pct}%",
   "viewTree": "Tree compare",
@@ -457,6 +439,7 @@
   "settingsScrapeRecipeAnyPath": "any page",
   "scrapeNoteLlmExtracted": "These values were read off the page by the model, not matched by a selector — nothing verified them against the document. Check anything that matters before writing.",
   "scrapeNoteLlmExtractionFailed": "The model could not read usable metadata off this page.",
+  "scrapeNoteLlmExtractionTruncated": "The model hit its output limit before it finished, so some fields may be missing. Raise the maximum output in the AI service settings.",
   "scrapeAskLlm": "Ask the LLM directly",
   "scrapeAskLlmHint": "Reads the page you already fetched and reports the fields itself. Costs a request, and the values are the model’s rather than the page’s.",
   "scrapeCustomPrompt": "Extra instructions for the model (optional)",
@@ -576,7 +559,7 @@
   "privacyCopyPath": "Copy",
   "privacyCopied": "Path copied",
   "privacyDataFiles": "Data files",
-  "privacyDataFilesValue": "config.json · ai_profiles.json · sites.json · scrapers.json",
+  "privacyDataFilesValue": "config.json · ai_profiles.json · ai_learned.json · sites.json · scrapers.json",
   "privacyPrefsBackup": "Preferences backup",
   "privacyPrefsBackupHint": "Export or restore config.json and the AI profiles",
   "privacyImport": "Import",
@@ -598,9 +581,18 @@
   "privacyCrashReports": "Crash reports",
   "privacyCrashReportsHint": "Stack traces and device model only",
   "privacyLogAiBodies": "Log AI request and reply bodies",
-  "privacyLogAiBodiesHint": "For troubleshooting only — logs grow quickly",
+  "privacyLogAiBodiesHint": "Every request actually sent goes to the logs folder, one file per day, kept {days} days. Keys are never written; images and long text are logged by length only.",
+  "@privacyLogAiBodiesHint": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "privacyClearTempOnExit": "Empty the temporary folder on exit",
-  "privacyNoTelemetry": "This app collects no telemetry of any kind and has no log file, so these switches have nothing to turn off yet.",
+  "privacyNoTelemetry": "This app collects no telemetry of any kind. The AI request log stays on this computer; the other switches have nothing to turn off yet.",
+  "privacyCacheApiLog": "AI request log",
+  "privacyCacheApiLogHint": "Written while “Log AI request and reply bodies” is on",
   "privacyDanger": "Danger zone",
   "privacyReset": "Reset all data",
   "privacyResetBody": "Clears AI services, recipes, history and every cache, returning the app to its first-launch state. Media files on disk are not deleted, and NFOs and images already written are kept.",
@@ -642,10 +634,6 @@
   "accentEyedropper": "Pick a color from the screen",
   "accentContrastOk": "Contrast against the dark and light window bases: {dark}:1 · {light}:1",
   "accentContrastWeak": "Contrast {dark}:1 · {light}:1 — below 3:1, so use it as a fill only",
-  "modelParameters": "Model parameters",
-  "modelParametersExpand": "Expand",
-  "modelParametersCollapse": "Collapse",
-  "modelParametersSaved": "Model parameters saved",
   "contextWindowScaleHint": "tokens · 8k – 1M · step 1k",
   "contextWindowFootnote": "The ticks are evenly spaced segments and each segment is continuous, so the handle can stop on any 1k. Slider and field follow each other; blank means no limit.",
   "contextWindowOverDetected": "Above the {limit} the server reported. Still saved.",
@@ -683,5 +671,375 @@
   "transferDestinationMissing": "The destination folder is not available",
   "moveToTitle": "Move to folder",
   "transferRefusedLink": "{count} items are symbolic links or contain them",
-  "transferRefusedUnreadable": "{count} items could not be read"
+  "transferRefusedUnreadable": "{count} items could not be read",
+  "aiAccessTitle": "AI access",
+  "aiAccessSubtitle": "A channel is one key. A route is a protocol that key can speak. Each model hangs off a channel and picks one route.",
+  "aiDiagnostics": "Diagnostics",
+  "aiAddChannel": "Add channel",
+  "aiMergeHint": "{names} share one key and host and can become one channel ({routes, plural, =1{1 route} other{{routes} routes}}, {models, plural, =1{1 model} other{{models} models}}).",
+  "@aiMergeHint": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "routes": {
+        "type": "int"
+      },
+      "models": {
+        "type": "int"
+      }
+    }
+  },
+  "aiMergeAction": "Merge",
+  "aiChannelHostLine": "{host} · platform: {platform}",
+  "@aiChannelHostLine": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "aiNoKeyNeeded": "no key needed",
+  "aiNoModels": "No models yet — open the channel to add one.",
+  "aiToolsUnprobed": "Tools: not checked",
+  "aiToolsYes": "Tools",
+  "aiToolsNo": "No tools",
+  "aiImage": "Image",
+  "aiVideo": "Video",
+  "aiEmptyTitle": "No channels yet",
+  "aiEmptyBody": "Pick a platform, paste one key, then add the models you want to use.",
+  "aiTasksTitle": "Task assignment",
+  "aiTasksHint": "Pick a model for each task. Tasks that need tool calling leave out models known not to call tools.",
+  "aiTaskOrganize": "Organize (tool calling)",
+  "aiTaskScrapeLearn": "Scrape · learn a recipe (tool calling)",
+  "aiTaskScrapeDirect": "Scrape · read the page (tool calling)",
+  "aiTaskVision": "Frame recognition (image input)",
+  "aiFollowOrganize": "Follow “Organize”",
+  "aiTaskNoModel": "No suitable model",
+  "aiVisionNeedsImage": "Only models allowed image input are listed.",
+  "aiSessionUsage": "Since this launch",
+  "aiPlatformRelay": "Relay (New API style)",
+  "aiPlatformCustom": "Custom",
+  "aiPlatformDashScope": "Alibaba Cloud Model Studio",
+  "aiPlatformZhipu": "Zhipu BigModel",
+  "aiPlatformVolcengine": "Volcengine Ark",
+  "aiAddChannelHint": "Pick the platform first. Protocols, address and auth come from its profile; you only paste one key.",
+  "aiPlatformGroupVendor": "Vendors",
+  "aiPlatformGroupRelay": "Aggregators and relays",
+  "aiPlatformGroupLocal": "Local servers",
+  "aiPlatformCustomHint": "Custom — protocol-standard fields only, no vendor extensions",
+  "aiWillCreate": "{platform} · will create",
+  "@aiWillCreate": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "aiPrimaryRoute": "Primary",
+  "aiRouteDialect": "Reasoning switch: {field}",
+  "@aiRouteDialect": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiRouteLadder": "No platform switch — the local-server ladder, judged by the reply",
+  "aiRouteNotInBuild": "Arrives in a later update",
+  "aiChannelKey": "API key (shared by the whole channel)",
+  "aiChannelHost": "Host",
+  "aiChannelHostHint": "Entered once; every route builds on it",
+  "aiChannelName": "Display name",
+  "aiDeleteChannel": "Delete channel",
+  "aiDeleteChannelConfirm": "Delete “{name}” and {count, plural, =0{its settings} =1{its model} other{its {count} models}}? This cannot be undone.",
+  "@aiDeleteChannelConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPlatformInferred": "Platform: {platform} · inferred from the host",
+  "@aiPlatformInferred": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "aiPlatformChosen": "Platform: {platform}",
+  "@aiPlatformChosen": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "aiRoutesTitle": "Routes",
+  "aiRoutesHint": "At most one per protocol. Only the protocols this platform offers are listed.",
+  "aiRoutePathDefault": "Default: {path}",
+  "@aiRoutePathDefault": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "aiRouteHostItself": "the host itself",
+  "aiRouteEnable": "Enable",
+  "aiRouteDisable": "Turn off",
+  "aiRouteMakePrimary": "Make primary",
+  "aiRouteInUse": "{count, plural, =1{1 model uses} other{{count} models use}} this route — it cannot be turned off.",
+  "@aiRouteInUse": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiRouteNotEnabled": "Offered by the platform, not enabled. Models can switch to it once it is; their parameters start blank.",
+  "aiRoutePathNote": "Blank = the platform’s own path. A relative path is added to the host; a full URL replaces the host too (shown as “own host”).",
+  "aiRouteOwnHost": "own host",
+  "aiModelsTitle": "Models",
+  "aiAddModel": "Add model",
+  "aiModelNameHint": "Model name as the server knows it",
+  "aiRouteBar": "Route",
+  "aiRouteBarHint": "Switching route keeps the model id. A route never configured starts blank.",
+  "aiCapabilityMatrix": "Capability matrix",
+  "aiScopeModel": "Model",
+  "aiScopeModelHint": "Same on every route",
+  "aiUpstreamModel": "Upstream model name",
+  "aiAllowImage": "Allow image input",
+  "aiAllowVideo": "Allow video frames",
+  "aiAllowHint": "An authorization. Whether it can be sent depends on the route.",
+  "aiScopeRoute": "This route · {protocol}",
+  "@aiScopeRoute": {
+    "placeholders": {
+      "protocol": {
+        "type": "String"
+      }
+    }
+  },
+  "aiScopeRouteHint": "Changes with the protocol; parked here when you switch routes",
+  "aiThinkingDialect": "Reasoning switch",
+  "aiDialectField": "{field} · from the platform profile",
+  "@aiDialectField": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiSendsAs": "Sent as {field}",
+  "@aiSendsAs": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiLearnedTag": "learned",
+  "aiRefusedFields": "Refused on this route and no longer sent: {fields}",
+  "@aiRefusedFields": {
+    "placeholders": {
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
+  "aiStructuredOutput": "Structured output",
+  "aiStructuredLearned": "{mode} · learned",
+  "@aiStructuredLearned": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "aiStructuredUnknown": "Not needed by any task; the test learns it only as a fallback",
+  "aiPreviewTitle": "What will be sent",
+  "aiPreviewHint": "Built by the same code as the real request, for an organize turn.",
+  "aiPreviewUnavailable": "This build has no adapter for this protocol yet.",
+  "aiTestRoute": "Test this route",
+  "aiDeleteModel": "Delete model",
+  "aiDeleteModelConfirm": "Delete “{name}”? Tasks assigned to it go back to following organize.",
+  "@aiDeleteModelConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "aiToolsMeasured": "Supported · measured on this route",
+  "aiToolsMeasuredNo": "Not supported · measured on this route",
+  "aiToolsNotMeasured": "Not checked on this route yet",
+  "aiSwitchTitle": "Switch {model} from {from} to {to}",
+  "@aiSwitchTitle": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "aiSwitchBody": "The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied.",
+  "aiSwitchParam": "Parameter",
+  "aiSwitchNow": "Now · {protocol}",
+  "@aiSwitchNow": {
+    "placeholders": {
+      "protocol": {
+        "type": "String"
+      }
+    }
+  },
+  "aiSwitchAfter": "After · {protocol}",
+  "@aiSwitchAfter": {
+    "placeholders": {
+      "protocol": {
+        "type": "String"
+      }
+    }
+  },
+  "aiParamThinking": "Reasoning",
+  "aiParamMaxOutput": "Max output",
+  "aiParamSampling": "Sampling",
+  "aiParamTools": "Tool calling",
+  "aiParamImage": "Image input",
+  "aiNotSetNotSent": "not set · not sent",
+  "aiOn": "on",
+  "aiOff": "off",
+  "aiToolsProbeAfter": "Not checked — test the route after switching",
+  "aiSwitchFooter": "The model id is unchanged; task assignments are unaffected.",
+  "aiSwitchConfirm": "Switch",
+  "aiMatrixHint": "Allowing is your switch; whether it can be sent is platform × route × model.",
+  "aiCapTools": "Tool calling",
+  "aiCapToolsHint": "Organize and scrape need it",
+  "aiCapJson": "JSON mode",
+  "aiCapJsonHint": "Connection-test fallback only",
+  "aiCapImage": "Image input",
+  "aiCapVideo": "Video input",
+  "aiCapThinkingOff": "Reasoning off",
+  "aiCapThinkingOffHint": "Judged by whether the reply still reasoned",
+  "aiCapUsage": "Usage reporting",
+  "aiCapUsageHint": "Not reported ≠ 0",
+  "aiCapAllowed": "allowed",
+  "aiCapNotAllowed": "not allowed",
+  "aiColCurrent": "current",
+  "aiColEnabled": "enabled",
+  "aiColOffered": "not enabled",
+  "aiCellMeasured": "works · measured",
+  "aiCellUnmeasured": "not measured",
+  "aiCellUnsupported": "not supported · measured",
+  "aiCellLearned": "{mode} · learned",
+  "@aiCellLearned": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "aiCellParameter": "parameter, not measured",
+  "aiCellNotInBuild": "not in this build",
+  "aiCellSwitch": "{field} · platform switch",
+  "@aiCellSwitch": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiCellLadder": "ladder · judged by reply",
+  "aiCellLadderExhausted": "no way worked here",
+  "aiCellProtocolUsage": "part of the protocol",
+  "aiCellNotAllowed": "not allowed",
+  "aiMatrixFootnote": "Task pickers read this matrix: a model is offered for frame recognition only where image input can actually be sent on its current route.",
+  "aiDiagTest": "Test a route",
+  "aiDiagRun": "Run test",
+  "aiStepReach": "Reachable",
+  "aiStepServer": "Identified as {kind}",
+  "@aiStepServer": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "aiStepGenerate": "Generated in {ms} ms · {prompt} + {completion} tokens",
+  "@aiStepGenerate": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      },
+      "prompt": {
+        "type": "int"
+      },
+      "completion": {
+        "type": "int"
+      }
+    }
+  },
+  "aiStepTruncated": "Reply hit the output limit",
+  "aiStepThinkingOff": "Reasoning is off",
+  "aiStepThinkingStillOn": "The model still reasoned",
+  "aiStepTools": "Called the test tool",
+  "aiStepToolsNo": "Did not call the test tool",
+  "aiStepToolsUnknown": "Tool calling undecided — the request did not complete",
+  "aiStepUsage": "Usage reported",
+  "aiStepUsageMissing": "No usage reported (counted as unknown, not 0)",
+  "aiStepContext": "Context: the server serves {served}, you entered {typed}",
+  "@aiStepContext": {
+    "placeholders": {
+      "served": {
+        "type": "int"
+      },
+      "typed": {
+        "type": "int"
+      }
+    }
+  },
+  "aiStepContextBody": "A local server past its window drops the system prompt from the front without a word.",
+  "aiStepUseServed": "Use the served value",
+  "aiLogTitle": "API log · today",
+  "aiLogHint": "Every body actually sent, numbered",
+  "aiLogOff": "Logging is off. Turn it on to record requests.",
+  "aiLogEmpty": "Nothing logged today.",
+  "aiLogOpenFolder": "Show in folder",
+  "aiLogFootnote": "Keys are never written; images and strings over 2 KB are replaced by their length; writes are serial, so concurrent requests never interleave.",
+  "scrapeBackendAssigned": "As assigned in Settings",
+  "aiPlatformLabel": "Platform",
+  "aiMergeConfirmTitle": "Merge channels",
+  "aiMergeConfirmBody": "Routes and models move into “{name}” and the other channels are removed. Every model keeps its URL, parameters and task assignments.",
+  "@aiMergeConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "aiCellPromptOnly": "no parameter · prompt only",
+  "aiCellDefaultOff": "off by default",
+  "aiCellModelDefault": "the model’s default",
+  "aiCellSentAs": "sent as {part} · not measured",
+  "aiCellAsFrames": "as image frames · not measured",
+  "aiVisionAllowFrames": "Send video frames to this model",
+  "aiVisionAllowFramesHint": "Off by default: frames leave this computer. Organize uses them only for videos whose names say nothing, and every group decided that way is flagged for review.",
+  "@aiCellSentAs": {
+    "placeholders": {
+      "part": {
+        "type": "String"
+      }
+    }
+  }
 }

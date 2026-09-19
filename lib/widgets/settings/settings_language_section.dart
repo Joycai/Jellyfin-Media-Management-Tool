@@ -7,7 +7,7 @@ import '../../l10n/app_localizations_en.dart';
 import '../../l10n/app_localizations_zh.dart';
 import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';
-import 'ai_services_screen.dart';
+import 'ai_settings_widgets.dart';
 
 /// One row in the language list. Only languages whose ARB exists are listed —
 /// no "coming soon" rows for translations we don't actually have.

@@ -600,4 +600,166 @@ void main() {
     expect(OrganizeAgent.systemPrompt, contains('only words that appear'));
     expect(OrganizeAgent.systemPrompt, contains('your own knowledge'));
   });
+
+  group('frame recognition', () {
+    final unnamed = _files([
+      ['Downloads', 'VID_20230812.mp4'],
+    ]);
+
+    test('the tool is only offered when frames may be sent', () async {
+      final provider = ScriptedChatProvider([
+        _submit({'group': 'g1', 'mediaType': 'movie', 'title': 'X'}),
+      ]);
+      await OrganizeAgent(
+        provider,
+      ).run(folderName: 'Downloads', files: unnamed);
+      expect(
+        provider.offeredTools.first,
+        isNot(contains('identify_from_frames')),
+      );
+    });
+
+    test('a decision made after looking is flagged for review', () async {
+      final looked = <String>[];
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        _submit({
+          'group': 'g1',
+          'mediaType': 'movie',
+          'title': 'Summer Trip',
+          'confidence': 0.95,
+        }),
+      ]);
+
+      final run = await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: unnamed,
+        lookAtFrames: (path) async {
+          looked.add(path);
+          return 'Title card: "Summer Trip"';
+        },
+      );
+
+      expect(looked, [p.join('Downloads', 'VID_20230812.mp4')]);
+      expect(provider.offeredTools.first, contains('identify_from_frames'));
+      expect(_lastResult(provider, 1), contains('Summer Trip'));
+      final action = run.plan.actions.single;
+      expect(action.confidence, lessThan(0.6));
+      expect(action.note, contains('video frames'));
+    });
+
+    test('what frames showed flags every later decision too', () async {
+      final two = _files([
+        ['Downloads', 'VID_1.mp4'],
+        ['Other', 'VID_2.mp4'],
+      ]);
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        (_) => toolTurn([
+          (
+            'submit_group',
+            {
+              'group': 'g1',
+              'mediaType': 'movie',
+              'title': 'A',
+              'confidence': 1,
+            },
+          ),
+          (
+            'submit_group',
+            {
+              'group': 'g2',
+              'mediaType': 'movie',
+              'title': 'B',
+              'confidence': 1,
+            },
+          ),
+        ]),
+      ]);
+      final run = await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: two,
+        lookAtFrames: (_) async => 'Title card: "A"',
+      );
+      expect(run.plan.actions.every((a) => a.confidence < 0.6), isTrue);
+    });
+
+    test('a vision failure is an answer, not an erratic model', () async {
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+      ]);
+      // The model never decides, so the run fails — but for running out of
+      // rounds, not for "calling the tools incorrectly": each failed lookup
+      // was answered, not counted against it.
+      await expectLater(
+        OrganizeAgent(provider).run(
+          folderName: 'Downloads',
+          files: unnamed,
+          lookAtFrames: (_) async =>
+              throw const AiException('HTTP 400: image input not supported'),
+        ),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            isNot(contains('incorrectly')),
+          ),
+        ),
+      );
+      expect(_lastResult(provider, 1), contains('could not be read'));
+    });
+
+    test('a failed lookup flags nothing decided after it', () async {
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        (_) => toolTurn([
+          (
+            'submit_group',
+            {
+              'group': 'g1',
+              'mediaType': 'movie',
+              'title': 'A',
+              'confidence': 1,
+            },
+          ),
+        ]),
+      ]);
+      final run = await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: unnamed,
+        lookAtFrames: (_) async =>
+            throw const AiException('HTTP 401: invalid key'),
+      );
+      expect(run.plan.actions.every((a) => a.confidence >= 0.6), isTrue);
+      expect(run.plan.actions.first.note, isNot(contains('video frames')));
+    });
+
+    test('lookups are capped per run', () async {
+      var looked = 0;
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+      ]);
+      await OrganizeAgent(provider)
+          .run(
+            folderName: 'Downloads',
+            files: unnamed,
+            lookAtFrames: (_) async {
+              looked++;
+              return 'nothing identifying on screen';
+            },
+          )
+          .then((_) {}, onError: (Object _) {});
+      expect(looked, OrganizeState.maxFrameLookups);
+    });
+  });
 }

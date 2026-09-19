@@ -37,6 +37,9 @@ import 'organize_workspace.dart';
 /// returns null when it cannot.
 typedef ReadFolderFile = Future<String?> Function(String relativePath);
 
+/// Reads the on-screen text of the video at a relative path.
+typedef LookAtFrames = Future<String> Function(String relativePath);
+
 class OrganizeRun {
   final OrganizePlan plan;
 
@@ -99,6 +102,7 @@ class OrganizeAgent {
     ReadFolderFile? readFile,
     Map<String, CachedDecision> remembered = const {},
     Map<String, String> overrides = const {},
+    LookAtFrames? lookAtFrames,
     int? batchSize,
     AiCancelToken? cancelToken,
     void Function(int done, int total)? onProgress,
@@ -110,6 +114,7 @@ class OrganizeAgent {
       readFile: readFile,
       overrides: overrides,
       onDecided: onDecided,
+      lookAtFrames: lookAtFrames,
     );
     for (final g in state.groups) {
       if (remembered[g.group.id] case final cached?) {
@@ -170,17 +175,19 @@ class OrganizeAgent {
                       : null,
                   decided: state.decidedTable(),
                   firstPage: state.groupsPage(1),
+                  frames: lookAtFrames != null,
                 ),
               ),
             ],
-            tools: const [
-              _ListGroupsTool(),
-              _ListGroupFilesTool(),
-              _ReadExistingNfoTool(),
-              _FindDecidedTool(),
-              _SubmitGroupTool(),
-              _SplitGroupTool(),
-              _MarkUnsureTool(),
+            tools: [
+              const _ListGroupsTool(),
+              const _ListGroupFilesTool(),
+              const _ReadExistingNfoTool(),
+              const _FindDecidedTool(),
+              if (lookAtFrames != null) const _IdentifyFromFramesTool(),
+              const _SubmitGroupTool(),
+              const _SplitGroupTool(),
+              const _MarkUnsureTool(),
             ],
             context: state,
             maxRounds: maxRoundsFor(state.active.length),
@@ -209,6 +216,9 @@ class OrganizeAgent {
             warning =
                 'model tool calls kept failing; try a larger model or turn '
                 'thinking on';
+          } else if (run.outcome == AgentOutcome.truncated) {
+            state.failActive('the model kept hitting its output limit');
+            warning = 'replies kept hitting the output limit; raise it';
           }
           state.finishActive();
           break;
@@ -236,6 +246,9 @@ class OrganizeAgent {
               'stopped. Try a larger model, or turn thinking on.',
         AgentOutcome.exhausted =>
           'The model used all its rounds without deciding any group.',
+        AgentOutcome.truncated => AgentRuntime.truncatedMessage(
+          provider.config.maxOutputTokens,
+        ),
         _ => 'The model stopped without deciding any group.',
       });
     }
@@ -309,6 +322,7 @@ How to decide:
     GroupMediaType? typeHint,
     (int, int)? batch,
     String decided = '',
+    bool frames = false,
   }) {
     final title = titleHint?.trim() ?? '';
     return [
@@ -327,6 +341,13 @@ How to decide:
       if (title.isNotEmpty)
         'The user gives the title "$title". Use it exactly as written for the '
             'groups it names — normally all of them.',
+      if (frames)
+        'identify_from_frames is available: for a group whose names, folder '
+            'and NFO say nothing about what it is, it reports the on-screen '
+            'text of a few frames of its video. A title it quotes from the '
+            'screen may be used. Use it only when the names do not tell; '
+            'every group decided after it is flagged for the user to review, '
+            'and only ${OrganizeState.maxFrameLookups} lookups are allowed.',
       if (decided.isNotEmpty) ...['', decided],
       '',
       firstPage,
@@ -345,6 +366,10 @@ class GroupState {
 
   /// Decided in an earlier run and taken from the cache.
   bool remembered = false;
+
+  /// The model looked at this group's frames before deciding, so the
+  /// decision rests on what a vision model read off the screen.
+  bool framesUsed = false;
 
   /// Why this group's batch failed, when it did.
   String? failure;
@@ -393,6 +418,23 @@ class OrganizeState {
   final Map<String, String> overrides;
   final void Function(GroupState group)? onDecided;
 
+  /// Reads the on-screen text of a video, by relative path; null when frame
+  /// recognition is off.
+  final LookAtFrames? lookAtFrames;
+
+  /// Frames were looked at in this run. What they showed can carry into any
+  /// later decision — sibling episodes, a later batch through find_decided —
+  /// so from then on every decision is flagged, not only the looked-at
+  /// group's.
+  bool framesSeen = false;
+
+  /// Frame lookups made in this run; see [maxFrameLookups].
+  int frameLookups = 0;
+
+  /// Each lookup is a paid request with several images; a folder of
+  /// unnamed videos must not become hundreds of them.
+  static const maxFrameLookups = 5;
+
   /// The groups the current session works on. The tools see only these, so
   /// a batch's conversation stays about its own groups.
   List<GroupState> active;
@@ -400,6 +442,11 @@ class OrganizeState {
   static const groupsPerPage = 20;
   static const filesPerPage = 25;
   static const defaultConfidence = 0.8;
+
+  /// Below the review threshold (0.6): a group decided from video frames is
+  /// always flagged.
+  static const framesConfidence = 0.5;
+  static const framesNote = 'Identified from video frames — check.';
 
   /// Rows of the decided-titles table a session starts with; past it the
   /// model looks titles up with find_decided.
@@ -412,6 +459,7 @@ class OrganizeState {
     this.readFile,
     this.overrides = const {},
     this.onDecided,
+    this.lookAtFrames,
   }) : groups = [for (final group in groups) GroupState(group)],
        active = const [] {
     active = this.groups;
@@ -1015,6 +1063,76 @@ class _FindDecidedTool extends AgentTool<OrganizeState> {
       context.findDecided(arguments['query']?.toString() ?? '');
 }
 
+class _IdentifyFromFramesTool extends AgentTool<OrganizeState> {
+  const _IdentifyFromFramesTool();
+
+  static String _describe(Exception error) => switch (error) {
+    AiException(:final message) => message,
+    _ => 'unexpected error',
+  };
+
+  @override
+  ToolDefinition get definition => const ToolDefinition(
+    name: 'identify_from_frames',
+    description:
+        'Reports the on-screen text (title cards, episode captions, credits) '
+        'of a few frames from the main video of a group. For groups whose '
+        'names say nothing about what they are. Slow and flagged for review: '
+        'use it only when the names do not tell.',
+    parameters: {
+      'type': 'object',
+      'properties': {'group': _groupParameter},
+      'required': ['group'],
+    },
+  );
+
+  @override
+  Future<String> execute(
+    Map<String, dynamic> arguments,
+    OrganizeState context,
+  ) async {
+    final look = context.lookAtFrames;
+    if (look == null) {
+      throw const ToolError(
+        'identify_from_frames is not available. Decide from the names, or '
+        'call mark_unsure.',
+      );
+    }
+    final g = context.find(arguments['group']);
+    final videos = g.group.videos;
+    if (videos.isEmpty) {
+      throw ToolError('Group ${g.group.id} has no video to look at.');
+    }
+    if (context.frameLookups >= OrganizeState.maxFrameLookups) {
+      return 'The frame lookups for this folder are used up. Decide from the '
+          'names, or call mark_unsure.';
+    }
+    context.frameLookups++;
+    // The feature, not a trailer or a sample: extras are marked as such.
+    final video = videos.firstWhere(
+      (v) => v.extraType == null,
+      orElse: () => videos.first,
+    );
+    final String seen;
+    try {
+      seen = await look(video.relativePath);
+    } on AiCancelled {
+      rethrow;
+    } on Exception catch (e) {
+      // The vision model's failure is not the organize model's: reported as
+      // an answer, it never counts toward ending the run as erratic. Nothing
+      // was read, so nothing decided after it is flagged.
+      return 'The frames could not be read (${_describe(e)}). Decide from '
+          'the names, or call mark_unsure.';
+    }
+    // Flagged only once something was read off the screen.
+    g.framesUsed = true;
+    context.framesSeen = true;
+    return 'On screen in ${video.relativePath}:\n$seen\n'
+        'Decisions from here on are flagged for the user to review.';
+  }
+}
+
 class _SubmitGroupTool extends AgentTool<OrganizeState> {
   const _SubmitGroupTool();
 
@@ -1121,6 +1239,13 @@ class _SubmitGroupTool extends AgentTool<OrganizeState> {
       arguments['note']?.toString().trim() ?? '',
     );
     g.remembered = false;
+    if (g.framesUsed || context.framesSeen) {
+      // Read off the screen by another model: always for the user to check.
+      g.confidence = math.min(g.confidence, OrganizeState.framesConfidence);
+      g.note = g.note.isEmpty
+          ? OrganizeState.framesNote
+          : '${OrganizeState.framesNote} ${g.note}';
+    }
     context.decided(g);
     return context.placementReport(g);
   }
@@ -1203,7 +1328,9 @@ class _SplitGroupTool extends AgentTool<OrganizeState> {
     }
 
     final id = context.nextId();
-    final moved = GroupState(part(id, picked.contains), split: true);
+    final moved = GroupState(part(id, picked.contains), split: true)
+      // Either half may hold the video that was looked at.
+      ..framesUsed = g.framesUsed;
     g.reset(part(g.group.id, (f) => !picked.contains(f)));
     context.addSplit(g, moved);
     return 'Moved ${picked.length} file(s) from ${g.group.id} into $id. Both '

@@ -70,6 +70,12 @@ enum AgentOutcome {
   /// Several rounds in a row produced nothing but failed calls — a model that
   /// cannot drive these tools, where more rounds only burn tokens.
   erratic,
+
+  /// Replies kept hitting the output limit. A reasoning model spends the cap
+  /// on thinking and its tool arguments arrive cut off, which reads exactly
+  /// like a model that cannot write JSON — but the fix is a larger output
+  /// cap, not another model.
+  truncated,
 }
 
 class AgentRunResult {
@@ -97,6 +103,21 @@ abstract final class AgentRuntime {
       "[earlier tool result dropped to stay within the model's context window]";
 
   static const maxErraticRounds = 3;
+
+  /// What one inline image is counted as; see [estimate].
+  static const imageTokens = 800;
+
+  /// Cut-off rounds in a row before the run ends as [AgentOutcome.truncated].
+  static const maxTruncatedRounds = 2;
+
+  /// What to tell the user when a run ends as [AgentOutcome.truncated].
+  static String truncatedMessage(int? maxOutputTokens) =>
+      maxOutputTokens == null
+      ? 'The model kept hitting its output limit before finishing a reply. '
+            'Set a larger maximum output in the AI service settings.'
+      : 'The model kept hitting its output limit ($maxOutputTokens tokens) '
+            'before finishing a reply. Raise the maximum output in the AI '
+            'service settings.';
 
   /// Runs [tools] against [provider] until [isDone], mutating [messages] in
   /// place so the caller holds the full transcript.
@@ -126,6 +147,7 @@ abstract final class AgentRuntime {
     var completionTokens = 0;
     var nudges = 0;
     var erraticRounds = 0;
+    var truncatedRounds = 0;
     // Tool schemas are sent on every request but live outside `messages`, so
     // the budget has to be told about them or it under-counts by the size of
     // the whole tool list — which for organize is seven schemas.
@@ -185,6 +207,18 @@ abstract final class AgentRuntime {
 
       if (reply.toolCalls.isEmpty) {
         if (isDone()) return finish(AgentOutcome.completed, round);
+        // A reply cut off mid-sentence is not a model that chose to stop, and
+        // a reminder would be cut off at the same place. The same request is
+        // asked again, once, the way a cut-off tool round is.
+        if (reply.truncated) {
+          truncatedRounds++;
+          if (truncatedRounds >= maxTruncatedRounds) {
+            return finish(AgentOutcome.truncated, round);
+          }
+          continue;
+        }
+        // "In a row": a whole reply between two cut-off ones starts over.
+        truncatedRounds = 0;
         final reminder = nudges < maxNudges ? nudge?.call() : null;
         if (reminder == null) return finish(AgentOutcome.stopped, round);
         nudges++;
@@ -214,7 +248,24 @@ abstract final class AgentRuntime {
           }
           throw const AiCancelled();
         }
-        final (content, failed) = await _execute(call, byName, context);
+        final String content;
+        final bool failed;
+        try {
+          (content, failed) = await _execute(call, byName, context);
+        } on AiCancelled {
+          // Cancelled inside the tool: this call and the rest still get a
+          // reply, or the history could never be sent again.
+          for (final skipped in reply.toolCalls.skip(i)) {
+            messages.add(
+              ToolResultMessage(
+                toolCallId: skipped.id,
+                name: skipped.name,
+                content: notRunResult,
+              ),
+            );
+          }
+          rethrow;
+        }
         if (failed) failures++;
         messages.add(
           ToolResultMessage(
@@ -229,9 +280,18 @@ abstract final class AgentRuntime {
       if (stopWhenDone && isDone()) {
         return finish(AgentOutcome.completed, round);
       }
-      erraticRounds = failures == reply.toolCalls.length
-          ? erraticRounds + 1
-          : 0;
+      final allFailed = failures == reply.toolCalls.length;
+      if (reply.truncated && allFailed) {
+        // The calls failed because their arguments were cut off, which says
+        // nothing about whether the model can drive the tools.
+        truncatedRounds++;
+        if (truncatedRounds >= maxTruncatedRounds) {
+          return finish(AgentOutcome.truncated, round);
+        }
+        continue;
+      }
+      truncatedRounds = 0;
+      erraticRounds = allFailed ? erraticRounds + 1 : 0;
       if (erraticRounds >= maxErraticRounds) {
         return finish(AgentOutcome.erratic, round);
       }
@@ -267,6 +327,10 @@ abstract final class AgentRuntime {
       return (await tool.execute(arguments, context), false);
     } on ToolError catch (e) {
       return ('Error: ${e.message}', true);
+    } on AiCancelled {
+      // A cancel inside a tool ends the run; it is not the model's mistake
+      // to report back.
+      rethrow;
     } catch (e) {
       return ('Error: $e', true);
     }
@@ -313,22 +377,57 @@ abstract final class AgentRuntime {
     return shrunk;
   }
 
+  /// Opaque blobs a turn carries back — signatures, encrypted reasoning,
+  /// redacted thinking — are left out of the estimate: they are base64 the
+  /// budget cannot shrink, the servers do not bill them as prompt text
+  /// (Anthropic drops earlier thinking itself), and counting them at three
+  /// characters a token would only shrink tool results for nothing.
+  static const _opaque = {'signature', 'thoughtSignature', 'encrypted_content'};
+
+  static Object? _readable(Object? value) => switch (value) {
+    Map<dynamic, dynamic> map when map['type'] == 'redacted_thinking' => null,
+    Map<dynamic, dynamic> map => {
+      for (final entry in map.entries)
+        if (!_opaque.contains(entry.key))
+          '${entry.key}': _readable(entry.value),
+    },
+    List<dynamic> list => [for (final item in list) _readable(item)],
+    _ => value,
+  };
+
   /// Rough tokens for one message, per [TokenBudget.estimate], plus a small
   /// allowance for the chat template's framing.
+  ///
+  /// An assistant turn counts what is actually sent back with it, not only
+  /// its text and calls: DeepSeek-style reasoning rides along on every
+  /// tool-call turn, and a Gemini, Anthropic or Responses turn goes back
+  /// as its raw parts. Leaving those out under-counted exactly the turns a
+  /// reasoning model makes, and a local server drops the front of an
+  /// over-long prompt without a word.
   static int estimate(ChatMessage message) =>
       8 +
       switch (message) {
-        SystemMessage(:final content) ||
-        UserMessage(:final content) => TokenBudget.estimate(content),
-        AssistantMessage(:final content, :final toolCalls) =>
+        SystemMessage(:final content) => TokenBudget.estimate(content),
+        // An image costs by its size, not its bytes, and each protocol
+        // prices it differently (a 768px frame is roughly 250–800 tokens);
+        // the high end keeps the budget on the safe side.
+        UserMessage(:final content, :final images) =>
+          TokenBudget.estimate(content) + images.length * imageTokens,
+        AssistantMessage(:final raw?) => TokenBudget.estimate(
+          jsonEncode(_readable(raw.parts)),
+        ),
+        AssistantMessage(:final content, :final toolCalls, :final reasoning) =>
           TokenBudget.estimate(content) +
-              toolCalls.fold(
+              toolCalls.fold<int>(
                 0,
                 (sum, call) =>
                     sum +
                     TokenBudget.estimate(call.name) +
                     TokenBudget.estimate(call.arguments),
-              ),
+              ) +
+              (toolCalls.isEmpty || reasoning == null
+                  ? 0
+                  : TokenBudget.estimate(reasoning.text)),
         ToolResultMessage(:final content) => TokenBudget.estimate(content),
       };
 }

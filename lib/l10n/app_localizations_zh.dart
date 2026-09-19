@@ -422,42 +422,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearance => '外观';
 
   @override
-  String get aiServiceDetailHint => '用于媒体整理和元数据匹配的 AI 端点';
-
-  @override
-  String get addService => '添加服务';
-
-  @override
-  String get addAnotherEndpoint => '添加另一个端点';
-
-  @override
-  String get newServiceName => '新服务';
-
-  @override
-  String get statusActive => '活跃';
-
-  @override
-  String get useThisService => '使用此服务';
-
-  @override
-  String get statusStandby => '备用';
-
-  @override
-  String get statusOffline => '离线';
-
-  @override
-  String get endpointProtocol => '端点协议';
-
-  @override
-  String get protocolOpenAi => 'OpenAI 兼容';
-
-  @override
-  String get protocolGoogle => 'Google GenAI';
-
-  @override
-  String get displayName => '显示名称';
-
-  @override
   String get baseUrl => 'Base URL';
 
   @override
@@ -465,9 +429,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hideKey => '隐藏';
-
-  @override
-  String get defaultModel => '默认模型';
 
   @override
   String get temperature => '温度';
@@ -584,12 +545,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '上次测试：模型仍在思考。请在服务端的模型设置中关闭思考（LM Studio 中为 Enable Thinking）。';
 
   @override
-  String get toolsSupported => '工具调用：支持。此模型可用于整理文件夹与刮削元数据。';
-
-  @override
-  String get toolsUnsupported => '工具调用：不支持。此模型无法用于整理文件夹或刮削元数据。';
-
-  @override
   String get presetNeedsSystemPrompt =>
       '该模型的模型卡要求使用专用的 system prompt，缺少时效果可能变差。';
 
@@ -605,17 +560,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get avgLatency => '平均延迟';
-
-  @override
-  String get selectServiceHint => '选择左侧的服务进行配置';
-
-  @override
-  String get deleteServiceTitle => '删除服务';
-
-  @override
-  String deleteServiceConfirm(Object name) {
-    return '删除「$name」？此操作无法撤销。';
-  }
 
   @override
   String previewTitle(Object count) {
@@ -1553,6 +1497,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeNoteLlmExtractionFailed => '模型未能从该页面读出可用的元数据。';
 
   @override
+  String get scrapeNoteLlmExtractionTruncated =>
+      '模型在完成之前触到了输出上限，部分字段可能缺失。请在 AI 服务设置里调高最大输出。';
+
+  @override
   String get scrapeAskLlm => '直接询问模型';
 
   @override
@@ -1911,7 +1859,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get privacyDataFilesValue =>
-      'config.json · ai_profiles.json · sites.json · scrapers.json';
+      'config.json · ai_profiles.json · ai_learned.json · sites.json · scrapers.json';
 
   @override
   String get privacyPrefsBackup => '偏好设置备份';
@@ -1980,13 +1928,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get privacyLogAiBodies => '记录 AI 请求与回复正文';
 
   @override
-  String get privacyLogAiBodiesHint => '仅排查问题时开启，日志会变大';
+  String privacyLogAiBodiesHint(int days) {
+    return '每个实际发出的请求写入 logs 目录，按天一个文件，保留 $days 天。不写入密钥；图片与长文本只记长度。';
+  }
 
   @override
   String get privacyClearTempOnExit => '退出时清空临时目录';
 
   @override
-  String get privacyNoTelemetry => '本应用不采集任何遥测数据，也没有日志文件，这几项因此暂无可关。';
+  String get privacyNoTelemetry => '本应用不采集任何遥测数据。AI 请求日志只写在本机，其余几项暂无可关。';
+
+  @override
+  String get privacyCacheApiLog => 'AI 请求日志';
+
+  @override
+  String get privacyCacheApiLogHint => '开启「记录 AI 请求与回复正文」后写入';
 
   @override
   String get privacyDanger => '危险操作';
@@ -2119,18 +2075,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String accentContrastWeak(Object dark, Object light) {
     return '对比 $dark:1 · $light:1 —— 低于 3:1，仅建议用于底色';
   }
-
-  @override
-  String get modelParameters => '模型参数';
-
-  @override
-  String get modelParametersExpand => '展开';
-
-  @override
-  String get modelParametersCollapse => '收起';
-
-  @override
-  String get modelParametersSaved => '模型参数已保存';
 
   @override
   String get contextWindowScaleHint => 'tokens · 8k – 1M · 步进 1k';
@@ -2276,4 +2220,561 @@ class AppLocalizationsZh extends AppLocalizations {
   String transferRefusedUnreadable(Object count) {
     return '$count 项无法读取';
   }
+
+  @override
+  String get aiAccessTitle => 'AI 接入';
+
+  @override
+  String get aiAccessSubtitle => '渠道 = 一份密钥；线路 = 这份密钥能说的协议；模型挂在渠道下，各自选一条线路。';
+
+  @override
+  String get aiDiagnostics => '诊断';
+
+  @override
+  String get aiAddChannel => '添加渠道';
+
+  @override
+  String aiMergeHint(String names, int routes, int models) {
+    return '$names 使用同一份密钥和主机，可以并成一个渠道（$routes 条线路，$models 个模型）。';
+  }
+
+  @override
+  String get aiMergeAction => '合并';
+
+  @override
+  String aiChannelHostLine(String host, String platform) {
+    return '$host · 平台：$platform';
+  }
+
+  @override
+  String get aiNoKeyNeeded => '无需密钥';
+
+  @override
+  String get aiNoModels => '还没有模型 —— 打开渠道添加。';
+
+  @override
+  String get aiToolsUnprobed => '工具：未探测';
+
+  @override
+  String get aiToolsYes => '工具';
+
+  @override
+  String get aiToolsNo => '不支持工具';
+
+  @override
+  String get aiImage => '图像';
+
+  @override
+  String get aiVideo => '视频';
+
+  @override
+  String get aiEmptyTitle => '还没有渠道';
+
+  @override
+  String get aiEmptyBody => '先选平台，填一份密钥，再添加要用的模型。';
+
+  @override
+  String get aiTasksTitle => '任务指派';
+
+  @override
+  String get aiTasksHint => '每个任务选一个模型。要求工具调用的任务不列出已知不支持工具的模型。';
+
+  @override
+  String get aiTaskOrganize => '整理（工具调用）';
+
+  @override
+  String get aiTaskScrapeLearn => '刮削 · 学习配方（工具调用）';
+
+  @override
+  String get aiTaskScrapeDirect => '刮削 · 直接抽取（工具调用）';
+
+  @override
+  String get aiTaskVision => '画面识别（图像输入）';
+
+  @override
+  String get aiFollowOrganize => '跟随「整理」';
+
+  @override
+  String get aiTaskNoModel => '没有合适的模型';
+
+  @override
+  String get aiVisionNeedsImage => '只列出允许图像输入的模型。';
+
+  @override
+  String get aiSessionUsage => '本次启动以来';
+
+  @override
+  String get aiPlatformRelay => '中转站（New API 类）';
+
+  @override
+  String get aiPlatformCustom => '自定义';
+
+  @override
+  String get aiPlatformDashScope => '阿里云百炼';
+
+  @override
+  String get aiPlatformZhipu => '智谱 BigModel';
+
+  @override
+  String get aiPlatformVolcengine => '火山方舟';
+
+  @override
+  String get aiAddChannelHint => '先选平台 —— 协议、地址和鉴权由平台画像带出，你只填一份密钥。';
+
+  @override
+  String get aiPlatformGroupVendor => '厂商官方';
+
+  @override
+  String get aiPlatformGroupRelay => '聚合与中转';
+
+  @override
+  String get aiPlatformGroupLocal => '本机服务';
+
+  @override
+  String get aiPlatformCustomHint => '自定义 —— 只发协议标准字段，不带任何厂商私有扩展';
+
+  @override
+  String aiWillCreate(String platform) {
+    return '$platform · 将建立';
+  }
+
+  @override
+  String get aiPrimaryRoute => '主线路';
+
+  @override
+  String aiRouteDialect(String field) {
+    return '思考开关：$field';
+  }
+
+  @override
+  String get aiRouteLadder => '平台没有开关 —— 按本机服务阶梯尝试，以回复判定';
+
+  @override
+  String get aiRouteNotInBuild => '后续版本支持';
+
+  @override
+  String get aiChannelKey => 'API 密钥（整个渠道共用一份）';
+
+  @override
+  String get aiChannelHost => '主机';
+
+  @override
+  String get aiChannelHostHint => '只填一次，所有线路都接在它后面';
+
+  @override
+  String get aiChannelName => '显示名';
+
+  @override
+  String get aiDeleteChannel => '删除渠道';
+
+  @override
+  String aiDeleteChannelConfirm(String name, int count) {
+    return '删除「$name」及其 $count 个模型？此操作无法撤销。';
+  }
+
+  @override
+  String aiPlatformInferred(String platform) {
+    return '平台：$platform · 由主机推断';
+  }
+
+  @override
+  String aiPlatformChosen(String platform) {
+    return '平台：$platform';
+  }
+
+  @override
+  String get aiRoutesTitle => '线路';
+
+  @override
+  String get aiRoutesHint => '每个协议族至多一条。只列本平台提供的协议。';
+
+  @override
+  String aiRoutePathDefault(String path) {
+    return '默认：$path';
+  }
+
+  @override
+  String get aiRouteHostItself => '主机本身';
+
+  @override
+  String get aiRouteEnable => '启用';
+
+  @override
+  String get aiRouteDisable => '关闭';
+
+  @override
+  String get aiRouteMakePrimary => '设为主线路';
+
+  @override
+  String aiRouteInUse(int count) {
+    return '$count 个模型在用 —— 不能关闭。';
+  }
+
+  @override
+  String get aiRouteNotEnabled => '平台提供，尚未启用。启用后模型才能切到这条线路；参数从空白开始。';
+
+  @override
+  String get aiRoutePathNote =>
+      '路径留空 = 平台约定；写相对路径接在主机后；写完整地址则连主机一起替换（显示「独立主机」）。';
+
+  @override
+  String get aiRouteOwnHost => '独立主机';
+
+  @override
+  String get aiModelsTitle => '模型';
+
+  @override
+  String get aiAddModel => '添加模型';
+
+  @override
+  String get aiModelNameHint => '服务端认识的模型名';
+
+  @override
+  String get aiRouteBar => '线路';
+
+  @override
+  String get aiRouteBarHint => '切换线路不改模型 id；未配置的线路从空白开始。';
+
+  @override
+  String get aiCapabilityMatrix => '能力矩阵';
+
+  @override
+  String get aiScopeModel => '模型';
+
+  @override
+  String get aiScopeModelHint => '换线路不变';
+
+  @override
+  String get aiUpstreamModel => '上游模型名';
+
+  @override
+  String get aiAllowImage => '允许图像输入';
+
+  @override
+  String get aiAllowVideo => '允许视频输入';
+
+  @override
+  String get aiAllowHint => '这是授权；能否发出看线路。';
+
+  @override
+  String aiScopeRoute(String protocol) {
+    return '本线路 · $protocol';
+  }
+
+  @override
+  String get aiScopeRouteHint => '随协议变化；切到别的线路时停放在这里';
+
+  @override
+  String get aiThinkingDialect => '思考控制方式';
+
+  @override
+  String aiDialectField(String field) {
+    return '$field · 平台画像预填';
+  }
+
+  @override
+  String aiSendsAs(String field) {
+    return '发送为 $field';
+  }
+
+  @override
+  String get aiLearnedTag => '已学习';
+
+  @override
+  String aiRefusedFields(String fields) {
+    return '本线路拒收过，已不再发送：$fields';
+  }
+
+  @override
+  String get aiStructuredOutput => '结构化输出';
+
+  @override
+  String aiStructuredLearned(String mode) {
+    return '$mode · 已学习';
+  }
+
+  @override
+  String get aiStructuredUnknown => '没有任务需要；只在连接测试回退时学习';
+
+  @override
+  String get aiPreviewTitle => '将发送的内容';
+
+  @override
+  String get aiPreviewHint => '由请求适配器的同一段代码生成（整理任务的一轮）。';
+
+  @override
+  String get aiPreviewUnavailable => '本版本尚未接入这个协议。';
+
+  @override
+  String get aiTestRoute => '测试本线路';
+
+  @override
+  String get aiDeleteModel => '删除模型';
+
+  @override
+  String aiDeleteModelConfirm(String name) {
+    return '删除「$name」？指派给它的任务会改回跟随「整理」。';
+  }
+
+  @override
+  String get aiToolsMeasured => '支持 · 在本线路实测';
+
+  @override
+  String get aiToolsMeasuredNo => '不支持 · 在本线路实测';
+
+  @override
+  String get aiToolsNotMeasured => '本线路尚未探测';
+
+  @override
+  String aiSwitchTitle(String model, String from, String to) {
+    return '把 $model 从 $from 切到 $to';
+  }
+
+  @override
+  String get aiSwitchBody =>
+      '当前线路的参数会停放在它名下，切回来原样恢复。新线路上次配置过的值载入如下；从没配过的项一律「未设置 · 不发」，不复制。';
+
+  @override
+  String get aiSwitchParam => '参数';
+
+  @override
+  String aiSwitchNow(String protocol) {
+    return '现在 · $protocol';
+  }
+
+  @override
+  String aiSwitchAfter(String protocol) {
+    return '切换后 · $protocol';
+  }
+
+  @override
+  String get aiParamThinking => '思考';
+
+  @override
+  String get aiParamMaxOutput => '最大输出';
+
+  @override
+  String get aiParamSampling => '采样';
+
+  @override
+  String get aiParamTools => '工具调用';
+
+  @override
+  String get aiParamImage => '图像输入';
+
+  @override
+  String get aiNotSetNotSent => '未设置 · 不发';
+
+  @override
+  String get aiOn => '开';
+
+  @override
+  String get aiOff => '关';
+
+  @override
+  String get aiToolsProbeAfter => '未实测 —— 切换后先测试一次';
+
+  @override
+  String get aiSwitchFooter => '模型 id 不变；任务指派不受影响。';
+
+  @override
+  String get aiSwitchConfirm => '确认切换';
+
+  @override
+  String get aiMatrixHint => '授权是你的开关；能不能发出由（平台 × 线路 × 模型）决定。';
+
+  @override
+  String get aiCapTools => '工具调用';
+
+  @override
+  String get aiCapToolsHint => '整理、刮削都需要';
+
+  @override
+  String get aiCapJson => 'JSON 模式';
+
+  @override
+  String get aiCapJsonHint => '只用于连接测试的回退';
+
+  @override
+  String get aiCapImage => '图像输入';
+
+  @override
+  String get aiCapVideo => '视频输入';
+
+  @override
+  String get aiCapThinkingOff => '关闭思考';
+
+  @override
+  String get aiCapThinkingOffHint => '按回复里有没有推理判定';
+
+  @override
+  String get aiCapUsage => '用量上报';
+
+  @override
+  String get aiCapUsageHint => '没报 ≠ 0';
+
+  @override
+  String get aiCapAllowed => '授权：开';
+
+  @override
+  String get aiCapNotAllowed => '授权：关';
+
+  @override
+  String get aiColCurrent => '当前';
+
+  @override
+  String get aiColEnabled => '已配置';
+
+  @override
+  String get aiColOffered => '未启用';
+
+  @override
+  String get aiCellMeasured => '可发出 · 实测';
+
+  @override
+  String get aiCellUnmeasured => '未实测';
+
+  @override
+  String get aiCellUnsupported => '不支持 · 实测';
+
+  @override
+  String aiCellLearned(String mode) {
+    return '$mode · 已学习';
+  }
+
+  @override
+  String get aiCellParameter => '有参数 · 未实测';
+
+  @override
+  String get aiCellNotInBuild => '本版本未接入';
+
+  @override
+  String aiCellSwitch(String field) {
+    return '$field · 平台开关';
+  }
+
+  @override
+  String get aiCellLadder => '阶梯 · 按回复判定';
+
+  @override
+  String get aiCellLadderExhausted => '各种方式都未生效';
+
+  @override
+  String get aiCellProtocolUsage => '协议自带';
+
+  @override
+  String get aiCellNotAllowed => '未授权';
+
+  @override
+  String get aiMatrixFootnote => '任务选择器读这里：「画面识别」只列出图像输入在当前线路确实能发出的模型。';
+
+  @override
+  String get aiDiagTest => '测试线路';
+
+  @override
+  String get aiDiagRun => '运行测试';
+
+  @override
+  String get aiStepReach => '可达';
+
+  @override
+  String aiStepServer(String kind) {
+    return '识别为 $kind';
+  }
+
+  @override
+  String aiStepGenerate(int ms, int prompt, int completion) {
+    return '生成 · $ms ms · $prompt + $completion tokens';
+  }
+
+  @override
+  String get aiStepTruncated => '回复触到了输出上限';
+
+  @override
+  String get aiStepThinkingOff => '思考已关闭';
+
+  @override
+  String get aiStepThinkingStillOn => '模型仍在推理';
+
+  @override
+  String get aiStepTools => '调用了测试工具';
+
+  @override
+  String get aiStepToolsNo => '没有调用测试工具';
+
+  @override
+  String get aiStepToolsUnknown => '工具调用未定 —— 请求没有完成';
+
+  @override
+  String get aiStepUsage => '用量已上报';
+
+  @override
+  String get aiStepUsageMissing => '没有上报用量（记为未知，不记 0）';
+
+  @override
+  String aiStepContext(int served, int typed) {
+    return '上下文：服务端在用 $served，填写的是 $typed';
+  }
+
+  @override
+  String get aiStepContextBody => '本机服务超窗会从头部静默丢掉系统提示。';
+
+  @override
+  String get aiStepUseServed => '改用服务端的值';
+
+  @override
+  String get aiLogTitle => 'API 日志 · 今天';
+
+  @override
+  String get aiLogHint => '实际发出的每个 body，带序号';
+
+  @override
+  String get aiLogOff => '日志未开启。打开后开始记录请求。';
+
+  @override
+  String get aiLogEmpty => '今天还没有记录。';
+
+  @override
+  String get aiLogOpenFolder => '在文件夹中显示';
+
+  @override
+  String get aiLogFootnote => '密钥永不写入；图片与超过 2 KB 的字符串替换成占位说明；写入串行，并发请求不交错。';
+
+  @override
+  String get scrapeBackendAssigned => '按设置中的任务指派';
+
+  @override
+  String get aiPlatformLabel => '平台';
+
+  @override
+  String get aiMergeConfirmTitle => '合并渠道';
+
+  @override
+  String aiMergeConfirmBody(String name) {
+    return '线路和模型并入「$name」，其余渠道随之删除。每个模型的地址、参数和任务指派都不变。';
+  }
+
+  @override
+  String get aiCellPromptOnly => '无参数 · 只靠提示词';
+
+  @override
+  String get aiCellDefaultOff => '默认不思考';
+
+  @override
+  String get aiCellModelDefault => '模型默认';
+
+  @override
+  String aiCellSentAs(String part) {
+    return '以 $part 发出 · 未实测';
+  }
+
+  @override
+  String get aiCellAsFrames => '抽帧后以图片发出 · 未实测';
+
+  @override
+  String get aiVisionAllowFrames => '允许把视频帧发给这个模型';
+
+  @override
+  String get aiVisionAllowFramesHint =>
+      '默认关闭：帧会离开本机。整理只在文件名看不出内容时使用，由此决定的分组一律标为需要复核。';
 }

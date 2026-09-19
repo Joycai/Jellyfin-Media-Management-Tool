@@ -1,13 +1,21 @@
-/// The Settings "Test connection" button: one real, tiny completion, then a
-/// check that the model calls tools.
+/// The Settings "Test connection" button: one real, tiny tool-calling turn —
+/// the same shape of request every task sends.
 ///
 /// It used to list `GET /models`, which proves the server is up and accepts
 /// the key but says nothing about whether a generation request goes through —
 /// and that is exactly where compatible servers differ. LM Studio listed its
 /// models happily and then rejected every organize request over
-/// `response_format`, so the test passed while the feature failed. Going
-/// through [AiProvider.complete] sends the same body, JSON mode, sampling and
-/// reasoning switches the pipelines use.
+/// `response_format`, so the test passed while the feature failed.
+///
+/// It then sent a JSON-mode completion, which no task sends: the test spent
+/// its first requests learning `response_format` and could fail over JSON mode
+/// while the tool loop would have worked, or pass while it would not. Now the
+/// greeting itself is a tool call, with the sampling and reasoning switches
+/// the pipelines use; JSON mode is only the fallback that tells "this server
+/// refuses tools" apart from "this server is down".
+///
+/// A test starts by forgetting what was learned about the route, so it is also
+/// how a user makes the app find out again after changing the server.
 library;
 
 import 'dart:async';
@@ -108,52 +116,131 @@ class AiConnectionCheck {
     },
   );
 
-  /// Sends the greeting through [provider], then checks tool calling. Throws
-  /// whatever the greeting threw; a failed tool check only reports false.
+  /// Asks [provider] for the greeting as a tool call. Throws when the endpoint
+  /// cannot be reached or refuses even a plain completion; a model that only
+  /// answers in prose, or a server that refuses tools, reports
+  /// [ToolProbe.unsupported] instead.
   ///
   /// With thinking off, a reply that still reasons moves the provider on to
   /// its next way of asking. A greeting is cheap enough to find the one that
   /// works now, rather than on the user's first real task.
   static Future<AiConnectionCheckResult> run(AiProvider provider) async {
+    provider.forgetLearned();
     final token = AiCancelToken();
     // Discovery never throws, so it can run alongside without a handler.
     final limits = provider.detectLimits();
     final serverKind = provider.detectServerKind();
     final stopwatch = Stopwatch()..start();
+    // A timeout settles nothing about tools, so it must not read as the
+    // server refusing them below.
+    Never timedOut() {
+      token.cancel();
+      throw AiNetworkException('No reply within ${timeout.inSeconds} s.');
+    }
+
     try {
-      late AiResponse response;
-      for (var attempt = 0; attempt < maxAttempts; attempt++) {
-        response = await provider
+      ChatResult? reply;
+      String? refused;
+      try {
+        for (var attempt = 0; attempt < maxAttempts; attempt++) {
+          reply = await provider
+              .chat(
+                messages: _probeMessages,
+                tools: const [toolProbe],
+                cancelToken: token,
+              )
+              .timeout(timeout, onTimeout: timedOut);
+          if (!reply.thinkingOffPending) break;
+        }
+      } on AiNetworkException {
+        rethrow;
+      } on AiException catch (e) {
+        // Only a rejection of the tools themselves counts as "refuses tools".
+        // Anything else — a 500, a model still loading — is the test failing,
+        // and must not end up recorded as a fact about the model.
+        if (!refusesTools(e.message)) rethrow;
+        // Whether the endpoint answers at all is what the fallback finds out.
+        refused = e.message;
+      }
+
+      if (refused != null || reply == null) {
+        final response = await provider
             .complete(
               systemPrompt: systemPrompt,
               userPrompt: userPrompt,
               cancelToken: token,
             )
-            .timeout(
-              timeout,
-              onTimeout: () {
-                token.cancel();
-                throw AiException('No reply within ${timeout.inSeconds} s.');
-              },
-            );
-        if (!response.thinkingOffPending) break;
+            .timeout(timeout, onTimeout: timedOut);
+        stopwatch.stop();
+        return AiConnectionCheckResult(
+          reply: replyText(response.text),
+          latency: stopwatch.elapsed,
+          promptTokens: response.promptTokens,
+          completionTokens: response.completionTokens,
+          truncated: response.truncated,
+          reasoned: response.reasoned,
+          supportsTools: ToolProbe.unsupported,
+          serverKind: await serverKind,
+          limits: await limits,
+        );
       }
       stopwatch.stop();
-      final supportsTools = await probeTools(provider, cancelToken: token);
+
+      // A small model sometimes answers the first time in prose even though
+      // it can call tools; it gets one more chance, as in [probeTools].
+      final supportsTools = _called(reply)
+          ? ToolProbe.supported
+          : (await probeTools(
+              provider,
+              cancelToken: token,
+              attempts: 1,
+            )).outcome;
       return AiConnectionCheckResult(
-        reply: replyText(response.text),
+        reply: _greeting(reply),
         latency: stopwatch.elapsed,
-        promptTokens: response.promptTokens,
-        completionTokens: response.completionTokens,
-        truncated: response.truncated,
-        reasoned: response.reasoned,
-        supportsTools: supportsTools.outcome,
+        promptTokens: reply.promptTokens,
+        completionTokens: reply.completionTokens,
+        truncated: reply.truncated,
+        reasoned: reply.reasoned,
+        supportsTools: supportsTools,
         serverKind: await serverKind,
         limits: await limits,
       );
     } finally {
       token.dispose();
     }
+  }
+
+  /// Whether [error] is a server rejecting a request for carrying tools: a
+  /// 400 or 422 that names them.
+  static bool refusesTools(String error) {
+    final lower = error.toLowerCase();
+    return RegExp(r'^http (400|422)\b').hasMatch(lower) &&
+        (lower.contains('tool') || lower.contains('function'));
+  }
+
+  static const _probeMessages = [
+    SystemMessage(
+      'You are a connectivity check. Call the report_greeting tool with a '
+      'short greeting. Do not reply in text.',
+    ),
+    UserMessage('Hello!'),
+  ];
+
+  static bool _called(ChatResult result) => result.toolCalls.any(
+    (call) => call.name == toolProbe.name && call.decodedArguments != null,
+  );
+
+  /// The greeting the model passed to the tool, or its prose when it
+  /// answered in text instead — either proves it answered.
+  static String _greeting(ChatResult result) {
+    for (final call in result.toolCalls) {
+      final greeting = call.decodedArguments?['greeting'];
+      if (call.name == toolProbe.name && greeting is String) {
+        return greeting.trim();
+      }
+    }
+    return replyText(result.text);
   }
 
   /// Whether [provider]'s model calls a tool when the request plainly needs
@@ -172,28 +259,19 @@ class AiConnectionCheck {
   static Future<ToolProbeResult> probeTools(
     AiProvider provider, {
     AiCancelToken? cancelToken,
+    int attempts = 2,
   }) async {
     String? lastError;
-    for (var attempt = 0; attempt < 2; attempt++) {
+    for (var attempt = 0; attempt < attempts; attempt++) {
       try {
         final result = await provider
             .chat(
-              messages: const [
-                SystemMessage(
-                  'You are a connectivity check. Call the report_greeting '
-                  'tool with a short greeting. Do not reply in text.',
-                ),
-                UserMessage('Hello!'),
-              ],
+              messages: _probeMessages,
               tools: const [toolProbe],
               cancelToken: cancelToken,
             )
             .timeout(timeout);
-        final called = result.toolCalls.any(
-          (call) =>
-              call.name == toolProbe.name && call.decodedArguments != null,
-        );
-        if (called) return (outcome: ToolProbe.supported, error: null);
+        if (_called(result)) return (outcome: ToolProbe.supported, error: null);
         lastError = null;
       } on AiCancelled {
         rethrow;

@@ -11,6 +11,40 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-19
+
+### Added
+
+- **AI access is now channels, routes and models.** A channel is one key on
+  one host; it can speak several protocols (routes), and each model keeps its
+  own parameters per route. Fourteen platforms come with their addresses and
+  reasoning switches filled in, and each task (organize, learning a scrape
+  recipe, direct extraction, frame recognition) can run on a different model.
+  Existing settings are migrated on first read and send byte-identical
+  requests.
+- **Anthropic Messages and OpenAI Responses** protocols, alongside Chat
+  Completions and Gemini. Signed thinking and encrypted reasoning go back to
+  the model that wrote them, and only to it.
+- **Frame recognition (opt-in, per model).** For videos whose names say
+  nothing, the organizer can show a few frames to a model allowed image input
+  and read the on-screen title. Off by default; a group decided this way is
+  always marked for review.
+- **API request log** (Settings → Privacy, off by default): every request body
+  for 7 days, with no headers, keys or query strings.
+
+### Fixed
+
+- A blocked reply, a mid-stream failure or an error envelope inside an HTTP
+  200 is reported as a failure instead of being read as an empty answer.
+- A reply cut off at the output limit is reported as truncated, no longer as
+  "this model cannot use tools".
+- The connection test sends a request shaped like a real task, so a server
+  that refuses tools fails the test instead of the first organize run.
+- Zhipu, DeepSeek and Bailian use their own switches to turn reasoning off.
+- Gemini now streams, and its API key moved from the URL to a header.
+- What the app learned about a server (refused fields, JSON mode) is kept
+  across restarts.
+
 ## [1.2.0] - 2026-09-16
 
 ### Added
@@ -86,6 +120,7 @@ Changes before this point were not tracked in this file; the git log and the
 page have them.
 
 [Unreleased]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/compare/main...HEAD
+[1.3.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.2.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.1.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.0.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
