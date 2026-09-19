@@ -2861,4 +2861,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String aiMergeConfirmBody(String name) {
     return 'Routes and models move into “$name” and the other channels are removed. Every model keeps its URL, parameters and task assignments.';
   }
+
+  @override
+  String get aiCellPromptOnly => 'no parameter · prompt only';
+
+  @override
+  String get aiCellDefaultOff => 'off by default';
+
+  @override
+  String get aiCellModelDefault => 'the model’s default';
 }

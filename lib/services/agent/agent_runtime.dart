@@ -351,13 +351,31 @@ abstract final class AgentRuntime {
     return shrunk;
   }
 
+  /// Opaque blobs a turn carries back — signatures, encrypted reasoning,
+  /// redacted thinking — are left out of the estimate: they are base64 the
+  /// budget cannot shrink, the servers do not bill them as prompt text
+  /// (Anthropic drops earlier thinking itself), and counting them at three
+  /// characters a token would only shrink tool results for nothing.
+  static const _opaque = {'signature', 'thoughtSignature', 'encrypted_content'};
+
+  static Object? _readable(Object? value) => switch (value) {
+    Map<dynamic, dynamic> map when map['type'] == 'redacted_thinking' => null,
+    Map<dynamic, dynamic> map => {
+      for (final entry in map.entries)
+        if (!_opaque.contains(entry.key))
+          '${entry.key}': _readable(entry.value),
+    },
+    List<dynamic> list => [for (final item in list) _readable(item)],
+    _ => value,
+  };
+
   /// Rough tokens for one message, per [TokenBudget.estimate], plus a small
   /// allowance for the chat template's framing.
   ///
   /// An assistant turn counts what is actually sent back with it, not only
   /// its text and calls: DeepSeek-style reasoning rides along on every
-  /// tool-call turn, and a Gemini turn goes back as its raw parts, thought
-  /// signatures included. Leaving those out under-counted exactly the turns a
+  /// tool-call turn, and a Gemini, Anthropic or Responses turn goes back
+  /// as its raw parts. Leaving those out under-counted exactly the turns a
   /// reasoning model makes, and a local server drops the front of an
   /// over-long prompt without a word.
   static int estimate(ChatMessage message) =>
@@ -365,8 +383,8 @@ abstract final class AgentRuntime {
       switch (message) {
         SystemMessage(:final content) ||
         UserMessage(:final content) => TokenBudget.estimate(content),
-        AssistantMessage(:final geminiParts?) => TokenBudget.estimate(
-          jsonEncode(geminiParts),
+        AssistantMessage(:final raw?) => TokenBudget.estimate(
+          jsonEncode(_readable(raw.parts)),
         ),
         AssistantMessage(:final content, :final toolCalls, :final reasoning) =>
           TokenBudget.estimate(content) +

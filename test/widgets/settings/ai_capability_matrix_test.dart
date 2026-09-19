@@ -40,13 +40,19 @@ void main() {
     );
   });
 
-  test('a protocol without an adapter is unavailable in every row', () {
-    for (final capability in Capability.values) {
-      expect(
-        cell(model, AiProviderType.anthropic, capability).text,
-        l10n.aiCellNotInBuild,
-      );
-    }
+  test('each protocol answers the questions it has its own way', () {
+    expect(
+      cell(model, AiProviderType.anthropic, Capability.json).text,
+      l10n.aiCellPromptOnly,
+    );
+    expect(
+      cell(model, AiProviderType.anthropic, Capability.thinkingOff).text,
+      l10n.aiCellDefaultOff,
+    );
+    expect(
+      cell(model, AiProviderType.openAiResponses, Capability.thinkingOff).state,
+      CapabilityState.unmeasured,
+    );
   });
 
   test('image input the user has not allowed says so', () {

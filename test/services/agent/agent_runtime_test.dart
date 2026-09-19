@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/agent/agent_runtime.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_cancel_token.dart';
-import 'package:jellyfin_media_management_tool/services/ai/chat.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 
 import '../../helpers/ai.dart';
 
@@ -302,16 +302,21 @@ void main() {
       final withParts = AgentRuntime.estimate(
         AssistantMessage(
           toolCalls: call,
-          geminiParts: [
-            {
-              'functionCall': {'name': 'add', 'args': <String, Object?>{}},
-              'thoughtSignature': 'y' * 4000,
-            },
-          ],
+          raw: ProviderTurn(
+            protocol: AiProviderType.googleGenAi,
+            model: 'm',
+            parts: [
+              {
+                'functionCall': {'name': 'add', 'args': <String, Object?>{}},
+                'thoughtSignature': 'y' * 4000,
+              },
+            ],
+          ),
         ),
       );
       expect(withReasoning, greaterThan(plain + 500));
-      expect(withParts, greaterThan(plain + 500));
+      // The signature is opaque: it is sent, but not counted as text.
+      expect(withParts, lessThan(plain + 100));
     });
 
     test('leaves a history that fits alone', () {

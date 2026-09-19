@@ -30,10 +30,14 @@ String protocolShortName(AiProviderType protocol) => switch (protocol) {
 };
 
 /// Whether this build has an adapter for [protocol]. A route on one it does
-/// not is drawn, disabled and labelled, never offered.
+/// not would be drawn, disabled and labelled, never offered. Every protocol
+/// family has one now; the switch stays so the next family can arrive as
+/// data first and be switched on with its adapter.
 bool protocolInBuild(AiProviderType protocol) => switch (protocol) {
-  AiProviderType.openAi || AiProviderType.googleGenAi => true,
-  AiProviderType.anthropic || AiProviderType.openAiResponses => false,
+  AiProviderType.openAi ||
+  AiProviderType.googleGenAi ||
+  AiProviderType.anthropic ||
+  AiProviderType.openAiResponses => true,
 };
 
 /// A platform's name in the UI language. Product names stay as they are.

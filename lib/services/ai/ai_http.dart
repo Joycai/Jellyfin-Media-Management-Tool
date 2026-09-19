@@ -19,7 +19,8 @@ class AiHttp {
   /// Statuses that LLM endpoints commonly fail with transiently. We retry
   /// these; anything else (4xx auth errors, 400 validation, etc.) is
   /// returned to the caller so they can render the real error.
-  static const _retryableStatuses = {408, 429, 502, 503, 504};
+  /// 529 is Anthropic's "overloaded".
+  static const _retryableStatuses = {408, 429, 502, 503, 504, 529};
 
   /// Calls [send] up to [maxAttempts] times with exponential backoff between
   /// retries. Retries on:

@@ -15,11 +15,16 @@ void main() {
     ]);
   });
 
-  test('a route this build cannot speak is not created', () {
-    // DashScope also offers Anthropic; xAI's primary is Responses.
-    expect(routes(PlatformProfiles.dashScope), [AiProviderType.openAi]);
-    expect(routes(PlatformProfiles.xai), [AiProviderType.openAi]);
-    expect(routes(PlatformProfiles.anthropic), isEmpty);
+  test('the platform\'s primary protocol comes first', () {
+    expect(routes(PlatformProfiles.dashScope), [
+      AiProviderType.openAi,
+      AiProviderType.anthropic,
+    ]);
+    expect(routes(PlatformProfiles.xai), [
+      AiProviderType.openAiResponses,
+      AiProviderType.openAi,
+    ]);
+    expect(routes(PlatformProfiles.anthropic), [AiProviderType.anthropic]);
   });
 
   test('a relay or custom endpoint starts with its primary route only', () {

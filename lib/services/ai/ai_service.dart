@@ -12,10 +12,11 @@ import '../organize/organize_agent.dart';
 import '../organize/organize_workspace.dart';
 import './ai_cancel_token.dart';
 import './ai_provider.dart';
+import './anthropic_provider.dart';
 import './connection_check.dart';
 import './google_genai_provider.dart';
-import './learned_behaviour.dart';
 import './openai_provider.dart';
+import './openai_responses_provider.dart';
 
 enum ConnectionStatus { unknown, testing, connected, error }
 
@@ -86,10 +87,8 @@ class AiService extends ChangeNotifier {
   static AiProvider providerFor(AiConfig config) => switch (config.provider) {
     AiProviderType.googleGenAi => GoogleGenAiProvider(config),
     AiProviderType.openAi => OpenAiProvider(config),
-    // Settings offers these routes only once their adapters exist; a config
-    // that names one anyway fails the way any unreachable endpoint does.
-    AiProviderType.anthropic ||
-    AiProviderType.openAiResponses => UnavailableProvider(config),
+    AiProviderType.anthropic => AnthropicProvider(config),
+    AiProviderType.openAiResponses => OpenAiResponsesProvider(config),
   };
 
   /// Syncs config from settings. Resets the connection status when the target
@@ -462,49 +461,4 @@ class AiService extends ChangeNotifier {
     }
     return paths;
   }
-}
-
-/// Stands in for a protocol whose adapter is not in this build. Every call
-/// fails with a message saying so; nothing is sent anywhere.
-class UnavailableProvider implements AiProvider {
-  @override
-  final AiConfig config;
-
-  UnavailableProvider(this.config);
-
-  AiException get _error => AiException(
-    'This build cannot speak the "${config.provider.id}" protocol yet.',
-  );
-
-  @override
-  Future<AiResponse> complete({
-    required String systemPrompt,
-    required String userPrompt,
-    AiCancelToken? cancelToken,
-  }) async => throw _error;
-
-  @override
-  Future<ChatResult> chat({
-    required List<ChatMessage> messages,
-    required List<ToolDefinition> tools,
-    AiCancelToken? cancelToken,
-  }) async => throw _error;
-
-  @override
-  Future<ModelLimits> detectLimits() async => ModelLimits.unknown;
-
-  @override
-  Future<ServerKind> detectServerKind() async => ServerKind.unknown;
-
-  @override
-  void forgetLearned() {}
-
-  @override
-  LearnedBehaviour get learned => LearnedBehaviour.empty;
-
-  @override
-  Future<RequestPreview?> previewRequest({
-    required List<ChatMessage> messages,
-    required List<ToolDefinition> tools,
-  }) async => null;
 }

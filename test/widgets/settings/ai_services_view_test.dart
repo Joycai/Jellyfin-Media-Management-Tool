@@ -141,8 +141,11 @@ void main() {
     final channel = profiles.channels.single;
     expect(channel.platform.id, 'deepseek');
     expect(channel.apiKey, 'sk-deepseek');
-    // Only protocols this build can speak are created.
-    expect(channel.routes.map((r) => r.protocol), [AiProviderType.openAi]);
+    // Every protocol the platform offers is created, primary first.
+    expect(channel.routes.map((r) => r.protocol), [
+      AiProviderType.openAi,
+      AiProviderType.anthropic,
+    ]);
     // The channel page opens on the new channel.
     expect(find.text('Routes'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 300));
@@ -207,10 +210,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    // DashScope's own switch is named; its Anthropic route is not in this
-    // build, and image input was never allowed.
+    // DashScope's own switch is named, its Anthropic route has no JSON
+    // parameter, and image input was never allowed.
     expect(find.text('enable_thinking · platform switch'), findsOneWidget);
-    expect(find.text('not in this build'), findsWidgets);
+    expect(find.text('no parameter · prompt only'), findsOneWidget);
     expect(find.text('not allowed'), findsWidgets);
     await tester.pump(const Duration(milliseconds: 300));
   });

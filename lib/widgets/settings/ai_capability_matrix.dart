@@ -249,6 +249,10 @@ CapabilityCell capabilityCell(
         null => (state: unmeasured, text: l10n.aiCellUnmeasured),
       };
     case Capability.json:
+      // Anthropic has no JSON parameter: the prompt asks, the parser holds.
+      if (protocol == AiProviderType.anthropic) {
+        return (state: works, text: l10n.aiCellPromptOnly);
+      }
       final mode = learned?.jsonMode;
       if (mode != null) return (state: works, text: l10n.aiCellLearned(mode));
       return (state: unmeasured, text: l10n.aiCellParameter);
@@ -261,6 +265,14 @@ CapabilityCell capabilityCell(
       // frame-recognition work.
       return (state: unavailable, text: l10n.aiCellNotInBuild);
     case Capability.thinkingOff:
+      // Extended thinking is off unless asked for; Responses leaves reasoning
+      // to the model, since no one low setting is taken everywhere.
+      if (protocol == AiProviderType.anthropic) {
+        return (state: works, text: l10n.aiCellDefaultOff);
+      }
+      if (protocol == AiProviderType.openAiResponses) {
+        return (state: unmeasured, text: l10n.aiCellModelDefault);
+      }
       final dialect = PlatformProfiles.dialectFor(config);
       if (dialect != null) {
         return (

@@ -453,7 +453,7 @@ void main() {
       expect(seen.url.queryParameters['alt'], 'sse');
       expect(result.text, 'Hello');
       expect(result.toolCalls.single.name, 'f');
-      expect(result.geminiParts, hasLength(3));
+      expect(result.raw?.parts, hasLength(3));
       expect(result.promptTokens, 7);
       expect(result.completionTokens, 5);
       expect(result.finishReason, 'STOP');
@@ -626,8 +626,8 @@ void main() {
       expect(result.toolCalls.single.name, 'submit');
       expect(result.toolCalls.single.decodedArguments, {'title': 'Frieren'});
       // The signature has to return unchanged on the next turn.
-      expect(result.geminiParts, hasLength(2));
-      expect((result.geminiParts![1] as Map)['thoughtSignature'], 'sig-abc');
+      expect(result.raw?.parts, hasLength(2));
+      expect((result.raw!.parts[1] as Map)['thoughtSignature'], 'sig-abc');
     });
   });
 }

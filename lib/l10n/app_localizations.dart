@@ -5017,6 +5017,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Routes and models move into “{name}” and the other channels are removed. Every model keeps its URL, parameters and task assignments.'**
   String aiMergeConfirmBody(String name);
+
+  /// No description provided for @aiCellPromptOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'no parameter · prompt only'**
+  String get aiCellPromptOnly;
+
+  /// No description provided for @aiCellDefaultOff.
+  ///
+  /// In en, this message translates to:
+  /// **'off by default'**
+  String get aiCellDefaultOff;
+
+  /// No description provided for @aiCellModelDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'the model’s default'**
+  String get aiCellModelDefault;
 }
 
 class _AppLocalizationsDelegate

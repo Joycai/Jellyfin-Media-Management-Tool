@@ -248,7 +248,7 @@ class GoogleGenAiProvider implements AiProvider {
 
       final ChatResult result;
       try {
-        result = _merge(await _events(res, cancelToken));
+        result = _merge(await _events(res, cancelToken), model: config.model);
       } on Object catch (e) {
         log(
           status: res.statusCode,
@@ -291,7 +291,7 @@ class GoogleGenAiProvider implements AiProvider {
             {'text': system},
           ],
         },
-      'contents': contents(messages),
+      'contents': contents(messages, model: config.model),
       if (tools.isNotEmpty)
         'tools': [
           {
@@ -456,7 +456,10 @@ class GoogleGenAiProvider implements AiProvider {
   /// and often after some text — so returning what arrived would hand the
   /// caller a partial answer it cannot tell from a complete one, and the agent
   /// loop would read the silence as "the model stopped calling tools".
-  static ChatResult _merge(List<Map<dynamic, dynamic>> events) {
+  static ChatResult _merge(
+    List<Map<dynamic, dynamic>> events, {
+    required String model,
+  }) {
     final rawParts = <Object?>[];
     String? finishReason;
     Map<dynamic, dynamic>? usage;
@@ -520,7 +523,13 @@ class GoogleGenAiProvider implements AiProvider {
           .join(),
       toolCalls: toolCalls,
       // Sent back verbatim: function-call parts can carry thought signatures.
-      geminiParts: toolCalls.isEmpty ? null : rawParts,
+      raw: toolCalls.isEmpty
+          ? null
+          : ProviderTurn(
+              protocol: AiProviderType.googleGenAi,
+              model: model,
+              parts: rawParts,
+            ),
       promptTokens: count('promptTokenCount'),
       completionTokens: completionTokens,
       finishReason: finishReason,
@@ -576,7 +585,12 @@ class GoogleGenAiProvider implements AiProvider {
   /// System messages travel separately as `systemInstruction`. A round's tool
   /// results go back as one user turn of `functionResponse` parts, matching the
   /// single model turn whose calls they answer.
-  static List<Map<String, Object?>> contents(List<ChatMessage> messages) {
+  /// A turn from another protocol or model is rebuilt from its text and
+  /// calls; [model] null accepts any Gemini turn (tests).
+  static List<Map<String, Object?>> contents(
+    List<ChatMessage> messages, {
+    String? model,
+  }) {
     final out = <Map<String, Object?>>[];
     for (final message in messages) {
       switch (message) {
@@ -589,25 +603,23 @@ class GoogleGenAiProvider implements AiProvider {
               {'text': content},
             ],
           });
-        case AssistantMessage(
-          :final content,
-          :final toolCalls,
-          :final geminiParts,
-        ):
+        case AssistantMessage(:final content, :final toolCalls, :final raw):
           out.add({
             'role': 'model',
             'parts':
-                geminiParts ??
-                [
-                  if (content.isNotEmpty) {'text': content},
-                  for (final call in toolCalls)
-                    {
-                      'functionCall': {
-                        'name': call.name,
-                        'args': call.decodedArguments ?? const {},
+                raw != null &&
+                    raw.fits(AiProviderType.googleGenAi, model ?? raw.model)
+                ? raw.parts
+                : [
+                    if (content.isNotEmpty) {'text': content},
+                    for (final call in toolCalls)
+                      {
+                        'functionCall': {
+                          'name': call.name,
+                          'args': call.decodedArguments ?? const {},
+                        },
                       },
-                    },
-                ],
+                  ],
           });
         case ToolResultMessage(:final name, :final content):
           final part = {

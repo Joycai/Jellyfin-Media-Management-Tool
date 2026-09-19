@@ -2753,4 +2753,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String aiMergeConfirmBody(String name) {
     return '线路和模型并入「$name」，其余渠道随之删除。每个模型的地址、参数和任务指派都不变。';
   }
+
+  @override
+  String get aiCellPromptOnly => '无参数 · 只靠提示词';
+
+  @override
+  String get aiCellDefaultOff => '默认不思考';
+
+  @override
+  String get aiCellModelDefault => '模型默认';
 }

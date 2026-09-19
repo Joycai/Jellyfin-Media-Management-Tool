@@ -1027,5 +1027,8 @@
         "type": "String"
       }
     }
-  }
+  },
+  "aiCellPromptOnly": "no parameter · prompt only",
+  "aiCellDefaultOff": "off by default",
+  "aiCellModelDefault": "the model’s default"
 }

@@ -10,6 +10,8 @@ library;
 
 import 'dart:convert';
 
+import 'ai_provider.dart' show AiProviderType;
+
 sealed class ChatMessage {
   const ChatMessage();
 }
@@ -28,6 +30,29 @@ class UserMessage extends ChatMessage {
 /// server used.
 typedef ReasoningPassback = ({String field, String text});
 
+/// An assistant turn exactly as a protocol returned it: Gemini's parts with
+/// their thought signatures, Anthropic's content blocks with thinking and
+/// signatures, the Responses API's output items with encrypted reasoning.
+///
+/// Sent back unchanged, and only to the protocol and model that produced it:
+/// a signature is checked against the model that wrote it, so after a
+/// switch the turn is rebuilt from its text and calls instead.
+class ProviderTurn {
+  final AiProviderType protocol;
+  final String model;
+  final List<Object?> parts;
+
+  const ProviderTurn({
+    required this.protocol,
+    required this.model,
+    required this.parts,
+  });
+
+  /// Whether this turn may go back verbatim to [protocol] on [model].
+  bool fits(AiProviderType protocol, String model) =>
+      this.protocol == protocol && this.model == model;
+}
+
 class AssistantMessage extends ChatMessage {
   final String content;
   final List<ToolCall> toolCalls;
@@ -37,15 +62,14 @@ class AssistantMessage extends ChatMessage {
   /// calls; attaching it exactly when there are calls satisfies both.
   final ReasoningPassback? reasoning;
 
-  /// Gemini's raw model parts, which carry thought signatures that must return
-  /// unchanged.
-  final List<Object?>? geminiParts;
+  /// The turn as the protocol returned it; see [ProviderTurn].
+  final ProviderTurn? raw;
 
   const AssistantMessage({
     this.content = '',
     this.toolCalls = const [],
     this.reasoning,
-    this.geminiParts,
+    this.raw,
   });
 }
 
@@ -108,7 +132,7 @@ class ChatResult {
   final String text;
   final List<ToolCall> toolCalls;
   final ReasoningPassback? reasoning;
-  final List<Object?>? geminiParts;
+  final ProviderTurn? raw;
   final int promptTokens;
   final int completionTokens;
   final String? finishReason;
@@ -125,7 +149,7 @@ class ChatResult {
     this.text = '',
     this.toolCalls = const [],
     this.reasoning,
-    this.geminiParts,
+    this.raw,
     this.promptTokens = 0,
     this.completionTokens = 0,
     this.finishReason,
@@ -140,14 +164,14 @@ class ChatResult {
     content: text,
     toolCalls: toolCalls,
     reasoning: toolCalls.isEmpty ? null : reasoning,
-    geminiParts: geminiParts,
+    raw: raw,
   );
 
   ChatResult withThinkingOffPending(bool pending) => ChatResult(
     text: text,
     toolCalls: toolCalls,
     reasoning: reasoning,
-    geminiParts: geminiParts,
+    raw: raw,
     promptTokens: promptTokens,
     completionTokens: completionTokens,
     finishReason: finishReason,
@@ -175,8 +199,8 @@ enum FinishFailure {
 
 /// Reads the `finish_reason` values that are not a normal end.
 ///
-/// Every one of them arrives inside a successful stream. Returning what came before
-/// them hands the caller a partial answer it cannot tell from a complete one,
+/// Every one of them arrives inside a successful stream. Returning what came
+/// before them hands the caller a partial answer it cannot tell from a whole,
 /// and the agent loop reads the silence as "the model stopped calling tools"
 /// — so the user goes off changing prompts and models when the reply was in
 /// fact blocked, or cut short upstream.
