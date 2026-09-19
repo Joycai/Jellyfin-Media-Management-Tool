@@ -133,10 +133,7 @@ class ChatResult {
     this.thinkingOffPending = false,
   });
 
-  bool get truncated => switch (finishReason?.toLowerCase()) {
-    'length' || 'max_tokens' => true,
-    _ => false,
-  };
+  bool get truncated => FinishReasons.isTruncation(finishReason);
 
   /// The assistant turn to append to the history.
   AssistantMessage toMessage() => AssistantMessage(
@@ -157,4 +154,44 @@ class ChatResult {
     reasoned: reasoned,
     thinkingOffPending: pending,
   );
+}
+
+/// Why a reply that arrived with HTTP 200 must still not be used.
+enum FinishFailure {
+  /// A content filter stopped the reply: Azure and gateways say
+  /// `content_filter`, Zhipu `sensitive`. Whatever arrived before is partial.
+  filtered,
+
+  /// The upstream model failed partway (Zhipu's `network_error`,
+  /// OpenRouter's `error`). Nothing was learned about the model, so this
+  /// counts as a transport failure.
+  upstream,
+
+  /// Prompt and reply together outgrew the model's context window. Unlike an
+  /// output-cap cut, a larger output cap makes this worse: the history is
+  /// what has to shrink.
+  contextExceeded,
+}
+
+/// Reads the `finish_reason` values that are not a normal end.
+///
+/// Every one of them arrives inside a successful stream. Returning what came before
+/// them hands the caller a partial answer it cannot tell from a complete one,
+/// and the agent loop reads the silence as "the model stopped calling tools"
+/// — so the user goes off changing prompts and models when the reply was in
+/// fact blocked, or cut short upstream.
+abstract final class FinishReasons {
+  /// The reply hit the output limit. It is real text, cut short.
+  static bool isTruncation(String? reason) => switch (reason?.toLowerCase()) {
+    'length' || 'max_tokens' => true,
+    _ => false,
+  };
+
+  static FinishFailure? failure(String? reason) =>
+      switch (reason?.toLowerCase()) {
+        'content_filter' || 'sensitive' => FinishFailure.filtered,
+        'network_error' || 'error' => FinishFailure.upstream,
+        'model_context_window_exceeded' => FinishFailure.contextExceeded,
+        _ => null,
+      };
 }

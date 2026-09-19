@@ -70,15 +70,21 @@ class GoogleGenAiProvider implements AiProvider {
     return base;
   }
 
-  String get _keyQuery {
+  /// The key travels in `x-goog-api-key`, never as `?key=`. A query string
+  /// ends up in every relay's, proxy's and packet capture's access log, and in
+  /// any error that quotes the request URL.
+  Map<String, String> get _headers {
     final key = config.apiKey.trim();
-    return key.isEmpty ? '' : '?key=${Uri.encodeQueryComponent(key)}';
+    return {
+      'Content-Type': 'application/json',
+      if (key.isNotEmpty) 'x-goog-api-key': key,
+    };
   }
 
   Uri _generateUri() =>
-      Uri.parse('$_base/models/${config.model}:generateContent$_keyQuery');
+      Uri.parse('$_base/models/${config.model}:generateContent');
 
-  Uri _modelUri() => Uri.parse('$_base/models/${config.model}$_keyQuery');
+  Uri _modelUri() => Uri.parse('$_base/models/${config.model}');
 
   @override
   Future<AiResponse> complete({
@@ -168,11 +174,7 @@ class GoogleGenAiProvider implements AiProvider {
       try {
         res = await AiHttp.withRetry(
           () => client
-              .post(
-                _generateUri(),
-                headers: {'Content-Type': 'application/json'},
-                body: body,
-              )
+              .post(_generateUri(), headers: _headers, body: body)
               .timeout(timeout),
           cancelToken: cancelToken,
           retryTimeouts: false,
@@ -257,12 +259,7 @@ class GoogleGenAiProvider implements AiProvider {
           ),
     ];
 
-    if (_blocked(finishReason)) {
-      throw AiException(
-        'The model stopped with "$finishReason" and its answer was '
-        'discarded.',
-      );
-    }
+    _throwOnFailedFinish(finishReason);
 
     // Thinking is billed on top of the answer and Google reports it beside
     // `candidatesTokenCount`, never inside it. Reading only the latter
@@ -289,21 +286,46 @@ class GoogleGenAiProvider implements AiProvider {
     );
   }
 
-  /// Finish reasons that mean the answer must not be used.
+  /// Only `STOP` and `MAX_TOKENS` are an answer; every other finish reason
+  /// throws.
   ///
-  /// `MAX_TOKENS` is deliberately absent: it is a real, usable answer that was
-  /// cut short, and [ChatResult.truncated] already reports it.
-  static bool _blocked(String? finishReason) =>
-      switch (finishReason?.toUpperCase()) {
-        'SAFETY' ||
-        'RECITATION' ||
-        'BLOCKLIST' ||
-        'PROHIBITED_CONTENT' ||
-        'SPII' ||
-        'IMAGE_SAFETY' ||
-        'MALFORMED_FUNCTION_CALL' => true,
-        _ => false,
-      };
+  /// The check is an allow-list because the failures keep growing and all of
+  /// them arrive with HTTP 200: besides the content-safety set, Gemini ends a
+  /// turn with `MISSING_THOUGHT_SIGNATURE`, `UNEXPECTED_TOOL_CALL`,
+  /// `TOO_MANY_TOOL_CALLS`, `MALFORMED_RESPONSE` or `OTHER`. Read as a short
+  /// reply, any of them looks to the agent loop like a model that stopped
+  /// calling tools. `MAX_TOKENS` is a real answer cut short, which
+  /// [ChatResult.truncated] reports. A missing reason is not a failure.
+  static void _throwOnFailedFinish(String? finishReason) {
+    switch (finishReason?.toUpperCase()) {
+      case null || 'STOP' || 'MAX_TOKENS' || 'FINISH_REASON_UNSPECIFIED':
+        return;
+      // The request is what was wrong here, not the model or the files: a
+      // thought signature from an earlier turn did not come back intact.
+      case 'MISSING_THOUGHT_SIGNATURE':
+        throw AiNetworkException(
+          'Gemini rejected the conversation ("$finishReason"): a reasoning '
+          'signature from an earlier turn was not sent back. This is a '
+          'request the app built wrongly, not a problem with your files.',
+        );
+      // Says nothing settled about the model — `OTHER` is Google's own
+      // catch-all, and a model that over- or mis-calls tools does call them —
+      // so the tool probe must read these as inconclusive, not as "no tools".
+      case 'OTHER' ||
+          'MALFORMED_RESPONSE' ||
+          'UNEXPECTED_TOOL_CALL' ||
+          'TOO_MANY_TOOL_CALLS':
+        throw AiNetworkException(
+          'The model stopped with "$finishReason" and its answer was '
+          'discarded.',
+        );
+      default:
+        throw AiException(
+          'The model stopped with "$finishReason" and its answer was '
+          'discarded.',
+        );
+    }
+  }
 
   /// Converts the conversation to Gemini `contents`.
   ///
@@ -376,7 +398,7 @@ class GoogleGenAiProvider implements AiProvider {
   Future<ModelLimits> detectLimits() async {
     try {
       final res = await (_client ?? AiHttp.client)
-          .get(_modelUri())
+          .get(_modelUri(), headers: _headers)
           .timeout(const Duration(seconds: 5));
       if (res.statusCode < 200 || res.statusCode >= 300) {
         return ModelLimits.unknown;

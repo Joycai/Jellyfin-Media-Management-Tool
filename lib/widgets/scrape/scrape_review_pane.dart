@@ -376,19 +376,21 @@ class _ScrapeReviewPaneState extends State<ScrapeReviewPane> {
     ),
   );
 
-  static String _noteText(AppLocalizations l10n, ScrapeNote note) =>
-      switch (note) {
-        ScrapeNote.siteWideStructuredDataIgnored =>
-          l10n.scrapeNoteSiteWideIgnored,
-        ScrapeNote.noRecipe => l10n.scrapeNoteNoRecipe,
-        ScrapeNote.degradedEncoding => l10n.scrapeNoteDegradedEncoding,
-        ScrapeNote.recipeProducedNothing => l10n.scrapeNoteRecipeStale,
-        ScrapeNote.recipeLearned => l10n.scrapeNoteRecipeLearned,
-        ScrapeNote.recipeLearningFailed => l10n.scrapeNoteRecipeLearningFailed,
-        ScrapeNote.redirectedAway => l10n.scrapeNoteRedirectedAway,
-        ScrapeNote.llmExtracted => l10n.scrapeNoteLlmExtracted,
-        ScrapeNote.llmExtractionFailed => l10n.scrapeNoteLlmExtractionFailed,
-      };
+  static String _noteText(
+    AppLocalizations l10n,
+    ScrapeNote note,
+  ) => switch (note) {
+    ScrapeNote.siteWideStructuredDataIgnored => l10n.scrapeNoteSiteWideIgnored,
+    ScrapeNote.noRecipe => l10n.scrapeNoteNoRecipe,
+    ScrapeNote.degradedEncoding => l10n.scrapeNoteDegradedEncoding,
+    ScrapeNote.recipeProducedNothing => l10n.scrapeNoteRecipeStale,
+    ScrapeNote.recipeLearned => l10n.scrapeNoteRecipeLearned,
+    ScrapeNote.recipeLearningFailed => l10n.scrapeNoteRecipeLearningFailed,
+    ScrapeNote.redirectedAway => l10n.scrapeNoteRedirectedAway,
+    ScrapeNote.llmExtracted => l10n.scrapeNoteLlmExtracted,
+    ScrapeNote.llmExtractionFailed => l10n.scrapeNoteLlmExtractionFailed,
+    ScrapeNote.llmExtractionTruncated => l10n.scrapeNoteLlmExtractionTruncated,
+  };
 
   // ── Body ──────────────────────────────────────────────────────────────────
 

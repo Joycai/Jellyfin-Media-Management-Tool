@@ -209,6 +209,9 @@ class OrganizeAgent {
             warning =
                 'model tool calls kept failing; try a larger model or turn '
                 'thinking on';
+          } else if (run.outcome == AgentOutcome.truncated) {
+            state.failActive('the model kept hitting its output limit');
+            warning = 'replies kept hitting the output limit; raise it';
           }
           state.finishActive();
           break;
@@ -236,6 +239,9 @@ class OrganizeAgent {
               'stopped. Try a larger model, or turn thinking on.',
         AgentOutcome.exhausted =>
           'The model used all its rounds without deciding any group.',
+        AgentOutcome.truncated => AgentRuntime.truncatedMessage(
+          provider.config.maxOutputTokens,
+        ),
         _ => 'The model stopped without deciding any group.',
       });
     }

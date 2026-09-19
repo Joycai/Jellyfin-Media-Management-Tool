@@ -172,6 +172,45 @@ void main() {
     expect(provider.calls, AgentRuntime.maxErraticRounds);
   });
 
+  test('cut-off tool calls end as truncated, not erratic', () async {
+    final provider = ScriptedChatProvider([
+      (_) => const ChatResult(
+        toolCalls: [ToolCall(id: 'c0', name: 'add', arguments: '{"by": ')],
+        finishReason: 'length',
+      ),
+    ]);
+
+    final result = await _run(provider, _Tally(), isDone: () => false);
+
+    expect(result.outcome, AgentOutcome.truncated);
+    expect(provider.calls, AgentRuntime.maxTruncatedRounds);
+  });
+
+  test('a reply cut off without a tool call is retried, not nudged', () async {
+    var nudged = 0;
+    final provider = ScriptedChatProvider([
+      (_) => const ChatResult(text: 'Let me think', finishReason: 'length'),
+    ]);
+
+    final result = await _run(
+      provider,
+      _Tally(),
+      nudge: () {
+        nudged++;
+        return 'keep going';
+      },
+    );
+
+    expect(result.outcome, AgentOutcome.truncated);
+    expect(nudged, 0);
+    expect(provider.calls, AgentRuntime.maxTruncatedRounds);
+  });
+
+  test('the truncation message names the current output cap', () {
+    expect(AgentRuntime.truncatedMessage(4096), contains('4096'));
+    expect(AgentRuntime.truncatedMessage(null), isNot(contains('null')));
+  });
+
   test('the round limit ends a run that never finishes', () async {
     final provider = ScriptedChatProvider([
       (_) => toolTurn([

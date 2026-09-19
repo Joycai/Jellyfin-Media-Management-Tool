@@ -457,6 +457,7 @@
   "settingsScrapeRecipeAnyPath": "any page",
   "scrapeNoteLlmExtracted": "These values were read off the page by the model, not matched by a selector — nothing verified them against the document. Check anything that matters before writing.",
   "scrapeNoteLlmExtractionFailed": "The model could not read usable metadata off this page.",
+  "scrapeNoteLlmExtractionTruncated": "The model hit its output limit before it finished, so some fields may be missing. Raise the maximum output in the AI service settings.",
   "scrapeAskLlm": "Ask the LLM directly",
   "scrapeAskLlmHint": "Reads the page you already fetched and reports the fields itself. Costs a request, and the values are the model’s rather than the page’s.",
   "scrapeCustomPrompt": "Extra instructions for the model (optional)",

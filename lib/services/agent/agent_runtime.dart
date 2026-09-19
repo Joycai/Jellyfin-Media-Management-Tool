@@ -70,6 +70,12 @@ enum AgentOutcome {
   /// Several rounds in a row produced nothing but failed calls — a model that
   /// cannot drive these tools, where more rounds only burn tokens.
   erratic,
+
+  /// Replies kept hitting the output limit. A reasoning model spends the cap
+  /// on thinking and its tool arguments arrive cut off, which reads exactly
+  /// like a model that cannot write JSON — but the fix is a larger output
+  /// cap, not another model.
+  truncated,
 }
 
 class AgentRunResult {
@@ -97,6 +103,18 @@ abstract final class AgentRuntime {
       "[earlier tool result dropped to stay within the model's context window]";
 
   static const maxErraticRounds = 3;
+
+  /// Cut-off rounds in a row before the run ends as [AgentOutcome.truncated].
+  static const maxTruncatedRounds = 2;
+
+  /// What to tell the user when a run ends as [AgentOutcome.truncated].
+  static String truncatedMessage(int? maxOutputTokens) =>
+      maxOutputTokens == null
+      ? 'The model kept hitting its output limit before finishing a reply. '
+            'Set a larger maximum output in the AI service settings.'
+      : 'The model kept hitting its output limit ($maxOutputTokens tokens) '
+            'before finishing a reply. Raise the maximum output in the AI '
+            'service settings.';
 
   /// Runs [tools] against [provider] until [isDone], mutating [messages] in
   /// place so the caller holds the full transcript.
@@ -126,6 +144,7 @@ abstract final class AgentRuntime {
     var completionTokens = 0;
     var nudges = 0;
     var erraticRounds = 0;
+    var truncatedRounds = 0;
     // Tool schemas are sent on every request but live outside `messages`, so
     // the budget has to be told about them or it under-counts by the size of
     // the whole tool list — which for organize is seven schemas.
@@ -185,6 +204,16 @@ abstract final class AgentRuntime {
 
       if (reply.toolCalls.isEmpty) {
         if (isDone()) return finish(AgentOutcome.completed, round);
+        // A reply cut off mid-sentence is not a model that chose to stop, and
+        // a reminder would be cut off at the same place. The same request is
+        // asked again, once, the way a cut-off tool round is.
+        if (reply.truncated) {
+          truncatedRounds++;
+          if (truncatedRounds >= maxTruncatedRounds) {
+            return finish(AgentOutcome.truncated, round);
+          }
+          continue;
+        }
         final reminder = nudges < maxNudges ? nudge?.call() : null;
         if (reminder == null) return finish(AgentOutcome.stopped, round);
         nudges++;
@@ -229,9 +258,18 @@ abstract final class AgentRuntime {
       if (stopWhenDone && isDone()) {
         return finish(AgentOutcome.completed, round);
       }
-      erraticRounds = failures == reply.toolCalls.length
-          ? erraticRounds + 1
-          : 0;
+      final allFailed = failures == reply.toolCalls.length;
+      if (reply.truncated && allFailed) {
+        // The calls failed because their arguments were cut off, which says
+        // nothing about whether the model can drive the tools.
+        truncatedRounds++;
+        if (truncatedRounds >= maxTruncatedRounds) {
+          return finish(AgentOutcome.truncated, round);
+        }
+        continue;
+      }
+      truncatedRounds = 0;
+      erraticRounds = allFailed ? erraticRounds + 1 : 0;
       if (erraticRounds >= maxErraticRounds) {
         return finish(AgentOutcome.erratic, round);
       }

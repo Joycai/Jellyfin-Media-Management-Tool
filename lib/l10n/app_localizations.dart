@@ -2846,6 +2846,12 @@ abstract class AppLocalizations {
   /// **'The model could not read usable metadata off this page.'**
   String get scrapeNoteLlmExtractionFailed;
 
+  /// No description provided for @scrapeNoteLlmExtractionTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'The model hit its output limit before it finished, so some fields may be missing. Raise the maximum output in the AI service settings.'**
+  String get scrapeNoteLlmExtractionTruncated;
+
   /// No description provided for @scrapeAskLlm.
   ///
   /// In en, this message translates to:

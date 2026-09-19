@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_http.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
 import 'package:jellyfin_media_management_tool/services/ai/google_genai_provider.dart';
 
 // Each test uses its own host: the provider remembers per endpoint + model
@@ -209,6 +210,60 @@ void main() {
       );
     });
 
+    for (final reason in [
+      'UNEXPECTED_TOOL_CALL',
+      'TOO_MANY_TOOL_CALLS',
+      'MALFORMED_RESPONSE',
+      'OTHER',
+      'SOMETHING_NEW',
+    ]) {
+      test('$reason is a failure, not a short reply', () async {
+        final provider = GoogleGenAiProvider(
+          _config('finish-${reason.toLowerCase()}'),
+          client: MockClient((_) async => _text('ok', finishReason: reason)),
+        );
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(
+            isA<AiException>().having(
+              (e) => e.message,
+              'message',
+              contains(reason),
+            ),
+          ),
+        );
+      });
+    }
+
+    test('a catch-all stop leaves tool support undecided', () async {
+      final probe = await AiConnectionCheck.probeTools(
+        GoogleGenAiProvider(
+          _config('finish-other-probe'),
+          client: MockClient((_) async => _text('', finishReason: 'OTHER')),
+        ),
+      );
+      expect(probe.outcome, ToolProbe.inconclusive);
+    });
+
+    test('a missing thought signature blames the request', () async {
+      final provider = GoogleGenAiProvider(
+        _config('finish-signature'),
+        client: MockClient(
+          (_) async => _text('', finishReason: 'MISSING_THOUGHT_SIGNATURE'),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            contains('not a problem with your files'),
+          ),
+        ),
+      );
+    });
+
     test('MAX_TOKENS is a usable answer, reported as truncated', () async {
       final result = await GoogleGenAiProvider(
         _config('capped'),
@@ -254,6 +309,28 @@ void main() {
               ),
         ),
       );
+    });
+
+    test('the key travels in a header, never in the URL', () async {
+      final seen = <http.BaseRequest>[];
+      final provider = GoogleGenAiProvider(
+        _config('key-header'),
+        client: MockClient((request) async {
+          seen.add(request);
+          return request.method == 'GET'
+              ? http.Response('{}', 404)
+              : _text('ok');
+        }),
+      );
+
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      await provider.detectLimits();
+
+      expect(seen, hasLength(2));
+      for (final request in seen) {
+        expect(request.url.query, isEmpty);
+        expect(request.headers['x-goog-api-key'], 'secret-key-value');
+      }
     });
 
     test('a socket failure is reported by its cause alone', () {

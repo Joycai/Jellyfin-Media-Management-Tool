@@ -112,7 +112,14 @@ class RecipeLearner {
     );
 
     final recipe = state.submitted;
-    if (recipe == null) return null;
+    if (recipe == null) {
+      if (run.outcome == AgentOutcome.truncated) {
+        throw AiException(
+          AgentRuntime.truncatedMessage(provider.config.maxOutputTokens),
+        );
+      }
+      return null;
+    }
     return LearnedRecipe(
       recipe: recipe,
       extracted: _asLlmOrigin(RecipeApplier.apply(document, recipe, pageUrl)),

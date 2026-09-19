@@ -77,6 +77,9 @@ enum ScrapeNote {
 
   /// The model was asked to read the page and returned nothing usable.
   llmExtractionFailed,
+
+  /// The model's run ended at its output limit, so fields may be missing.
+  llmExtractionTruncated,
 }
 
 /// Everything the preview dialog needs.
@@ -414,8 +417,13 @@ class ScrapeService extends ChangeNotifier {
       return result.withScraped(
         extraction.metadata,
         notes: [
-          ...result.notes.where((n) => n != ScrapeNote.llmExtractionFailed),
+          ...result.notes.where(
+            (n) =>
+                n != ScrapeNote.llmExtractionFailed &&
+                n != ScrapeNote.llmExtractionTruncated,
+          ),
           ScrapeNote.llmExtracted,
+          if (extraction.truncated) ScrapeNote.llmExtractionTruncated,
         ],
       );
     } finally {

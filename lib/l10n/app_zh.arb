@@ -457,6 +457,7 @@
   "settingsScrapeRecipeAnyPath": "任意页面",
   "scrapeNoteLlmExtracted": "这些值由模型直接从页面读取，而非选择器匹配，没有任何环节核对过它们与原文是否一致。写入前请复核重要字段。",
   "scrapeNoteLlmExtractionFailed": "模型未能从该页面读出可用的元数据。",
+  "scrapeNoteLlmExtractionTruncated": "模型在完成之前触到了输出上限，部分字段可能缺失。请在 AI 服务设置里调高最大输出。",
   "scrapeAskLlm": "直接询问模型",
   "scrapeAskLlmHint": "由模型直接读取已抓取的页面并输出各字段。消耗一次请求，字段值以模型判断为准，而非页面原文。",
   "scrapeCustomPrompt": "附加要求（可选）",

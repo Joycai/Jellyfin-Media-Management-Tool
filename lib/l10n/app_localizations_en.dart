@@ -1593,6 +1593,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The model could not read usable metadata off this page.';
 
   @override
+  String get scrapeNoteLlmExtractionTruncated =>
+      'The model hit its output limit before it finished, so some fields may be missing. Raise the maximum output in the AI service settings.';
+
+  @override
   String get scrapeAskLlm => 'Ask the LLM directly';
 
   @override

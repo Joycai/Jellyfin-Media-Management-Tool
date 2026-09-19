@@ -87,10 +87,7 @@ class AiResponse {
   int get totalTokens => promptTokens + completionTokens;
 
   /// True when the server cut the reply off at its output limit.
-  bool get truncated => switch (finishReason?.toLowerCase()) {
-    'length' || 'max_tokens' => true,
-    _ => false,
-  };
+  bool get truncated => FinishReasons.isTruncation(finishReason);
 
   factory AiResponse.fromChat(ChatResult result) => AiResponse(
     text: result.text,
@@ -112,8 +109,9 @@ class AiException implements Exception {
   String toString() => message;
 }
 
-/// An [AiException] the endpoint itself never produced: the request did not
-/// complete, so nothing was learned about the server or the model.
+/// An [AiException] that settles nothing about the model: the request did not
+/// complete, or the server failed it for a reason of its own (a rate limit, an
+/// empty balance, an upstream crash, Gemini's catch-all `OTHER`).
 ///
 /// The distinction is what keeps a network blip from being recorded as a fact
 /// about a model — see [AiConnectionCheck.probeTools].

@@ -522,6 +522,349 @@ void main() {
     expect(bodies, hasLength(1));
     expect(bodies.single['top_k'], 40);
   });
+
+  group('failures that arrive with HTTP 200', () {
+    http.Response stream(List<Map<String, Object?>> events) => http.Response(
+      [...events.map(_event), 'data: [DONE]\n\n'].join(),
+      200,
+      headers: {'content-type': 'text/event-stream'},
+    );
+
+    Map<String, Object?> chunk(String? content, {String? finish}) => {
+      'choices': [
+        {
+          'delta': {'content': ?content},
+          'finish_reason': finish,
+        },
+      ],
+    };
+
+    test('a content_filter finish throws instead of ending quietly', () async {
+      final provider = OpenAiProvider(
+        _config('filtered'),
+        client: MockClient(
+          (_) async => stream([
+            chunk('partial '),
+            chunk(null, finish: 'content_filter'),
+          ]),
+        ),
+      );
+
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>()
+              .having((e) => e, 'type', isNot(isA<AiNetworkException>()))
+              .having((e) => e.message, 'message', contains('content filter')),
+        ),
+      );
+    });
+
+    test("Zhipu's sensitive finish is a filter too", () async {
+      final provider = OpenAiProvider(
+        _config('sensitive'),
+        client: MockClient(
+          (_) async => stream([chunk('x', finish: 'sensitive')]),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            contains('"sensitive"'),
+          ),
+        ),
+      );
+    });
+
+    test('an upstream network_error is a transport failure', () async {
+      final provider = OpenAiProvider(
+        _config('upstream-broke'),
+        client: MockClient(
+          (_) async => stream([chunk('half', finish: 'network_error')]),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('context-window exhaustion is not advice to raise the cap', () async {
+      final provider = OpenAiProvider(
+        _config('context-full'),
+        client: MockClient(
+          (_) async =>
+              stream([chunk('x', finish: 'model_context_window_exceeded')]),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            contains('context window'),
+          ),
+        ),
+      );
+    });
+
+    test("OpenRouter's error finish is an upstream failure", () async {
+      final provider = OpenAiProvider(
+        _config('openrouter-error'),
+        client: MockClient((_) async => stream([chunk('x', finish: 'error')])),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('MiniMax base_resp is reported as the account error it is', () async {
+      final provider = OpenAiProvider(
+        _config('minimax'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'choices': null,
+              'base_resp': {
+                'status_code': 1008,
+                'status_msg': 'insufficient balance',
+              },
+            }),
+            200,
+          ),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          // An account problem settles nothing about the model.
+          isA<AiNetworkException>().having(
+            (e) => e.message,
+            'message',
+            'Model error 1008: insufficient balance',
+          ),
+        ),
+      );
+    });
+
+    test('a non-streamed error object is not an empty reply', () async {
+      final provider = OpenAiProvider(
+        _config('error-envelope'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': {'message': 'key expired'},
+            }),
+            200,
+          ),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            'Model error: key expired',
+          ),
+        ),
+      );
+    });
+
+    test('an unexpected completion shape is named, not a TypeError', () async {
+      final provider = OpenAiProvider(
+        _config('odd-shape'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': 'hi'},
+                  'finish_reason': 'stop',
+                },
+              ],
+              'usage': {'prompt_tokens': 'twelve'},
+            }),
+            200,
+          ),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            contains('shape'),
+          ),
+        ),
+      );
+    });
+  });
+
+  group('content as a list of parts', () {
+    const parts = [
+      {'type': 'text', 'text': 'Hello, '},
+      {'type': 'image_url', 'image_url': 'ignored'},
+      {'type': 'text', 'text': 'world'},
+    ];
+
+    test('is read when streamed', () async {
+      final provider = OpenAiProvider(
+        _config('parts-stream'),
+        client: MockClient(
+          (_) async => http.Response(
+            [
+              _event({
+                'choices': [
+                  {
+                    'delta': {'content': parts},
+                    'finish_reason': 'stop',
+                  },
+                ],
+              }),
+              'data: [DONE]\n\n',
+            ].join(),
+            200,
+            headers: {'content-type': 'text/event-stream'},
+          ),
+        ),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+      expect(result.text, 'Hello, world');
+    });
+
+    test('is read from a plain completion', () async {
+      final provider = OpenAiProvider(
+        _config('parts-plain'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': parts},
+                  'finish_reason': 'stop',
+                },
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+      expect(result.text, 'Hello, world');
+    });
+  });
+
+  group('platform thinking switches', () {
+    Future<Map<String, dynamic>> sent(
+      String endpoint,
+      String model, {
+      bool thinking = false,
+    }) async {
+      late Map<String, dynamic> body;
+      await OpenAiProvider(
+        AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: endpoint,
+          apiKey: 'k',
+          model: model,
+          thinkingEnabled: thinking,
+        ),
+        client: MockClient((request) async {
+          body = _body(request);
+          return _reply('ok');
+        }),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      return body;
+    }
+
+    test('Zhipu gets thinking.type and no ladder', () async {
+      final body = await sent(
+        'https://open.bigmodel.cn/api/paas/v4',
+        'glm-4.6',
+      );
+      expect(body['thinking'], {'type': 'disabled'});
+      expect(body.containsKey('chat_template_kwargs'), isFalse);
+      expect(body.containsKey('reasoning_effort'), isFalse);
+    });
+
+    test('DashScope gets enable_thinking both ways', () async {
+      final off = await sent(
+        'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        'qwen3-max',
+      );
+      expect(off['enable_thinking'], isFalse);
+      expect(off.containsKey('chat_template_kwargs'), isFalse);
+
+      final on = await sent(
+        'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        'qwen-plus',
+        thinking: true,
+      );
+      expect(on['enable_thinking'], isTrue);
+    });
+
+    test('DeepSeek gets thinking.type even for an unknown family', () async {
+      final body = await sent('https://api.deepseek.com', 'deepseek-chat');
+      expect(body['thinking'], {'type': 'disabled'});
+    });
+
+    test('a 400 that only mentions thinking keeps the switch', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        final body = _body(request);
+        bodies.add(body);
+        return bodies.length == 1
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message':
+                        'Missing reasoning_content in thinking mode, see '
+                        'https://api-docs.deepseek.com/guides/thinking_mode; '
+                        'temperature is not supported',
+                  },
+                }),
+                400,
+              )
+            : _reply('ok');
+      });
+      AiConfig config() => const AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'https://api.deepseek.com',
+        apiKey: 'k-thinking-prose',
+        model: 'deepseek-chat',
+      );
+      await OpenAiProvider(
+        config(),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      await OpenAiProvider(
+        config(),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+
+      expect(bodies.last['thinking'], {'type': 'disabled'});
+      expect(bodies.last.containsKey('temperature'), isFalse);
+    });
+
+    test('any other server sends no platform field', () async {
+      final body = await sent('https://api.openai.com/v1', 'gpt-5.4-mini');
+      expect(body.containsKey('thinking'), isFalse);
+      expect(body.containsKey('enable_thinking'), isFalse);
+    });
+  });
 }
 
 String _event(Map<String, Object?> event) => 'data: ${jsonEncode(event)}\n\n';

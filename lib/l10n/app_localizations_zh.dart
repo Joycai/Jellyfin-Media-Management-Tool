@@ -1553,6 +1553,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeNoteLlmExtractionFailed => '模型未能从该页面读出可用的元数据。';
 
   @override
+  String get scrapeNoteLlmExtractionTruncated =>
+      '模型在完成之前触到了输出上限，部分字段可能缺失。请在 AI 服务设置里调高最大输出。';
+
+  @override
   String get scrapeAskLlm => '直接询问模型';
 
   @override

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'ai_cancel_token.dart';
 import 'ai_http.dart';
 import 'ai_provider.dart';
+import 'thinking_dialect.dart';
 
 /// How a request asks for JSON, most to least constrained. [OpenAiProvider]
 /// steps down this list when a server rejects the current form.
@@ -165,8 +166,10 @@ class OpenAiProvider implements AiProvider {
   /// when missing), so an omitted `min_p: 0` is not a preset at all. A field
   /// a server rejects by name is dropped and remembered.
   ///
-  /// **Reasoning.** With thinking off, a hybrid family is asked for no
-  /// reasoning in the way its server understands — see [_ThinkingOff].
+  /// **Reasoning.** A cloud platform with a documented switch gets that
+  /// switch, both ways, and nothing else — see [ThinkingDialect]. Anywhere
+  /// else, with thinking off, a hybrid family is asked for no reasoning in the
+  /// way its server understands — see [_ThinkingOff].
   ///
   /// **JSON mode** ([jsonMode], never together with tools).
   /// `response_format: json_object` is OpenAI's form and most servers take it,
@@ -186,8 +189,11 @@ class OpenAiProvider implements AiProvider {
     final sampling = config.sampling;
     final values = sampling.values;
     final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
+    final dialect = ThinkingDialect.forEndpoint(config.endpoint);
+    final dialectField = dialect?.field(thinking: sampling.thinking);
     final offWays =
-        !sampling.thinking &&
+        dialect == null &&
+            !sampling.thinking &&
             (control == ThinkingControl.templateSwitch ||
                 control == ThinkingControl.softSwitch)
         ? _thinkingOffWays(control, await detectServerKind())
@@ -209,8 +215,11 @@ class OpenAiProvider implements AiProvider {
         'presence_penalty': ?values.presencePenalty,
         'repeat_penalty': ?values.repeatPenalty,
         // gpt-oss cannot stop reasoning; asked for none, it gets the least.
-        if (control == ThinkingControl.effortOnly && !config.thinkingEnabled)
+        if (control == ThinkingControl.effortOnly &&
+            !config.thinkingEnabled &&
+            dialect == null)
           'reasoning_effort': 'low',
+        if (dialectField != null) dialectField.key: dialectField.value,
         if (off == _ThinkingOff.templateKwargs)
           'chat_template_kwargs': const {'enable_thinking': false},
         if (off == _ThinkingOff.effortNone) 'reasoning_effort': 'none',
@@ -305,7 +314,9 @@ class OpenAiProvider implements AiProvider {
           mode = _JsonMode.values[mode.index + 1];
           continue;
         }
-        final refused = optional.keys.where(detail.contains).firstOrNull;
+        final refused = optional.keys
+            .where((field) => _namesField(detail, field))
+            .firstOrNull;
         if (refused != null) {
           final isThinkingOffField =
               refused == 'chat_template_kwargs' ||
@@ -366,6 +377,18 @@ class OpenAiProvider implements AiProvider {
     _ThinkingOff.effortNone,
     if (control == ThinkingControl.softSwitch) _ThinkingOff.softSwitch,
   ];
+
+  /// Whether a rejection names [field]. A plain substring test for the
+  /// sampling fields, whose names do not occur in prose; `thinking` does
+  /// ("… in thinking mode", a docs link to `thinking_mode`), and reading such
+  /// an error as a refusal would drop the platform's reasoning switch for the
+  /// session — silently back to paid reasoning. So `thinking` counts only when
+  /// quoted or addressed as a parameter.
+  static bool _namesField(String detail, String field) => field == 'thinking'
+      ? RegExp(
+          r'''["'`]thinking["'`.]|thinking\.type|thinking (field|parameter)''',
+        ).hasMatch(detail)
+      : detail.contains(field);
 
   static bool _namesResponseFormat(String detail) =>
       detail.contains('response_format') ||
@@ -455,17 +478,13 @@ class OpenAiProvider implements AiProvider {
           continue;
         }
         if (event is! Map) continue;
-        final error = event['error'];
-        if (error != null) {
-          final message = error is Map ? error['message'] : error;
-          throw AiException('Model error: $message');
-        }
+        _throwOnErrorEnvelope(event);
         final choices = event['choices'];
         if (choices is List && choices.isNotEmpty && choices.first is Map) {
           final choice = choices.first as Map;
           final delta = choice['delta'];
           if (delta is Map) {
-            if (delta['content'] is String) content.write(delta['content']);
+            content.write(_text(delta['content']));
             for (final field in _reasoningFields) {
               final piece = delta[field];
               if (piece is String && piece.isNotEmpty) {
@@ -507,6 +526,7 @@ class OpenAiProvider implements AiProvider {
     }
 
     if (sse != true) return _parse(plain.toString());
+    _throwOnFailedFinish(finishReason);
     if (content.isEmpty && calls.isEmpty && finishReason == null) {
       throw const AiException('Empty response from model.');
     }
@@ -532,6 +552,11 @@ class OpenAiProvider implements AiProvider {
 
   static const _reasoningFields = ['reasoning_content', 'reasoning'];
 
+  /// Parses a body that is not an event stream as one ordinary completion.
+  ///
+  /// Any shape it does not expect is a failure worth naming, not a Dart type
+  /// error: this runs after the stream's own error handling, so an uncaught
+  /// cast would reach the task list as an exception message.
   static ChatResult _parse(String body) {
     final Object? json;
     try {
@@ -539,15 +564,31 @@ class OpenAiProvider implements AiProvider {
     } on FormatException {
       throw const AiException('Empty response from model.');
     }
-    final choices = json is Map ? json['choices'] : null;
+    if (json is! Map) throw const AiException('Empty response from model.');
+    _throwOnErrorEnvelope(json);
+    try {
+      return _parseCompletion(json);
+    } on AiException {
+      rethrow;
+    } on TypeError {
+      throw const AiException(
+        'The server sent a completion in a shape this app does not read.',
+      );
+    }
+  }
+
+  static ChatResult _parseCompletion(Map<dynamic, dynamic> json) {
+    final choices = json['choices'];
     if (choices is! List || choices.isEmpty || choices.first is! Map) {
       throw const AiException('Empty response from model.');
     }
     final choice = choices.first as Map;
+    final finishReason = _stringOrNull(choice['finish_reason']);
+    _throwOnFailedFinish(finishReason);
     final message = choice['message'];
-    final usage = (json as Map)['usage'];
-    final content = message is Map ? message['content'] as String? : null;
-    final (text, inline) = splitReasoning(content ?? '');
+    final usage = json['usage'];
+    final content = message is Map ? _text(message['content']) : '';
+    final (text, inline) = splitReasoning(content);
 
     ReasoningPassback? reasoning;
     if (message is Map) {
@@ -568,7 +609,7 @@ class OpenAiProvider implements AiProvider {
               id: raw['id'] is String && (raw['id'] as String).isNotEmpty
                   ? raw['id'] as String
                   : 'call_$index',
-              name: function['name'] as String? ?? '',
+              name: _stringOrNull(function['name']) ?? '',
               // Some servers hand arguments back already decoded.
               arguments: switch (function['arguments']) {
                 String s => s,
@@ -588,12 +629,86 @@ class OpenAiProvider implements AiProvider {
       completionTokens: usage is Map
           ? (usage['completion_tokens'] as num?)?.toInt() ?? 0
           : 0,
-      finishReason: choice['finish_reason'] as String?,
+      finishReason: finishReason,
       reasoned:
           inline ||
           reasoning != null ||
           (usage is Map && _reasoningTokens(usage) > 0),
     );
+  }
+
+  static String? _stringOrNull(Object? value) => value is String ? value : null;
+
+  /// Message text in either shape a server uses: a string, or — from relays
+  /// that mirror a backend's content parts onto `chat/completions` — a list of
+  /// `{"type": "text", "text": …}` parts. Reading only the string dropped the
+  /// whole answer from such a relay and reported a successful empty reply.
+  static String _text(Object? content) => switch (content) {
+    String text => text,
+    List<Object?> parts =>
+      parts
+          .whereType<Map<dynamic, dynamic>>()
+          .where(
+            (p) =>
+                p['type'] == null ||
+                p['type'] == 'text' ||
+                p['type'] == 'output_text',
+          )
+          .map((p) => p['text'])
+          .whereType<String>()
+          .join(),
+    _ => '',
+  };
+
+  /// Throws for an error that arrived with HTTP 200: OpenAI's `error` object
+  /// (or a bare string), and MiniMax's `base_resp` with a non-zero
+  /// `status_code` — how it reports an expired key or an empty balance. Read
+  /// as an ordinary body, either became "Empty response from model." and sent
+  /// the user off to look at the model instead of the account.
+  static void _throwOnErrorEnvelope(Map<dynamic, dynamic> json) {
+    final error = json['error'];
+    if (error != null) {
+      final message = error is Map ? error['message'] ?? error['code'] : error;
+      throw AiException('Model error: $message');
+    }
+    if (json['base_resp'] case final Map<dynamic, dynamic> base) {
+      final code = base['status_code'];
+      if (code is num && code != 0) {
+        final message = base['status_msg'];
+        // Rate limits, an expired key, an empty balance: facts about the
+        // account, never about whether the model calls tools.
+        throw AiNetworkException(
+          message is String && message.trim().isNotEmpty
+              ? 'Model error $code: ${message.trim()}'
+              : 'Model error $code.',
+        );
+      }
+    }
+  }
+
+  /// See [FinishReasons.failure].
+  static void _throwOnFailedFinish(String? finishReason) {
+    switch (FinishReasons.failure(finishReason)) {
+      case FinishFailure.filtered:
+        throw AiException(
+          'The provider\'s content filter stopped the reply '
+          '("$finishReason"). What arrived before it was discarded.',
+        );
+      case FinishFailure.upstream:
+        throw AiNetworkException(
+          'The upstream model failed partway through the reply '
+          '("$finishReason").',
+        );
+      case FinishFailure.contextExceeded:
+        throw AiException(
+          'The conversation no longer fits the model\'s context window '
+          '("$finishReason"). Set the context window in the AI service '
+          'settings to what the server really serves, so older tool results '
+          'are shortened in time.',
+        );
+      case null:
+        return;
+    }
   }
 
   /// Separates a leading think block from the answer.
