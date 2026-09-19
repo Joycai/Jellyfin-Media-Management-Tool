@@ -9,7 +9,7 @@ It states the rules in a line each. The reasons, measurements and history behind
 - Flutter **desktop** app for Windows/macOS/Linux. There are no `android/`, `ios/` or `web/` directories — those targets are not supported, and `flutter create` scaffolding for them should not be re-added.
 - A local file-management tool that organizes media libraries to match Jellyfin's [naming conventions](https://jellyfin.org/docs/general/server/media/naming/). It does **not** talk to Jellyfin servers — there is no API client or auth; everything is filesystem operations.
 - The primary workflow is **AI-driven**: point it at a folder, an LLM proposes a move/rename plan, the user reviews and edits the plan in a preview dialog, and only then does anything touch disk. Every applied batch writes an undo manifest.
-- Dart SDK `^3.10.4`. Current app version: `1.2.0+3`.
+- Dart SDK `^3.10.4`. Current app version: `1.3.0+4`.
 
 ## Common commands
 
