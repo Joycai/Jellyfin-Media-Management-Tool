@@ -8,6 +8,7 @@ library;
 
 import 'ai_cancel_token.dart';
 import 'chat.dart';
+import 'learned_behaviour.dart';
 import 'model_limits.dart';
 import 'sampling_presets.dart';
 
@@ -21,34 +22,52 @@ export 'sampling_presets.dart'
         SamplingValues,
         ThinkingControl;
 
-/// Identifies which wire protocol a provider speaks.
+/// Identifies which wire protocol a provider speaks — the four protocol
+/// families. A vendor is never a type here: it is a row of data in
+/// `PlatformProfiles`.
 enum AiProviderType {
-  /// OpenAI-compatible `/chat/completions` (OpenAI, Azure, LM Studio, Ollama,
-  /// llama.cpp, vLLM, …).
+  /// ① OpenAI-compatible `/chat/completions` (OpenAI, Azure, LM Studio,
+  /// Ollama, llama.cpp, vLLM, …).
   openAi,
 
-  /// Google Generative Language API (`:generateContent`).
+  /// ③ Google Generative Language API (`:streamGenerateContent`).
   googleGenAi,
+
+  /// ④ Anthropic Messages (`/v1/messages`).
+  anthropic,
+
+  /// ② OpenAI Responses (`/v1/responses`).
+  openAiResponses,
 }
 
 extension AiProviderTypeX on AiProviderType {
   String get id => switch (this) {
     AiProviderType.openAi => 'openai',
     AiProviderType.googleGenAi => 'google',
+    AiProviderType.anthropic => 'anthropic',
+    AiProviderType.openAiResponses => 'responses',
   };
 
   /// Whether a profile is unusable without an API key.
   ///
-  /// Google's API rejects every keyless request. An OpenAI-compatible server
-  /// often wants none at all — LM Studio, Ollama, llama.cpp and vLLM run
-  /// without authentication by default — and requiring one there made users
-  /// invent a key just to get past the form.
-  bool get requiresApiKey => this == AiProviderType.googleGenAi;
+  /// Google's and Anthropic's APIs reject every keyless request. An
+  /// OpenAI-compatible server often wants none at all — LM Studio, Ollama,
+  /// llama.cpp and vLLM run without authentication by default — and requiring
+  /// one there made users invent a key just to get past the form.
+  bool get requiresApiKey =>
+      this == AiProviderType.googleGenAi || this == AiProviderType.anthropic;
 
-  static AiProviderType fromId(String? id) => switch (id) {
-    'google' => AiProviderType.googleGenAi,
-    _ => AiProviderType.openAi,
-  };
+  /// Reads a stored id; an unknown one is the OpenAI-compatible protocol, as
+  /// every profile before protocols had ids.
+  static AiProviderType fromId(String? id) =>
+      tryFromId(id) ?? AiProviderType.openAi;
+
+  static AiProviderType? tryFromId(String? id) {
+    for (final type in AiProviderType.values) {
+      if (type.id == id) return type;
+    }
+    return null;
+  }
 }
 
 /// The software behind an OpenAI-compatible endpoint. They agree on the
@@ -184,6 +203,15 @@ class AiConfig {
   /// ignores a result measured against a different endpoint or model.
   final ToolSupport? toolSupport;
 
+  /// The platform profile the channel belongs to (`PlatformProfiles`), which
+  /// decides the private fields a request may carry. Null is "custom":
+  /// protocol-standard fields only, or what the host implies.
+  final String? platform;
+
+  /// The user allows images, and video frames, to reach this model.
+  final bool imageInput;
+  final bool videoInput;
+
   const AiConfig({
     required this.provider,
     required this.endpoint,
@@ -199,6 +227,9 @@ class AiConfig {
     this.contextWindow,
     this.maxOutputTokens,
     this.toolSupport,
+    this.platform,
+    this.imageInput = false,
+    this.videoInput = false,
   });
 
   /// Endpoint and model are always needed; a key only where the protocol
@@ -241,6 +272,9 @@ class AiConfig {
       fingerprint: toolFingerprint,
       supported: supported,
     ),
+    platform: platform,
+    imageInput: imageInput,
+    videoInput: videoInput,
   );
 
   SamplingValues get samplingOverrides => SamplingValues(
@@ -275,6 +309,9 @@ class AiConfig {
     'context_window': contextWindow,
     'max_output_tokens': maxOutputTokens,
     'tool_support': toolSupport?.toJson(),
+    'platform': ?platform,
+    if (imageInput) 'image_input': true,
+    if (videoInput) 'video_input': true,
   };
 
   factory AiConfig.fromJson(Map<String, dynamic> json) => AiConfig(
@@ -294,6 +331,9 @@ class AiConfig {
     contextWindow: tokenCount(json['context_window']),
     maxOutputTokens: tokenCount(json['max_output_tokens']),
     toolSupport: ToolSupport.fromJson(json['tool_support']),
+    platform: json['platform'] is String ? json['platform'] as String : null,
+    imageInput: json['image_input'] == true,
+    videoInput: json['video_input'] == true,
   );
 
   /// Reads a temperature saved before presets existed.
@@ -332,14 +372,35 @@ class AiConfig {
 
   /// Truly empty sentinel — every string is blank so [isComplete] is false and
   /// nothing accidentally hits a real endpoint before the user configures one.
-  /// Editor-side defaults (the `api.openai.com` URL and `gpt-4o-mini` model)
-  /// live in [AiServiceProfile.create], not here.
+  /// Defaults for a new channel come from its platform profile, not from
+  /// here.
   static const empty = AiConfig(
     provider: AiProviderType.openAi,
     endpoint: '',
     apiKey: '',
     model: '',
   );
+}
+
+/// What a provider would send for a request, for the settings preview:
+/// built by the same code as the real request, with the key masked.
+class RequestPreview {
+  final Uri url;
+  final Map<String, String> headers;
+  final Map<String, Object?> body;
+
+  const RequestPreview({
+    required this.url,
+    required this.headers,
+    required this.body,
+  });
+
+  /// `sk-…3f9a`: enough to tell two keys apart, not enough to use one.
+  static String mask(String key) {
+    final k = key.trim();
+    if (k.length <= 8) return '…';
+    return '${k.substring(0, 3)}…${k.substring(k.length - 4)}';
+  }
 }
 
 /// A provider turns prompts into model text and tool calls.
@@ -376,4 +437,14 @@ abstract class AiProvider {
   /// JSON mode, the way reasoning was turned off — so the next request finds
   /// out again. The connection test calls it first.
   void forgetLearned();
+
+  /// What this provider has learned about its route so far.
+  LearnedBehaviour get learned;
+
+  /// The request a [chat] turn would send, without sending anything. Null
+  /// where this build has no adapter for the protocol.
+  Future<RequestPreview?> previewRequest({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+  });
 }

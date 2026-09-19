@@ -862,6 +862,38 @@ void main() {
       expect(bodies.last.containsKey('temperature'), isFalse);
     });
 
+    test('a model that must reason drops the platform switch', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        final body = _body(request);
+        bodies.add(body);
+        return body.containsKey('reasoning')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message':
+                        'Reasoning is mandatory for this endpoint and cannot '
+                        'be disabled.',
+                  },
+                }),
+                400,
+              )
+            : _reply('ok');
+      });
+      await OpenAiProvider(
+        const AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: 'https://openrouter.ai/api/v1',
+          apiKey: 'k-mandatory',
+          model: 'openai/o4-mini',
+        ),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+
+      expect(bodies.first['reasoning'], {'enabled': false});
+      expect(bodies.last.containsKey('reasoning'), isFalse);
+    });
+
     test('any other server sends no platform field', () async {
       final body = await sent('https://api.openai.com/v1', 'gpt-5.4-mini');
       expect(body.containsKey('thinking'), isFalse);

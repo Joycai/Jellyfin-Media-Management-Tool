@@ -74,7 +74,7 @@ Ten `ChangeNotifier`s are registered in `lib/main.dart`:
 | Service | Owns |
 |---|---|
 | [settings_service.dart](lib/services/settings_service.dart) | Theme, locale, accent, glass intensity, font choice, favorites, recents (cap 8), onboarding flag → `config.json`; search sites → `sites.json` |
-| [ai_profiles_service.dart](lib/services/ai/ai_profiles_service.dart) | Named AI endpoint profiles + active id → `ai_profiles.json` |
+| [ai_profiles_service.dart](lib/services/ai/ai_profiles_service.dart) | AI channels (key + host), their routes (protocols) and models, and which model each task runs on → `ai_profiles.json` |
 | [ai_service.dart](lib/services/ai/ai_service.dart) | Live `AiConfig`, connection status, **the single current `OrganizePlan`**, usage stats |
 | [file_browser_service.dart](lib/services/file_browser_service.dart) | Current directory, file list, focus + multi-selection, sort state, `FileSystemEvent` watcher |
 | [task_service.dart](lib/services/task_service.dart) | The Tasks-tab list of running/finished analyze, apply and scrape-commit tasks |
@@ -100,7 +100,7 @@ Flow: `_organize()` in [home_screen.dart](lib/widgets/home/home_screen.dart) (em
 - **`OrganizeAction.target` is mutable on purpose** so the preview can correct it in memory; every disk write stays behind `ApplyController`.
 - **`backup` copies nothing** in organize — it only gates writing the undo manifest. (In scraping it really copies.)
 - **Decisions are remembered by fingerprint** (path + size + mtime, [organize_workspace.dart](lib/services/organize/organize_workspace.dart)); only an *applied* preview's edits are remembered. A changed fingerprint is a miss, an unreadable cache is empty.
-- **Every AI task needs a tool-calling model; there is no single-shot fallback.** Tool support is probed and stored per provider | endpoint | model. The probe has **three** outcomes — a transport failure is `inconclusive` and is never recorded as `unsupported`.
+- **Every AI task needs a tool-calling model; there is no single-shot fallback.** Tool support is probed and stored per provider | endpoint | model, on the model's route parameters. Vendor differences (paths, reasoning switches) live in `PlatformProfiles` as data, never as vendor branches — see [Channels, routes and models](docs/architecture/organize-pipeline.md#channels-routes-and-models). The probe has **three** outcomes — a transport failure is `inconclusive` and is never recorded as `unsupported`.
 - **Cancellation closes the token's own `http.Client`**, so cancellable requests must never use the shared `AiHttp.client`.
 - **Never interpolate a transport exception into UI or logs** (`'Network error: $e'`): `ClientException` carries the URL, and Google's URL carries the API key. Use `AiHttp.describeTransportError`.
 - Timeouts are on *silence*, not duration, and a timed-out generation is never retried (the server is still running it). Per-server memories (JSON mode, refused fields, how reasoning was turned off) are keyed by provider | base URL | model | key hash, persisted in `ai_learned.json` (30 days), and forgotten by the connection test, which is how a user makes the app find out again.
@@ -161,7 +161,7 @@ Not done yet: the Library section, recipe import/export, feeding scraped title/y
 Everything lives in the `path_provider` application-support directory, as hand-rolled JSON in the owning service:
 
 - `config.json` — settings (debounced 250ms, flushed on dispose). A legacy `performance_mode: true` migrates to `glass_intensity: 0` and the key is dropped. `baked_glass` defaults to true.
-- `ai_profiles.json` — AI profiles and API keys, kept separate so a slider drag never rewrites keys
+- `ai_profiles.json` — AI channels, routes, models, task assignments and keys (`"v": 2`), kept separate so a slider drag never rewrites keys. A file without `channels` is read as flat profiles, byte-identically; a flat `ai_services` mirror is still written for older builds
 - `ai_learned.json` — what each route refused or ignored ([learned_behaviour.dart](lib/services/ai/learned_behaviour.dart)); holds a key hash, never a key
 - `logs/api-<date>.jsonl` — the opt-in AI request log ([api_log.dart](lib/services/ai/api_log.dart), Settings → Privacy, 7 days): every body sent, no headers, no query strings, long strings and images replaced by their length
 - `sites.json` — custom search sites

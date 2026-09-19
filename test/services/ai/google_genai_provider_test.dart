@@ -281,7 +281,7 @@ void main() {
   group('transport failures', () {
     test('a network error never carries the API key', () async {
       final uri = Uri.parse(
-        'https://leak/v1beta/models/gemini-2.5-flash:generateContent'
+        'https://leak/v1beta/models/gemini-2.5-flash:streamGenerateContent'
         '?key=secret-key-value',
       );
       final provider = GoogleGenAiProvider(
@@ -353,7 +353,7 @@ void main() {
 
       expect(seen, hasLength(2));
       for (final request in seen) {
-        expect(request.url.query, isEmpty);
+        expect(request.url.queryParameters.containsKey('key'), isFalse);
         expect(request.headers['x-goog-api-key'], 'secret-key-value');
       }
     });
@@ -373,7 +373,7 @@ void main() {
       var calls = 0;
       final provider = GoogleGenAiProvider(
         _config('slow'),
-        timeout: const Duration(milliseconds: 30),
+        firstEventTimeout: const Duration(milliseconds: 30),
         client: MockClient((_) async {
           calls++;
           await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -388,6 +388,179 @@ void main() {
       // Future.timeout does not close the socket, so a retry would start a
       // second generation beside the one the server is still running.
       expect(calls, 1);
+    });
+  });
+
+  group('streaming', () {
+    http.Response sse(List<Map<String, Object?>> events) => http.Response(
+      [for (final e in events) 'data: ${jsonEncode(e)}\n\n'].join(),
+      200,
+      headers: const {'content-type': 'text/event-stream'},
+    );
+
+    test('asks for a stream and appends each event\'s parts', () async {
+      late http.BaseRequest seen;
+      final provider = GoogleGenAiProvider(
+        _config('sse'),
+        client: MockClient((request) async {
+          seen = request;
+          return sse([
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'Hel'},
+                    ],
+                  },
+                },
+              ],
+            },
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'lo'},
+                      {
+                        'functionCall': {
+                          'name': 'f',
+                          'args': {'a': 1},
+                        },
+                        'thoughtSignature': 'sig',
+                      },
+                    ],
+                  },
+                  'finishReason': 'STOP',
+                },
+              ],
+              'usageMetadata': {
+                'promptTokenCount': 7,
+                'candidatesTokenCount': 3,
+                'thoughtsTokenCount': 2,
+              },
+            },
+          ]);
+        }),
+      );
+
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+
+      expect(seen.url.path, endsWith(':streamGenerateContent'));
+      expect(seen.url.queryParameters['alt'], 'sse');
+      expect(result.text, 'Hello');
+      expect(result.toolCalls.single.name, 'f');
+      expect(result.geminiParts, hasLength(3));
+      expect(result.promptTokens, 7);
+      expect(result.completionTokens, 5);
+      expect(result.finishReason, 'STOP');
+    });
+
+    test('an event split over data lines, after a comment, is read', () async {
+      final event = jsonEncode({
+        'candidates': [
+          {
+            'content': {
+              'parts': [
+                {'text': 'joined'},
+              ],
+            },
+            'finishReason': 'STOP',
+          },
+        ],
+      });
+      // SSE joins an event's data lines with a newline, which is only valid
+      // JSON between tokens — where a real sender splits.
+      final half = event.indexOf('[') + 1;
+      final provider = GoogleGenAiProvider(
+        _config('sse-multiline'),
+        client: MockClient(
+          (_) async => http.Response(
+            ': keep-alive\n\ndata: ${event.substring(0, half)}\n'
+            'data: ${event.substring(half)}\n\n',
+            200,
+          ),
+        ),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+      expect(result.text, 'joined');
+    });
+
+    test('a relay that answers with a JSON array is read too', () async {
+      final provider = GoogleGenAiProvider(
+        _config('array'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode([
+              {
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {'text': 'a'},
+                      ],
+                    },
+                  },
+                ],
+              },
+              {
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {'text': 'b'},
+                      ],
+                    },
+                    'finishReason': 'STOP',
+                  },
+                ],
+              },
+            ]),
+            200,
+          ),
+        ),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+      expect(result.text, 'ab');
+    });
+
+    test('a failed finish in the last event throws', () async {
+      final provider = GoogleGenAiProvider(
+        _config('sse-safety'),
+        client: MockClient(
+          (_) async => sse([
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'partial'},
+                    ],
+                  },
+                },
+              ],
+            },
+            {
+              'candidates': [
+                {'finishReason': 'SAFETY'},
+              ],
+            },
+          ]),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiException>()),
+      );
     });
   });
 

@@ -11,28 +11,16 @@
 library;
 
 enum ThinkingDialect {
-  /// `thinking: {"type": "enabled" | "disabled"}` — Zhipu BigModel, DeepSeek.
+  /// `thinking: {"type": "enabled" | "disabled"}` — Zhipu BigModel, DeepSeek,
+  /// Volcengine Ark.
   thinkingType,
 
   /// `enable_thinking: true | false` — Alibaba DashScope (Bailian).
-  enableThinking;
+  enableThinking,
 
-  /// The platform behind [endpoint], or null for any other server — which
-  /// keeps the ladder.
-  static ThinkingDialect? forEndpoint(String endpoint) {
-    final host = Uri.tryParse(endpoint.trim())?.host.toLowerCase() ?? '';
-    bool under(String domain) => host == domain || host.endsWith('.$domain');
-    if (under('bigmodel.cn') || under('api.z.ai')) return thinkingType;
-    if (under('api.deepseek.com')) return thinkingType;
-    // One host per region: dashscope, dashscope-intl, dashscope-us, …
-    final labels = host.split('.');
-    if (under('aliyuncs.com') &&
-        labels.length >= 3 &&
-        labels[labels.length - 3].startsWith('dashscope')) {
-      return enableThinking;
-    }
-    return null;
-  }
+  /// `reasoning: {"enabled": true | false}` — OpenRouter's unified switch,
+  /// which it translates for whichever upstream serves the model.
+  reasoningObject;
 
   /// The request field that asks for reasoning, or for none.
   MapEntry<String, Object> field({required bool thinking}) => switch (this) {
@@ -40,5 +28,6 @@ enum ThinkingDialect {
       'type': thinking ? 'enabled' : 'disabled',
     }),
     enableThinking => MapEntry('enable_thinking', thinking),
+    reasoningObject => MapEntry('reasoning', {'enabled': thinking}),
   };
 }

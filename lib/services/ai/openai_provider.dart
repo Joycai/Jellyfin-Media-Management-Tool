@@ -9,7 +9,7 @@ import 'ai_http.dart';
 import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
-import 'thinking_dialect.dart';
+import 'platform_profiles.dart';
 
 /// How a request asks for JSON, most to least constrained. [OpenAiProvider]
 /// steps down this list when a server rejects the current form.
@@ -109,6 +109,9 @@ class OpenAiProvider implements AiProvider {
   @override
   void forgetLearned() => _learned.forget(_cacheKey);
 
+  @override
+  LearnedBehaviour get learned => _learned.of(_cacheKey);
+
   Uri get _chatUri => Uri.parse('$_base/chat/completions');
 
   Map<String, String> get _headers {
@@ -166,7 +169,7 @@ class OpenAiProvider implements AiProvider {
   /// a server rejects by name is dropped and remembered.
   ///
   /// **Reasoning.** A cloud platform with a documented switch gets that
-  /// switch, both ways, and nothing else — see [ThinkingDialect]. Anywhere
+  /// switch, both ways, and nothing else — see [PlatformProfiles.dialectFor]. Anywhere
   /// else, with thinking off, a hybrid family is asked for no reasoning in the
   /// way its server understands — see [_ThinkingOff].
   ///
@@ -185,18 +188,9 @@ class OpenAiProvider implements AiProvider {
     // A cancellable call goes through the token's own client so cancelling can
     // close the socket; otherwise reuse the shared pooled client.
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
-    final sampling = config.sampling;
-    final values = sampling.values;
-    final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
-    final dialect = ThinkingDialect.forEndpoint(config.endpoint);
-    final dialectField = dialect?.field(thinking: sampling.thinking);
-    final offWays =
-        dialect == null &&
-            !sampling.thinking &&
-            (control == ThinkingControl.templateSwitch ||
-                control == ThinkingControl.softSwitch)
-        ? _thinkingOffWays(control, await detectServerKind())
-        : const <_ThinkingOff>[];
+    final offWays = _offWays(
+      _needsOffWays ? await detectServerKind() : ServerKind.unknown,
+    );
     final key = _cacheKey;
     final learned = _learned.of(key);
     final rejected = {...learned.rejectedFields};
@@ -217,56 +211,15 @@ class OpenAiProvider implements AiProvider {
         (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
       );
 
-      final optional = <String, Object>{
-        'temperature': ?values.temperature,
-        'top_p': ?values.topP,
-        'top_k': ?values.topK,
-        'min_p': ?values.minP,
-        'presence_penalty': ?values.presencePenalty,
-        'repeat_penalty': ?values.repeatPenalty,
-        // gpt-oss cannot stop reasoning; asked for none, it gets the least.
-        if (control == ThinkingControl.effortOnly &&
-            !config.thinkingEnabled &&
-            dialect == null)
-          'reasoning_effort': 'low',
-        if (dialectField != null) dialectField.key: dialectField.value,
-        if (off == _ThinkingOff.templateKwargs)
-          'chat_template_kwargs': const {'enable_thinking': false},
-        if (off == _ThinkingOff.effortNone) 'reasoning_effort': 'none',
-        // Asks for token usage in the final chunk; a stream omits it otherwise.
-        'stream_options': const {'include_usage': true},
-      }..removeWhere((key, _) => rejected.contains(key));
-
-      String editSystem(String prompt) => switch ((off, control)) {
-        (_ThinkingOff.softSwitch, _) => '$prompt\n\n/no_think',
-        // Gemma 4 reasons only when the system prompt opens with this token.
-        (_, ThinkingControl.promptToken) when config.thinkingEnabled =>
-          '<|think|>\n$prompt',
-        _ => prompt,
-      };
-
-      var systemSeen = false;
-      final wire = [
-        for (final message in messages)
-          if (message is SystemMessage && !systemSeen)
-            (() {
-              systemSeen = true;
-              return {'role': 'system', 'content': editSystem(message.content)};
-            })()
-          else
-            _wire(message),
-      ];
-
-      final payload = {
-        'model': config.model,
-        ...optional,
-        (maxCompletionTokens ? 'max_completion_tokens' : 'max_tokens'):
-            ?maxTokens,
-        if (jsonMode) ...?_responseFormat(mode),
-        if (tools.isNotEmpty) 'tools': [for (final tool in tools) _tool(tool)],
-        'stream': true,
-        'messages': wire,
-      };
+      final (:optional, :payload) = _compose(
+        messages: messages,
+        tools: tools,
+        jsonMode: jsonMode,
+        off: off,
+        mode: mode,
+        maxCompletionTokens: maxCompletionTokens,
+        rejected: rejected,
+      );
       final body = jsonEncode(payload);
       final started = DateTime.now();
       void log({int? status, ChatResult? result, String? error}) =>
@@ -383,6 +336,131 @@ class OpenAiProvider implements AiProvider {
     }
   }
 
+  /// Whether reasoning has to be asked off through the ladder, which depends
+  /// on the server kind: no platform switch, thinking off, and a hybrid
+  /// family.
+  bool get _needsOffWays {
+    final sampling = config.sampling;
+    final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
+    return PlatformProfiles.dialectFor(config) == null &&
+        !sampling.thinking &&
+        (control == ThinkingControl.templateSwitch ||
+            control == ThinkingControl.softSwitch);
+  }
+
+  List<_ThinkingOff> _offWays(ServerKind kind) => _needsOffWays
+      ? _thinkingOffWays(
+          config.sampling.preset?.thinkingControl ?? ThinkingControl.none,
+          kind,
+        )
+      : const [];
+
+  /// The request body for one attempt. The one place a body is built, so the
+  /// settings preview shows exactly what a task sends.
+  ({Map<String, Object> optional, Map<String, Object?> payload}) _compose({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+    required bool jsonMode,
+    required _ThinkingOff? off,
+    required _JsonMode mode,
+    required bool maxCompletionTokens,
+    required Set<String> rejected,
+  }) {
+    final sampling = config.sampling;
+    final values = sampling.values;
+    final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
+    final dialect = PlatformProfiles.dialectFor(config);
+    final dialectField = dialect?.field(thinking: sampling.thinking);
+
+    final optional = <String, Object>{
+      'temperature': ?values.temperature,
+      'top_p': ?values.topP,
+      'top_k': ?values.topK,
+      'min_p': ?values.minP,
+      'presence_penalty': ?values.presencePenalty,
+      'repeat_penalty': ?values.repeatPenalty,
+      // gpt-oss cannot stop reasoning; asked for none, it gets the least.
+      if (control == ThinkingControl.effortOnly &&
+          !config.thinkingEnabled &&
+          dialect == null)
+        'reasoning_effort': 'low',
+      if (dialectField != null) dialectField.key: dialectField.value,
+      if (off == _ThinkingOff.templateKwargs)
+        'chat_template_kwargs': const {'enable_thinking': false},
+      if (off == _ThinkingOff.effortNone) 'reasoning_effort': 'none',
+      // Asks for token usage in the final chunk; a stream omits it otherwise.
+      'stream_options': const {'include_usage': true},
+    }..removeWhere((key, _) => rejected.contains(key));
+
+    String editSystem(String prompt) => switch ((off, control)) {
+      (_ThinkingOff.softSwitch, _) => '$prompt\n\n/no_think',
+      // Gemma 4 reasons only when the system prompt opens with this token.
+      (_, ThinkingControl.promptToken) when config.thinkingEnabled =>
+        '<|think|>\n$prompt',
+      _ => prompt,
+    };
+
+    var systemSeen = false;
+    final wire = [
+      for (final message in messages)
+        if (message is SystemMessage && !systemSeen)
+          (() {
+            systemSeen = true;
+            return {'role': 'system', 'content': editSystem(message.content)};
+          })()
+        else
+          _wire(message),
+    ];
+
+    return (
+      optional: optional,
+      payload: {
+        'model': config.model,
+        ...optional,
+        (maxCompletionTokens ? 'max_completion_tokens' : 'max_tokens'):
+            ?config.maxOutputTokens,
+        if (jsonMode) ...?_responseFormat(mode),
+        if (tools.isNotEmpty) 'tools': [for (final tool in tools) _tool(tool)],
+        'stream': true,
+        'messages': wire,
+      },
+    );
+  }
+
+  @override
+  Future<RequestPreview> previewRequest({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+  }) async {
+    // No discovery request for a preview: a server kind already detected this
+    // session is used, anything else reads as unknown.
+    final kind =
+        await (_serverKinds[_root] ?? Future.value(ServerKind.unknown));
+    final learned = _learned.of(_cacheKey);
+    final off = _offWays(
+      kind,
+    ).where((w) => !learned.thinkingOffTried.contains(w.name)).firstOrNull;
+    final (optional: _, :payload) = _compose(
+      messages: messages,
+      tools: tools,
+      jsonMode: false,
+      off: off,
+      mode: _JsonMode.object,
+      maxCompletionTokens: learned.maxCompletionTokens,
+      rejected: learned.rejectedFields,
+    );
+    final key = config.apiKey.trim();
+    return RequestPreview(
+      url: _chatUri,
+      headers: {
+        'Content-Type': 'application/json',
+        if (key.isNotEmpty)
+          'Authorization': 'Bearer ${RequestPreview.mask(key)}',
+      },
+      body: payload,
+    );
+  }
+
   /// What the API log keeps of a reply.
   static Map<String, Object?> _summary(ChatResult result) => {
     'finish_reason': result.finishReason,
@@ -448,12 +526,24 @@ class OpenAiProvider implements AiProvider {
   /// sampling fields, whose names do not occur in prose; `thinking` does
   /// ("… in thinking mode", a docs link to `thinking_mode`), and reading such
   /// an error as a refusal would drop the platform's reasoning switch for the
-  /// session — silently back to paid reasoning. So `thinking` counts only when
-  /// quoted or addressed as a parameter.
-  static bool _namesField(String detail, String field) => field == 'thinking'
+  /// session — silently back to paid reasoning. So `thinking`, and
+  /// OpenRouter's `reasoning` (a prefix of `reasoning_content`), count only
+  /// when quoted or addressed as a parameter.
+  ///
+  /// A model whose reasoning cannot be switched off answers the platform's
+  /// switch with "reasoning is mandatory / cannot be disabled"; that too is
+  /// a refusal of the field, or every request to it would fail.
+  static bool _namesField(String detail, String field) =>
+      field == 'thinking' || field == 'reasoning'
       ? RegExp(
-          r'''["'`]thinking["'`.]|thinking\.type|thinking (field|parameter)''',
-        ).hasMatch(detail)
+              '["\'`]$field["\'`.]|$field\\.(type|enabled)|'
+              '$field (field|parameter)',
+            ).hasMatch(detail) ||
+            (detail.contains(field) &&
+                RegExp(
+                  'mandatory|cannot be (disabled|turned off)|'
+                  'not supported|unsupported',
+                ).hasMatch(detail))
       : detail.contains(field);
 
   static bool _namesResponseFormat(String detail) =>

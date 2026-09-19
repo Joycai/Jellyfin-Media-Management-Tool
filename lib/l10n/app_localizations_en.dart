@@ -422,43 +422,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
-  String get aiServiceDetailHint =>
-      'Primary AI endpoint for organization and metadata matching';
-
-  @override
-  String get addService => 'Add service';
-
-  @override
-  String get addAnotherEndpoint => 'Add another endpoint';
-
-  @override
-  String get newServiceName => 'New Service';
-
-  @override
-  String get statusActive => 'Active';
-
-  @override
-  String get useThisService => 'Use this service';
-
-  @override
-  String get statusStandby => 'Standby';
-
-  @override
-  String get statusOffline => 'Offline';
-
-  @override
-  String get endpointProtocol => 'Endpoint protocol';
-
-  @override
-  String get protocolOpenAi => 'OpenAI compatible';
-
-  @override
-  String get protocolGoogle => 'Google GenAI';
-
-  @override
-  String get displayName => 'Display name';
-
-  @override
   String get baseUrl => 'Base URL';
 
   @override
@@ -466,9 +429,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hideKey => 'Hide';
-
-  @override
-  String get defaultModel => 'Default model';
 
   @override
   String get temperature => 'Temperature';
@@ -593,14 +553,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Last test: the model still reasoned. Turn thinking off in the server\'s own model settings (in LM Studio: Enable Thinking).';
 
   @override
-  String get toolsSupported =>
-      'Tool calling: supported. This model can organize folders and scrape metadata.';
-
-  @override
-  String get toolsUnsupported =>
-      'Tool calling: not supported. This model cannot be used to organize folders or scrape metadata.';
-
-  @override
   String get presetNeedsSystemPrompt =>
       'This model\'s card requires its own system prompt; results may suffer without it.';
 
@@ -616,17 +568,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get avgLatency => 'Avg latency';
-
-  @override
-  String get selectServiceHint => 'Select a service to configure';
-
-  @override
-  String get deleteServiceTitle => 'Delete service';
-
-  @override
-  String deleteServiceConfirm(Object name) {
-    return 'Delete \"$name\"? This cannot be undone.';
-  }
 
   @override
   String previewTitle(Object count) {
@@ -2191,18 +2132,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get modelParameters => 'Model parameters';
-
-  @override
-  String get modelParametersExpand => 'Expand';
-
-  @override
-  String get modelParametersCollapse => 'Collapse';
-
-  @override
-  String get modelParametersSaved => 'Model parameters saved';
-
-  @override
   String get contextWindowScaleHint => 'tokens · 8k – 1M · step 1k';
 
   @override
@@ -2349,5 +2278,587 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String transferRefusedUnreadable(Object count) {
     return '$count items could not be read';
+  }
+
+  @override
+  String get aiAccessTitle => 'AI access';
+
+  @override
+  String get aiAccessSubtitle =>
+      'A channel is one key. A route is a protocol that key can speak. Each model hangs off a channel and picks one route.';
+
+  @override
+  String get aiDiagnostics => 'Diagnostics';
+
+  @override
+  String get aiAddChannel => 'Add channel';
+
+  @override
+  String aiMergeHint(String names, int routes, int models) {
+    String _temp0 = intl.Intl.pluralLogic(
+      routes,
+      locale: localeName,
+      other: '$routes routes',
+      one: '1 route',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      models,
+      locale: localeName,
+      other: '$models models',
+      one: '1 model',
+    );
+    return '$names share one key and host and can become one channel ($_temp0, $_temp1).';
+  }
+
+  @override
+  String get aiMergeAction => 'Merge';
+
+  @override
+  String aiChannelHostLine(String host, String platform) {
+    return '$host · platform: $platform';
+  }
+
+  @override
+  String get aiNoKeyNeeded => 'no key needed';
+
+  @override
+  String get aiNoModels => 'No models yet — open the channel to add one.';
+
+  @override
+  String get aiToolsUnprobed => 'Tools: not checked';
+
+  @override
+  String get aiToolsYes => 'Tools';
+
+  @override
+  String get aiToolsNo => 'No tools';
+
+  @override
+  String get aiImage => 'Image';
+
+  @override
+  String get aiVideo => 'Video';
+
+  @override
+  String get aiEmptyTitle => 'No channels yet';
+
+  @override
+  String get aiEmptyBody =>
+      'Pick a platform, paste one key, then add the models you want to use.';
+
+  @override
+  String get aiTasksTitle => 'Task assignment';
+
+  @override
+  String get aiTasksHint =>
+      'Pick a model for each task. Tasks that need tool calling leave out models known not to call tools.';
+
+  @override
+  String get aiTaskOrganize => 'Organize (tool calling)';
+
+  @override
+  String get aiTaskScrapeLearn => 'Scrape · learn a recipe (tool calling)';
+
+  @override
+  String get aiTaskScrapeDirect => 'Scrape · read the page (tool calling)';
+
+  @override
+  String get aiTaskVision => 'Frame recognition (image input)';
+
+  @override
+  String get aiFollowOrganize => 'Follow “Organize”';
+
+  @override
+  String get aiTaskNoModel => 'No suitable model';
+
+  @override
+  String get aiVisionNeedsImage =>
+      'Only models allowed image input are listed.';
+
+  @override
+  String get aiSessionUsage => 'Since this launch';
+
+  @override
+  String get aiPlatformRelay => 'Relay (New API style)';
+
+  @override
+  String get aiPlatformCustom => 'Custom';
+
+  @override
+  String get aiPlatformDashScope => 'Alibaba Cloud Model Studio';
+
+  @override
+  String get aiPlatformZhipu => 'Zhipu BigModel';
+
+  @override
+  String get aiPlatformVolcengine => 'Volcengine Ark';
+
+  @override
+  String get aiAddChannelHint =>
+      'Pick the platform first. Protocols, address and auth come from its profile; you only paste one key.';
+
+  @override
+  String get aiPlatformGroupVendor => 'Vendors';
+
+  @override
+  String get aiPlatformGroupRelay => 'Aggregators and relays';
+
+  @override
+  String get aiPlatformGroupLocal => 'Local servers';
+
+  @override
+  String get aiPlatformCustomHint =>
+      'Custom — protocol-standard fields only, no vendor extensions';
+
+  @override
+  String aiWillCreate(String platform) {
+    return '$platform · will create';
+  }
+
+  @override
+  String get aiPrimaryRoute => 'Primary';
+
+  @override
+  String aiRouteDialect(String field) {
+    return 'Reasoning switch: $field';
+  }
+
+  @override
+  String get aiRouteLadder =>
+      'No platform switch — the local-server ladder, judged by the reply';
+
+  @override
+  String get aiRouteNotInBuild => 'Arrives in a later update';
+
+  @override
+  String get aiChannelKey => 'API key (shared by the whole channel)';
+
+  @override
+  String get aiChannelHost => 'Host';
+
+  @override
+  String get aiChannelHostHint => 'Entered once; every route builds on it';
+
+  @override
+  String get aiChannelName => 'Display name';
+
+  @override
+  String get aiDeleteChannel => 'Delete channel';
+
+  @override
+  String aiDeleteChannelConfirm(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'its $count models',
+      one: 'its model',
+      zero: 'its settings',
+    );
+    return 'Delete “$name” and $_temp0? This cannot be undone.';
+  }
+
+  @override
+  String aiPlatformInferred(String platform) {
+    return 'Platform: $platform · inferred from the host';
+  }
+
+  @override
+  String aiPlatformChosen(String platform) {
+    return 'Platform: $platform';
+  }
+
+  @override
+  String get aiRoutesTitle => 'Routes';
+
+  @override
+  String get aiRoutesHint =>
+      'At most one per protocol. Only the protocols this platform offers are listed.';
+
+  @override
+  String aiRoutePathDefault(String path) {
+    return 'Default: $path';
+  }
+
+  @override
+  String get aiRouteHostItself => 'the host itself';
+
+  @override
+  String get aiRouteEnable => 'Enable';
+
+  @override
+  String get aiRouteDisable => 'Turn off';
+
+  @override
+  String get aiRouteMakePrimary => 'Make primary';
+
+  @override
+  String aiRouteInUse(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count models use',
+      one: '1 model uses',
+    );
+    return '$_temp0 this route — it cannot be turned off.';
+  }
+
+  @override
+  String get aiRouteNotEnabled =>
+      'Offered by the platform, not enabled. Models can switch to it once it is; their parameters start blank.';
+
+  @override
+  String get aiRoutePathNote =>
+      'Blank = the platform’s own path. A relative path is added to the host; a full URL replaces the host too (shown as “own host”).';
+
+  @override
+  String get aiRouteOwnHost => 'own host';
+
+  @override
+  String get aiModelsTitle => 'Models';
+
+  @override
+  String get aiAddModel => 'Add model';
+
+  @override
+  String get aiModelNameHint => 'Model name as the server knows it';
+
+  @override
+  String get aiRouteBar => 'Route';
+
+  @override
+  String get aiRouteBarHint =>
+      'Switching route keeps the model id. A route never configured starts blank.';
+
+  @override
+  String get aiCapabilityMatrix => 'Capability matrix';
+
+  @override
+  String get aiScopeModel => 'Model';
+
+  @override
+  String get aiScopeModelHint => 'Same on every route';
+
+  @override
+  String get aiUpstreamModel => 'Upstream model name';
+
+  @override
+  String get aiAllowImage => 'Allow image input';
+
+  @override
+  String get aiAllowVideo => 'Allow video frames';
+
+  @override
+  String get aiAllowHint =>
+      'An authorization. Whether it can be sent depends on the route.';
+
+  @override
+  String aiScopeRoute(String protocol) {
+    return 'This route · $protocol';
+  }
+
+  @override
+  String get aiScopeRouteHint =>
+      'Changes with the protocol; parked here when you switch routes';
+
+  @override
+  String get aiThinkingDialect => 'Reasoning switch';
+
+  @override
+  String aiDialectField(String field) {
+    return '$field · from the platform profile';
+  }
+
+  @override
+  String aiSendsAs(String field) {
+    return 'Sent as $field';
+  }
+
+  @override
+  String get aiLearnedTag => 'learned';
+
+  @override
+  String aiRefusedFields(String fields) {
+    return 'Refused on this route and no longer sent: $fields';
+  }
+
+  @override
+  String get aiStructuredOutput => 'Structured output';
+
+  @override
+  String aiStructuredLearned(String mode) {
+    return '$mode · learned';
+  }
+
+  @override
+  String get aiStructuredUnknown =>
+      'Not needed by any task; the test learns it only as a fallback';
+
+  @override
+  String get aiPreviewTitle => 'What will be sent';
+
+  @override
+  String get aiPreviewHint =>
+      'Built by the same code as the real request, for an organize turn.';
+
+  @override
+  String get aiPreviewUnavailable =>
+      'This build has no adapter for this protocol yet.';
+
+  @override
+  String get aiTestRoute => 'Test this route';
+
+  @override
+  String get aiDeleteModel => 'Delete model';
+
+  @override
+  String aiDeleteModelConfirm(String name) {
+    return 'Delete “$name”? Tasks assigned to it go back to following organize.';
+  }
+
+  @override
+  String get aiToolsMeasured => 'Supported · measured on this route';
+
+  @override
+  String get aiToolsMeasuredNo => 'Not supported · measured on this route';
+
+  @override
+  String get aiToolsNotMeasured => 'Not checked on this route yet';
+
+  @override
+  String aiSwitchTitle(String model, String from, String to) {
+    return 'Switch $model from $from to $to';
+  }
+
+  @override
+  String get aiSwitchBody =>
+      'The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied.';
+
+  @override
+  String get aiSwitchParam => 'Parameter';
+
+  @override
+  String aiSwitchNow(String protocol) {
+    return 'Now · $protocol';
+  }
+
+  @override
+  String aiSwitchAfter(String protocol) {
+    return 'After · $protocol';
+  }
+
+  @override
+  String get aiParamThinking => 'Reasoning';
+
+  @override
+  String get aiParamMaxOutput => 'Max output';
+
+  @override
+  String get aiParamSampling => 'Sampling';
+
+  @override
+  String get aiParamTools => 'Tool calling';
+
+  @override
+  String get aiParamImage => 'Image input';
+
+  @override
+  String get aiNotSetNotSent => 'not set · not sent';
+
+  @override
+  String get aiOn => 'on';
+
+  @override
+  String get aiOff => 'off';
+
+  @override
+  String get aiToolsProbeAfter =>
+      'Not checked — test the route after switching';
+
+  @override
+  String get aiSwitchFooter =>
+      'The model id is unchanged; task assignments are unaffected.';
+
+  @override
+  String get aiSwitchConfirm => 'Switch';
+
+  @override
+  String get aiMatrixHint =>
+      'Allowing is your switch; whether it can be sent is platform × route × model.';
+
+  @override
+  String get aiCapTools => 'Tool calling';
+
+  @override
+  String get aiCapToolsHint => 'Organize and scrape need it';
+
+  @override
+  String get aiCapJson => 'JSON mode';
+
+  @override
+  String get aiCapJsonHint => 'Connection-test fallback only';
+
+  @override
+  String get aiCapImage => 'Image input';
+
+  @override
+  String get aiCapVideo => 'Video input';
+
+  @override
+  String get aiCapThinkingOff => 'Reasoning off';
+
+  @override
+  String get aiCapThinkingOffHint =>
+      'Judged by whether the reply still reasoned';
+
+  @override
+  String get aiCapUsage => 'Usage reporting';
+
+  @override
+  String get aiCapUsageHint => 'Not reported ≠ 0';
+
+  @override
+  String get aiCapAllowed => 'allowed';
+
+  @override
+  String get aiCapNotAllowed => 'not allowed';
+
+  @override
+  String get aiColCurrent => 'current';
+
+  @override
+  String get aiColEnabled => 'enabled';
+
+  @override
+  String get aiColOffered => 'not enabled';
+
+  @override
+  String get aiCellMeasured => 'works · measured';
+
+  @override
+  String get aiCellUnmeasured => 'not measured';
+
+  @override
+  String get aiCellUnsupported => 'not supported · measured';
+
+  @override
+  String aiCellLearned(String mode) {
+    return '$mode · learned';
+  }
+
+  @override
+  String get aiCellParameter => 'parameter, not measured';
+
+  @override
+  String get aiCellNotInBuild => 'not in this build';
+
+  @override
+  String aiCellSwitch(String field) {
+    return '$field · platform switch';
+  }
+
+  @override
+  String get aiCellLadder => 'ladder · judged by reply';
+
+  @override
+  String get aiCellLadderExhausted => 'no way worked here';
+
+  @override
+  String get aiCellProtocolUsage => 'part of the protocol';
+
+  @override
+  String get aiCellNotAllowed => 'not allowed';
+
+  @override
+  String get aiMatrixFootnote =>
+      'Task pickers read this matrix: a model is offered for frame recognition only where image input can actually be sent on its current route.';
+
+  @override
+  String get aiDiagTest => 'Test a route';
+
+  @override
+  String get aiDiagRun => 'Run test';
+
+  @override
+  String get aiStepReach => 'Reachable';
+
+  @override
+  String aiStepServer(String kind) {
+    return 'Identified as $kind';
+  }
+
+  @override
+  String aiStepGenerate(int ms, int prompt, int completion) {
+    return 'Generated in $ms ms · $prompt + $completion tokens';
+  }
+
+  @override
+  String get aiStepTruncated => 'Reply hit the output limit';
+
+  @override
+  String get aiStepThinkingOff => 'Reasoning is off';
+
+  @override
+  String get aiStepThinkingStillOn => 'The model still reasoned';
+
+  @override
+  String get aiStepTools => 'Called the test tool';
+
+  @override
+  String get aiStepToolsNo => 'Did not call the test tool';
+
+  @override
+  String get aiStepToolsUnknown =>
+      'Tool calling undecided — the request did not complete';
+
+  @override
+  String get aiStepUsage => 'Usage reported';
+
+  @override
+  String get aiStepUsageMissing =>
+      'No usage reported (counted as unknown, not 0)';
+
+  @override
+  String aiStepContext(int served, int typed) {
+    return 'Context: the server serves $served, you entered $typed';
+  }
+
+  @override
+  String get aiStepContextBody =>
+      'A local server past its window drops the system prompt from the front without a word.';
+
+  @override
+  String get aiStepUseServed => 'Use the served value';
+
+  @override
+  String get aiLogTitle => 'API log · today';
+
+  @override
+  String get aiLogHint => 'Every body actually sent, numbered';
+
+  @override
+  String get aiLogOff => 'Logging is off. Turn it on to record requests.';
+
+  @override
+  String get aiLogEmpty => 'Nothing logged today.';
+
+  @override
+  String get aiLogOpenFolder => 'Show in folder';
+
+  @override
+  String get aiLogFootnote =>
+      'Keys are never written; images and strings over 2 KB are replaced by their length; writes are serial, so concurrent requests never interleave.';
+
+  @override
+  String get scrapeBackendAssigned => 'As assigned in Settings';
+
+  @override
+  String get aiPlatformLabel => 'Platform';
+
+  @override
+  String get aiMergeConfirmTitle => 'Merge channels';
+
+  @override
+  String aiMergeConfirmBody(String name) {
+    return 'Routes and models move into “$name” and the other channels are removed. Every model keeps its URL, parameters and task assignments.';
   }
 }

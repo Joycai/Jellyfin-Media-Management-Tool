@@ -290,6 +290,30 @@ void main() {
       expect((messages[0] as SystemMessage).content, 'system');
     });
 
+    test('counts what an assistant turn sends back', () {
+      final call = [const ToolCall(id: 'c0', name: 'add', arguments: '{}')];
+      final plain = AgentRuntime.estimate(AssistantMessage(toolCalls: call));
+      final withReasoning = AgentRuntime.estimate(
+        AssistantMessage(
+          toolCalls: call,
+          reasoning: (field: 'reasoning_content', text: 'x' * 4000),
+        ),
+      );
+      final withParts = AgentRuntime.estimate(
+        AssistantMessage(
+          toolCalls: call,
+          geminiParts: [
+            {
+              'functionCall': {'name': 'add', 'args': <String, Object?>{}},
+              'thoughtSignature': 'y' * 4000,
+            },
+          ],
+        ),
+      );
+      expect(withReasoning, greaterThan(plain + 500));
+      expect(withParts, greaterThan(plain + 500));
+    });
+
     test('leaves a history that fits alone', () {
       final messages = _seed();
       expect(AgentRuntime.trimHistory(messages, 4096), 0);

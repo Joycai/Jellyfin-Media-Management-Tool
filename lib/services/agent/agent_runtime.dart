@@ -353,20 +353,33 @@ abstract final class AgentRuntime {
 
   /// Rough tokens for one message, per [TokenBudget.estimate], plus a small
   /// allowance for the chat template's framing.
+  ///
+  /// An assistant turn counts what is actually sent back with it, not only
+  /// its text and calls: DeepSeek-style reasoning rides along on every
+  /// tool-call turn, and a Gemini turn goes back as its raw parts, thought
+  /// signatures included. Leaving those out under-counted exactly the turns a
+  /// reasoning model makes, and a local server drops the front of an
+  /// over-long prompt without a word.
   static int estimate(ChatMessage message) =>
       8 +
       switch (message) {
         SystemMessage(:final content) ||
         UserMessage(:final content) => TokenBudget.estimate(content),
-        AssistantMessage(:final content, :final toolCalls) =>
+        AssistantMessage(:final geminiParts?) => TokenBudget.estimate(
+          jsonEncode(geminiParts),
+        ),
+        AssistantMessage(:final content, :final toolCalls, :final reasoning) =>
           TokenBudget.estimate(content) +
-              toolCalls.fold(
+              toolCalls.fold<int>(
                 0,
                 (sum, call) =>
                     sum +
                     TokenBudget.estimate(call.name) +
                     TokenBudget.estimate(call.arguments),
-              ),
+              ) +
+              (toolCalls.isEmpty || reasoning == null
+                  ? 0
+                  : TokenBudget.estimate(reasoning.text)),
         ToolResultMessage(:final content) => TokenBudget.estimate(content),
       };
 }

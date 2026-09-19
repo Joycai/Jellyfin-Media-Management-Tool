@@ -848,78 +848,6 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get appearance;
 
-  /// No description provided for @aiServiceDetailHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Primary AI endpoint for organization and metadata matching'**
-  String get aiServiceDetailHint;
-
-  /// No description provided for @addService.
-  ///
-  /// In en, this message translates to:
-  /// **'Add service'**
-  String get addService;
-
-  /// No description provided for @addAnotherEndpoint.
-  ///
-  /// In en, this message translates to:
-  /// **'Add another endpoint'**
-  String get addAnotherEndpoint;
-
-  /// No description provided for @newServiceName.
-  ///
-  /// In en, this message translates to:
-  /// **'New Service'**
-  String get newServiceName;
-
-  /// No description provided for @statusActive.
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get statusActive;
-
-  /// No description provided for @useThisService.
-  ///
-  /// In en, this message translates to:
-  /// **'Use this service'**
-  String get useThisService;
-
-  /// No description provided for @statusStandby.
-  ///
-  /// In en, this message translates to:
-  /// **'Standby'**
-  String get statusStandby;
-
-  /// No description provided for @statusOffline.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline'**
-  String get statusOffline;
-
-  /// No description provided for @endpointProtocol.
-  ///
-  /// In en, this message translates to:
-  /// **'Endpoint protocol'**
-  String get endpointProtocol;
-
-  /// No description provided for @protocolOpenAi.
-  ///
-  /// In en, this message translates to:
-  /// **'OpenAI compatible'**
-  String get protocolOpenAi;
-
-  /// No description provided for @protocolGoogle.
-  ///
-  /// In en, this message translates to:
-  /// **'Google GenAI'**
-  String get protocolGoogle;
-
-  /// No description provided for @displayName.
-  ///
-  /// In en, this message translates to:
-  /// **'Display name'**
-  String get displayName;
-
   /// No description provided for @baseUrl.
   ///
   /// In en, this message translates to:
@@ -937,12 +865,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide'**
   String get hideKey;
-
-  /// No description provided for @defaultModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Default model'**
-  String get defaultModel;
 
   /// No description provided for @temperature.
   ///
@@ -1148,18 +1070,6 @@ abstract class AppLocalizations {
   /// **'Last test: the model still reasoned. Turn thinking off in the server\'s own model settings (in LM Studio: Enable Thinking).'**
   String get thinkingStillOn;
 
-  /// No description provided for @toolsSupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Tool calling: supported. This model can organize folders and scrape metadata.'**
-  String get toolsSupported;
-
-  /// No description provided for @toolsUnsupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Tool calling: not supported. This model cannot be used to organize folders or scrape metadata.'**
-  String get toolsUnsupported;
-
   /// No description provided for @presetNeedsSystemPrompt.
   ///
   /// In en, this message translates to:
@@ -1189,24 +1099,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Avg latency'**
   String get avgLatency;
-
-  /// No description provided for @selectServiceHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a service to configure'**
-  String get selectServiceHint;
-
-  /// No description provided for @deleteServiceTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete service'**
-  String get deleteServiceTitle;
-
-  /// No description provided for @deleteServiceConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete \"{name}\"? This cannot be undone.'**
-  String deleteServiceConfirm(Object name);
 
   /// No description provided for @previewTitle.
   ///
@@ -3932,30 +3824,6 @@ abstract class AppLocalizations {
   /// **'Contrast {dark}:1 · {light}:1 — below 3:1, so use it as a fill only'**
   String accentContrastWeak(Object dark, Object light);
 
-  /// No description provided for @modelParameters.
-  ///
-  /// In en, this message translates to:
-  /// **'Model parameters'**
-  String get modelParameters;
-
-  /// No description provided for @modelParametersExpand.
-  ///
-  /// In en, this message translates to:
-  /// **'Expand'**
-  String get modelParametersExpand;
-
-  /// No description provided for @modelParametersCollapse.
-  ///
-  /// In en, this message translates to:
-  /// **'Collapse'**
-  String get modelParametersCollapse;
-
-  /// No description provided for @modelParametersSaved.
-  ///
-  /// In en, this message translates to:
-  /// **'Model parameters saved'**
-  String get modelParametersSaved;
-
   /// No description provided for @contextWindowScaleHint.
   ///
   /// In en, this message translates to:
@@ -4183,6 +4051,972 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} items could not be read'**
   String transferRefusedUnreadable(Object count);
+
+  /// No description provided for @aiAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI access'**
+  String get aiAccessTitle;
+
+  /// No description provided for @aiAccessSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A channel is one key. A route is a protocol that key can speak. Each model hangs off a channel and picks one route.'**
+  String get aiAccessSubtitle;
+
+  /// No description provided for @aiDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get aiDiagnostics;
+
+  /// No description provided for @aiAddChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add channel'**
+  String get aiAddChannel;
+
+  /// No description provided for @aiMergeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{names} share one key and host and can become one channel ({routes, plural, =1{1 route} other{{routes} routes}}, {models, plural, =1{1 model} other{{models} models}}).'**
+  String aiMergeHint(String names, int routes, int models);
+
+  /// No description provided for @aiMergeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get aiMergeAction;
+
+  /// No description provided for @aiChannelHostLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{host} · platform: {platform}'**
+  String aiChannelHostLine(String host, String platform);
+
+  /// No description provided for @aiNoKeyNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'no key needed'**
+  String get aiNoKeyNeeded;
+
+  /// No description provided for @aiNoModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No models yet — open the channel to add one.'**
+  String get aiNoModels;
+
+  /// No description provided for @aiToolsUnprobed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools: not checked'**
+  String get aiToolsUnprobed;
+
+  /// No description provided for @aiToolsYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get aiToolsYes;
+
+  /// No description provided for @aiToolsNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No tools'**
+  String get aiToolsNo;
+
+  /// No description provided for @aiImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get aiImage;
+
+  /// No description provided for @aiVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get aiVideo;
+
+  /// No description provided for @aiEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No channels yet'**
+  String get aiEmptyTitle;
+
+  /// No description provided for @aiEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a platform, paste one key, then add the models you want to use.'**
+  String get aiEmptyBody;
+
+  /// No description provided for @aiTasksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Task assignment'**
+  String get aiTasksTitle;
+
+  /// No description provided for @aiTasksHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a model for each task. Tasks that need tool calling leave out models known not to call tools.'**
+  String get aiTasksHint;
+
+  /// No description provided for @aiTaskOrganize.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize (tool calling)'**
+  String get aiTaskOrganize;
+
+  /// No description provided for @aiTaskScrapeLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape · learn a recipe (tool calling)'**
+  String get aiTaskScrapeLearn;
+
+  /// No description provided for @aiTaskScrapeDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape · read the page (tool calling)'**
+  String get aiTaskScrapeDirect;
+
+  /// No description provided for @aiTaskVision.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame recognition (image input)'**
+  String get aiTaskVision;
+
+  /// No description provided for @aiFollowOrganize.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow “Organize”'**
+  String get aiFollowOrganize;
+
+  /// No description provided for @aiTaskNoModel.
+  ///
+  /// In en, this message translates to:
+  /// **'No suitable model'**
+  String get aiTaskNoModel;
+
+  /// No description provided for @aiVisionNeedsImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Only models allowed image input are listed.'**
+  String get aiVisionNeedsImage;
+
+  /// No description provided for @aiSessionUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Since this launch'**
+  String get aiSessionUsage;
+
+  /// No description provided for @aiPlatformRelay.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay (New API style)'**
+  String get aiPlatformRelay;
+
+  /// No description provided for @aiPlatformCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get aiPlatformCustom;
+
+  /// No description provided for @aiPlatformDashScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Alibaba Cloud Model Studio'**
+  String get aiPlatformDashScope;
+
+  /// No description provided for @aiPlatformZhipu.
+  ///
+  /// In en, this message translates to:
+  /// **'Zhipu BigModel'**
+  String get aiPlatformZhipu;
+
+  /// No description provided for @aiPlatformVolcengine.
+  ///
+  /// In en, this message translates to:
+  /// **'Volcengine Ark'**
+  String get aiPlatformVolcengine;
+
+  /// No description provided for @aiAddChannelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the platform first. Protocols, address and auth come from its profile; you only paste one key.'**
+  String get aiAddChannelHint;
+
+  /// No description provided for @aiPlatformGroupVendor.
+  ///
+  /// In en, this message translates to:
+  /// **'Vendors'**
+  String get aiPlatformGroupVendor;
+
+  /// No description provided for @aiPlatformGroupRelay.
+  ///
+  /// In en, this message translates to:
+  /// **'Aggregators and relays'**
+  String get aiPlatformGroupRelay;
+
+  /// No description provided for @aiPlatformGroupLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local servers'**
+  String get aiPlatformGroupLocal;
+
+  /// No description provided for @aiPlatformCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom — protocol-standard fields only, no vendor extensions'**
+  String get aiPlatformCustomHint;
+
+  /// No description provided for @aiWillCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'{platform} · will create'**
+  String aiWillCreate(String platform);
+
+  /// No description provided for @aiPrimaryRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary'**
+  String get aiPrimaryRoute;
+
+  /// No description provided for @aiRouteDialect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning switch: {field}'**
+  String aiRouteDialect(String field);
+
+  /// No description provided for @aiRouteLadder.
+  ///
+  /// In en, this message translates to:
+  /// **'No platform switch — the local-server ladder, judged by the reply'**
+  String get aiRouteLadder;
+
+  /// No description provided for @aiRouteNotInBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrives in a later update'**
+  String get aiRouteNotInBuild;
+
+  /// No description provided for @aiChannelKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key (shared by the whole channel)'**
+  String get aiChannelKey;
+
+  /// No description provided for @aiChannelHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host'**
+  String get aiChannelHost;
+
+  /// No description provided for @aiChannelHostHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Entered once; every route builds on it'**
+  String get aiChannelHostHint;
+
+  /// No description provided for @aiChannelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get aiChannelName;
+
+  /// No description provided for @aiDeleteChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete channel'**
+  String get aiDeleteChannel;
+
+  /// No description provided for @aiDeleteChannelConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}” and {count, plural, =0{its settings} =1{its model} other{its {count} models}}? This cannot be undone.'**
+  String aiDeleteChannelConfirm(String name, int count);
+
+  /// No description provided for @aiPlatformInferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform: {platform} · inferred from the host'**
+  String aiPlatformInferred(String platform);
+
+  /// No description provided for @aiPlatformChosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform: {platform}'**
+  String aiPlatformChosen(String platform);
+
+  /// No description provided for @aiRoutesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Routes'**
+  String get aiRoutesTitle;
+
+  /// No description provided for @aiRoutesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'At most one per protocol. Only the protocols this platform offers are listed.'**
+  String get aiRoutesHint;
+
+  /// No description provided for @aiRoutePathDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: {path}'**
+  String aiRoutePathDefault(String path);
+
+  /// No description provided for @aiRouteHostItself.
+  ///
+  /// In en, this message translates to:
+  /// **'the host itself'**
+  String get aiRouteHostItself;
+
+  /// No description provided for @aiRouteEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get aiRouteEnable;
+
+  /// No description provided for @aiRouteDisable.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off'**
+  String get aiRouteDisable;
+
+  /// No description provided for @aiRouteMakePrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Make primary'**
+  String get aiRouteMakePrimary;
+
+  /// No description provided for @aiRouteInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 model uses} other{{count} models use}} this route — it cannot be turned off.'**
+  String aiRouteInUse(int count);
+
+  /// No description provided for @aiRouteNotEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Offered by the platform, not enabled. Models can switch to it once it is; their parameters start blank.'**
+  String get aiRouteNotEnabled;
+
+  /// No description provided for @aiRoutePathNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank = the platform’s own path. A relative path is added to the host; a full URL replaces the host too (shown as “own host”).'**
+  String get aiRoutePathNote;
+
+  /// No description provided for @aiRouteOwnHost.
+  ///
+  /// In en, this message translates to:
+  /// **'own host'**
+  String get aiRouteOwnHost;
+
+  /// No description provided for @aiModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get aiModelsTitle;
+
+  /// No description provided for @aiAddModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model'**
+  String get aiAddModel;
+
+  /// No description provided for @aiModelNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Model name as the server knows it'**
+  String get aiModelNameHint;
+
+  /// No description provided for @aiRouteBar.
+  ///
+  /// In en, this message translates to:
+  /// **'Route'**
+  String get aiRouteBar;
+
+  /// No description provided for @aiRouteBarHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching route keeps the model id. A route never configured starts blank.'**
+  String get aiRouteBarHint;
+
+  /// No description provided for @aiCapabilityMatrix.
+  ///
+  /// In en, this message translates to:
+  /// **'Capability matrix'**
+  String get aiCapabilityMatrix;
+
+  /// No description provided for @aiScopeModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get aiScopeModel;
+
+  /// No description provided for @aiScopeModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Same on every route'**
+  String get aiScopeModelHint;
+
+  /// No description provided for @aiUpstreamModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Upstream model name'**
+  String get aiUpstreamModel;
+
+  /// No description provided for @aiAllowImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow image input'**
+  String get aiAllowImage;
+
+  /// No description provided for @aiAllowVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow video frames'**
+  String get aiAllowVideo;
+
+  /// No description provided for @aiAllowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'An authorization. Whether it can be sent depends on the route.'**
+  String get aiAllowHint;
+
+  /// No description provided for @aiScopeRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'This route · {protocol}'**
+  String aiScopeRoute(String protocol);
+
+  /// No description provided for @aiScopeRouteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes with the protocol; parked here when you switch routes'**
+  String get aiScopeRouteHint;
+
+  /// No description provided for @aiThinkingDialect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning switch'**
+  String get aiThinkingDialect;
+
+  /// No description provided for @aiDialectField.
+  ///
+  /// In en, this message translates to:
+  /// **'{field} · from the platform profile'**
+  String aiDialectField(String field);
+
+  /// No description provided for @aiSendsAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent as {field}'**
+  String aiSendsAs(String field);
+
+  /// No description provided for @aiLearnedTag.
+  ///
+  /// In en, this message translates to:
+  /// **'learned'**
+  String get aiLearnedTag;
+
+  /// No description provided for @aiRefusedFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused on this route and no longer sent: {fields}'**
+  String aiRefusedFields(String fields);
+
+  /// No description provided for @aiStructuredOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Structured output'**
+  String get aiStructuredOutput;
+
+  /// No description provided for @aiStructuredLearned.
+  ///
+  /// In en, this message translates to:
+  /// **'{mode} · learned'**
+  String aiStructuredLearned(String mode);
+
+  /// No description provided for @aiStructuredUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Not needed by any task; the test learns it only as a fallback'**
+  String get aiStructuredUnknown;
+
+  /// No description provided for @aiPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What will be sent'**
+  String get aiPreviewTitle;
+
+  /// No description provided for @aiPreviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Built by the same code as the real request, for an organize turn.'**
+  String get aiPreviewHint;
+
+  /// No description provided for @aiPreviewUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This build has no adapter for this protocol yet.'**
+  String get aiPreviewUnavailable;
+
+  /// No description provided for @aiTestRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Test this route'**
+  String get aiTestRoute;
+
+  /// No description provided for @aiDeleteModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete model'**
+  String get aiDeleteModel;
+
+  /// No description provided for @aiDeleteModelConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}”? Tasks assigned to it go back to following organize.'**
+  String aiDeleteModelConfirm(String name);
+
+  /// No description provided for @aiToolsMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'Supported · measured on this route'**
+  String get aiToolsMeasured;
+
+  /// No description provided for @aiToolsMeasuredNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Not supported · measured on this route'**
+  String get aiToolsMeasuredNo;
+
+  /// No description provided for @aiToolsNotMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked on this route yet'**
+  String get aiToolsNotMeasured;
+
+  /// No description provided for @aiSwitchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch {model} from {from} to {to}'**
+  String aiSwitchTitle(String model, String from, String to);
+
+  /// No description provided for @aiSwitchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied.'**
+  String get aiSwitchBody;
+
+  /// No description provided for @aiSwitchParam.
+  ///
+  /// In en, this message translates to:
+  /// **'Parameter'**
+  String get aiSwitchParam;
+
+  /// No description provided for @aiSwitchNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now · {protocol}'**
+  String aiSwitchNow(String protocol);
+
+  /// No description provided for @aiSwitchAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'After · {protocol}'**
+  String aiSwitchAfter(String protocol);
+
+  /// No description provided for @aiParamThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get aiParamThinking;
+
+  /// No description provided for @aiParamMaxOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Max output'**
+  String get aiParamMaxOutput;
+
+  /// No description provided for @aiParamSampling.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampling'**
+  String get aiParamSampling;
+
+  /// No description provided for @aiParamTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calling'**
+  String get aiParamTools;
+
+  /// No description provided for @aiParamImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image input'**
+  String get aiParamImage;
+
+  /// No description provided for @aiNotSetNotSent.
+  ///
+  /// In en, this message translates to:
+  /// **'not set · not sent'**
+  String get aiNotSetNotSent;
+
+  /// No description provided for @aiOn.
+  ///
+  /// In en, this message translates to:
+  /// **'on'**
+  String get aiOn;
+
+  /// No description provided for @aiOff.
+  ///
+  /// In en, this message translates to:
+  /// **'off'**
+  String get aiOff;
+
+  /// No description provided for @aiToolsProbeAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked — test the route after switching'**
+  String get aiToolsProbeAfter;
+
+  /// No description provided for @aiSwitchFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'The model id is unchanged; task assignments are unaffected.'**
+  String get aiSwitchFooter;
+
+  /// No description provided for @aiSwitchConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get aiSwitchConfirm;
+
+  /// No description provided for @aiMatrixHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowing is your switch; whether it can be sent is platform × route × model.'**
+  String get aiMatrixHint;
+
+  /// No description provided for @aiCapTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calling'**
+  String get aiCapTools;
+
+  /// No description provided for @aiCapToolsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize and scrape need it'**
+  String get aiCapToolsHint;
+
+  /// No description provided for @aiCapJson.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON mode'**
+  String get aiCapJson;
+
+  /// No description provided for @aiCapJsonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection-test fallback only'**
+  String get aiCapJsonHint;
+
+  /// No description provided for @aiCapImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image input'**
+  String get aiCapImage;
+
+  /// No description provided for @aiCapVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video input'**
+  String get aiCapVideo;
+
+  /// No description provided for @aiCapThinkingOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning off'**
+  String get aiCapThinkingOff;
+
+  /// No description provided for @aiCapThinkingOffHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Judged by whether the reply still reasoned'**
+  String get aiCapThinkingOffHint;
+
+  /// No description provided for @aiCapUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage reporting'**
+  String get aiCapUsage;
+
+  /// No description provided for @aiCapUsageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Not reported ≠ 0'**
+  String get aiCapUsageHint;
+
+  /// No description provided for @aiCapAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'allowed'**
+  String get aiCapAllowed;
+
+  /// No description provided for @aiCapNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'not allowed'**
+  String get aiCapNotAllowed;
+
+  /// No description provided for @aiColCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'current'**
+  String get aiColCurrent;
+
+  /// No description provided for @aiColEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'enabled'**
+  String get aiColEnabled;
+
+  /// No description provided for @aiColOffered.
+  ///
+  /// In en, this message translates to:
+  /// **'not enabled'**
+  String get aiColOffered;
+
+  /// No description provided for @aiCellMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'works · measured'**
+  String get aiCellMeasured;
+
+  /// No description provided for @aiCellUnmeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'not measured'**
+  String get aiCellUnmeasured;
+
+  /// No description provided for @aiCellUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'not supported · measured'**
+  String get aiCellUnsupported;
+
+  /// No description provided for @aiCellLearned.
+  ///
+  /// In en, this message translates to:
+  /// **'{mode} · learned'**
+  String aiCellLearned(String mode);
+
+  /// No description provided for @aiCellParameter.
+  ///
+  /// In en, this message translates to:
+  /// **'parameter, not measured'**
+  String get aiCellParameter;
+
+  /// No description provided for @aiCellNotInBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'not in this build'**
+  String get aiCellNotInBuild;
+
+  /// No description provided for @aiCellSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'{field} · platform switch'**
+  String aiCellSwitch(String field);
+
+  /// No description provided for @aiCellLadder.
+  ///
+  /// In en, this message translates to:
+  /// **'ladder · judged by reply'**
+  String get aiCellLadder;
+
+  /// No description provided for @aiCellLadderExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'no way worked here'**
+  String get aiCellLadderExhausted;
+
+  /// No description provided for @aiCellProtocolUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'part of the protocol'**
+  String get aiCellProtocolUsage;
+
+  /// No description provided for @aiCellNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'not allowed'**
+  String get aiCellNotAllowed;
+
+  /// No description provided for @aiMatrixFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Task pickers read this matrix: a model is offered for frame recognition only where image input can actually be sent on its current route.'**
+  String get aiMatrixFootnote;
+
+  /// No description provided for @aiDiagTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Test a route'**
+  String get aiDiagTest;
+
+  /// No description provided for @aiDiagRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run test'**
+  String get aiDiagRun;
+
+  /// No description provided for @aiStepReach.
+  ///
+  /// In en, this message translates to:
+  /// **'Reachable'**
+  String get aiStepReach;
+
+  /// No description provided for @aiStepServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Identified as {kind}'**
+  String aiStepServer(String kind);
+
+  /// No description provided for @aiStepGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated in {ms} ms · {prompt} + {completion} tokens'**
+  String aiStepGenerate(int ms, int prompt, int completion);
+
+  /// No description provided for @aiStepTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply hit the output limit'**
+  String get aiStepTruncated;
+
+  /// No description provided for @aiStepThinkingOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning is off'**
+  String get aiStepThinkingOff;
+
+  /// No description provided for @aiStepThinkingStillOn.
+  ///
+  /// In en, this message translates to:
+  /// **'The model still reasoned'**
+  String get aiStepThinkingStillOn;
+
+  /// No description provided for @aiStepTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Called the test tool'**
+  String get aiStepTools;
+
+  /// No description provided for @aiStepToolsNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Did not call the test tool'**
+  String get aiStepToolsNo;
+
+  /// No description provided for @aiStepToolsUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calling undecided — the request did not complete'**
+  String get aiStepToolsUnknown;
+
+  /// No description provided for @aiStepUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage reported'**
+  String get aiStepUsage;
+
+  /// No description provided for @aiStepUsageMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No usage reported (counted as unknown, not 0)'**
+  String get aiStepUsageMissing;
+
+  /// No description provided for @aiStepContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Context: the server serves {served}, you entered {typed}'**
+  String aiStepContext(int served, int typed);
+
+  /// No description provided for @aiStepContextBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A local server past its window drops the system prompt from the front without a word.'**
+  String get aiStepContextBody;
+
+  /// No description provided for @aiStepUseServed.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the served value'**
+  String get aiStepUseServed;
+
+  /// No description provided for @aiLogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'API log · today'**
+  String get aiLogTitle;
+
+  /// No description provided for @aiLogHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Every body actually sent, numbered'**
+  String get aiLogHint;
+
+  /// No description provided for @aiLogOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Logging is off. Turn it on to record requests.'**
+  String get aiLogOff;
+
+  /// No description provided for @aiLogEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing logged today.'**
+  String get aiLogEmpty;
+
+  /// No description provided for @aiLogOpenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Show in folder'**
+  String get aiLogOpenFolder;
+
+  /// No description provided for @aiLogFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys are never written; images and strings over 2 KB are replaced by their length; writes are serial, so concurrent requests never interleave.'**
+  String get aiLogFootnote;
+
+  /// No description provided for @scrapeBackendAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'As assigned in Settings'**
+  String get scrapeBackendAssigned;
+
+  /// No description provided for @aiPlatformLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform'**
+  String get aiPlatformLabel;
+
+  /// No description provided for @aiMergeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge channels'**
+  String get aiMergeConfirmTitle;
+
+  /// No description provided for @aiMergeConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Routes and models move into “{name}” and the other channels are removed. Every model keeps its URL, parameters and task assignments.'**
+  String aiMergeConfirmBody(String name);
 }
 
 class _AppLocalizationsDelegate
