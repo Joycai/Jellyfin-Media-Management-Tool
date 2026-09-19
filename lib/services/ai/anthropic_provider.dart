@@ -311,8 +311,17 @@ class AnthropicProvider implements AiProvider {
         case SystemMessage():
           break;
         // An empty text block is refused, so an empty message adds none.
-        case UserMessage(:final content):
+        case UserMessage(:final content, :final images):
           add('user', [
+            for (final image in images)
+              {
+                'type': 'image',
+                'source': {
+                  'type': 'base64',
+                  'media_type': image.mimeType,
+                  'data': image.base64,
+                },
+              },
             if (content.isNotEmpty) {'type': 'text', 'text': content},
           ]);
         case AssistantMessage(:final content, :final toolCalls, :final raw):

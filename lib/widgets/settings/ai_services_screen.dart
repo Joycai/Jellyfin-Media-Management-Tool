@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/ai_channel.dart';
 import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_service.dart';
+import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
 import '../ui/app_controls.dart';
@@ -14,6 +15,7 @@ import 'ai_channel_page.dart';
 import 'ai_diagnostics_page.dart';
 import 'ai_model_page.dart';
 import 'ai_settings_widgets.dart';
+import 'settings_controls.dart';
 
 /// Settings → AI access (design canvas "AI 接入配置重设计").
 ///
@@ -502,6 +504,7 @@ class _TasksCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final t = context.tokens;
     final profiles = context.watch<AiProfilesService>();
+    final settings = context.watch<SettingsService>();
     return AiCard(
       title: l10n.aiTasksTitle,
       child: Column(
@@ -521,6 +524,22 @@ class _TasksCard extends StatelessWidget {
             }),
             const SizedBox(height: AppSpacing.xs),
             _TaskPicker(task: task, profiles: profiles),
+            if (task == AiTask.vision) ...[
+              const SizedBox(height: AppSpacing.xs),
+              // Consent is for the model shown above: pick another and this
+              // reads off until the user allows that one too. Nothing to
+              // consent to without a model allowed images.
+              if (profiles.visionConfig case final vision)
+                SettingsToggleRow(
+                  label: l10n.aiVisionAllowFrames,
+                  subtitle: l10n.aiVisionAllowFramesHint,
+                  value:
+                      vision != null && settings.visionFramesAllowedFor(vision),
+                  onChanged: vision == null
+                      ? null
+                      : (on) => settings.setVisionFramesFor(on ? vision : null),
+                ),
+            ],
           ],
         ],
       ),

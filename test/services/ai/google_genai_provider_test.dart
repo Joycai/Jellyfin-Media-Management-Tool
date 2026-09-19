@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -565,6 +566,20 @@ void main() {
   });
 
   group('request shape', () {
+    test('an image goes as inlineData', () {
+      final contents = GoogleGenAiProvider.contents([
+        UserMessage(
+          'look',
+          images: [
+            ImagePart(bytes: Uint8List.fromList([1, 2, 3])),
+          ],
+        ),
+      ]);
+      expect((contents.single['parts'] as List).last, {
+        'inlineData': {'mimeType': 'image/jpeg', 'data': 'AQID'},
+      });
+    });
+
     test('the system message travels as systemInstruction', () async {
       late http.BaseRequest seen;
       await GoogleGenAiProvider(

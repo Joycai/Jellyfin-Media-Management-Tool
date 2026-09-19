@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -973,6 +974,33 @@ void main() {
       LearnedStore.instance.entries.keys.where((k) => k.contains('remembered')),
       isEmpty,
     );
+  });
+
+  test('an image goes as an image_url content part', () async {
+    late Map<String, dynamic> body;
+    await OpenAiProvider(
+      _config('image-part'),
+      client: MockClient((request) async {
+        body = _body(request);
+        return _reply('ok');
+      }),
+    ).chat(
+      messages: [
+        UserMessage(
+          'look',
+          images: [
+            ImagePart(bytes: Uint8List.fromList([1, 2, 3])),
+          ],
+        ),
+      ],
+      tools: const [],
+    );
+    final content = (body['messages'] as List).single['content'] as List;
+    expect(content.first, {'type': 'text', 'text': 'look'});
+    expect(content.last, {
+      'type': 'image_url',
+      'image_url': {'url': 'data:image/jpeg;base64,AQID'},
+    });
   });
 }
 

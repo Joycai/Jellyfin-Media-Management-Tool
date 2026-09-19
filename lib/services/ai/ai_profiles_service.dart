@@ -89,6 +89,16 @@ class AiProfilesService extends ChangeNotifier {
   /// Runtime config for organizing (consumed by [AiService]).
   AiConfig get aiConfig => configFor(AiTask.organize);
 
+  /// The model frame recognition runs on, or null when there is none the
+  /// user has allowed to see images. Unlike the other tasks, falling back to
+  /// organize's model is only allowed when that model may see images too:
+  /// frames never go to a model the user did not authorise for them.
+  AiConfig? get visionConfig {
+    final entry = resolve(AiTask.vision);
+    if (entry == null || !entry.model.imageInput) return null;
+    return entry.channel.configFor(entry.model);
+  }
+
   Future<Directory> get _dir async {
     final directory = await getApplicationSupportDirectory();
     if (!await directory.exists()) {

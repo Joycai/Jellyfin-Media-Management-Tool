@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -511,6 +512,23 @@ void main() {
     ).chat(messages: const [UserMessage('u')], tools: const []);
     expect(seen.headers['Authorization'], 'Bearer sk-ant-secret');
     expect(seen.headers['x-api-key'], 'sk-ant-secret');
+  });
+
+  test('an image goes as a base64 image block before the text', () {
+    final wire = AnthropicProvider.wire([
+      UserMessage(
+        'look',
+        images: [
+          ImagePart(bytes: Uint8List.fromList([1, 2, 3])),
+        ],
+      ),
+    ], model: 'm');
+    final blocks = wire.single['content'] as List;
+    expect(blocks.first, {
+      'type': 'image',
+      'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': 'AQID'},
+    });
+    expect((blocks.last as Map)['text'], 'look');
   });
 
   // A real round trip, for checking the adapter against the live API after

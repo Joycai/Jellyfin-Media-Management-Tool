@@ -596,11 +596,18 @@ class GoogleGenAiProvider implements AiProvider {
       switch (message) {
         case SystemMessage():
           break;
-        case UserMessage(:final content):
+        case UserMessage(:final content, :final images):
           out.add({
             'role': 'user',
             'parts': [
               {'text': content},
+              for (final image in images)
+                {
+                  'inlineData': {
+                    'mimeType': image.mimeType,
+                    'data': image.base64,
+                  },
+                },
             ],
           });
         case AssistantMessage(:final content, :final toolCalls, :final raw):

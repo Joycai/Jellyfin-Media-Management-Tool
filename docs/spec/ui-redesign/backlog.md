@@ -43,6 +43,9 @@
 | B29 | AI 接入 · 03 | 每条线路**单独选鉴权方式**（Bearer / x-api-key / 两者） | 鉴权由协议决定：兼容线路 Bearer、Gemini `x-goog-api-key` | 需要实测哪些中转站要求哪种头；在数据里加 `RouteSpec.auth` 之前不暴露一个猜出来的开关 |
 | B30 | AI 接入 · 01 | 总览右下的**本月用量**（含缓存命中、「未上报」计数） | 显示「本次启动以来」的请求数、tokens 与平均延迟 | 用量没有持久化；要按月累计得先有一个用量账本（API 日志不适合当账本：默认关闭） |
 | B31 | AI 接入 · 03 | 密钥存进**系统钥匙串** | 仍明文存 `ai_profiles.json`（与此前相同） | 审查报告的待决问题之一：引入 `flutter_secure_storage`，Linux 依赖 libsecret |
+| B32 | 审查报告 · 09 | 刮削时**看图判断海报 / 背景 / logo** | `list_images` 仍按编号选图，模型看不到图 | 要先把候选图下载成缩略图再交给画面识别模型，且与 `ImageRole` 的「单槽互斥」规则合并；整理侧的抽帧识别先落地 |
+| B33 | 审查报告 · 09 | **原生视频输入**（Gemini `inlineData` 视频、百炼 VL 视频 part） | 视频一律抽帧后以图片发出 | 各协议的视频 part 都未实测；大文件上传与计费也需要单独设计 |
+| B34 | 审查报告 · 09 | Windows 上**多帧**抽取 | Windows 的 Shell 缩略图不接受时间点，只取一帧 | 需要在 runner 的 thumbnail channel 里接 Media Foundation 的定位解码 |
 
 ## 二、与现有行为冲突，裁决在此
 

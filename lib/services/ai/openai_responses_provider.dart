@@ -292,8 +292,22 @@ class OpenAiResponsesProvider implements AiProvider {
     for (final message in messages)
       ...switch (message) {
         SystemMessage() => const <Map<String, Object?>>[],
-        UserMessage(:final content) => [
+        UserMessage(:final content, :final images) when images.isEmpty => [
           {'role': 'user', 'content': content},
+        ],
+        UserMessage(:final content, :final images) => [
+          {
+            'role': 'user',
+            'content': [
+              if (content.isNotEmpty) {'type': 'input_text', 'text': content},
+              for (final image in images)
+                {
+                  'type': 'input_image',
+                  'image_url': image.dataUrl,
+                  'detail': 'auto',
+                },
+            ],
+          },
         ],
         // With store:false a reasoning item is only valid with its
         // encrypted content; one without (a relay that ignored `include`,

@@ -5035,6 +5035,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'the model’s default'**
   String get aiCellModelDefault;
+
+  /// No description provided for @aiCellSentAs.
+  ///
+  /// In en, this message translates to:
+  /// **'sent as {part} · not measured'**
+  String aiCellSentAs(String part);
+
+  /// No description provided for @aiCellAsFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'as image frames · not measured'**
+  String get aiCellAsFrames;
+
+  /// No description provided for @aiVisionAllowFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'Send video frames to this model'**
+  String get aiVisionAllowFrames;
+
+  /// No description provided for @aiVisionAllowFramesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default: frames leave this computer. Organize uses them only for videos whose names say nothing, and every group decided that way is flagged for review.'**
+  String get aiVisionAllowFramesHint;
 }
 
 class _AppLocalizationsDelegate

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/file_browser/media_columns.dart';
+import 'ai/ai_provider.dart';
 import 'ai/api_log.dart';
 
 class SearchSite {
@@ -47,6 +48,7 @@ class SettingsService extends ChangeNotifier {
   List<int> _accentRecents = [];
   bool _showVideoThumbnails = true;
   bool _apiLogEnabled = false;
+  String? _visionFramesFor;
   bool _onboardingSeen = false;
 
   /// UI font id: 'system' | 'harmony' | 'misans' (see FontService).
@@ -87,6 +89,13 @@ class SettingsService extends ChangeNotifier {
 
   /// Whether every AI request is written to the API log — see [ApiLog].
   bool get apiLogEnabled => _apiLogEnabled;
+
+  /// Whether organize may send video frames to [config]. Consent names one
+  /// model on one endpoint: pointing the task at another model — a cloud one
+  /// after a local one — asks again rather than carrying it over. Off by
+  /// default: frames leave this computer.
+  bool visionFramesAllowedFor(AiConfig config) =>
+      _visionFramesFor != null && _visionFramesFor == config.toolFingerprint;
   bool get onboardingSeen => _onboardingSeen;
   String get fontChoice => _fontChoice;
 
@@ -165,6 +174,9 @@ class SettingsService extends ChangeNotifier {
     }
     if (data['show_video_thumbnails'] is bool) {
       _showVideoThumbnails = data['show_video_thumbnails'] as bool;
+    }
+    if (data['vision_frames_for'] is String) {
+      _visionFramesFor = data['vision_frames_for'] as String;
     }
     if (data['api_log_enabled'] is bool) {
       _apiLogEnabled = data['api_log_enabled'] as bool;
@@ -256,6 +268,7 @@ class SettingsService extends ChangeNotifier {
         'accent_recents': _accentRecents,
         'show_video_thumbnails': _showVideoThumbnails,
         'api_log_enabled': _apiLogEnabled,
+        'vision_frames_for': _visionFramesFor,
         'baked_glass': _bakedGlass,
         'onboarding_seen': _onboardingSeen,
         'font_choice': _fontChoice,
@@ -386,6 +399,13 @@ class SettingsService extends ChangeNotifier {
   Future<void> setApiLogEnabled(bool v) async {
     _apiLogEnabled = v;
     ApiLog.instance.enabled = v;
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  /// Allows frames to go to [config], or to nothing with null.
+  Future<void> setVisionFramesFor(AiConfig? config) async {
+    _visionFramesFor = config?.toolFingerprint;
     _scheduleSave();
     notifyListeners();
   }

@@ -9,6 +9,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'ai_provider.dart' show AiProviderType;
 
@@ -23,7 +24,25 @@ class SystemMessage extends ChatMessage {
 
 class UserMessage extends ChatMessage {
   final String content;
-  const UserMessage(this.content);
+
+  /// Images sent with the text — video frames for a vision model. Each
+  /// protocol has its own part shape; the adapters map them.
+  final List<ImagePart> images;
+
+  const UserMessage(this.content, {this.images = const []});
+}
+
+/// One inline image.
+class ImagePart {
+  final Uint8List bytes;
+  final String mimeType;
+
+  const ImagePart({required this.bytes, this.mimeType = 'image/jpeg'});
+
+  String get base64 => base64Encode(bytes);
+
+  /// `data:` URL, the form Chat Completions and Responses take.
+  String get dataUrl => 'data:$mimeType;base64,$base64';
 }
 
 /// Reasoning kept with the turn that produced it, under the field name the

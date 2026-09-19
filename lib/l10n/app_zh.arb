@@ -828,5 +828,9 @@
   "aiMergeConfirmBody": "线路和模型并入「{name}」，其余渠道随之删除。每个模型的地址、参数和任务指派都不变。",
   "aiCellPromptOnly": "无参数 · 只靠提示词",
   "aiCellDefaultOff": "默认不思考",
-  "aiCellModelDefault": "模型默认"
+  "aiCellModelDefault": "模型默认",
+  "aiCellSentAs": "以 {part} 发出 · 未实测",
+  "aiCellAsFrames": "抽帧后以图片发出 · 未实测",
+  "aiVisionAllowFrames": "允许把视频帧发给这个模型",
+  "aiVisionAllowFramesHint": "默认关闭：帧会离开本机。整理只在文件名看不出内容时使用，由此决定的分组一律标为需要复核。"
 }

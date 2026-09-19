@@ -488,7 +488,21 @@ class OpenAiProvider implements AiProvider {
 
   static Map<String, Object?> _wire(ChatMessage message) => switch (message) {
     SystemMessage(:final content) => {'role': 'system', 'content': content},
-    UserMessage(:final content) => {'role': 'user', 'content': content},
+    UserMessage(:final content, :final images) when images.isEmpty => {
+      'role': 'user',
+      'content': content,
+    },
+    UserMessage(:final content, :final images) => {
+      'role': 'user',
+      'content': [
+        if (content.isNotEmpty) {'type': 'text', 'text': content},
+        for (final image in images)
+          {
+            'type': 'image_url',
+            'image_url': {'url': image.dataUrl},
+          },
+      ],
+    },
     AssistantMessage(:final content, :final toolCalls, :final reasoning) => {
       'role': 'assistant',
       // A tool-call turn with no prose is `null` content, not an empty string.

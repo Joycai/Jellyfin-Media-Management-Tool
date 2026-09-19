@@ -254,6 +254,22 @@ void main() {
     });
   });
 
+  test('frames only go to a model allowed to see images', () async {
+    final service = AiProfilesService()
+      ..loadFromMap({
+        'ai_services': [_legacy('text-only', 'http://vision:1/v1')],
+      });
+    // Vision follows organize, but organize's model may not see images.
+    expect(service.visionConfig, isNull);
+
+    final channel = service.channels.single;
+    await service.upsertModel(
+      channel.id,
+      channel.models.single.copyWith(imageInput: true),
+    );
+    expect(service.visionConfig?.model, 'qwen3.6-27b');
+  });
+
   test('tool support is recorded on every model with the same route', () {
     final service = AiProfilesService()
       ..loadFromMap({

@@ -261,9 +261,21 @@ CapabilityCell capabilityCell(
           ? model.imageInput
           : model.videoInput;
       if (!allowed) return (state: unavailable, text: l10n.aiCellNotAllowed);
-      // Messages carry text only in this build; image parts arrive with the
-      // frame-recognition work.
-      return (state: unavailable, text: l10n.aiCellNotInBuild);
+      // Every adapter can carry an image part; whether this model reads it
+      // is only known once it has been tried. Video goes as frames — no
+      // protocol's native video part is sent (not measured on any of them).
+      if (capability == Capability.video) {
+        return (state: unmeasured, text: l10n.aiCellAsFrames);
+      }
+      return (
+        state: unmeasured,
+        text: l10n.aiCellSentAs(switch (protocol) {
+          AiProviderType.openAi => 'image_url',
+          AiProviderType.googleGenAi => 'inlineData',
+          AiProviderType.anthropic => 'image',
+          AiProviderType.openAiResponses => 'input_image',
+        }),
+      );
     case Capability.thinkingOff:
       // Extended thinking is off unless asked for; Responses leaves reasoning
       // to the model, since no one low setting is taken everywhere.

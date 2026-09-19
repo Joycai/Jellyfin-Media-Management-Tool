@@ -1030,5 +1030,16 @@
   },
   "aiCellPromptOnly": "no parameter · prompt only",
   "aiCellDefaultOff": "off by default",
-  "aiCellModelDefault": "the model’s default"
+  "aiCellModelDefault": "the model’s default",
+  "aiCellSentAs": "sent as {part} · not measured",
+  "aiCellAsFrames": "as image frames · not measured",
+  "aiVisionAllowFrames": "Send video frames to this model",
+  "aiVisionAllowFramesHint": "Off by default: frames leave this computer. Organize uses them only for videos whose names say nothing, and every group decided that way is flagged for review.",
+  "@aiCellSentAs": {
+    "placeholders": {
+      "part": {
+        "type": "String"
+      }
+    }
+  }
 }

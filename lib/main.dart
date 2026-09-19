@@ -94,6 +94,14 @@ void main() async {
   aiService.updateConfig(aiProfilesService.aiConfig);
   // A task that had to check whether its model calls tools records the answer
   // on the profiles, so the next task (and Settings) need not check again.
+  // Frames go to a vision model only with the user's consent, and only to
+  // a model they allowed to see images.
+  aiService.visionConfig = () {
+    final vision = aiProfilesService.visionConfig;
+    return vision != null && settingsService.visionFramesAllowedFor(vision)
+        ? vision
+        : null;
+  };
   aiService.onToolSupport = (config, supported) {
     if (aiProfilesService.recordToolSupport(config, supported)) {
       aiService.updateConfig(aiProfilesService.aiConfig);

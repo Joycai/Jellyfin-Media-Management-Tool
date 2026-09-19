@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/agent/agent_runtime.dart';
@@ -34,6 +35,19 @@ class _Add extends AgentTool<_Tally> {
     context.cancelOnAdd?.cancel();
     return 'count is ${context.count}';
   }
+}
+
+class _Cancels extends AgentTool<_Tally> {
+  @override
+  ToolDefinition get definition => const ToolDefinition(
+    name: 'cancel',
+    description: 'Is cancelled while it runs.',
+    parameters: {'type': 'object'},
+  );
+
+  @override
+  String execute(Map<String, dynamic> arguments, _Tally context) =>
+      throw const AiCancelled();
 }
 
 List<ChatMessage> _seed() => [
@@ -160,6 +174,33 @@ void main() {
       );
     },
   );
+
+  test('a cancel inside a tool still answers every call', () async {
+    final messages = _seed();
+    final provider = ScriptedChatProvider([
+      (_) => toolTurn([
+        ('cancel', <String, Object?>{}),
+        ('add', {'by': 1}),
+      ]),
+    ]);
+    await expectLater(
+      AgentRuntime.run<_Tally>(
+        provider: provider,
+        messages: messages,
+        tools: [_Add(), _Cancels()],
+        context: _Tally(),
+        maxRounds: 3,
+        isDone: () => false,
+      ),
+      throwsA(isA<AiCancelled>()),
+    );
+    final results = messages.whereType<ToolResultMessage>().toList();
+    expect(results.map((r) => r.toolCallId), ['c0', 'c1']);
+    expect(
+      results.every((r) => r.content == AgentRuntime.notRunResult),
+      isTrue,
+    );
+  });
 
   test('rounds of nothing but failed calls end the run', () async {
     final provider = ScriptedChatProvider([
@@ -317,6 +358,19 @@ void main() {
       expect(withReasoning, greaterThan(plain + 500));
       // The signature is opaque: it is sent, but not counted as text.
       expect(withParts, lessThan(plain + 100));
+    });
+
+    test('an image is counted by what it costs, not its bytes', () {
+      final text = AgentRuntime.estimate(const UserMessage('look'));
+      final withImages = AgentRuntime.estimate(
+        UserMessage(
+          'look',
+          images: [
+            for (var i = 0; i < 3; i++) ImagePart(bytes: Uint8List(100000)),
+          ],
+        ),
+      );
+      expect(withImages - text, 3 * AgentRuntime.imageTokens);
     });
 
     test('leaves a history that fits alone', () {

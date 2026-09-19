@@ -104,6 +104,9 @@ abstract final class AgentRuntime {
 
   static const maxErraticRounds = 3;
 
+  /// What one inline image is counted as; see [estimate].
+  static const imageTokens = 800;
+
   /// Cut-off rounds in a row before the run ends as [AgentOutcome.truncated].
   static const maxTruncatedRounds = 2;
 
@@ -243,7 +246,24 @@ abstract final class AgentRuntime {
           }
           throw const AiCancelled();
         }
-        final (content, failed) = await _execute(call, byName, context);
+        final String content;
+        final bool failed;
+        try {
+          (content, failed) = await _execute(call, byName, context);
+        } on AiCancelled {
+          // Cancelled inside the tool: this call and the rest still get a
+          // reply, or the history could never be sent again.
+          for (final skipped in reply.toolCalls.skip(i)) {
+            messages.add(
+              ToolResultMessage(
+                toolCallId: skipped.id,
+                name: skipped.name,
+                content: notRunResult,
+              ),
+            );
+          }
+          rethrow;
+        }
         if (failed) failures++;
         messages.add(
           ToolResultMessage(
@@ -305,6 +325,10 @@ abstract final class AgentRuntime {
       return (await tool.execute(arguments, context), false);
     } on ToolError catch (e) {
       return ('Error: ${e.message}', true);
+    } on AiCancelled {
+      // A cancel inside a tool ends the run; it is not the model's mistake
+      // to report back.
+      rethrow;
     } catch (e) {
       return ('Error: $e', true);
     }
@@ -381,8 +405,12 @@ abstract final class AgentRuntime {
   static int estimate(ChatMessage message) =>
       8 +
       switch (message) {
-        SystemMessage(:final content) ||
-        UserMessage(:final content) => TokenBudget.estimate(content),
+        SystemMessage(:final content) => TokenBudget.estimate(content),
+        // An image costs by its size, not its bytes, and each protocol
+        // prices it differently (a 768px frame is roughly 250–800 tokens);
+        // the high end keeps the budget on the safe side.
+        UserMessage(:final content, :final images) =>
+          TokenBudget.estimate(content) + images.length * imageTokens,
         AssistantMessage(:final raw?) => TokenBudget.estimate(
           jsonEncode(_readable(raw.parts)),
         ),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -280,6 +281,23 @@ void main() {
       }, model: 'm'),
       throwsA(isA<AiNetworkException>()),
     );
+  });
+
+  test('an image goes as an input_image data URL', () {
+    final input = OpenAiResponsesProvider.input([
+      UserMessage(
+        'look',
+        images: [
+          ImagePart(bytes: Uint8List.fromList([1, 2, 3])),
+        ],
+      ),
+    ], model: 'm');
+    final content = input.single['content'] as List;
+    expect(content.last, {
+      'type': 'input_image',
+      'image_url': 'data:image/jpeg;base64,AQID',
+      'detail': 'auto',
+    });
   });
 
   // A real round trip, for checking the adapter against the live API after

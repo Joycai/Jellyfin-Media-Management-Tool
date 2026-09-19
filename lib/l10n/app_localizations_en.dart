@@ -2870,4 +2870,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiCellModelDefault => 'the model’s default';
+
+  @override
+  String aiCellSentAs(String part) {
+    return 'sent as $part · not measured';
+  }
+
+  @override
+  String get aiCellAsFrames => 'as image frames · not measured';
+
+  @override
+  String get aiVisionAllowFrames => 'Send video frames to this model';
+
+  @override
+  String get aiVisionAllowFramesHint =>
+      'Off by default: frames leave this computer. Organize uses them only for videos whose names say nothing, and every group decided that way is flagged for review.';
 }

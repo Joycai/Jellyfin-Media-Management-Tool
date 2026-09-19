@@ -2762,4 +2762,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiCellModelDefault => '模型默认';
+
+  @override
+  String aiCellSentAs(String part) {
+    return '以 $part 发出 · 未实测';
+  }
+
+  @override
+  String get aiCellAsFrames => '抽帧后以图片发出 · 未实测';
+
+  @override
+  String get aiVisionAllowFrames => '允许把视频帧发给这个模型';
+
+  @override
+  String get aiVisionAllowFramesHint =>
+      '默认关闭：帧会离开本机。整理只在文件名看不出内容时使用，由此决定的分组一律标为需要复核。';
 }
