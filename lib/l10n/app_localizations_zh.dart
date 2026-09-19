@@ -1915,7 +1915,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get privacyDataFilesValue =>
-      'config.json · ai_profiles.json · sites.json · scrapers.json';
+      'config.json · ai_profiles.json · ai_learned.json · sites.json · scrapers.json';
 
   @override
   String get privacyPrefsBackup => '偏好设置备份';
@@ -1984,13 +1984,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get privacyLogAiBodies => '记录 AI 请求与回复正文';
 
   @override
-  String get privacyLogAiBodiesHint => '仅排查问题时开启，日志会变大';
+  String privacyLogAiBodiesHint(int days) {
+    return '每个实际发出的请求写入 logs 目录，按天一个文件，保留 $days 天。不写入密钥；图片与长文本只记长度。';
+  }
 
   @override
   String get privacyClearTempOnExit => '退出时清空临时目录';
 
   @override
-  String get privacyNoTelemetry => '本应用不采集任何遥测数据，也没有日志文件，这几项因此暂无可关。';
+  String get privacyNoTelemetry => '本应用不采集任何遥测数据。AI 请求日志只写在本机，其余几项暂无可关。';
+
+  @override
+  String get privacyCacheApiLog => 'AI 请求日志';
+
+  @override
+  String get privacyCacheApiLogHint => '开启「记录 AI 请求与回复正文」后写入';
 
   @override
   String get privacyDanger => '危险操作';

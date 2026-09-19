@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/file_browser/media_columns.dart';
+import 'ai/api_log.dart';
 
 class SearchSite {
   String name;
@@ -45,6 +46,7 @@ class SettingsService extends ChangeNotifier {
   int? _accentColor; // ARGB int; null = default theme accent
   List<int> _accentRecents = [];
   bool _showVideoThumbnails = true;
+  bool _apiLogEnabled = false;
   bool _onboardingSeen = false;
 
   /// UI font id: 'system' | 'harmony' | 'misans' (see FontService).
@@ -82,6 +84,9 @@ class SettingsService extends ChangeNotifier {
   List<int> get accentRecents => List.unmodifiable(_accentRecents);
   static const int maxAccentRecents = 6;
   bool get showVideoThumbnails => _showVideoThumbnails;
+
+  /// Whether every AI request is written to the API log — see [ApiLog].
+  bool get apiLogEnabled => _apiLogEnabled;
   bool get onboardingSeen => _onboardingSeen;
   String get fontChoice => _fontChoice;
 
@@ -160,6 +165,10 @@ class SettingsService extends ChangeNotifier {
     }
     if (data['show_video_thumbnails'] is bool) {
       _showVideoThumbnails = data['show_video_thumbnails'] as bool;
+    }
+    if (data['api_log_enabled'] is bool) {
+      _apiLogEnabled = data['api_log_enabled'] as bool;
+      ApiLog.instance.enabled = _apiLogEnabled;
     }
     if (data['baked_glass'] is bool) {
       _bakedGlass = data['baked_glass'] as bool;
@@ -246,6 +255,7 @@ class SettingsService extends ChangeNotifier {
         'accent_color': _accentColor,
         'accent_recents': _accentRecents,
         'show_video_thumbnails': _showVideoThumbnails,
+        'api_log_enabled': _apiLogEnabled,
         'baked_glass': _bakedGlass,
         'onboarding_seen': _onboardingSeen,
         'font_choice': _fontChoice,
@@ -369,6 +379,13 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setShowVideoThumbnails(bool v) async {
     _showVideoThumbnails = v;
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  Future<void> setApiLogEnabled(bool v) async {
+    _apiLogEnabled = v;
+    ApiLog.instance.enabled = v;
     _scheduleSave();
     notifyListeners();
   }

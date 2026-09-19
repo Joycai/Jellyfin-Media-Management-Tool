@@ -1966,7 +1966,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacyDataFilesValue =>
-      'config.json · ai_profiles.json · sites.json · scrapers.json';
+      'config.json · ai_profiles.json · ai_learned.json · sites.json · scrapers.json';
 
   @override
   String get privacyPrefsBackup => 'Preferences backup';
@@ -2038,15 +2038,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get privacyLogAiBodies => 'Log AI request and reply bodies';
 
   @override
-  String get privacyLogAiBodiesHint =>
-      'For troubleshooting only — logs grow quickly';
+  String privacyLogAiBodiesHint(int days) {
+    return 'Every request actually sent goes to the logs folder, one file per day, kept $days days. Keys are never written; images and long text are logged by length only.';
+  }
 
   @override
   String get privacyClearTempOnExit => 'Empty the temporary folder on exit';
 
   @override
   String get privacyNoTelemetry =>
-      'This app collects no telemetry of any kind and has no log file, so these switches have nothing to turn off yet.';
+      'This app collects no telemetry of any kind. The AI request log stays on this computer; the other switches have nothing to turn off yet.';
+
+  @override
+  String get privacyCacheApiLog => 'AI request log';
+
+  @override
+  String get privacyCacheApiLogHint =>
+      'Written while “Log AI request and reply bodies” is on';
 
   @override
   String get privacyDanger => 'Danger zone';

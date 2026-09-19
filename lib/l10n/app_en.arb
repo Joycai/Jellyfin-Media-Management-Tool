@@ -577,7 +577,7 @@
   "privacyCopyPath": "Copy",
   "privacyCopied": "Path copied",
   "privacyDataFiles": "Data files",
-  "privacyDataFilesValue": "config.json · ai_profiles.json · sites.json · scrapers.json",
+  "privacyDataFilesValue": "config.json · ai_profiles.json · ai_learned.json · sites.json · scrapers.json",
   "privacyPrefsBackup": "Preferences backup",
   "privacyPrefsBackupHint": "Export or restore config.json and the AI profiles",
   "privacyImport": "Import",
@@ -599,9 +599,16 @@
   "privacyCrashReports": "Crash reports",
   "privacyCrashReportsHint": "Stack traces and device model only",
   "privacyLogAiBodies": "Log AI request and reply bodies",
-  "privacyLogAiBodiesHint": "For troubleshooting only — logs grow quickly",
+  "privacyLogAiBodiesHint": "Every request actually sent goes to the logs folder, one file per day, kept {days} days. Keys are never written; images and long text are logged by length only.",
+  "@privacyLogAiBodiesHint": {
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
   "privacyClearTempOnExit": "Empty the temporary folder on exit",
-  "privacyNoTelemetry": "This app collects no telemetry of any kind and has no log file, so these switches have nothing to turn off yet.",
+  "privacyNoTelemetry": "This app collects no telemetry of any kind. The AI request log stays on this computer; the other switches have nothing to turn off yet.",
+  "privacyCacheApiLog": "AI request log",
+  "privacyCacheApiLogHint": "Written while “Log AI request and reply bodies” is on",
   "privacyDanger": "Danger zone",
   "privacyReset": "Reset all data",
   "privacyResetBody": "Clears AI services, recipes, history and every cache, returning the app to its first-launch state. Media files on disk are not deleted, and NFOs and images already written are kept.",

@@ -314,8 +314,13 @@ void main() {
       ),
     );
 
-    // The greetings only; the tool check that follows carries `tools`.
-    expect(server.bodies.where((b) => !b.containsKey('tools')), hasLength(2));
+    // Every request is tool-shaped, like a task's: the first way was ignored,
+    // the second took, and the prose reply earned one more tool ask.
+    expect(server.bodies.every((b) => b.containsKey('tools')), isTrue);
+    expect(
+      server.bodies.where((b) => b.containsKey('chat_template_kwargs')),
+      hasLength(1),
+    );
     expect(result.reasoned, isFalse);
     expect(result.serverKind, ServerKind.lmStudio);
     expect(result.reply, 'hi');

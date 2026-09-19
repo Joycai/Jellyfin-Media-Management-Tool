@@ -1,15 +1,20 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 import './services/ai/ai_profiles_service.dart';
 import './services/ai/ai_service.dart';
+import './services/ai/api_log.dart';
+import './services/ai/learned_behaviour.dart';
 import './widgets/home/home_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'services/file_browser_service.dart';
@@ -61,6 +66,17 @@ void main() async {
 
   final settingsService = SettingsService();
   await settingsService.init();
+
+  // What the providers learned about each route (refused fields, JSON mode,
+  // how reasoning was turned off) is read before the first request, so no
+  // launch pays for the same rejections again. The API log only needs its
+  // folder; SettingsService has already switched it on or off.
+  final support = await getApplicationSupportDirectory();
+  await LearnedStore.instance.load(
+    File(p.join(support.path, 'ai_learned.json')),
+  );
+  ApiLog.instance.directory = Directory(p.join(support.path, 'logs'));
+  unawaited(ApiLog.instance.prune());
 
   // Register the user's chosen UI font (if previously downloaded) before the
   // first frame so the app doesn't flash the system font.

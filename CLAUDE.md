@@ -103,7 +103,7 @@ Flow: `_organize()` in [home_screen.dart](lib/widgets/home/home_screen.dart) (em
 - **Every AI task needs a tool-calling model; there is no single-shot fallback.** Tool support is probed and stored per provider | endpoint | model. The probe has **three** outcomes — a transport failure is `inconclusive` and is never recorded as `unsupported`.
 - **Cancellation closes the token's own `http.Client`**, so cancellable requests must never use the shared `AiHttp.client`.
 - **Never interpolate a transport exception into UI or logs** (`'Network error: $e'`): `ClientException` carries the URL, and Google's URL carries the API key. Use `AiHttp.describeTransportError`.
-- Timeouts are on *silence*, not duration, and a timed-out generation is never retried (the server is still running it). Per-server memories (JSON mode, refused fields, how reasoning was turned off) are keyed by provider | base URL | model | key hash.
+- Timeouts are on *silence*, not duration, and a timed-out generation is never retried (the server is still running it). Per-server memories (JSON mode, refused fields, how reasoning was turned off) are keyed by provider | base URL | model | key hash, persisted in `ai_learned.json` (30 days), and forgotten by the connection test, which is how a user makes the app find out again.
 - `/v1` is appended only to a bare origin; a URL with a path is used as typed. A blank key on an OpenAI-compatible profile sends no `Authorization` header.
 - `AiConfig.contextWindow` is a client-side budget, not a server setting; `AgentRuntime.trimHistory` shrinks old tool results to stay inside it and **never removes a message**.
 - Sampling comes from ordered per-family presets ([sampling_presets.dart](lib/services/ai/sampling_presets.dart)): more specific families first, every row cites its model card, no invented presets, values always sent explicitly. Reasoning is off by default and judged by whether the reply still reasoned.
@@ -162,6 +162,8 @@ Everything lives in the `path_provider` application-support directory, as hand-r
 
 - `config.json` — settings (debounced 250ms, flushed on dispose). A legacy `performance_mode: true` migrates to `glass_intensity: 0` and the key is dropped. `baked_glass` defaults to true.
 - `ai_profiles.json` — AI profiles and API keys, kept separate so a slider drag never rewrites keys
+- `ai_learned.json` — what each route refused or ignored ([learned_behaviour.dart](lib/services/ai/learned_behaviour.dart)); holds a key hash, never a key
+- `logs/api-<date>.jsonl` — the opt-in AI request log ([api_log.dart](lib/services/ai/api_log.dart), Settings → Privacy, 7 days): every body sent, no headers, no query strings, long strings and images replaced by their length
 - `sites.json` — custom search sites
 - `scrapers.json` — learned / user-edited scrape recipes (built-ins live in code)
 - `undo/op-*.json`, `undo/blobs/` — undo manifests and backup copies

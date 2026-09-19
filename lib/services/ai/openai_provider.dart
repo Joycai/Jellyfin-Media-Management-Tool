@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'ai_cancel_token.dart';
 import 'ai_http.dart';
 import 'ai_provider.dart';
+import 'api_log.dart';
+import 'learned_behaviour.dart';
 import 'thinking_dialect.dart';
 
 /// How a request asks for JSON, most to least constrained. [OpenAiProvider]
@@ -55,21 +57,13 @@ class OpenAiProvider implements AiProvider {
     this.idleTimeout = const Duration(minutes: 2),
   }) : _client = client;
 
-  /// The JSON mode each server + model last accepted, remembered for the
-  /// process so only the first request of a session pays for a rejection.
-  static final Map<String, _JsonMode> _acceptedJsonModes = {};
-
-  /// Server + model pairs that refused `max_tokens` in favour of
-  /// `max_completion_tokens`, as OpenAI's reasoning models do.
-  static final Set<String> _wantsMaxCompletionTokens = {};
-
-  /// Optional fields each server + model refused by name: sampling fields the
-  /// server does not know (`top_k` on OpenAI's own API), fields a reasoning
-  /// model will not take (`temperature`), `stream_options`.
-  static final Map<String, Set<String>> _rejectedFields = {};
-
-  /// Which [_ThinkingOff] way each server + model is on.
-  static final Map<String, int> _thinkingOffAttempts = {};
+  /// What each route taught this provider, kept across launches — see
+  /// [LearnedStore]. Per route: the JSON mode it last accepted; whether the
+  /// model insisted on `max_completion_tokens` (OpenAI's reasoning models);
+  /// the optional fields it refused by name (`top_k` on OpenAI's own API,
+  /// `temperature` on a reasoning model, `stream_options`); and which
+  /// [_ThinkingOff] way it is on.
+  static LearnedStore get _learned => LearnedStore.instance;
 
   /// The server kind behind each API root, detected once per session.
   static final Map<String, Future<ServerKind>> _serverKinds = {};
@@ -99,16 +93,21 @@ class OpenAiProvider implements AiProvider {
     return base.endsWith('/v1') ? base.substring(0, base.length - 3) : base;
   }
 
-  /// What the per-server memories below are keyed by.
+  /// What the learned memories are keyed by.
   ///
   /// The key includes the credential, not just the URL and model: two profiles
   /// can point at one endpoint through different keys — a personal and a work
   /// account, a gateway that routes by token — and what one of them was
-  /// refused says nothing about the other. The key itself is never stored,
-  /// only its hash, so none of these process-lifetime maps holds a secret.
-  String get _cacheKey =>
-      '${config.provider.id}|$_base|${config.model}|'
-      '${config.apiKey.trim().hashCode}';
+  /// refused says nothing about the other. Only a hash of the key is used.
+  String get _cacheKey => LearnedStore.routeKey(
+    protocol: config.provider.id,
+    base: _base,
+    model: config.model,
+    apiKey: config.apiKey,
+  );
+
+  @override
+  void forgetLearned() => _learned.forget(_cacheKey);
 
   Uri get _chatUri => Uri.parse('$_base/chat/completions');
 
@@ -198,14 +197,25 @@ class OpenAiProvider implements AiProvider {
                 control == ThinkingControl.softSwitch)
         ? _thinkingOffWays(control, await detectServerKind())
         : const <_ThinkingOff>[];
-    final rejected = _rejectedFields.putIfAbsent(_cacheKey, () => <String>{});
+    final key = _cacheKey;
+    final learned = _learned.of(key);
+    final rejected = {...learned.rejectedFields};
     final maxTokens = config.maxOutputTokens;
-    var mode = _acceptedJsonModes[_cacheKey] ?? _JsonMode.object;
-    var maxCompletionTokens = _wantsMaxCompletionTokens.contains(_cacheKey);
+    var mode =
+        _JsonMode.values.asNameMap()[learned.jsonMode] ?? _JsonMode.object;
+    var maxCompletionTokens = learned.maxCompletionTokens;
+    void learn(LearnedBehaviour Function(LearnedBehaviour) change) =>
+        _learned.update(key, change);
 
     while (true) {
-      final attempt = _thinkingOffAttempts[_cacheKey] ?? 0;
-      final off = attempt < offWays.length ? offWays[attempt] : null;
+      final tried = _learned.of(key).thinkingOffTried;
+      final off = offWays.where((w) => !tried.contains(w.name)).firstOrNull;
+      // Whether a way is left after this one, should it be ignored too.
+      bool anotherWay() =>
+          offWays.any((w) => w != off && !tried.contains(w.name));
+      void offFailed() => learn(
+        (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
+      );
 
       final optional = <String, Object>{
         'temperature': ?values.temperature,
@@ -247,7 +257,7 @@ class OpenAiProvider implements AiProvider {
             _wire(message),
       ];
 
-      final body = jsonEncode({
+      final payload = {
         'model': config.model,
         ...optional,
         (maxCompletionTokens ? 'max_completion_tokens' : 'max_tokens'):
@@ -256,7 +266,20 @@ class OpenAiProvider implements AiProvider {
         if (tools.isNotEmpty) 'tools': [for (final tool in tools) _tool(tool)],
         'stream': true,
         'messages': wire,
-      });
+      };
+      final body = jsonEncode(payload);
+      final started = DateTime.now();
+      void log({int? status, ChatResult? result, String? error}) =>
+          ApiLog.instance.record(
+            protocol: 'chat',
+            model: config.model,
+            url: _chatUri,
+            request: payload,
+            status: status,
+            response: result == null ? null : _summary(result),
+            error: error,
+            elapsed: DateTime.now().difference(started),
+          );
 
       http.StreamedResponse res;
       try {
@@ -272,24 +295,47 @@ class OpenAiProvider implements AiProvider {
           retryTimeouts: false,
         );
       } on AiCancelled {
+        log(error: 'cancelled');
         rethrow;
       } on TimeoutException {
-        if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiNetworkException(_noResponse(firstEventTimeout));
+        if (cancelToken?.isCancelled ?? false) {
+          log(error: 'cancelled');
+          throw const AiCancelled();
+        }
+        final error = _noResponse(firstEventTimeout);
+        log(error: error);
+        throw AiNetworkException(error);
       } catch (e) {
         // Closing the client to cancel surfaces as a generic ClientException;
         // report it as a cancellation, not a network failure.
-        if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiNetworkException(AiHttp.describeTransportError(e));
+        if (cancelToken?.isCancelled ?? false) {
+          log(error: 'cancelled');
+          throw const AiCancelled();
+        }
+        final error = AiHttp.describeTransportError(e);
+        log(error: error);
+        throw AiNetworkException(error);
       }
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        if (jsonMode) _acceptedJsonModes[_cacheKey] = mode;
-        final result = await _read(res, cancelToken);
+        final ChatResult result;
+        try {
+          result = await _read(res, cancelToken);
+        } on Object catch (e) {
+          log(
+            status: res.statusCode,
+            error: (cancelToken?.isCancelled ?? false)
+                ? 'cancelled'
+                : AiHttp.describeFailure(e),
+          );
+          rethrow;
+        }
+        log(status: res.statusCode, result: result);
+        if (jsonMode) learn((b) => b.copyWith(jsonMode: mode.name));
         if (off == null || !result.reasoned) return result;
         // This way of asking was ignored; the next request tries the next.
-        _thinkingOffAttempts[_cacheKey] = attempt + 1;
-        return result.withThinkingOffPending(attempt + 1 < offWays.length);
+        offFailed();
+        return result.withThinkingOffPending(anotherWay());
       }
 
       String error;
@@ -298,6 +344,7 @@ class OpenAiProvider implements AiProvider {
       } catch (_) {
         error = 'HTTP ${res.statusCode}';
       }
+      log(status: res.statusCode, error: error);
       if (res.statusCode == 400 || res.statusCode == 422) {
         final detail = error.toLowerCase();
         // Checked before the field names: this message also says `max_tokens`.
@@ -305,7 +352,7 @@ class OpenAiProvider implements AiProvider {
             !maxCompletionTokens &&
             detail.contains('max_completion_tokens')) {
           maxCompletionTokens = true;
-          _wantsMaxCompletionTokens.add(_cacheKey);
+          learn((b) => b.copyWith(maxCompletionTokens: true));
           continue;
         }
         if (jsonMode &&
@@ -322,9 +369,12 @@ class OpenAiProvider implements AiProvider {
               refused == 'chat_template_kwargs' ||
               (refused == 'reasoning_effort' && off == _ThinkingOff.effortNone);
           if (isThinkingOffField) {
-            _thinkingOffAttempts[_cacheKey] = attempt + 1;
+            offFailed();
           } else {
             rejected.add(refused);
+            learn(
+              (b) => b.copyWith(rejectedFields: {...b.rejectedFields, refused}),
+            );
           }
           continue;
         }
@@ -332,6 +382,22 @@ class OpenAiProvider implements AiProvider {
       throw AiException(error);
     }
   }
+
+  /// What the API log keeps of a reply.
+  static Map<String, Object?> _summary(ChatResult result) => {
+    'finish_reason': result.finishReason,
+    'text': result.text,
+    if (result.toolCalls.isNotEmpty)
+      'tool_calls': [
+        for (final call in result.toolCalls)
+          {'name': call.name, 'arguments': call.arguments},
+      ],
+    if (result.reasoned) 'reasoned': true,
+    'usage': {
+      'prompt': result.promptTokens,
+      'completion': result.completionTokens,
+    },
+  };
 
   static Map<String, Object?> _tool(ToolDefinition tool) => {
     'type': 'function',

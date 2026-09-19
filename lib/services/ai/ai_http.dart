@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'ai_cancel_token.dart';
+import 'ai_provider.dart';
 
 /// Shared HTTP machinery for the AI providers: a process-wide client (so
 /// connections get reused across calls) and a small retry helper for the
@@ -96,6 +97,15 @@ class AiHttp {
         ? 'Network error.'
         : 'Network error: ${_clip(message)}';
   }
+
+  /// What a log may say about [error]: an [AiException]'s own message, which
+  /// is written to be shown, or else [describeTransportError] — never the
+  /// exception's text, which can carry the request URL.
+  static String describeFailure(Object error) => switch (error) {
+    AiCancelled() => 'cancelled',
+    AiException(:final message) => message,
+    _ => describeTransportError(error),
+  };
 
   static String _clip(String message) =>
       message.length > 200 ? '${message.substring(0, 200)}\u2026' : message;

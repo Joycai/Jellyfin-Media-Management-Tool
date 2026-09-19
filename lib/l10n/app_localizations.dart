@@ -3527,7 +3527,7 @@ abstract class AppLocalizations {
   /// No description provided for @privacyDataFilesValue.
   ///
   /// In en, this message translates to:
-  /// **'config.json · ai_profiles.json · sites.json · scrapers.json'**
+  /// **'config.json · ai_profiles.json · ai_learned.json · sites.json · scrapers.json'**
   String get privacyDataFilesValue;
 
   /// No description provided for @privacyPrefsBackup.
@@ -3659,8 +3659,8 @@ abstract class AppLocalizations {
   /// No description provided for @privacyLogAiBodiesHint.
   ///
   /// In en, this message translates to:
-  /// **'For troubleshooting only — logs grow quickly'**
-  String get privacyLogAiBodiesHint;
+  /// **'Every request actually sent goes to the logs folder, one file per day, kept {days} days. Keys are never written; images and long text are logged by length only.'**
+  String privacyLogAiBodiesHint(int days);
 
   /// No description provided for @privacyClearTempOnExit.
   ///
@@ -3671,8 +3671,20 @@ abstract class AppLocalizations {
   /// No description provided for @privacyNoTelemetry.
   ///
   /// In en, this message translates to:
-  /// **'This app collects no telemetry of any kind and has no log file, so these switches have nothing to turn off yet.'**
+  /// **'This app collects no telemetry of any kind. The AI request log stays on this computer; the other switches have nothing to turn off yet.'**
   String get privacyNoTelemetry;
+
+  /// No description provided for @privacyCacheApiLog.
+  ///
+  /// In en, this message translates to:
+  /// **'AI request log'**
+  String get privacyCacheApiLog;
+
+  /// No description provided for @privacyCacheApiLogHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Written while “Log AI request and reply bodies” is on'**
+  String get privacyCacheApiLogHint;
 
   /// No description provided for @privacyDanger.
   ///

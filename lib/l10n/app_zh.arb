@@ -570,7 +570,7 @@
   "privacyCopyPath": "复制",
   "privacyCopied": "已复制路径",
   "privacyDataFiles": "数据文件",
-  "privacyDataFilesValue": "config.json · ai_profiles.json · sites.json · scrapers.json",
+  "privacyDataFilesValue": "config.json · ai_profiles.json · ai_learned.json · sites.json · scrapers.json",
   "privacyPrefsBackup": "偏好设置备份",
   "privacyPrefsBackupHint": "导出或恢复 config.json 与 AI 服务配置",
   "privacyImport": "导入",
@@ -592,9 +592,16 @@
   "privacyCrashReports": "崩溃报告",
   "privacyCrashReportsHint": "仅堆栈与设备型号",
   "privacyLogAiBodies": "记录 AI 请求与回复正文",
-  "privacyLogAiBodiesHint": "仅排查问题时开启，日志会变大",
+  "privacyLogAiBodiesHint": "每个实际发出的请求写入 logs 目录，按天一个文件，保留 {days} 天。不写入密钥；图片与长文本只记长度。",
+  "@privacyLogAiBodiesHint": {
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
   "privacyClearTempOnExit": "退出时清空临时目录",
-  "privacyNoTelemetry": "本应用不采集任何遥测数据，也没有日志文件，这几项因此暂无可关。",
+  "privacyNoTelemetry": "本应用不采集任何遥测数据。AI 请求日志只写在本机，其余几项暂无可关。",
+  "privacyCacheApiLog": "AI 请求日志",
+  "privacyCacheApiLogHint": "开启「记录 AI 请求与回复正文」后写入",
   "privacyDanger": "危险操作",
   "privacyReset": "重置所有数据",
   "privacyResetBody": "清空 AI 服务、规则、历史与全部缓存，应用回到首次启动状态。磁盘上的媒体文件不会被删除，已写入的 NFO 与图片保留。",

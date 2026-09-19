@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'ai_cancel_token.dart';
 import 'ai_http.dart';
 import 'ai_provider.dart';
+import 'api_log.dart';
+import 'learned_behaviour.dart';
 
 /// A way of asking Gemini for no reasoning, in the order they are tried.
 ///
@@ -46,16 +48,22 @@ class GoogleGenAiProvider implements AiProvider {
     this.timeout = const Duration(minutes: 10),
   }) : _client = client;
 
-  /// Which [_ThinkingOff] way each endpoint + model is on. Process-wide, so
-  /// only the first request of a session pays for a rejection.
-  static final Map<String, int> _thinkingOffAttempts = {};
+  /// Which [_ThinkingOff] way each route is on, kept across launches — see
+  /// [LearnedStore]. Keyed by the credential as well as the URL and model:
+  /// two profiles can point at one endpoint through different keys, and what
+  /// one was refused says nothing about the other. Only the key's hash is
+  /// used, so this holds no secret.
+  String get _cacheKey => LearnedStore.routeKey(
+    protocol: config.provider.id,
+    base: _base,
+    model: config.model,
+    apiKey: config.apiKey,
+  );
 
-  /// Keyed by the credential as well as the URL and model: two profiles can
-  /// point at one endpoint through different keys, and what one was refused
-  /// says nothing about the other. Only the key's hash is used, so this holds
-  /// no secret.
-  String get _cacheKey =>
-      '$_base|${config.model}|${config.apiKey.trim().hashCode}';
+  static LearnedStore get _learned => LearnedStore.instance;
+
+  @override
+  void forgetLearned() => _learned.forget(_cacheKey);
 
   /// Normalized base URL with a `/v1*` segment, e.g.
   /// `https://generativelanguage.googleapis.com/v1beta`.
@@ -129,13 +137,19 @@ class GoogleGenAiProvider implements AiProvider {
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
 
     while (true) {
-      final attempt = _thinkingOffAttempts[_cacheKey] ?? 0;
-      final off =
-          config.thinkingEnabled || attempt >= _ThinkingOff.values.length
+      final key = _cacheKey;
+      final tried = _learned.of(key).thinkingOffTried;
+      final off = config.thinkingEnabled
           ? null
-          : _ThinkingOff.values[attempt];
+          : _ThinkingOff.values
+                .where((w) => !tried.contains(w.name))
+                .firstOrNull;
+      void offFailed() => _learned.update(
+        key,
+        (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
+      );
 
-      final body = jsonEncode({
+      final payload = {
         if (system.isNotEmpty)
           'systemInstruction': {
             'parts': [
@@ -168,7 +182,35 @@ class GoogleGenAiProvider implements AiProvider {
           if (off == _ThinkingOff.levelLow)
             'thinkingConfig': const {'thinkingLevel': 'low'},
         },
-      });
+      };
+      final body = jsonEncode(payload);
+      final started = DateTime.now();
+      void log({int? status, ChatResult? result, String? error}) =>
+          ApiLog.instance.record(
+            protocol: 'gemini',
+            model: config.model,
+            url: _generateUri(),
+            request: payload,
+            status: status,
+            response: result == null
+                ? null
+                : {
+                    'finish_reason': result.finishReason,
+                    'text': result.text,
+                    if (result.toolCalls.isNotEmpty)
+                      'tool_calls': [
+                        for (final call in result.toolCalls)
+                          {'name': call.name, 'arguments': call.arguments},
+                      ],
+                    if (result.reasoned) 'reasoned': true,
+                    'usage': {
+                      'prompt': result.promptTokens,
+                      'completion': result.completionTokens,
+                    },
+                  },
+            error: error,
+            elapsed: DateTime.now().difference(started),
+          );
 
       http.Response res;
       try {
@@ -180,39 +222,57 @@ class GoogleGenAiProvider implements AiProvider {
           retryTimeouts: false,
         );
       } on AiCancelled {
+        log(error: 'cancelled');
         rethrow;
       } on TimeoutException {
-        if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiNetworkException(
-          'No response from the server within ${timeout.inMinutes} min.',
-        );
+        if (cancelToken?.isCancelled ?? false) {
+          log(error: 'cancelled');
+          throw const AiCancelled();
+        }
+        final error =
+            'No response from the server within ${timeout.inMinutes} min.';
+        log(error: error);
+        throw AiNetworkException(error);
       } catch (e) {
         // Closing the client to cancel surfaces as a generic ClientException;
         // report it as a cancellation, not a network failure.
-        if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-        throw AiNetworkException(AiHttp.describeTransportError(e));
+        if (cancelToken?.isCancelled ?? false) {
+          log(error: 'cancelled');
+          throw const AiCancelled();
+        }
+        final error = AiHttp.describeTransportError(e);
+        log(error: error);
+        throw AiNetworkException(error);
       }
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
         final error = AiHttp.describeError(res);
+        log(status: res.statusCode, error: error);
         // This way of asking for no reasoning is not this model's; try the
         // next. Checked before throwing, exactly as the OpenAI provider does.
         if ((res.statusCode == 400 || res.statusCode == 422) &&
             off != null &&
             _namesThinking(error.toLowerCase())) {
-          _thinkingOffAttempts[_cacheKey] = attempt + 1;
+          offFailed();
           continue;
         }
         throw AiException(error);
       }
 
-      final result = _read(res);
+      final ChatResult result;
+      try {
+        result = _read(res);
+      } on Object catch (e) {
+        log(status: res.statusCode, error: AiHttp.describeFailure(e));
+        rethrow;
+      }
+      log(status: res.statusCode, result: result);
       if (off == null || !result.reasoned) return result;
       // Accepted and ignored — a relay that does not implement thinkingConfig
       // drops it silently. The next request tries the next way.
-      _thinkingOffAttempts[_cacheKey] = attempt + 1;
+      offFailed();
       return result.withThinkingOffPending(
-        attempt + 1 < _ThinkingOff.values.length,
+        _ThinkingOff.values.any((w) => w != off && !tried.contains(w.name)),
       );
     }
   }

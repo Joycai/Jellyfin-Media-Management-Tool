@@ -371,4 +371,9 @@ abstract class AiProvider {
 
   /// Which software serves the endpoint. Best-effort: never throws.
   Future<ServerKind> detectServerKind();
+
+  /// Drops what this provider learned about its route — refused fields, the
+  /// JSON mode, the way reasoning was turned off — so the next request finds
+  /// out again. The connection test calls it first.
+  void forgetLearned();
 }

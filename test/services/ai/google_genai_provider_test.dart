@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_http.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
 import 'package:jellyfin_media_management_tool/services/ai/google_genai_provider.dart';
 
@@ -309,6 +310,30 @@ void main() {
               ),
         ),
       );
+    });
+
+    test('the request log never holds the key', () async {
+      final dir = await Directory.systemTemp.createTemp('gemini_log');
+      addTearDown(() async {
+        ApiLog.instance
+          ..enabled = false
+          ..directory = null;
+        await dir.delete(recursive: true);
+      });
+      ApiLog.instance
+        ..directory = dir
+        ..enabled = true;
+
+      await GoogleGenAiProvider(
+        _config('logged-gemini'),
+        client: MockClient((_) async => _text('ok')),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      await ApiLog.instance.flush();
+
+      final text = await ApiLog.instance.currentFile!.readAsString();
+      expect(text, contains('"protocol":"gemini"'));
+      expect(text, isNot(contains('secret-key-value')));
+      expect(text, isNot(contains('key=')));
     });
 
     test('the key travels in a header, never in the URL', () async {

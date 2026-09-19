@@ -48,6 +48,9 @@ class ScriptedProvider implements AiProvider {
 
   @override
   Future<ServerKind> detectServerKind() async => ServerKind.unknown;
+
+  @override
+  void forgetLearned() {}
 }
 
 /// One scripted model turn: sees the history so far, returns the reply.
@@ -92,6 +95,9 @@ class ScriptedChatProvider implements AiProvider {
 
   @override
   Future<ServerKind> detectServerKind() async => ServerKind.unknown;
+
+  @override
+  void forgetLearned() {}
 }
 
 /// A turn that calls tools: `[('add', {'by': 2}), …]`, with ids `c0`, `c1`, …
@@ -141,4 +147,7 @@ class ThrowingChatProvider implements AiProvider {
 
   @override
   Future<ServerKind> detectServerKind() async => ServerKind.unknown;
+
+  @override
+  void forgetLearned() {}
 }

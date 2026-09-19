@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/ai/api_log.dart';
 import '../../services/history_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/thumbnails/thumbnail_service.dart';
@@ -20,8 +21,8 @@ import 'settings_controls.dart';
 /// 版式同画板 21：一张 2×2 的网格，两列共用行轨道，四张卡各占一格。
 ///
 /// 设计稿的缓存分了「元数据缓存 / 图片缓存 / 运行日志」三档，那是它设想的应用。
-/// 这里按**实际落在磁盘上的三样东西**分：缩略图、撤销备份、整理记忆 —— 一张列出
-/// 三个不存在目录的缓存表，比没有这张表更糟。
+/// 这里按**实际落在磁盘上的四样东西**分：缩略图、撤销备份、整理记忆、AI 请求日志
+/// —— 一张列出三个不存在目录的缓存表，比没有这张表更糟。
 ///
 /// 撤销备份那一行没有「清理」：它装的是撤销时用来还原被覆盖文件的真副本，删掉就
 /// 等于把还没过期的撤销记录变成空头支票。[HistoryService] 已经按 7 天自动清理，
@@ -65,9 +66,15 @@ class _PrivacySectionState extends State<PrivacySection> {
     await _measure();
   }
 
+  Future<void> _clearApiLog() async {
+    await ApiLog.instance.clear();
+    await _measure();
+  }
+
   Future<void> _clearAll() async {
     await _clearThumbnails();
     await _clearAgent();
+    await _clearApiLog();
   }
 
   @override
@@ -90,6 +97,7 @@ class _PrivacySectionState extends State<PrivacySection> {
             sizes: sizes,
             onClearThumbnails: _clearThumbnails,
             onClearAgent: _clearAgent,
+            onClearApiLog: _clearApiLog,
             onClearAll: sizes == null || sizes.clearable == 0
                 ? null
                 : _clearAll,
@@ -170,12 +178,14 @@ class _CachesCard extends StatelessWidget {
   final _CacheSizes? sizes;
   final VoidCallback onClearThumbnails;
   final VoidCallback onClearAgent;
+  final VoidCallback onClearApiLog;
   final VoidCallback? onClearAll;
 
   const _CachesCard({
     required this.sizes,
     required this.onClearThumbnails,
     required this.onClearAgent,
+    required this.onClearApiLog,
     required this.onClearAll,
   });
 
@@ -262,32 +272,51 @@ class _CachesCard extends StatelessWidget {
             ),
           ],
         ),
+        SettingsRow(
+          title: l10n.privacyCacheApiLog,
+          subtitle: l10n.privacyCacheApiLogHint,
+          subtitleMono: false,
+          trailing: [
+            value(sizes?.apiLog),
+            SettingsMiniButton(
+              l10n.privacyClear,
+              onPressed: (sizes?.apiLog ?? 0) == 0 ? null : onClearApiLog,
+            ),
+          ],
+        ),
       ],
     );
   }
 }
 
-/// 三处缓存的大小，一次量完。
+/// 四处缓存的大小，一次量完。
 class _CacheSizes {
   final int thumbnails;
   final int undoBlobs;
   final int agent;
+  final int apiLog;
 
   const _CacheSizes({
     required this.thumbnails,
     required this.undoBlobs,
     required this.agent,
+    required this.apiLog,
   });
 
-  int get total => thumbnails + undoBlobs + agent;
+  int get total => thumbnails + undoBlobs + agent + apiLog;
 
   /// 「全部清理」实际能回收的部分 —— 撤销备份不在其中。
-  int get clearable => thumbnails + agent;
+  int get clearable => thumbnails + agent + apiLog;
 
   static Future<Directory> _agentDir() async =>
       Directory(p.join((await getApplicationSupportDirectory()).path, 'agent'));
 
-  static const empty = _CacheSizes(thumbnails: 0, undoBlobs: 0, agent: 0);
+  static const empty = _CacheSizes(
+    thumbnails: 0,
+    undoBlobs: 0,
+    agent: 0,
+    apiLog: 0,
+  );
 
   /// 量不出来就报零，整页照常显示。这是三个诊断数字，不值得为它们让设置页出错
   /// —— 在没有 path_provider 的 widget 测试里，它本来就量不出来。
@@ -300,6 +329,7 @@ class _CacheSizes {
           Directory(p.join(support.path, 'undo', 'blobs')),
         ),
         agent: await _dirSize(Directory(p.join(support.path, 'agent'))),
+        apiLog: await _dirSize(Directory(p.join(support.path, 'logs'))),
       );
     } catch (_) {
       return empty;
@@ -330,7 +360,7 @@ class _CacheSizes {
   }
 }
 
-// ── 隐私开关（全部占位：本应用不收集任何遥测） ──────────────────────────────
+// ── 隐私开关（除 AI 请求日志外都是占位：本应用不收集任何遥测） ──────────────
 
 class _PrivacyToggles extends StatelessWidget {
   const _PrivacyToggles();
@@ -338,14 +368,19 @@ class _PrivacyToggles extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsService>();
     return SettingsRowsCard(
-      // 四个开关，是这一行里矮的那张卡。
+      // 四个开关，是这一行里矮的那张卡。卡头不再挂「即将推出」：AI 请求日志
+      // 这一行是真的，其余三行各自压暗，脚注说明它们暂无可关。
       spread: true,
-      header: SettingsCardHeader(
-        l10n.privacySection,
-        trailing: SettingsSoonTag(l10n.comingSoon),
-      ),
+      header: SettingsCardHeader(l10n.privacySection),
       children: [
+        SettingsToggleRow(
+          label: l10n.privacyLogAiBodies,
+          subtitle: l10n.privacyLogAiBodiesHint(ApiLog.retentionDays),
+          value: settings.apiLogEnabled,
+          onChanged: settings.setApiLogEnabled,
+        ),
         SettingsPlaceholder(
           child: SettingsToggleRow(
             label: l10n.privacyTelemetry,
@@ -357,13 +392,6 @@ class _PrivacyToggles extends StatelessWidget {
           child: SettingsToggleRow(
             label: l10n.privacyCrashReports,
             subtitle: l10n.privacyCrashReportsHint,
-            value: false,
-          ),
-        ),
-        SettingsPlaceholder(
-          child: SettingsToggleRow(
-            label: l10n.privacyLogAiBodies,
-            subtitle: l10n.privacyLogAiBodiesHint,
             value: false,
           ),
         ),

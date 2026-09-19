@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/openai_provider.dart';
 
 // Every test uses its own host: the provider remembers the JSON mode a server
@@ -864,6 +867,80 @@ void main() {
       expect(body.containsKey('thinking'), isFalse);
       expect(body.containsKey('enable_thinking'), isFalse);
     });
+  });
+
+  test(
+    'every request sent, refused ones included, goes to the API log',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('openai_log');
+      addTearDown(() async {
+        ApiLog.instance
+          ..enabled = false
+          ..directory = null;
+        await dir.delete(recursive: true);
+      });
+      ApiLog.instance
+        ..directory = dir
+        ..enabled = true;
+
+      final provider = OpenAiProvider(
+        _config('logged', apiKey: 'sk-never-logged'),
+        client: MockClient((request) async {
+          final body = _body(request);
+          return body.containsKey('stream_options')
+              ? http.Response(
+                  jsonEncode({
+                    'error': {'message': 'Unknown field: stream_options'},
+                  }),
+                  400,
+                )
+              : _reply('{"ok": true}');
+        }),
+      );
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      await ApiLog.instance.flush();
+
+      final text = await ApiLog.instance.currentFile!.readAsString();
+      final entries = [
+        for (final line in text.trim().split('\n'))
+          jsonDecode(line) as Map<String, dynamic>,
+      ];
+      expect(entries.map((e) => e['status']), [400, 200]);
+      expect(entries.first['error'], contains('stream_options'));
+      expect((entries.last['response'] as Map)['finish_reason'], 'stop');
+      expect(text, isNot(contains('sk-never-logged')));
+    },
+  );
+
+  test('what a route refused is remembered across providers', () async {
+    var sent = 0;
+    MockClient client() => MockClient((request) async {
+      sent++;
+      return _body(request).containsKey('stream_options')
+          ? http.Response(
+              jsonEncode({
+                'error': {'message': 'Unknown field: stream_options'},
+              }),
+              400,
+            )
+          : _reply('ok');
+    });
+    await OpenAiProvider(
+      _config('remembered'),
+      client: client(),
+    ).chat(messages: const [UserMessage('u')], tools: const []);
+    expect(sent, 2);
+
+    final second = OpenAiProvider(_config('remembered'), client: client());
+    await second.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(sent, 3);
+
+    // A connection test forgets it, so the next request finds out again.
+    second.forgetLearned();
+    expect(
+      LearnedStore.instance.entries.keys.where((k) => k.contains('remembered')),
+      isEmpty,
+    );
   });
 }
 
