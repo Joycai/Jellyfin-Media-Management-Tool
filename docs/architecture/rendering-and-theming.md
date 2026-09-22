@@ -45,7 +45,16 @@ And a style that names its own `fontFamily` must bring `AppTypeScale.monoFallbac
 
 Baking collapses three full-window blended draws into one textured quad: 24.2 ms → 0.52 ms. Three things hold it up:
 
-- **Bake at 1/4 resolution.** Gradients are smooth, so bilinear upscaling is invisible — verified by pixel-diffing the baked and live renders at native 4K: max delta **4/255**, no pixel above it, no banding. It costs 2 MB of texture instead of 33 MB.
+- **Count the downscale in device pixels: 2 per texel for the sharp image, 4 for the blurred ones.** What survives the stretch is not the gradient — that really is smooth — it is the **dither**. Skia and Impeller both add ±1/255 of per-pixel noise when rasterizing a gradient, precisely so that 8-bit quantisation leaves no contour on a layer this faint, and bilinear upscaling magnifies that noise into blobs the size of the stretch factor. Sizing the bake off *logical* pixels hid a factor of `devicePixelRatio` in it: 4 on a 1x display, **8 on Retina**, where the 1-px dither became 8-px blobs and the whole backdrop read as a dishcloth (the complaint, verbatim: 「有种抹布的感觉」). Measured on a 3024x1760 MacBook Pro frame, residual after removing the gradient's own trend, downsampled to the scale the eye integrates:
+
+  | device px per texel | residual RMS | lag-1 autocorrelation |
+  |---|---|---|
+  | 1 (drawn live — the target) | 0.16/255 | −0.06 (1-px dither, invisible) |
+  | **8 (the bug: logical / 4 on Retina)** | **0.31/255** | **+0.71 (~8-px blobs)** |
+  | 4 (device / 4) | 0.28/255 | +0.29 |
+  | **2 (now)** | **0.22/255** | **−0.12 (same class as live)** |
+
+  **The amplitude is not the signal — the correlation is**, which is why the original 1/4 bake passed its pixel-diff: max delta 3–4/255 at *every* downscale, because the error never exceeds one dither step. A max-delta or mean-delta check cannot see this artifact at all; the structure has to be measured. Blurring the dither out of the bake was tried and is worse — it converts the grain into single-LSB **contour bands**, which read as stripes. The only fix is not magnifying the dither past visibility. The blurred copies stay at 4 because a blur has no structure finer than its sigma and destroys the dither itself. Together ~6 MB of texture on that frame, against 33 MB for the live path, and the bake itself goes from 3.9 ms to 13.8 ms *in the software rasterizer* — once, behind the 120 ms debounce, off the frame.
 - **Bake to the window's aspect, not the display's.** `RadialGradient.radius` is a fraction of the *shortest side*, so a differently-shaped image stretched to fit turns the circles into ellipses. Re-baking is kept rare by quantising the bake size and debouncing 120 ms — which is also what stops the live-previewing accent picker from re-baking on every drag frame.
 - **`RepaintBoundary` cannot do this.** Flutter's raster cache has a size ceiling and refuses a full-window surface: measured 21.9 → 22.7 ms, i.e. nothing. The image has to be made by hand, and disposed when replaced.
 

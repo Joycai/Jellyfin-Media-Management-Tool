@@ -31,8 +31,10 @@ import '../../theme/design_tokens.dart';
 ///
 /// 烘焙之所以有效，是它把三次全窗口混合塌缩成一次贴图。三个必须知道的取舍：
 ///
-/// * **按 1/4 分辨率烘。** 渐变是平滑的，双线性放大反而把台阶插值掉了；显存
-///   从 33MB 降到 2MB，重烘也快 16 倍。
+/// * **降分辨率烘，但倍数按设备像素算。** 渐变是平滑的，双线性放大不会丢东西 ——
+///   会被放大的是渐变光栅化时加进去的**抖动噪声**，所以倍数不能随便给，见
+///   [_AppBackdropState._sharpDownscale]。清晰层 2 设备像素/纹素、模糊层 4，
+///   在 3024x1760 上是 6MB 出头，仍远小于实画那 33MB。
 /// * **必须按窗口尺寸烘，不能按屏幕尺寸烘一张通用的。**
 ///   [RadialGradient.radius] 是相对**短边**的，所以换一个宽高比，同一份配方画
 ///   出来的就不是同一个形状 —— 拿屏幕比例的图去拉伸填充窄窗口会把圆压成椭圆。
@@ -54,8 +56,9 @@ import '../../theme/design_tokens.dart';
 ///
 /// 三件让它成立的事：
 ///
-/// * **在 1/4 图上模糊，sigma 也要除以 [_downscale]。** 模糊本身就是低通，降
-///   采样带来的误差比清晰版还小。
+/// * **模糊层在它自己那张小图上模糊，sigma 也要跟着换算**
+///   （`_BakeRequest.blurScale`）。模糊本身就是低通，降采样带来的误差比清晰版
+///   还小 —— 也正因为如此，它可以比清晰层烘得更稀。
 /// * **`TileMode.clamp`。** 边缘要延展而不是渐隐到透明，否则窗口四边会出现一圈
 ///   暗边 —— 真 `BackdropFilter` 在屏幕边界上也是 clamp。
 /// * **这是一条结构约束，不是一个纯优化。** 它成立的前提是「面板背后只有这张
@@ -87,8 +90,33 @@ class _AppBackdropState extends State<AppBackdrop> {
   /// 拖过一条色相就是每帧一次 `toImage`。底色是很淡的一层，滞后 120ms 看不出来。
   static const _debounceDelay = Duration(milliseconds: 120);
 
-  /// 烘焙分辨率相对窗口的缩小倍数。
-  static const _downscale = 4;
+  /// 清晰层的烘焙分辨率：一个纹素铺 2 个**设备**像素。
+  ///
+  /// 「设备」这个词是这里唯一要紧的事。渐变光栅化时是**带抖动**的 —— 为了不让
+  /// 8bit 量化在这么淡的一层上留下色阶，Skia / Impeller 都会加一层 ±1 的逐像素
+  /// 噪声。在 1:1 的清晰图上那是 1 像素的噪声，看不见；可它会被放大倍数照样放
+  /// 大。这条从前按**逻辑**像素除 4，Retina（dpr 2）上就是除 8，于是 1 像素的
+  /// 抖动被双线性拉成 8 设备像素一块的色斑，整片背景看起来像一块抹布。
+  ///
+  /// 实测（MacBook Pro 3024x1760，把原图按人眼能分辨的尺度降采样后量化残差）：
+  ///
+  /// | 放大倍数（设备像素/纹素） | 残差 RMS | 相邻像素相关性 |
+  /// |---|---|---|
+  /// | 1（逐帧实画，理想） | 0.16/255 | −0.06（1px 抖动，看不见） |
+  /// | **8（从前：逻辑像素 / 4）** | **0.31/255** | **+0.71（约 8px 一块）** |
+  /// | 4（设备像素 / 4） | 0.28/255 | +0.29 |
+  /// | **2（现在）** | **0.22/255** | **−0.12（与实画同一档）** |
+  ///
+  /// 「先把抖动糊掉再放大」试过，不行：模糊会把逐像素噪声换成**等高线色带**，
+  /// 比色斑更明显。唯一的解法就是别把抖动放大到看得见。
+  static const _sharpDownscale = 2;
+
+  /// 模糊层的烘焙分辨率：一个纹素铺 4 个设备像素。
+  ///
+  /// 模糊之后图上本来就没有比 sigma 更细的结构，抖动也早被模糊本身抹平了，
+  /// 所以这一层不需要跟清晰层一样密 —— 它占三分之二的张数，按清晰层烘是白花
+  /// 四倍显存。
+  static const _blurDownscale = 4;
 
   /// 量化步长（烘焙图的像素）：窗口尺寸变化不足一格就复用上一张，拉伸几十个
   /// 像素在一层柔和的渐变上是看不见的。这是「别在拖动窗口边框时每帧重烘」的
@@ -109,9 +137,10 @@ class _AppBackdropState extends State<AppBackdrop> {
     }
   }
 
-  Size _bakeSizeFor(Size size) {
+  /// [size] 是逻辑像素，[downscale] 是「一个纹素铺几个设备像素」。
+  Size _bakeSizeFor(Size size, double dpr, int downscale) {
     int q(double v) {
-      final raw = (v / _downscale).ceil();
+      final raw = (v * dpr / downscale).ceil();
       return ((raw + _quantum - 1) ~/ _quantum * _quantum).clamp(1, 4096);
     }
 
@@ -125,9 +154,8 @@ class _AppBackdropState extends State<AppBackdrop> {
     _debounce = Timer(_debounceDelay, () => unawaited(_bake(request)));
   }
 
-  Future<void> _bake(_BakeRequest request) async {
-    final size = request.size;
-    final g = request.gradient;
+  /// 把两层径向渐变画进一张 [size] 像素的图。
+  Future<ui.Image> _gradientImage(RadialPairGradient g, Size size) async {
     final rect = Offset.zero & size;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -149,17 +177,29 @@ class _AppBackdropState extends State<AppBackdrop> {
     radial(g.secondCenter, 1.05, g.second);
 
     final picture = recorder.endRecording();
-    final ui.Image image;
     try {
-      image = await picture.toImage(size.width.round(), size.height.round());
+      return await picture.toImage(size.width.round(), size.height.round());
     } finally {
       picture.dispose();
     }
+  }
+
+  Future<void> _bake(_BakeRequest request) async {
+    final image = await _gradientImage(request.gradient, request.sharpSize);
 
     final blurred = <double, ui.Image>{};
     try {
-      for (final sigma in request.sigmas) {
-        blurred[sigma] = await _blurOf(image, sigma / _downscale);
+      if (request.sigmas.isNotEmpty) {
+        // 模糊层从一张**单独烘的小图**出发，而不是从清晰层降采样或原地模糊：
+        // 它只需要 [_blurDownscale] 那一档密度，见那条常量。
+        final source = await _gradientImage(request.gradient, request.blurSize);
+        try {
+          for (final sigma in request.sigmas) {
+            blurred[sigma] = await _blurOf(source, sigma * request.blurScale);
+          }
+        } finally {
+          source.dispose();
+        }
       }
     } catch (_) {
       // 一次失败就整批作废：拿一半的档位去配对会让某些面板悄悄换成另一种观感。
@@ -188,7 +228,7 @@ class _AppBackdropState extends State<AppBackdrop> {
     });
   }
 
-  /// 把烘好的背景再模糊一遍。[sigma] 已经换算到烘焙图的像素空间。
+  /// 把烘好的背景再模糊一遍。[sigma] 已经换算到模糊层的像素空间。
   Future<ui.Image> _blurOf(ui.Image source, double sigma) async {
     final recorder = ui.PictureRecorder();
     Canvas(recorder).drawImage(
@@ -237,11 +277,20 @@ class _AppBackdropState extends State<AppBackdrop> {
           }
         : const <double>{};
 
+    // 烘焙分辨率按设备像素算，不按逻辑像素 —— 见 [_sharpDownscale]。
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
         if (size.isFinite && !size.isEmpty) {
-          final request = _BakeRequest(_bakeSizeFor(size), g, sigmas);
+          final request = _BakeRequest(
+            _bakeSizeFor(size, dpr, _sharpDownscale),
+            _bakeSizeFor(size, dpr, _blurDownscale),
+            dpr / _blurDownscale,
+            g,
+            sigmas,
+          );
           if (_bakedFrom != request) {
             // build 里不能 setState，也不该起异步工作。
             WidgetsBinding.instance.addPostFrameCallback(
@@ -331,16 +380,34 @@ class BakedBackdropScope extends InheritedWidget {
 /// 一次烘焙的完整输入。相等 = 可以复用已经烘好的那批图。
 @immutable
 class _BakeRequest {
-  const _BakeRequest(this.size, this.gradient, this.sigmas);
+  const _BakeRequest(
+    this.sharpSize,
+    this.blurSize,
+    this.blurScale,
+    this.gradient,
+    this.sigmas,
+  );
 
-  final Size size;
+  /// 清晰层的烘焙尺寸（像素）。
+  final Size sharpSize;
+
+  /// 模糊层的烘焙尺寸（像素）。
+  final Size blurSize;
+
+  /// 逻辑像素 → [blurSize] 像素的比例，用来把 sigma 换算过去。直接写成
+  /// `dpr / _blurDownscale` 而不是从两个尺寸相除：后者会跟着量化步长抖，
+  /// 窗口拖大一格就换一个 sigma，白白重烘。
+  final double blurScale;
+
   final RadialPairGradient gradient;
   final Set<double> sigmas;
 
   @override
   bool operator ==(Object other) =>
       other is _BakeRequest &&
-      other.size == size &&
+      other.sharpSize == sharpSize &&
+      other.blurSize == blurSize &&
+      other.blurScale == blurScale &&
       setEquals(other.sigmas, sigmas) &&
       other.gradient.base == gradient.base &&
       other.gradient.first == gradient.first &&
@@ -350,7 +417,9 @@ class _BakeRequest {
 
   @override
   int get hashCode => Object.hash(
-    size,
+    sharpSize,
+    blurSize,
+    blurScale,
     Object.hashAllUnordered(sigmas),
     gradient.base,
     gradient.first,
