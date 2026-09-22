@@ -35,11 +35,12 @@ import '../../theme/design_tokens.dart';
 ///   会被放大的是渐变光栅化时加进去的**抖动噪声**，所以倍数不能随便给，见
 ///   [_AppBackdropState._sharpDownscale]。清晰层 2 设备像素/纹素、模糊层 4：
 ///   3024x1760 上 8.3MB（清晰 1536x896 + 两张模糊 768x448），4K 最大化 12.5MB。
-///   比从前那版 1/4 逻辑像素（1MB 上下）贵，但仍远小于实画那 33MB。
+///   比从前那版 1/4 逻辑像素（同一块屏上 1.0MB）贵，但仍远小于 1:1 烘一张
+///   要的 33MB —— 实画那条路不占纹理，它花的是每帧 ~33ms。
 /// * **必须按窗口尺寸烘，不能按屏幕尺寸烘一张通用的。**
 ///   [RadialGradient.radius] 是相对**短边**的，所以换一个宽高比，同一份配方画
 ///   出来的就不是同一个形状 —— 拿屏幕比例的图去拉伸填充窄窗口会把圆压成椭圆。
-///   代价用「尺寸量化到 64px + 去抖」抵消，见 [_bakeSizeFor]。
+///   代价用「逻辑尺寸量化到 64px + 去抖」抵消，见 [_AppBackdropState._snapLogical]。
 /// * **`RepaintBoundary` 救不了这个。** 光栅缓存有尺寸上限，全窗口的表面远超
 ///   它 —— 实测包一层 21.9ms → 22.7ms，等于没有。所以只能自己烘。
 ///
@@ -65,7 +66,7 @@ import '../../theme/design_tokens.dart';
 /// * **这是一条结构约束，不是一个纯优化。** 它成立的前提是「面板背后只有这张
 ///   图」。哪天谁在某块面板背后放了动态内容，模糊里就不会有它。嵌套的玻璃面由
 ///   [BakedBackdropScope] 自动挡掉（见 [GlassSurface]），但同层的新东西挡不住 ——
-///   `test/widgets/baked_glass_test.dart` 钉的就是这条。
+///   `test/widgets/ui/baked_glass_test.dart` 钉的就是这条。
 class AppBackdrop extends StatefulWidget {
   const AppBackdrop({super.key, required this.child});
 
@@ -124,9 +125,16 @@ class _AppBackdropState extends State<AppBackdrop> {
   /// 实现方式。
   ///
   /// 记在逻辑像素上，而不是烘焙纹素上：它要买的是「窗口得变多大才值得重烘」，
-  /// 那个量跟屏幕缩放、跟降采样倍数都无关。按纹素记的话同一个数字在每一档都
-  /// 是另一个意思 —— dpr 2 的清晰层上只剩 16 逻辑像素的余量，dpr 1 的模糊层
-  /// 上却有 64，于是拖窗口边框时清晰层重烘的次数是模糊层的四倍。
+  /// 那个量跟屏幕缩放、跟降采样倍数都无关。按纹素记的话，同一个数字换算回窗口
+  /// 尺寸是 `Q * downscale / dpr` —— 每一档、每一种缩放都是另一个意思：
+  ///
+  /// * 相对从前那版（逻辑像素 / 4，固定 64 逻辑像素），dpr 2 的清晰层只剩
+  ///   16 逻辑像素，**重烘频率是原来的四倍**；
+  /// * 相对同一块屏上的模糊层，清晰层永远是它的**两倍**（比值就是
+  ///   `_blurDownscale / _sharpDownscale`，与 dpr 无关）—— 两层本该同时重烘。
+  ///
+  /// 先对齐逻辑尺寸、再换算成纹素，这两件事就都没有了：[_snapLogical] 的结果
+  /// 两层共用，所以模糊层的边长恰好是清晰层的一半。
   static const _quantum = 64;
 
   /// 单边纹理上限。超过就**两边一起缩**：只截一边会改掉图的宽高比，而径向渐变
@@ -149,15 +157,17 @@ class _AppBackdropState extends State<AppBackdrop> {
     }
   }
 
-  /// [size] 是逻辑像素，[downscale] 是「一个纹素铺几个设备像素」。
-  Size _bakeSizeFor(Size size, double dpr, int downscale) {
-    // 先把逻辑尺寸对齐到量化格，再换算成纹素 —— 反过来做，量化格的含义就会
-    // 跟着 dpr 和 downscale 变，见 [_quantum]。
-    double texels(double logical) =>
-        (logical / _quantum).ceil() * _quantum * dpr / downscale;
+  /// 把逻辑尺寸对齐到量化格。**两层烘焙共用这一个结果**，见 [_quantum]。
+  Size _snapLogical(Size size) => Size(
+    (size.width / _quantum).ceil() * _quantum.toDouble(),
+    (size.height / _quantum).ceil() * _quantum.toDouble(),
+  );
 
-    var w = texels(size.width);
-    var h = texels(size.height);
+  /// [snapped] 是已经对齐过的逻辑尺寸，[downscale] 是「一个纹素铺几个设备
+  /// 像素」。
+  Size _bakeSizeFor(Size snapped, double dpr, int downscale) {
+    var w = snapped.width * dpr / downscale;
+    var h = snapped.height * dpr / downscale;
     final side = w > h ? w : h;
     if (side > _maxBakeSide) {
       final k = _maxBakeSide / side;
@@ -227,6 +237,11 @@ class _AppBackdropState extends State<AppBackdrop> {
         partial.dispose();
       }
       image.dispose();
+      // 把这一档从 `_pending` 上放开，否则它就永远卡在这儿了：`_bakedFrom` 没
+      // 动，每次 build 都还会请求同一份，而 `_requestBake` 看见 `_pending`
+      // 相等就直接 return —— 于是一次失败（比如显存不够）之后，窗口底会一直
+      // 停在纯底色上，直到窗口尺寸或主题变了才有机会重来。
+      if (_pending == request) _pending = null;
       rethrow;
     }
 
@@ -304,10 +319,12 @@ class _AppBackdropState extends State<AppBackdrop> {
       builder: (context, constraints) {
         final size = constraints.biggest;
         if (size.isFinite && !size.isEmpty) {
+          final snapped = _snapLogical(size);
+          final blurSize = _bakeSizeFor(snapped, dpr, _blurDownscale);
           final request = _BakeRequest(
-            _bakeSizeFor(size, dpr, _sharpDownscale),
-            _bakeSizeFor(size, dpr, _blurDownscale),
-            dpr / _blurDownscale,
+            _bakeSizeFor(snapped, dpr, _sharpDownscale),
+            blurSize,
+            blurSize.width / snapped.width,
             g,
             sigmas,
           );
@@ -414,9 +431,15 @@ class _BakeRequest {
   /// 模糊层的烘焙尺寸（像素）。
   final Size blurSize;
 
-  /// 逻辑像素 → [blurSize] 像素的比例，用来把 sigma 换算过去。直接写成
-  /// `dpr / _blurDownscale` 而不是从两个尺寸相除：后者会跟着量化步长抖，
-  /// 窗口拖大一格就换一个 sigma，白白重烘。
+  /// 逻辑像素 → [blurSize] 像素的比例，用来把 sigma 换算过去。
+  ///
+  /// 从**对齐后**的逻辑尺寸相除得来，不是写死的 `dpr / _blurDownscale`：一来
+  /// 它得跟着 [_AppBackdropState._maxBakeSide] 的缩放走（写死的话，模糊层一旦
+  /// 触到纹理上限，sigma 就配不上那张图的实际比例，模糊会过头），二来对齐后的
+  /// 尺寸一格之内不变，所以拖窗口不会每个像素换一个 sigma。
+  ///
+  /// 剩下的误差只有「对齐格把图撑大、再由 `BoxFit.fill` 压回窗口」那一下，
+  /// 和清晰层挨的是同一份，最小窗口上不到 6%，常见尺寸上 1.5% 上下。
   final double blurScale;
 
   final RadialPairGradient gradient;
