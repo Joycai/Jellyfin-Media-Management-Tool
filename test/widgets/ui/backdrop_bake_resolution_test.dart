@@ -91,16 +91,20 @@ void main() {
     // different amount of window movement per layer and per display scale. Two
     // consequences, one per half of this test.
     //
-    // Note dpr 1 rather than 2: at dpr 2 the sharp layer's device-per-texel is
-    // exactly 1, so both quantisation orders agree on its size and the sharp
-    // image alone proves nothing.
+    // Note dpr 1 rather than 2. Device pixels per texel is 2 at every dpr, by
+    // construction; what happens at dpr 2 is that *logical* pixels per texel
+    // comes to 1, so both quantisation orders agree on the sharp size and the
+    // sharp image alone proves nothing.
     await pumpShell(tester, const Size(800, 600), 1);
     final first = sharp(tester);
     await pumpShell(tester, const Size(830, 600), 1);
     expect(
       identical(first, sharp(tester)),
       isTrue,
-      reason: '800 and 830 both snap to 832 logical px — no re-bake',
+      reason:
+          '800 and 830 both snap to 832 logical px, so neither the sizes nor '
+          'blurScale (derived from the snapped size, not the raw one) change '
+          '— no re-bake',
     );
 
     await pumpShell(tester, const Size(900, 600), 1);
