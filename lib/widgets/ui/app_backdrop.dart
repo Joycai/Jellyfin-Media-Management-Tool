@@ -31,12 +31,17 @@ import '../../theme/design_tokens.dart';
 ///
 /// 烘焙之所以有效，是它把三次全窗口混合塌缩成一次贴图。三个必须知道的取舍：
 ///
-/// * **按 1/4 分辨率烘。** 渐变是平滑的，双线性放大反而把台阶插值掉了；显存
-///   从 33MB 降到 2MB，重烘也快 16 倍。
+/// * **降分辨率烘，但倍数按设备像素算。** 渐变是平滑的，双线性放大不会丢东西 ——
+///   会被放大的是渐变光栅化时加进去的**抖动噪声**，所以倍数不能随便给，见
+///   [_AppBackdropState._sharpDownscale]。清晰层 2 设备像素/纹素、模糊层 4：
+///   3024x1760 上 8.3MB（清晰 1536x896 + 两张模糊 768x448），4K 最大化 12.5MB。
+///   比从前那版 1/4 逻辑像素（同一块屏上三张共 1.0MB）贵。作参照：同一块 4K
+///   上 1:1 烘**一张**就要 31.7MB，而实画那条路一张纹理都不占 —— 它花的是每帧
+///   ~33ms，那个 33 和这里的 MB 数没有关系。
 /// * **必须按窗口尺寸烘，不能按屏幕尺寸烘一张通用的。**
 ///   [RadialGradient.radius] 是相对**短边**的，所以换一个宽高比，同一份配方画
 ///   出来的就不是同一个形状 —— 拿屏幕比例的图去拉伸填充窄窗口会把圆压成椭圆。
-///   代价用「尺寸量化到 64px + 去抖」抵消，见 [_bakeSizeFor]。
+///   代价用「逻辑尺寸量化到 64px + 去抖」抵消，见 [_AppBackdropState._snapLogical]。
 /// * **`RepaintBoundary` 救不了这个。** 光栅缓存有尺寸上限，全窗口的表面远超
 ///   它 —— 实测包一层 21.9ms → 22.7ms，等于没有。所以只能自己烘。
 ///
@@ -54,14 +59,15 @@ import '../../theme/design_tokens.dart';
 ///
 /// 三件让它成立的事：
 ///
-/// * **在 1/4 图上模糊，sigma 也要除以 [_downscale]。** 模糊本身就是低通，降
-///   采样带来的误差比清晰版还小。
+/// * **模糊层在它自己那张小图上模糊，sigma 也要跟着换算**
+///   （`_BakeRequest.blurScale`）。模糊本身就是低通，降采样带来的误差比清晰版
+///   还小 —— 也正因为如此，它可以比清晰层烘得更稀。
 /// * **`TileMode.clamp`。** 边缘要延展而不是渐隐到透明，否则窗口四边会出现一圈
 ///   暗边 —— 真 `BackdropFilter` 在屏幕边界上也是 clamp。
 /// * **这是一条结构约束，不是一个纯优化。** 它成立的前提是「面板背后只有这张
 ///   图」。哪天谁在某块面板背后放了动态内容，模糊里就不会有它。嵌套的玻璃面由
 ///   [BakedBackdropScope] 自动挡掉（见 [GlassSurface]），但同层的新东西挡不住 ——
-///   `test/widgets/baked_glass_test.dart` 钉的就是这条。
+///   `test/widgets/ui/baked_glass_test.dart` 钉的就是这条。
 class AppBackdrop extends StatefulWidget {
   const AppBackdrop({super.key, required this.child});
 
@@ -79,6 +85,10 @@ class _AppBackdropState extends State<AppBackdrop> {
   _BakeRequest? _pending;
   Timer? _debounce;
 
+  /// 每请求一次烘焙 +1。失败时用它判断「这次飞行还是不是最新的那次」，见
+  /// [_bake] 的 catch。
+  int _generation = 0;
+
   /// 标记「这张图铺到哪块矩形上」，供 [GlassSurface] 把自己的位置换算成图上的
   /// 采样区。用 [GlobalKey] 而不是假设背景就在窗口原点：整页路由各有各的一层。
   final _area = GlobalKey();
@@ -87,13 +97,67 @@ class _AppBackdropState extends State<AppBackdrop> {
   /// 拖过一条色相就是每帧一次 `toImage`。底色是很淡的一层，滞后 120ms 看不出来。
   static const _debounceDelay = Duration(milliseconds: 120);
 
-  /// 烘焙分辨率相对窗口的缩小倍数。
-  static const _downscale = 4;
+  /// 清晰层的烘焙分辨率：一个纹素铺 2 个**设备**像素。
+  ///
+  /// 「设备」这个词是这里唯一要紧的事。渐变光栅化时是**带抖动**的 —— 为了不让
+  /// 8bit 量化在这么淡的一层上留下色阶，Skia / Impeller 都会加一层 ±1 的逐像素
+  /// 噪声。在 1:1 的清晰图上那是 1 像素的噪声，看不见；可它会被放大倍数照样放
+  /// 大。这条从前按**逻辑**像素除 4，Retina（dpr 2）上就是除 8，于是 1 像素的
+  /// 抖动被双线性拉成 8 设备像素一块的色斑，整片背景看起来像一块抹布。
+  ///
+  /// 实测（MacBook Pro 3024x1760，把原图按人眼能分辨的尺度降采样后量化残差）：
+  ///
+  /// | 放大倍数（设备像素/纹素） | 残差 RMS | 相邻像素相关性 |
+  /// |---|---|---|
+  /// | 1（逐帧实画，理想） | 0.16/255 | −0.06（1px 抖动，看不见） |
+  /// | **8（从前：逻辑像素 / 4）** | **0.31/255** | **+0.71（约 8px 一块）** |
+  /// | 4（设备像素 / 4） | 0.28/255 | +0.29 |
+  /// | **2（现在）** | **0.22/255** | **−0.12（与实画同一档）** |
+  ///
+  /// 「先把抖动糊掉再放大」试过，不行：模糊会把逐像素噪声换成**等高线色带**，
+  /// 比色斑更明显。唯一的解法就是别把抖动放大到看得见。
+  static const _sharpDownscale = 2;
 
-  /// 量化步长（烘焙图的像素）：窗口尺寸变化不足一格就复用上一张，拉伸几十个
+  /// 模糊层的烘焙分辨率：一个纹素铺 4 个设备像素。
+  ///
+  /// 模糊之后图上本来就没有比 sigma 更细的结构，抖动也早被模糊本身抹平了，
+  /// 所以这一层不需要跟清晰层一样密 —— 它占三分之二的张数，按清晰层烘是白花
+  /// 四倍显存。
+  static const _blurDownscale = 4;
+
+  /// 模糊层比清晰层稀几倍。[_blurSizeFor] 直接按它折半，所以两层的比例是**由
+  /// 构造保证**的，不是两条算式碰巧算出同一个数 —— 纹理上限把清晰层缩回去的
+  /// 时候也一样成立。
+  static const _layerRatio = _blurDownscale ~/ _sharpDownscale;
+
+  /// 量化步长（**逻辑**像素）：窗口尺寸变化不足一格就复用上一张，拉伸几十个
   /// 像素在一层柔和的渐变上是看不见的。这是「别在拖动窗口边框时每帧重烘」的
   /// 实现方式。
-  static const _quantum = 16;
+  ///
+  /// 记在逻辑像素上，而不是烘焙纹素上：它要买的是「窗口得变多大才值得重烘」，
+  /// 那个量跟屏幕缩放、跟降采样倍数都无关。按纹素记的话，同一个 `Q` 换算回窗口
+  /// 尺寸是 `Q * downscale / dpr`，每一层、每一种缩放都是另一个意思。拿从前那版
+  /// 的 `Q = 16`（它正是按纹素记的）算：
+  ///
+  /// * 旧方案只有一层、固定 64 逻辑像素。改成按设备像素分档之后，dpr 2 的清晰层
+  ///   只剩 16 逻辑像素，**重烘频率是旧方案的四倍**；
+  /// * 同一块屏上，清晰层又会是模糊层的 [_layerRatio] 倍 —— 这个比值跟 `Q`、跟
+  ///   dpr 都无关，而两层本该同时重烘。
+  ///
+  /// 先对齐逻辑尺寸、再换算成纹素，这两件事就都没有了：[_snapLogical] 的结果
+  /// 两层共用。挑 64 是因为它在 dpr 2 的清晰层上正好折成 64 个**纹素**，
+  /// 跟旧方案那 64 逻辑像素是同一个手感。（逻辑格换算回窗口尺寸当然永远是
+  /// 它自己 —— 会随 dpr 变的是它值多少纹素。）
+  static const _quantum = 64;
+
+  /// 单边纹理上限。超过就**两边一起缩**：只截一边会改掉图的宽高比，而径向渐变
+  /// 的半径是按短边算的，圆会被拉成椭圆 —— 就是类文档第二条说的那件事。
+  ///
+  /// 缩放只在 [_sharpSizeFor] 里做一次，模糊层跟着 [_blurSizeFor] 折半，所以
+  /// 上限生效时两层的比例照旧。清晰层是 2 设备像素/纹素，所以窗口宽到 8200
+  /// 设备像素上下才够得着（跨双 5K 拼接；确切阈值随 dpr 和量化格略有出入，
+  /// dpr 3 上是 8067），但够得着就得是对的。
+  static const _maxBakeSide = 4096.0;
 
   @override
   void dispose() {
@@ -109,25 +173,52 @@ class _AppBackdropState extends State<AppBackdrop> {
     }
   }
 
-  Size _bakeSizeFor(Size size) {
-    int q(double v) {
-      final raw = (v / _downscale).ceil();
-      return ((raw + _quantum - 1) ~/ _quantum * _quantum).clamp(1, 4096);
-    }
+  /// 把逻辑尺寸对齐到量化格。**两层烘焙共用这一个结果**，见 [_quantum]。
+  Size _snapLogical(Size size) => Size(
+    (size.width / _quantum).ceil() * _quantum.toDouble(),
+    (size.height / _quantum).ceil() * _quantum.toDouble(),
+  );
 
-    return Size(q(size.width).toDouble(), q(size.height).toDouble());
+  /// 清晰层的烘焙尺寸。[snapped] 是已经对齐过的逻辑尺寸。
+  ///
+  /// 纹理上限**只在这里**收一次：清晰层是最密的一层，它先触顶，模糊层跟着
+  /// [_blurSizeFor] 折半，两层的比例就不会因为上限而走样。边长取到
+  /// [_layerRatio] 的整数倍，折半才不会掉小数。
+  Size _sharpSizeFor(Size snapped, double dpr) {
+    var w = snapped.width * dpr / _sharpDownscale;
+    var h = snapped.height * dpr / _sharpDownscale;
+    final side = w > h ? w : h;
+    if (side > _maxBakeSide) {
+      final k = _maxBakeSide / side;
+      w *= k;
+      h *= k;
+    }
+    return Size(_alignLayers(w), _alignLayers(h));
+  }
+
+  /// 模糊层的烘焙尺寸：清晰层折半，见 [_layerRatio]。
+  Size _blurSizeFor(Size sharp) =>
+      Size(sharp.width / _layerRatio, sharp.height / _layerRatio);
+
+  static double _alignLayers(double texels) {
+    final t = texels.ceil();
+    final aligned = (t + _layerRatio - 1) ~/ _layerRatio * _layerRatio;
+    return (aligned < _layerRatio ? _layerRatio : aligned).toDouble();
   }
 
   void _requestBake(_BakeRequest request) {
     if (_pending == request) return;
     _pending = request;
+    final generation = ++_generation;
     _debounce?.cancel();
-    _debounce = Timer(_debounceDelay, () => unawaited(_bake(request)));
+    _debounce = Timer(
+      _debounceDelay,
+      () => unawaited(_bake(request, generation)),
+    );
   }
 
-  Future<void> _bake(_BakeRequest request) async {
-    final size = request.size;
-    final g = request.gradient;
+  /// 把两层径向渐变画进一张 [size] 像素的图。
+  Future<ui.Image> _gradientImage(RadialPairGradient g, Size size) async {
     final rect = Offset.zero & size;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -149,24 +240,53 @@ class _AppBackdropState extends State<AppBackdrop> {
     radial(g.secondCenter, 1.05, g.second);
 
     final picture = recorder.endRecording();
-    final ui.Image image;
     try {
-      image = await picture.toImage(size.width.round(), size.height.round());
+      return await picture.toImage(size.width.round(), size.height.round());
     } finally {
       picture.dispose();
     }
+  }
 
+  Future<void> _bake(_BakeRequest request, int generation) async {
+    // 清晰层这次分配也要在 try 里面 —— 它是三张里最大的一张，最可能失败的就是
+    // 它，而且 `sigmas` 为空（玻璃强度 0 或关掉预烘）时 try 体本来就只剩它。
+    ui.Image? image;
     final blurred = <double, ui.Image>{};
     try {
-      for (final sigma in request.sigmas) {
-        blurred[sigma] = await _blurOf(image, sigma / _downscale);
+      image = await _gradientImage(request.gradient, request.sharpSize);
+      if (request.sigmas.isNotEmpty) {
+        // 模糊层从一张**单独烘的小图**出发，而不是从清晰层降采样或原地模糊：
+        // 它只需要 [_blurDownscale] 那一档密度，见那条常量。
+        final source = await _gradientImage(request.gradient, request.blurSize);
+        try {
+          for (final sigma in request.sigmas) {
+            blurred[sigma] = await _blurOf(source, sigma * request.blurScale);
+          }
+        } finally {
+          source.dispose();
+        }
       }
     } catch (_) {
       // 一次失败就整批作废：拿一半的档位去配对会让某些面板悄悄换成另一种观感。
       for (final partial in blurred.values) {
         partial.dispose();
       }
-      image.dispose();
+      image?.dispose();
+      // 把这一档从 `_pending` 上放开，否则它就永远卡在这儿了：`_bakedFrom` 没
+      // 动，每次 build 都还会请求同一份，而 `_requestBake` 看见 `_pending`
+      // 相等就直接 return —— 于是一次失败（比如显存不够）之后，这一档就再也
+      // 烘不出来了，直到窗口尺寸或主题变了才有机会重来。（画面上是什么样取决于
+      // 之前烘成过没有：第一次就失败是停在纯底色上，之前成功过则是把上一张继续
+      // 拉伸到新尺寸用。）
+      //
+      // 按 [_generation] 而不是按 request 判断：同一份请求可能有两次烘焙在飞
+      // （拖窗口跨出一格又跨回来），失败的那次不该把另一次**可能成功**的结果
+      // 一起作废掉。
+      //
+      // 注意这只是解开闩，它**不安排重建** —— 真正的重来要等下一次 build。
+      // 窗口彻底静止时就等于没有重来，画面停在上面说的那两种之一。这是有意的：
+      // 在这里 `setState` 会把一次确定性失败变成每 120ms 一轮的重试风暴。
+      if (_generation == generation) _pending = null;
       rethrow;
     }
 
@@ -188,7 +308,7 @@ class _AppBackdropState extends State<AppBackdrop> {
     });
   }
 
-  /// 把烘好的背景再模糊一遍。[sigma] 已经换算到烘焙图的像素空间。
+  /// 把烘好的背景再模糊一遍。[sigma] 已经换算到模糊层的像素空间。
   Future<ui.Image> _blurOf(ui.Image source, double sigma) async {
     final recorder = ui.PictureRecorder();
     Canvas(recorder).drawImage(
@@ -237,11 +357,23 @@ class _AppBackdropState extends State<AppBackdrop> {
           }
         : const <double>{};
 
+    // 烘焙分辨率按设备像素算，不按逻辑像素 —— 见 [_sharpDownscale]。
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
         if (size.isFinite && !size.isEmpty) {
-          final request = _BakeRequest(_bakeSizeFor(size), g, sigmas);
+          final snapped = _snapLogical(size);
+          final sharpSize = _sharpSizeFor(snapped, dpr);
+          final blurSize = _blurSizeFor(sharpSize);
+          final request = _BakeRequest(
+            sharpSize,
+            blurSize,
+            blurSize.width / snapped.width,
+            g,
+            sigmas,
+          );
           if (_bakedFrom != request) {
             // build 里不能 setState，也不该起异步工作。
             WidgetsBinding.instance.addPostFrameCallback(
@@ -261,8 +393,8 @@ class _AppBackdropState extends State<AppBackdrop> {
               if (image == null)
                 ColoredBox(color: g.base)
               else
-                // filterQuality 必须给到 low 以上：默认 none 是最近邻，1/4 图放大
-                // 会直接暴露成色块。
+                // filterQuality 必须给到 low 以上：默认 none 是最近邻，降分辨率
+                // 烘的图放大会直接暴露成色块。
                 RawImage(
                   image: image,
                   fit: BoxFit.fill,
@@ -331,16 +463,48 @@ class BakedBackdropScope extends InheritedWidget {
 /// 一次烘焙的完整输入。相等 = 可以复用已经烘好的那批图。
 @immutable
 class _BakeRequest {
-  const _BakeRequest(this.size, this.gradient, this.sigmas);
+  const _BakeRequest(
+    this.sharpSize,
+    this.blurSize,
+    this.blurScale,
+    this.gradient,
+    this.sigmas,
+  );
 
-  final Size size;
+  /// 清晰层的烘焙尺寸（像素）。
+  final Size sharpSize;
+
+  /// 模糊层的烘焙尺寸（像素）。
+  final Size blurSize;
+
+  /// 逻辑像素 → [blurSize] 像素的比例，用来把 sigma 换算过去。
+  ///
+  /// 从**对齐后**的逻辑尺寸相除得来，不是写死的 `dpr / _blurDownscale`：一来
+  /// 它得跟着 [_AppBackdropState._maxBakeSide] 的缩放走 —— 触到上限的是清晰层
+  /// （模糊层只有它的一半，够不着），而模糊层是从收完的清晰层折半来的，跟着
+  /// 一起小了；sigma 要是写死成 `dpr / _blurDownscale`，就配不上那张图的实际
+  /// 比例，模糊会过头。二来对齐后的尺寸一格之内不变，所以拖窗口不会每个像素
+  /// 换一个 sigma。
+  ///
+  /// 剩下的误差是对齐格：sigma 按对齐后的尺寸折算，而 `_RenderBakedBlur` 是按
+  /// **真实**窗口尺寸、**分轴**取采样区的，所以模糊比 sigma 的名义值略弱，两轴
+  /// 还弱得不一样多。误差就是「窗口离上一条格线有多远」，平均半格：正好压在
+  /// 格上是 0%（最小宽度 1024 就是），刚过一格最坏 —— 宽 5.8%（1025 → 1088）、
+  /// 高 8.2%（705 → 768，最小高度是 700）。高度那一轴平均更差，因为它数值更
+  /// 小而格子一样宽：900 → 960 是 6.3%，1032 → 1088 是 5.1%，而常见宽度
+  /// （1500～1900）在 2% 上下。一层毛玻璃上看不出这点差别；改成按真实尺寸
+  /// 折算倒是真会出事，那样拖窗口每个像素换一个 sigma，量化格就白设了。
+  final double blurScale;
+
   final RadialPairGradient gradient;
   final Set<double> sigmas;
 
   @override
   bool operator ==(Object other) =>
       other is _BakeRequest &&
-      other.size == size &&
+      other.sharpSize == sharpSize &&
+      other.blurSize == blurSize &&
+      other.blurScale == blurScale &&
       setEquals(other.sigmas, sigmas) &&
       other.gradient.base == gradient.base &&
       other.gradient.first == gradient.first &&
@@ -350,7 +514,9 @@ class _BakeRequest {
 
   @override
   int get hashCode => Object.hash(
-    size,
+    sharpSize,
+    blurSize,
+    blurScale,
     Object.hashAllUnordered(sigmas),
     gradient.base,
     gradient.first,
