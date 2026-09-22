@@ -16,23 +16,19 @@ import 'package:jellyfin_media_management_tool/widgets/ui/app_backdrop.dart';
 /// display: 4 on a 1x screen and 8 on a Retina one, where 1px of dither became
 /// an 8px blob and the backdrop read as a dishcloth. So the downscale is in
 /// device pixels — and the two things that arithmetic then has to keep straight
-/// are the re-bake quantum and the texture ceiling, one test each below.
+/// are the re-bake quantum and the texture ceiling, one test each below, plus
+/// the half-ratio between the two layers, which both of them check.
 void main() {
   late ThemeData theme;
 
   /// Pumps the shell at [logical] logical pixels on a [dpr] display and settles
   /// the bake.
-  Future<void> pumpShell(
-    WidgetTester tester,
-    Size logical,
-    double dpr, {
-    bool bakedGlass = true,
-  }) async {
+  Future<void> pumpShell(WidgetTester tester, Size logical, double dpr) async {
     tester.view.devicePixelRatio = dpr;
     tester.view.physicalSize = logical * dpr;
     addTearDown(tester.view.reset);
 
-    theme = AppTheme.dark(bakedGlass: bakedGlass);
+    theme = AppTheme.dark();
     await tester.pumpWidget(
       MaterialApp(
         theme: theme,
@@ -110,11 +106,11 @@ void main() {
     await pumpShell(tester, const Size(900, 600), 1);
     expect(sharp(tester).width, 480, reason: '960 logical px / 2 device px');
 
-    // And the layers stay locked to each other: they snap once, together, so
-    // the blurred copy is exactly half the sharp one on both axes at every
-    // size. Quantise per layer in texel space and they drift — 1026 logical px
-    // at dpr 2 lands on 1040/528, a ratio of 1.97, and the two start re-baking
-    // at different moments.
+    // And the layers stay locked to each other: they snap once, together, and
+    // the blurred size is the sharp one halved, so the ratio is exactly 2 on
+    // both axes at every size. Quantise per layer in texel space and they
+    // drift — 1026 logical px at dpr 2 lands on 1088/576, a ratio of 1.89, and
+    // the two start re-baking at different moments.
     for (final (logical, dpr) in [
       (const Size(1026, 700), 2.0),
       (const Size(900, 650), 1.0),
@@ -133,14 +129,7 @@ void main() {
     // Clamping the long axis alone would leave the image a different shape from
     // the window, and `RadialGradient.radius` is a fraction of the short side,
     // so `BoxFit.fill` would draw the circles as ellipses.
-    await pumpShell(
-      tester,
-      const Size(5120, 1440),
-      2,
-      // Blurring a texture this size in the software rasterizer is pure test
-      // latency; the ceiling is a property of the sharp layer.
-      bakedGlass: false,
-    );
+    await pumpShell(tester, const Size(5120, 1440), 2);
     final image = sharp(tester);
     expect(image.width, 4096);
     expect(
@@ -148,5 +137,14 @@ void main() {
       closeTo(5120 / 1472, 0.01), // 1440 snaps up one quantum to 1472
       reason: 'the clamp must preserve the baked aspect',
     );
+
+    // The clamp runs once, on the sharp layer, and the blurred copy is halved
+    // off the clamped result — so the half-ratio survives the ceiling. Clamp
+    // each layer on its own instead and only the sharp one is affected here
+    // (the blurred layer does not reach 4096 texels until twice this width),
+    // leaving 4096x1178 against 2560x736.
+    final b = blurred(tester);
+    expect(b.width * 2, image.width);
+    expect(b.height * 2, image.height);
   });
 }

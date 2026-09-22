@@ -35,8 +35,9 @@ import '../../theme/design_tokens.dart';
 ///   会被放大的是渐变光栅化时加进去的**抖动噪声**，所以倍数不能随便给，见
 ///   [_AppBackdropState._sharpDownscale]。清晰层 2 设备像素/纹素、模糊层 4：
 ///   3024x1760 上 8.3MB（清晰 1536x896 + 两张模糊 768x448），4K 最大化 12.5MB。
-///   比从前那版 1/4 逻辑像素（同一块屏上 1.0MB）贵，但仍远小于 1:1 烘一张
-///   要的 33MB —— 实画那条路不占纹理，它花的是每帧 ~33ms。
+///   比从前那版 1/4 逻辑像素（同一块屏上三张共 1.0MB）贵。作参照：同一块 4K
+///   上 1:1 烘**一张**就要 31.7MB，而实画那条路一张纹理都不占 —— 它花的是每帧
+///   ~33ms，那个 33 和这里的 MB 数没有关系。
 /// * **必须按窗口尺寸烘，不能按屏幕尺寸烘一张通用的。**
 ///   [RadialGradient.radius] 是相对**短边**的，所以换一个宽高比，同一份配方画
 ///   出来的就不是同一个形状 —— 拿屏幕比例的图去拉伸填充窄窗口会把圆压成椭圆。
@@ -84,6 +85,10 @@ class _AppBackdropState extends State<AppBackdrop> {
   _BakeRequest? _pending;
   Timer? _debounce;
 
+  /// 每请求一次烘焙 +1。失败时用它判断「这次飞行还是不是最新的那次」，见
+  /// [_bake] 的 catch。
+  int _generation = 0;
+
   /// 标记「这张图铺到哪块矩形上」，供 [GlassSurface] 把自己的位置换算成图上的
   /// 采样区。用 [GlobalKey] 而不是假设背景就在窗口原点：整页路由各有各的一层。
   final _area = GlobalKey();
@@ -120,27 +125,37 @@ class _AppBackdropState extends State<AppBackdrop> {
   /// 四倍显存。
   static const _blurDownscale = 4;
 
+  /// 模糊层比清晰层稀几倍。[_blurSizeFor] 直接按它折半，所以两层的比例是**由
+  /// 构造保证**的，不是两条算式碰巧算出同一个数 —— 纹理上限把清晰层缩回去的
+  /// 时候也一样成立。
+  static const _layerRatio = _blurDownscale ~/ _sharpDownscale;
+
   /// 量化步长（**逻辑**像素）：窗口尺寸变化不足一格就复用上一张，拉伸几十个
   /// 像素在一层柔和的渐变上是看不见的。这是「别在拖动窗口边框时每帧重烘」的
   /// 实现方式。
   ///
   /// 记在逻辑像素上，而不是烘焙纹素上：它要买的是「窗口得变多大才值得重烘」，
-  /// 那个量跟屏幕缩放、跟降采样倍数都无关。按纹素记的话，同一个数字换算回窗口
-  /// 尺寸是 `Q * downscale / dpr` —— 每一档、每一种缩放都是另一个意思：
+  /// 那个量跟屏幕缩放、跟降采样倍数都无关。按纹素记的话，同一个 `Q` 换算回窗口
+  /// 尺寸是 `Q * downscale / dpr`，每一层、每一种缩放都是另一个意思。拿从前那版
+  /// 的 `Q = 16`（它正是按纹素记的）算：
   ///
-  /// * 相对从前那版（逻辑像素 / 4，固定 64 逻辑像素），dpr 2 的清晰层只剩
-  ///   16 逻辑像素，**重烘频率是原来的四倍**；
-  /// * 相对同一块屏上的模糊层，清晰层永远是它的**两倍**（比值就是
-  ///   `_blurDownscale / _sharpDownscale`，与 dpr 无关）—— 两层本该同时重烘。
+  /// * 旧方案只有一层、固定 64 逻辑像素。改成按设备像素分档之后，dpr 2 的清晰层
+  ///   只剩 16 逻辑像素，**重烘频率是旧方案的四倍**；
+  /// * 同一块屏上，清晰层又会是模糊层的 [_layerRatio] 倍 —— 这个比值跟 `Q`、跟
+  ///   dpr 都无关，而两层本该同时重烘。
   ///
   /// 先对齐逻辑尺寸、再换算成纹素，这两件事就都没有了：[_snapLogical] 的结果
-  /// 两层共用，所以模糊层的边长恰好是清晰层的一半。
+  /// 两层共用。（单看数值，`Q = 64` 的逻辑格在 dpr 2 的清晰层上恰好又是 64
+  /// 逻辑像素，和旧方案同一个手感 —— 这是挑 64 的原因，不是巧合。）
   static const _quantum = 64;
 
   /// 单边纹理上限。超过就**两边一起缩**：只截一边会改掉图的宽高比，而径向渐变
   /// 的半径是按短边算的，圆会被拉成椭圆 —— 就是类文档第二条说的那件事。
-  /// 清晰层是 2 设备像素/纹素，所以这条在窗口宽过 8192 设备像素时才够得着
-  /// （跨双 5K 拼接），但够得着就得是对的。
+  ///
+  /// 缩放只在 [_sharpSizeFor] 里做一次，模糊层跟着 [_blurSizeFor] 折半，所以
+  /// 上限生效时两层的比例照旧。清晰层是 2 设备像素/纹素，所以窗口宽到 8200
+  /// 设备像素上下才够得着（跨双 5K 拼接；确切阈值随 dpr 和量化格略有出入，
+  /// dpr 3 上是 8067），但够得着就得是对的。
   static const _maxBakeSide = 4096.0;
 
   @override
@@ -163,25 +178,42 @@ class _AppBackdropState extends State<AppBackdrop> {
     (size.height / _quantum).ceil() * _quantum.toDouble(),
   );
 
-  /// [snapped] 是已经对齐过的逻辑尺寸，[downscale] 是「一个纹素铺几个设备
-  /// 像素」。
-  Size _bakeSizeFor(Size snapped, double dpr, int downscale) {
-    var w = snapped.width * dpr / downscale;
-    var h = snapped.height * dpr / downscale;
+  /// 清晰层的烘焙尺寸。[snapped] 是已经对齐过的逻辑尺寸。
+  ///
+  /// 纹理上限**只在这里**收一次：清晰层是最密的一层，它先触顶，模糊层跟着
+  /// [_blurSizeFor] 折半，两层的比例就不会因为上限而走样。边长取到
+  /// [_layerRatio] 的整数倍，折半才不会掉小数。
+  Size _sharpSizeFor(Size snapped, double dpr) {
+    var w = snapped.width * dpr / _sharpDownscale;
+    var h = snapped.height * dpr / _sharpDownscale;
     final side = w > h ? w : h;
     if (side > _maxBakeSide) {
       final k = _maxBakeSide / side;
       w *= k;
       h *= k;
     }
-    return Size(w < 1 ? 1 : w.ceilToDouble(), h < 1 ? 1 : h.ceilToDouble());
+    return Size(_alignLayers(w), _alignLayers(h));
+  }
+
+  /// 模糊层的烘焙尺寸：清晰层折半，见 [_layerRatio]。
+  Size _blurSizeFor(Size sharp) =>
+      Size(sharp.width / _layerRatio, sharp.height / _layerRatio);
+
+  static double _alignLayers(double texels) {
+    final t = texels.ceil();
+    final aligned = (t + _layerRatio - 1) ~/ _layerRatio * _layerRatio;
+    return (aligned < _layerRatio ? _layerRatio : aligned).toDouble();
   }
 
   void _requestBake(_BakeRequest request) {
     if (_pending == request) return;
     _pending = request;
+    final generation = ++_generation;
     _debounce?.cancel();
-    _debounce = Timer(_debounceDelay, () => unawaited(_bake(request)));
+    _debounce = Timer(
+      _debounceDelay,
+      () => unawaited(_bake(request, generation)),
+    );
   }
 
   /// 把两层径向渐变画进一张 [size] 像素的图。
@@ -214,11 +246,13 @@ class _AppBackdropState extends State<AppBackdrop> {
     }
   }
 
-  Future<void> _bake(_BakeRequest request) async {
-    final image = await _gradientImage(request.gradient, request.sharpSize);
-
+  Future<void> _bake(_BakeRequest request, int generation) async {
+    // 清晰层这次分配也要在 try 里面 —— 它是三张里最大的一张，最可能失败的就是
+    // 它，而且 `sigmas` 为空（玻璃强度 0 或关掉预烘）时 try 体本来就只剩它。
+    ui.Image? image;
     final blurred = <double, ui.Image>{};
     try {
+      image = await _gradientImage(request.gradient, request.sharpSize);
       if (request.sigmas.isNotEmpty) {
         // 模糊层从一张**单独烘的小图**出发，而不是从清晰层降采样或原地模糊：
         // 它只需要 [_blurDownscale] 那一档密度，见那条常量。
@@ -236,12 +270,20 @@ class _AppBackdropState extends State<AppBackdrop> {
       for (final partial in blurred.values) {
         partial.dispose();
       }
-      image.dispose();
+      image?.dispose();
       // 把这一档从 `_pending` 上放开，否则它就永远卡在这儿了：`_bakedFrom` 没
       // 动，每次 build 都还会请求同一份，而 `_requestBake` 看见 `_pending`
       // 相等就直接 return —— 于是一次失败（比如显存不够）之后，窗口底会一直
       // 停在纯底色上，直到窗口尺寸或主题变了才有机会重来。
-      if (_pending == request) _pending = null;
+      //
+      // 按 [_generation] 而不是按 request 判断：同一份请求可能有两次烘焙在飞
+      // （拖窗口跨出一格又跨回来），失败的那次不该把另一次**可能成功**的结果
+      // 一起作废掉。
+      //
+      // 注意这只是解开闩，它**不安排重建** —— 真正的重来要等下一次 build。
+      // 窗口彻底静止时那就是「一直停在纯底色上」，这是有意的：在这里
+      // `setState` 会把一次确定性失败变成每 120ms 一轮的重试风暴。
+      if (_generation == generation) _pending = null;
       rethrow;
     }
 
@@ -320,9 +362,10 @@ class _AppBackdropState extends State<AppBackdrop> {
         final size = constraints.biggest;
         if (size.isFinite && !size.isEmpty) {
           final snapped = _snapLogical(size);
-          final blurSize = _bakeSizeFor(snapped, dpr, _blurDownscale);
+          final sharpSize = _sharpSizeFor(snapped, dpr);
+          final blurSize = _blurSizeFor(sharpSize);
           final request = _BakeRequest(
-            _bakeSizeFor(snapped, dpr, _sharpDownscale),
+            sharpSize,
             blurSize,
             blurSize.width / snapped.width,
             g,
@@ -438,8 +481,12 @@ class _BakeRequest {
   /// 触到纹理上限，sigma 就配不上那张图的实际比例，模糊会过头），二来对齐后的
   /// 尺寸一格之内不变，所以拖窗口不会每个像素换一个 sigma。
   ///
-  /// 剩下的误差只有「对齐格把图撑大、再由 `BoxFit.fill` 压回窗口」那一下，
-  /// 和清晰层挨的是同一份，最小窗口上不到 6%，常见尺寸上 1.5% 上下。
+  /// 剩下的误差是对齐格：sigma 按 [snapped] 折算，而 `_RenderBakedBlur` 是按
+  /// **真实**窗口尺寸、**分轴**取采样区的，所以模糊比 sigma 的名义值略弱，两轴
+  /// 还弱得不一样多。最小宽度 1024 正好压在格上（0%），刚过一格最坏 —— 宽
+  /// 5.8%（1025 → 1088），高 8.2%（705 → 768，最小高度是 700）—— 常见尺寸
+  /// 2% 上下。一层毛玻璃上看不出这点差别；改成按真实尺寸折算倒是真会出事，
+  /// 那样拖窗口每个像素换一个 sigma，量化格就白设了。
   final double blurScale;
 
   final RadialPairGradient gradient;
