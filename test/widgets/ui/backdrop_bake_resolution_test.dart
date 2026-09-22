@@ -146,5 +146,19 @@ void main() {
     final b = blurred(tester);
     expect(b.width * 2, image.width);
     expect(b.height * 2, image.height);
+
+    // Once more at a size where the clamp lands the short axis on an odd
+    // number: 8193x1440 at dpr 1 scales 736 down to 730.29, which ceils to an
+    // odd 731. Without `_alignLayers` rounding each axis up to a multiple of
+    // the layer ratio, the halved blurred size would be 365.5, `toImage` would
+    // round it to 366, and the pair would be 731 against 732. Every other size
+    // the tests use happens to come out even, so this is the only case that
+    // holds that rounding down.
+    await pumpShell(tester, const Size(8193, 1440), 1);
+    final odd = sharp(tester);
+    final oddBlur = blurred(tester);
+    expect(odd.height.isEven, isTrue, reason: 'halving must stay exact');
+    expect(oddBlur.width * 2, odd.width);
+    expect(oddBlur.height * 2, odd.height);
   });
 }
