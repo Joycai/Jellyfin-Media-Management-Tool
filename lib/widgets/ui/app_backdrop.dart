@@ -284,8 +284,8 @@ class _AppBackdropState extends State<AppBackdrop> {
       // 一起作废掉。
       //
       // 注意这只是解开闩，它**不安排重建** —— 真正的重来要等下一次 build。
-      // 窗口彻底静止时那就是「一直停在纯底色上」，这是有意的：在这里
-      // `setState` 会把一次确定性失败变成每 120ms 一轮的重试风暴。
+      // 窗口彻底静止时就等于没有重来，画面停在上面说的那两种之一。这是有意的：
+      // 在这里 `setState` 会把一次确定性失败变成每 120ms 一轮的重试风暴。
       if (_generation == generation) _pending = null;
       rethrow;
     }

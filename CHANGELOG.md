@@ -13,6 +13,12 @@ reconstructed at release time.
 
 ### Fixed
 
+- The window background looked mottled, like a dishcloth, on high-DPI displays
+  — most visible in the middle pane before a folder is open. The backdrop is
+  baked once and stretched back over the window, and the amount it was
+  stretched by was counted in logical pixels, so on a 2x display it came out
+  twice what was intended and magnified the gradient's dither into visible
+  blobs. It is now counted in the display's own pixels.
 - Drop-down menus (task assignment, platform, model pickers, subtitle and
   season dialogs) were see-through over the frosted background; they now use
   the same opaque fill as other menus.
