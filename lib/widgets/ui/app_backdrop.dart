@@ -33,8 +33,9 @@ import '../../theme/design_tokens.dart';
 ///
 /// * **降分辨率烘，但倍数按设备像素算。** 渐变是平滑的，双线性放大不会丢东西 ——
 ///   会被放大的是渐变光栅化时加进去的**抖动噪声**，所以倍数不能随便给，见
-///   [_AppBackdropState._sharpDownscale]。清晰层 2 设备像素/纹素、模糊层 4，
-///   在 3024x1760 上是 6MB 出头，仍远小于实画那 33MB。
+///   [_AppBackdropState._sharpDownscale]。清晰层 2 设备像素/纹素、模糊层 4：
+///   3024x1760 上 8.3MB（清晰 1536x896 + 两张模糊 768x448），4K 最大化 12.5MB。
+///   比从前那版 1/4 逻辑像素（1MB 上下）贵，但仍远小于实画那 33MB。
 /// * **必须按窗口尺寸烘，不能按屏幕尺寸烘一张通用的。**
 ///   [RadialGradient.radius] 是相对**短边**的，所以换一个宽高比，同一份配方画
 ///   出来的就不是同一个形状 —— 拿屏幕比例的图去拉伸填充窄窗口会把圆压成椭圆。
@@ -118,10 +119,21 @@ class _AppBackdropState extends State<AppBackdrop> {
   /// 四倍显存。
   static const _blurDownscale = 4;
 
-  /// 量化步长（烘焙图的像素）：窗口尺寸变化不足一格就复用上一张，拉伸几十个
+  /// 量化步长（**逻辑**像素）：窗口尺寸变化不足一格就复用上一张，拉伸几十个
   /// 像素在一层柔和的渐变上是看不见的。这是「别在拖动窗口边框时每帧重烘」的
   /// 实现方式。
-  static const _quantum = 16;
+  ///
+  /// 记在逻辑像素上，而不是烘焙纹素上：它要买的是「窗口得变多大才值得重烘」，
+  /// 那个量跟屏幕缩放、跟降采样倍数都无关。按纹素记的话同一个数字在每一档都
+  /// 是另一个意思 —— dpr 2 的清晰层上只剩 16 逻辑像素的余量，dpr 1 的模糊层
+  /// 上却有 64，于是拖窗口边框时清晰层重烘的次数是模糊层的四倍。
+  static const _quantum = 64;
+
+  /// 单边纹理上限。超过就**两边一起缩**：只截一边会改掉图的宽高比，而径向渐变
+  /// 的半径是按短边算的，圆会被拉成椭圆 —— 就是类文档第二条说的那件事。
+  /// 清晰层是 2 设备像素/纹素，所以这条在窗口宽过 8192 设备像素时才够得着
+  /// （跨双 5K 拼接），但够得着就得是对的。
+  static const _maxBakeSide = 4096.0;
 
   @override
   void dispose() {
@@ -139,12 +151,20 @@ class _AppBackdropState extends State<AppBackdrop> {
 
   /// [size] 是逻辑像素，[downscale] 是「一个纹素铺几个设备像素」。
   Size _bakeSizeFor(Size size, double dpr, int downscale) {
-    int q(double v) {
-      final raw = (v * dpr / downscale).ceil();
-      return ((raw + _quantum - 1) ~/ _quantum * _quantum).clamp(1, 4096);
-    }
+    // 先把逻辑尺寸对齐到量化格，再换算成纹素 —— 反过来做，量化格的含义就会
+    // 跟着 dpr 和 downscale 变，见 [_quantum]。
+    double texels(double logical) =>
+        (logical / _quantum).ceil() * _quantum * dpr / downscale;
 
-    return Size(q(size.width).toDouble(), q(size.height).toDouble());
+    var w = texels(size.width);
+    var h = texels(size.height);
+    final side = w > h ? w : h;
+    if (side > _maxBakeSide) {
+      final k = _maxBakeSide / side;
+      w *= k;
+      h *= k;
+    }
+    return Size(w < 1 ? 1 : w.ceilToDouble(), h < 1 ? 1 : h.ceilToDouble());
   }
 
   void _requestBake(_BakeRequest request) {
@@ -310,8 +330,8 @@ class _AppBackdropState extends State<AppBackdrop> {
               if (image == null)
                 ColoredBox(color: g.base)
               else
-                // filterQuality 必须给到 low 以上：默认 none 是最近邻，1/4 图放大
-                // 会直接暴露成色块。
+                // filterQuality 必须给到 low 以上：默认 none 是最近邻，降分辨率
+                // 烘的图放大会直接暴露成色块。
                 RawImage(
                   image: image,
                   fit: BoxFit.fill,
