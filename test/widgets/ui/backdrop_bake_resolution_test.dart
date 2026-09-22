@@ -15,9 +15,11 @@ import 'package:jellyfin_media_management_tool/widgets/ui/app_backdrop.dart';
 /// Sizing the bake off **logical** pixels made the factor scale with the
 /// display: 4 on a 1x screen and 8 on a Retina one, where 1px of dither became
 /// an 8px blob and the backdrop read as a dishcloth. So the downscale is in
-/// device pixels — and the two things that arithmetic then has to keep straight
-/// are the re-bake quantum and the texture ceiling, one test each below, plus
-/// the half-ratio between the two layers, which both of them check.
+/// device pixels. Three rules then have to stay straight: the re-bake quantum,
+/// the texture ceiling, and `blurScale` being derived from the sizes rather
+/// than written down. The first two get a test each below; the half-ratio
+/// between the layers and the half of `blurScale` a resize can reach are
+/// checked inside them.
 void main() {
   late ThemeData theme;
 
