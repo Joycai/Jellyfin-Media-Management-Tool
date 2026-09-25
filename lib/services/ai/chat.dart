@@ -47,7 +47,19 @@ class ImagePart {
 
 /// Reasoning kept with the turn that produced it, under the field name the
 /// server used.
-typedef ReasoningPassback = ({String field, String text});
+///
+/// [encrypted] is Volcengine's encrypted chain of thought
+/// (`encrypted_content`, KB 03 §3.2): its 2.1 models put only a summary in
+/// `reasoning_content`, and a tool-call turn sent back without the original
+/// leaves the model reasoning from the summary — no error, just worse
+/// answers. It is never shown, goes back beside the summary, and alone when
+/// the summary is empty.
+///
+/// Not bound to a model, unlike [ProviderTurn]: a Chat Completions history
+/// lives for one agent run, and a run uses one configuration throughout. A
+/// history that outlives a run or switches model would need a `model` here,
+/// and stripping on a mismatch, for both fields.
+typedef ReasoningPassback = ({String field, String text, String? encrypted});
 
 /// An assistant turn exactly as a protocol returned it: Gemini's parts with
 /// their thought signatures, Anthropic's content blocks with thinking and

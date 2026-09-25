@@ -1144,6 +1144,209 @@ void main() {
       'image_url': {'url': 'data:image/jpeg;base64,AQID'},
     });
   });
+
+  // Volcengine's 2.1 models put only a summary in `reasoning_content` and the
+  // original, encrypted, in `encrypted_content` (KB 03 §3.2, measured
+  // 2026-09-23). Sent back without it, the model reasons from the summary.
+  group('encrypted reasoning', () {
+    Map<String, Object?> delta(Map<String, Object?> delta, {String? finish}) =>
+        {
+          'choices': [
+            {'delta': delta, 'finish_reason': finish},
+          ],
+        };
+    Map<String, Object?> call() => delta({
+      'tool_calls': [
+        {
+          'index': 0,
+          'id': 'call_v',
+          'function': {'name': 'lookup', 'arguments': '{}'},
+        },
+      ],
+    }, finish: 'tool_calls');
+    http.Response stream(List<Map<String, Object?>> events) => http.Response(
+      [for (final e in events) _event(e), 'data: [DONE]\n\n'].join(),
+      200,
+      headers: {'content-type': 'text/event-stream'},
+    );
+    const tool = ToolDefinition(
+      name: 'lookup',
+      description: 'd',
+      parameters: {},
+    );
+
+    /// Runs one tool round, then sends its turn back; returns the reply and
+    /// the assistant message the second request carried.
+    Future<(ChatResult, Map<String, dynamic>)> roundTrip(
+      String host,
+      List<Map<String, Object?>> events,
+    ) async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = OpenAiProvider(
+        _config(host),
+        client: MockClient((request) async {
+          bodies.add(_body(request));
+          return bodies.length == 1 ? stream(events) : _reply('done');
+        }),
+      );
+      final first = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [tool],
+      );
+      await provider.chat(
+        messages: [
+          const UserMessage('u'),
+          first.toMessage(),
+          const ToolResultMessage(
+            toolCallId: 'call_v',
+            name: 'lookup',
+            content: 'r',
+          ),
+        ],
+        tools: const [tool],
+      );
+      final assistant = (bodies.last['messages'] as List)
+          .cast<Map<String, dynamic>>()
+          .singleWhere((m) => m['role'] == 'assistant');
+      return (first, assistant);
+    }
+
+    test('kept, and sent back beside the summary', () async {
+      final (result, assistant) = await roundTrip('encrypted-both', [
+        delta({'reasoning_content': '\n', 'encrypted_content': 'djEN'}),
+        delta({'encrypted_content': 'AAAA'}),
+        call(),
+      ]);
+      expect(result.reasoning, (
+        field: 'reasoning_content',
+        text: '\n',
+        encrypted: 'djENAAAA',
+      ));
+      expect(result.reasoned, isTrue);
+      expect(assistant['reasoning_content'], '\n');
+      expect(assistant['encrypted_content'], 'djENAAAA');
+    });
+
+    test('alone when the summary is empty', () async {
+      final (result, assistant) = await roundTrip('encrypted-alone', [
+        delta({'encrypted_content': 'djEN'}),
+        call(),
+      ]);
+      expect(result.reasoning?.encrypted, 'djEN');
+      expect(result.reasoned, isTrue);
+      expect(assistant.containsKey('reasoning_content'), isFalse);
+      expect(assistant['encrypted_content'], 'djEN');
+    });
+
+    test('not on a turn without tool calls', () async {
+      late Map<String, dynamic> body;
+      await OpenAiProvider(
+        _config('encrypted-no-calls'),
+        client: MockClient((request) async {
+          body = _body(request);
+          return _reply('ok');
+        }),
+      ).chat(
+        messages: const [
+          UserMessage('u'),
+          AssistantMessage(
+            content: 'answer',
+            reasoning: (
+              field: 'reasoning_content',
+              text: 'summary',
+              encrypted: 'djEN',
+            ),
+          ),
+          UserMessage('next'),
+        ],
+        tools: const [tool],
+      );
+      final assistant = (body['messages'] as List)
+          .cast<Map<String, dynamic>>()
+          .singleWhere((m) => m['role'] == 'assistant');
+      expect(assistant.containsKey('reasoning_content'), isFalse);
+      expect(assistant.containsKey('encrypted_content'), isFalse);
+    });
+
+    test('read from a completion that is not a stream', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = OpenAiProvider(
+        _config('encrypted-plain'),
+        client: MockClient((request) async {
+          bodies.add(_body(request));
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {
+                    'content': null,
+                    'reasoning_content': '',
+                    'encrypted_content': 'djEN',
+                    'tool_calls': [
+                      {
+                        'id': 'call_v',
+                        'type': 'function',
+                        'function': {'name': 'lookup', 'arguments': '{}'},
+                      },
+                    ],
+                  },
+                  'finish_reason': 'tool_calls',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [tool],
+      );
+      expect(result.reasoning, (
+        field: 'reasoning_content',
+        text: '',
+        encrypted: 'djEN',
+      ));
+      expect(result.reasoned, isTrue);
+    });
+
+    // The measured shape: a blank summary beside the ciphertext. A stream
+    // keeps it as sent, and so does a plain completion.
+    test('kept with its summary from a completion', () async {
+      final result = await OpenAiProvider(
+        _config('encrypted-plain-summary'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {
+                    'content': null,
+                    'reasoning_content': '\n',
+                    'encrypted_content': 'djEN',
+                    'tool_calls': [
+                      {
+                        'id': 'call_v',
+                        'type': 'function',
+                        'function': {'name': 'lookup', 'arguments': '{}'},
+                      },
+                    ],
+                  },
+                  'finish_reason': 'tool_calls',
+                },
+              ],
+            }),
+            200,
+          ),
+        ),
+      ).chat(messages: const [UserMessage('u')], tools: const [tool]);
+      expect(result.reasoning, (
+        field: 'reasoning_content',
+        text: '\n',
+        encrypted: 'djEN',
+      ));
+    });
+  });
 }
 
 String _event(Map<String, Object?> event) => 'data: ${jsonEncode(event)}\n\n';

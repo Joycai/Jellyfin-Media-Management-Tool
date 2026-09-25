@@ -347,8 +347,8 @@ PR 划分：
    },
    ```
 
-5. `TokenBudget.estimate` 的 `AssistantMessage` 分支把 `encrypted` 的长度也算进去（按字节保守估计），宁可高估。
-6. `ApiLog` 已经把长字符串替换成长度，密文不会写进日志。不用改。
+5. `TokenBudget.estimate` **不算** `encrypted`：`agent_runtime.dart` 的 `_opaque` 已经把 `encrypted_content`、签名这类不透明串排除在估算外（预算裁不动它们，算进去只会多裁工具结果），这里保持同一口径。
+6. `ApiLog` 不用改：密文与 ② 的 `encrypted_content` 同样处理——超过 2048 字符的只留前 200 字符加长度，更短的原样记下。它不是凭据，日志也只在本机、默认关闭。
 
 **测试**
 - `openai_provider_test.dart`：
@@ -658,3 +658,4 @@ PR 划分：
 | 2026-09-25 | 相对审查建议的四处细化：A2 载体不用 `ProviderTurn`、改为扩展 `ReasoningPassback`；A3 / A8 的「关」被拒记在 `thinkingOffTried` 而不是 `rejectedFields`；A10 的错误 URL 只在 404 / 405 时附加；A13 非 Claude 模型保持 `extended`，没有按 KB 缺省猜 `adaptive` | 对照代码后发现：`TokenBudget.estimate` 只按 `raw.parts` 估算；「关」被拒不代表「开」也被拒；错误文案上有子串学习，附加 URL 会误判；非 Claude 镜像的 `adaptive` 支持没有证据 |
 | 2026-09-25 | A11 定为乙；13 步合成一个 PR，每个提交先由一个子代理审查并修掉问题，最后整体审查一次再开 PR | 用户决定。上面的 PR 划分仍是评审顺序：提交按步号排列 |
 | 2026-09-25 | A8 的新判据挪到 `refused` 查找之后；`'dialect'` 成了常量 `LearnedBehaviour.dialectOff`；矩阵的阶梯计数不算它 | 放在之前会截走点名字段的文案，与第 3 点矛盾；路线键不含平台，同一集合里可能两种记录都有 |
+| 2026-09-25 | A2 的历史估算不算密文 | 原方案要求算进去；执行时发现 `_opaque` 对所有不透明串（含 ② 的 `encrypted_content`）一律不算，理由写在那里，照同一口径 |

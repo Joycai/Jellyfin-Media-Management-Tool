@@ -546,8 +546,13 @@ class OpenAiProvider implements AiProvider {
               'function': {'name': call.name, 'arguments': call.arguments},
             },
         ],
-      if (toolCalls.isNotEmpty && reasoning != null)
-        reasoning.field: reasoning.text,
+      // Volcengine takes its encrypted original beside the summary, and
+      // alone when the summary is empty (KB 03 §3.2).
+      if (toolCalls.isNotEmpty && reasoning != null) ...{
+        if (reasoning.text.isNotEmpty || reasoning.encrypted == null)
+          reasoning.field: reasoning.text,
+        'encrypted_content': ?reasoning.encrypted,
+      },
     },
     ToolResultMessage(:final toolCallId, :final content) => {
       'role': 'tool',
@@ -645,6 +650,8 @@ class OpenAiProvider implements AiProvider {
     final calls = SplayTreeMap<int, _PendingCall>();
     final reasoningText = StringBuffer();
     String? reasoningField;
+    // Volcengine's encrypted reasoning, joined in arrival order.
+    final encrypted = StringBuffer();
     bool? sse;
     String? finishReason;
     var promptTokens = 0;
@@ -702,6 +709,9 @@ class OpenAiProvider implements AiProvider {
                 reasoningText.write(piece);
               }
             }
+            if (delta['encrypted_content'] case final String secret) {
+              encrypted.write(secret);
+            }
             final toolCalls = delta['tool_calls'];
             if (toolCalls is List) {
               for (final fragment in toolCalls.whereType<Map>()) {
@@ -747,15 +757,20 @@ class OpenAiProvider implements AiProvider {
       toolCalls: [
         for (final entry in calls.entries) entry.value.build(entry.key),
       ],
-      reasoning: field == null
+      reasoning: field == null && encrypted.isEmpty
           ? null
-          : (field: field, text: reasoningText.toString()),
+          : (
+              field: field ?? _reasoningFields.first,
+              text: reasoningText.toString(),
+              encrypted: encrypted.isEmpty ? null : encrypted.toString(),
+            ),
       promptTokens: promptTokens,
       completionTokens: completionTokens,
       finishReason: finishReason,
       reasoned:
           inline ||
           reasoningText.toString().trim().isNotEmpty ||
+          encrypted.isNotEmpty ||
           reasoningTokens > 0,
     );
   }
@@ -802,12 +817,25 @@ class OpenAiProvider implements AiProvider {
 
     ReasoningPassback? reasoning;
     if (message is Map) {
+      final secret = message['encrypted_content'];
+      final encrypted = secret is String && secret.isNotEmpty ? secret : null;
       for (final field in _reasoningFields) {
         final value = message[field];
-        if (value is String && value.trim().isNotEmpty) {
-          reasoning = (field: field, text: value);
+        // Beside a ciphertext a blank summary is still what the server sent
+        // (Volcengine's is often "\n"), and goes back as it came, as a
+        // stream's would.
+        if (value is String &&
+            (encrypted == null ? value.trim() : value).isNotEmpty) {
+          reasoning = (field: field, text: value, encrypted: encrypted);
           break;
         }
+      }
+      if (reasoning == null && encrypted != null) {
+        reasoning = (
+          field: _reasoningFields.first,
+          text: '',
+          encrypted: encrypted,
+        );
       }
     }
     final rawCalls = message is Map ? message['tool_calls'] : null;

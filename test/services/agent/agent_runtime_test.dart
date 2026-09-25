@@ -352,7 +352,11 @@ void main() {
       final withReasoning = AgentRuntime.estimate(
         AssistantMessage(
           toolCalls: call,
-          reasoning: (field: 'reasoning_content', text: 'x' * 4000),
+          reasoning: (
+            field: 'reasoning_content',
+            text: 'x' * 4000,
+            encrypted: null,
+          ),
         ),
       );
       final withParts = AgentRuntime.estimate(
