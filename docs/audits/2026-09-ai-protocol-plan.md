@@ -663,3 +663,4 @@ PR 划分：
 | 2026-09-25 | A6：开关路线开思考时 `max_tokens` 仍按 2048 下限抬高；被拒的 `adaptive` 不换成 `enabled` | 与第 6 步所有「开」的请求同一口径，下限无害；声明为开关的路线只收 `adaptive` / `disabled`，换成预算写法必然再被拒 |
 | 2026-09-25 | A6：模型页的推理开关与「推理开关」一行、换路线对话框也读 `messagesThinkingSwitch`（`PlatformProfiles.switchFieldFor`） | 审查发现：没有采样预设的模型（如 MiniMax-M3）只在平台有开关时才能拨开关，原先只看 ① 的方言，`adaptive` 从界面上到不了，那一行还写着本地阶梯 |
 | 2026-09-25 | A9：① 的 JSON mode 判定也读 `param`（`response_format`） | 原方案保持它只看文案；审查发现只在 `param` 里点名 `response_format` 的 400 会直接抛错，与 A9 是同一类问题。`max_completion_tokens` 仍只看文案：`param: "max_tokens"` 也可能只是数值超限 |
+| 2026-09-25 | A11（乙）落地时收紧：`Sse.read` 只跳过并计数，放行由适配器按「能否证明没丢东西」决定——② 有终止事件时改用它自带的 `output`，没有就抛；④、③ 只要跳过过就抛；② 缺终止事件时，开了头（有事件带它的 `output_index`）却没有 `output_item.done` 的项也算截断，与 ④ 的「每块都已 `content_block_stop`」同一口径；空 `data:` 不算事件；③ 改用 `Sse.read` | 原方案「坏行跳过」对 ④ 的 `content_block_delta`、③ 的每个事件都成立不了：跳过的可能正是一段正文或工具参数，回复看起来却是完整的——这是比整条失败更糟的静默错误。原方案 ② 只看已收到的 `done` 项，一段完整正文后截在参数中间的调用会被当成只有正文的回答，调用悄悄丢掉。① 维持原来的跳过，不在本步范围 |

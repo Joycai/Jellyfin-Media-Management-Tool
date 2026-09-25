@@ -530,6 +530,50 @@ void main() {
   });
 
   group('streaming', () {
+    String event(String text, {String? finish}) =>
+        'data: ${jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': text},
+                ],
+              },
+              'finishReason': ?finish,
+            },
+          ],
+        })}\n\n';
+    Future<ChatResult> read(String host, String body) => GoogleGenAiProvider(
+      _config(host),
+      client: MockClient(
+        (_) async => http.Response(
+          body,
+          200,
+          headers: const {'content-type': 'text/event-stream'},
+        ),
+      ),
+    ).chat(messages: const [UserMessage('u')], tools: const []);
+
+    test('a skipped event fails the reply it may have been part of', () async {
+      await expectLater(
+        read(
+          'gemini-skipped.example',
+          '${event('Hel')}data: {"candidates": \n\n'
+              '${event('lo', finish: 'STOP')}',
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('an empty data line or a [DONE] is no event', () async {
+      final result = await read(
+        'gemini-empty-data.example',
+        'data:\n\n${event('Hel')}${event('lo', finish: 'STOP')}'
+            'data: [DONE]\n\n',
+      );
+      expect(result.text, 'Hello');
+    });
+
     http.Response sse(List<Map<String, Object?>> events) => http.Response(
       [for (final e in events) 'data: ${jsonEncode(e)}\n\n'].join(),
       200,

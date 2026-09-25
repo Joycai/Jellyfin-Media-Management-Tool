@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/anthropic_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/thinking_dialect.dart';
 
@@ -742,20 +743,194 @@ void main() {
       );
     });
 
-    test('a stream without message_stop is not an answer', () async {
+    group('without message_stop', () {
+      Future<ChatResult> read(String host, String body) => AnthropicProvider(
+        _config('https://$host'),
+        client: MockClient(
+          (_) async => http.Response(
+            body,
+            200,
+            headers: const {'content-type': 'text/event-stream'},
+          ),
+        ),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+
+      test('closed blocks are an answer', () async {
+        // A relay that drops the last event.
+        final result = await read(
+          'no-stop.example',
+          _sse(
+            _reply([
+              {'type': 'text', 'text': 'whole'},
+            ], terminated: false),
+          ),
+        );
+        expect(result.text, 'whole');
+      });
+
+      test('closed thinking alone is not', () async {
+        await expectLater(
+          read(
+            'thinking-only.example',
+            _sse(
+              _reply([
+                {'type': 'thinking', 'thinking': 'hm', 'signature': 's'},
+              ], terminated: false),
+            ),
+          ),
+          throwsA(isA<AiNetworkException>()),
+        );
+      });
+
+      test('text that arrived only in deltas counts', () async {
+        final result = await read(
+          'delta-text.example',
+          _sse([
+            {
+              'type': 'message_start',
+              'message': {'usage': <String, Object?>{}},
+            },
+            {
+              'type': 'content_block_start',
+              'index': 0,
+              'content_block': {'type': 'text', 'text': ''},
+            },
+            {
+              'type': 'content_block_delta',
+              'index': 0,
+              'delta': {'type': 'text_delta', 'text': 'whole'},
+            },
+            {'type': 'content_block_stop', 'index': 0},
+          ]),
+        );
+        expect(result.text, 'whole');
+        expect(result.finishReason, isNull);
+      });
+
+      test('is marked in the request log', () async {
+        final dir = await Directory.systemTemp.createTemp('messages_log');
+        addTearDown(() async {
+          ApiLog.instance
+            ..enabled = false
+            ..directory = null;
+          await dir.delete(recursive: true);
+        });
+        ApiLog.instance
+          ..directory = dir
+          ..enabled = true;
+
+        final text = [
+          {'type': 'text', 'text': 'whole'},
+        ];
+        await read(
+          'logged-no-stop.example',
+          _sse(_reply(text, terminated: false)),
+        );
+        await read('logged-stop.example', _sse(_reply(text)));
+        await ApiLog.instance.flush();
+
+        final lines = (await ApiLog.instance.currentFile!.readAsLines())
+            .map((l) => jsonDecode(l) as Map<String, dynamic>)
+            .toList();
+        expect(lines, hasLength(2));
+        expect(lines[0]['response']['incomplete_stream'], isTrue);
+        expect(
+          (lines[1]['response'] as Map).containsKey('incomplete_stream'),
+          isFalse,
+        );
+      });
+
+      test('a block cut mid-way is not', () async {
+        final events = [
+          {
+            'type': 'message_start',
+            'message': {'usage': <String, Object?>{}},
+          },
+          {
+            'type': 'content_block_start',
+            'index': 0,
+            'content_block': {'type': 'text', 'text': ''},
+          },
+          {
+            'type': 'content_block_delta',
+            'index': 0,
+            'delta': {'type': 'text_delta', 'text': 'half'},
+          },
+        ];
+        await expectLater(
+          read('cutoff.example', _sse(events)),
+          throwsA(isA<AiNetworkException>()),
+        );
+      });
+
+      test('a tool input cut mid-way is not', () async {
+        final events = [
+          {
+            'type': 'message_start',
+            'message': {'usage': <String, Object?>{}},
+          },
+          {
+            'type': 'content_block_start',
+            'index': 0,
+            'content_block': {
+              'type': 'tool_use',
+              'id': 't',
+              'name': 'f',
+              'input': <String, Object?>{},
+            },
+          },
+          {
+            'type': 'content_block_delta',
+            'index': 0,
+            'delta': {'type': 'input_json_delta', 'partial_json': '{"a": '},
+          },
+        ];
+        await expectLater(
+          read('cut-tool.example', _sse(events)),
+          throwsA(isA<AiNetworkException>()),
+        );
+      });
+    });
+
+    test('a skipped event fails even a finished stream', () async {
+      // It may have been a text or tool-input delta.
+      final body = _sse(
+        _reply([
+          {'type': 'text', 'text': 'whole'},
+        ]),
+      );
       await expectLater(
         AnthropicProvider(
-          _config('https://cutoff.example'),
+          _config('https://skipped.example'),
           client: MockClient(
-            (_) async => _stream(
-              _reply([
-                {'type': 'text', 'text': 'half'},
-              ], terminated: false),
+            (_) async => http.Response(
+              'data: {"type": "content_block_delta", \n\n$body',
+              200,
+              headers: const {'content-type': 'text/event-stream'},
             ),
           ),
         ).chat(messages: const [UserMessage('u')], tools: const []),
         throwsA(isA<AiNetworkException>()),
       );
+    });
+
+    test('an empty data line is no event', () async {
+      final body = _sse(
+        _reply([
+          {'type': 'text', 'text': 'whole'},
+        ]),
+      );
+      final result = await AnthropicProvider(
+        _config('https://empty-data.example'),
+        client: MockClient(
+          (_) async => http.Response(
+            'data:\n\n$body',
+            200,
+            headers: const {'content-type': 'text/event-stream'},
+          ),
+        ),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(result.text, 'whole');
     });
 
     test('an overloaded error mid-stream settles nothing', () async {

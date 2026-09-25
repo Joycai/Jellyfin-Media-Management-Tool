@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/openai_responses_provider.dart';
 
@@ -207,19 +208,196 @@ void main() {
     },
   );
 
-  test('a stream with no terminal event is not an answer', () async {
-    await expectLater(
-      OpenAiResponsesProvider(
-        _config('no-terminal.example'),
-        client: MockClient(
-          (_) async => _stream([
+  group('a stream with no terminal event', () {
+    Future<ChatResult> read(String host, String body) =>
+        OpenAiResponsesProvider(
+          _config(host),
+          client: MockClient(
+            (_) async => http.Response(
+              body,
+              200,
+              headers: const {'content-type': 'text/event-stream'},
+            ),
+          ),
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+    String events(List<Map<String, Object?>> list) => [
+      for (final e in list) 'event: ${e['type']}\ndata: ${jsonEncode(e)}\n\n',
+    ].join();
+    final message = _done(0, {
+      'type': 'message',
+      'content': [
+        {'type': 'output_text', 'text': 'whole'},
+      ],
+    });
+
+    test('is an answer when its items arrived whole', () async {
+      // A relay that drops the last event.
+      final result = await read('no-terminal.example', events([message]));
+      expect(result.text, 'whole');
+      expect(result.finishReason, isNull);
+    });
+
+    test('is an answer when it holds a finished call', () async {
+      final result = await read(
+        'no-terminal-call.example',
+        events([
+          _done(0, {
+            'type': 'function_call',
+            'call_id': 'c1',
+            'name': 'f',
+            'arguments': '{}',
+          }),
+        ]),
+      );
+      expect(result.toolCalls.single.name, 'f');
+    });
+
+    test('is not an answer with nothing finished in it', () async {
+      // Cut mid-item: only deltas arrived.
+      await expectLater(
+        read(
+          'no-terminal-delta.example',
+          events([
+            {
+              'type': 'response.output_text.delta',
+              'output_index': 0,
+              'delta': 'half',
+            },
+          ]),
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+      // Reasoning alone is not an answer either.
+      await expectLater(
+        read(
+          'no-terminal-reasoning.example',
+          events([
+            _done(0, {'type': 'reasoning', 'encrypted_content': 'x'}),
+          ]),
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('is not an answer when an item it began never finished', () async {
+      // A finished message, then a call cut off mid-arguments: taking the
+      // message alone would drop the call.
+      await expectLater(
+        read(
+          'no-terminal-cut-call.example',
+          events([
+            message,
+            {
+              'type': 'response.output_item.added',
+              'output_index': 1,
+              'item': {'type': 'function_call', 'name': 'f'},
+            },
+            {
+              'type': 'response.function_call_arguments.delta',
+              'output_index': 1,
+              'delta': '{"a": ',
+            },
+          ]),
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('reports a finished refusal as one', () async {
+      await expectLater(
+        read(
+          'no-terminal-refusal.example',
+          events([
             _done(0, {
               'type': 'message',
               'content': [
-                {'type': 'output_text', 'text': 'half'},
+                {'type': 'refusal', 'refusal': 'no'},
               ],
             }),
           ]),
+        ),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            contains('refused'),
+          ),
+        ),
+      );
+    });
+
+    test('is marked in the request log', () async {
+      final dir = await Directory.systemTemp.createTemp('responses_log');
+      addTearDown(() async {
+        ApiLog.instance
+          ..enabled = false
+          ..directory = null;
+        await dir.delete(recursive: true);
+      });
+      ApiLog.instance
+        ..directory = dir
+        ..enabled = true;
+
+      await read('logged-no-terminal.example', events([message]));
+      await read('logged-terminal.example', events([message, _completed()]));
+      await ApiLog.instance.flush();
+
+      final lines = (await ApiLog.instance.currentFile!.readAsLines())
+          .map((l) => jsonDecode(l) as Map<String, dynamic>)
+          .toList();
+      expect(lines, hasLength(2));
+      expect(lines[0]['response']['incomplete_stream'], isTrue);
+      expect(
+        (lines[1]['response'] as Map).containsKey('incomplete_stream'),
+        isFalse,
+      );
+    });
+
+    test('is not an answer when an event was skipped', () async {
+      await expectLater(
+        read(
+          'no-terminal-skipped.example',
+          '${events([message])}data: {"type": "response.output_item\n\n',
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+  });
+
+  test('a skipped item is taken from the terminal event\'s copy', () async {
+    final whole = {
+      'type': 'message',
+      'content': [
+        {'type': 'output_text', 'text': 'from the terminal'},
+      ],
+    };
+    final terminal = _completed();
+    (terminal['response'] as Map)['output'] = [whole];
+    final result = await OpenAiResponsesProvider(
+      _config('skipped-item.example'),
+      client: MockClient(
+        (_) async => http.Response(
+          'data: {"type": "response.output_item.done", "item": \n\n'
+          'data: ${jsonEncode(terminal)}\n\n',
+          200,
+          headers: const {'content-type': 'text/event-stream'},
+        ),
+      ),
+    ).chat(messages: const [UserMessage('u')], tools: const []);
+    expect(result.text, 'from the terminal');
+
+    // With no copy to fall back on, the skipped event may have been the
+    // answer.
+    await expectLater(
+      OpenAiResponsesProvider(
+        _config('skipped-no-copy.example'),
+        client: MockClient(
+          (_) async => http.Response(
+            'data: {"type": "response.output_item.done", "item": \n\n'
+            'data: ${jsonEncode(_completed())}\n\n',
+            200,
+            headers: const {'content-type': 'text/event-stream'},
+          ),
         ),
       ).chat(messages: const [UserMessage('u')], tools: const []),
       throwsA(isA<AiNetworkException>()),

@@ -126,17 +126,26 @@ class AnthropicProvider implements AiProvider {
       final rejected = _learned.of(key).rejectedFields;
       final payload = _payload(messages, tools, rejected: rejected);
       final started = DateTime.now();
-      void log({int? status, ChatResult? result, String? error}) =>
-          ApiLog.instance.record(
-            protocol: 'anthropic',
-            model: config.model,
-            url: _messagesUri,
-            request: payload,
-            status: status,
-            response: result == null ? null : Sse.summarise(result),
-            error: error,
-            elapsed: DateTime.now().difference(started),
-          );
+      void log({
+        int? status,
+        ChatResult? result,
+        String? error,
+        bool incomplete = false,
+      }) => ApiLog.instance.record(
+        protocol: 'anthropic',
+        model: config.model,
+        url: _messagesUri,
+        request: payload,
+        status: status,
+        response: result == null
+            ? null
+            : {
+                ...Sse.summarise(result),
+                if (incomplete) 'incomplete_stream': true,
+              },
+        error: error,
+        elapsed: DateTime.now().difference(started),
+      );
 
       http.StreamedResponse res;
       try {
@@ -220,9 +229,9 @@ class AnthropicProvider implements AiProvider {
         throw AiHttp.statusError(res.statusCode, error, url: _messagesUri);
       }
 
-      final ChatResult result;
+      final ({ChatResult result, bool incomplete}) read;
       try {
-        result = await _read(res, cancelToken);
+        read = await _read(res, cancelToken);
       } on Object catch (e) {
         log(
           status: res.statusCode,
@@ -232,8 +241,12 @@ class AnthropicProvider implements AiProvider {
         );
         rethrow;
       }
-      log(status: res.statusCode, result: result);
-      return result;
+      log(
+        status: res.statusCode,
+        result: read.result,
+        incomplete: read.incomplete,
+      );
+      return read.result;
     }
   }
 
@@ -449,7 +462,7 @@ class AnthropicProvider implements AiProvider {
     return out;
   }
 
-  Future<ChatResult> _read(
+  Future<({ChatResult result, bool incomplete})> _read(
     http.StreamedResponse res,
     AiCancelToken? cancelToken,
   ) async {
@@ -503,6 +516,8 @@ class AnthropicProvider implements AiProvider {
             final block = blocks[_int(event['index'])];
             final delta = event['delta'];
             if (block != null && delta is Map) block.add(delta);
+          case 'content_block_stop':
+            blocks[_int(event['index'])]?.closed = true;
           case 'message_delta':
             final delta = event['delta'];
             if (delta is Map && delta['stop_reason'] is String) {
@@ -516,16 +531,28 @@ class AnthropicProvider implements AiProvider {
     );
 
     if (read.plain case final plain?) {
-      return parseMessage(plain, model: config.model);
+      return (
+        result: parseMessage(plain, model: config.model),
+        incomplete: false,
+      );
     }
-    // A stream that ends without `message_stop` was cut off in transit; what
-    // arrived is not the whole answer.
-    if (!stopped) {
+    // A skipped event may have been a text or tool-input delta, and the
+    // reply would read as whole without it.
+    if (read.skipped > 0) throw Sse.malformed;
+    // Without `message_stop` — a relay that drops the last event, or a
+    // stream cut off — what arrived is an answer only when every block in
+    // it was closed and one of them is text or a tool call. A block cut
+    // mid-way, a tool input included, still fails. Cut exactly between two
+    // blocks it reads as complete — the price of taking these relays at all.
+    final incomplete = !stopped;
+    if (incomplete &&
+        (blocks.values.any((b) => !b.closed) ||
+            !blocks.values.any((b) => b.answers))) {
       throw const AiNetworkException(
         'The stream ended before the reply was complete.',
       );
     }
-    return _result(
+    final result = _result(
       [for (final block in blocks.values) block.finish()],
       stopReason: stopReason,
       promptTokens:
@@ -535,6 +562,7 @@ class AnthropicProvider implements AiProvider {
       completionTokens: usage['output_tokens'] ?? 0,
       model: config.model,
     );
+    return (result: result, incomplete: incomplete);
   }
 
   /// A non-streamed `message` object (a relay that ignored `stream`).
@@ -673,7 +701,15 @@ class _Block {
   final Map<String, Object?> _block;
   final _json = StringBuffer();
 
+  /// `content_block_stop` arrived: nothing more of this block is coming.
+  bool closed = false;
+
   _Block(this._block);
+
+  /// Text or a tool call — what makes a reply an answer.
+  bool get answers =>
+      _block['type'] == 'tool_use' ||
+      (_block['type'] == 'text' && '${_block['text'] ?? ''}'.isNotEmpty);
 
   void add(Map<dynamic, dynamic> delta) {
     switch (delta['type']) {
