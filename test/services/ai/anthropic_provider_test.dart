@@ -362,12 +362,14 @@ void main() {
       expect((bodies.last['thinking'] as Map)['type'], 'enabled');
     });
 
-    test('thinking is given up only once both forms are refused', () async {
+    test('a refusal of thinking itself gives up every form', () async {
+      // The field is refused, not a form of it: trying the other form would
+      // be one more refused request.
       final (bodies, provider) = await refusing('no-thinking.example', {
         'adaptive',
         'enabled',
       }, (_) => 'thinking: Extra inputs are not permitted');
-      expect(bodies, hasLength(3));
+      expect(bodies, hasLength(2));
       expect(bodies.last.containsKey('thinking'), isFalse);
       expect(
         provider.learned.rejectedFields,
@@ -447,6 +449,124 @@ void main() {
         expect(body['thinking'], {'type': 'adaptive'});
       });
 
+      test(
+        'a model that cannot stop reasoning is not told off again',
+        () async {
+          final bodies = <Map<String, dynamic>>[];
+          AnthropicProvider provider() => AnthropicProvider(
+            _config(
+              'https://always.minimaxi.com/anthropic',
+              model: 'MiniMax-M3',
+            ),
+            client: MockClient((request) async {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              bodies.add(body);
+              if (bodies.length > 8) throw StateError('runaway retries');
+              return (body['thinking'] as Map?)?['type'] == 'disabled'
+                  ? http.Response.bytes(
+                      utf8.encode(
+                        jsonEncode({
+                          'type': 'error',
+                          'error': {
+                            'type': 'invalid_request_error',
+                            'message': '该模型始终思考，不支持关闭思考',
+                          },
+                        }),
+                      ),
+                      400,
+                      headers: const {
+                        'content-type': 'application/json; charset=utf-8',
+                      },
+                    )
+                  : _stream(
+                      _reply([
+                        {'type': 'text', 'text': 'ok'},
+                      ]),
+                    );
+            }),
+          );
+          final first = provider();
+          await first.chat(messages: const [UserMessage('u')], tools: const []);
+          expect(bodies, hasLength(2));
+          expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(first.learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
+          expect(first.learned.rejectedFields, isEmpty);
+
+          await provider().chat(
+            messages: const [UserMessage('u')],
+            tools: const [],
+          );
+          expect(bodies, hasLength(3));
+          expect(bodies.last.containsKey('thinking'), isFalse);
+        },
+      );
+
+      /// A switch route with thinking off whose server answers `disabled`
+      /// with [message]; the bodies sent and what it learned.
+      Future<(List<Map<String, dynamic>>, AnthropicProvider)> offRefused(
+        String host,
+        String message,
+      ) async {
+        final bodies = <Map<String, dynamic>>[];
+        final provider = AnthropicProvider(
+          _config('https://$host/anthropic', model: 'MiniMax-M3'),
+          client: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bodies.add(body);
+            if (bodies.length > 8) throw StateError('runaway retries');
+            return body.containsKey('thinking')
+                ? http.Response(
+                    jsonEncode({
+                      'type': 'error',
+                      'error': {
+                        'type': 'invalid_request_error',
+                        'message': message,
+                      },
+                    }),
+                    400,
+                  )
+                : _stream(
+                    _reply([
+                      {'type': 'text', 'text': 'ok'},
+                    ]),
+                  );
+          }),
+        );
+        try {
+          await provider.chat(
+            messages: const [UserMessage('u')],
+            tools: const [],
+          );
+        } on AiException {
+          // Read by the test from the bodies and what was learned.
+        }
+        return (bodies, provider);
+      }
+
+      test('a server that does not know thinking stops being told', () async {
+        // Thinking off must not fail every request on a route whose server
+        // refuses the field outright.
+        final (bodies, provider) = await offRefused(
+          'unknown-field.minimaxi.com',
+          'thinking: Extra inputs are not permitted',
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(provider.learned.thinkingOffTried, {
+          LearnedBehaviour.dialectOff,
+        });
+      });
+
+      test('an error about the history teaches nothing about off', () async {
+        final (bodies, provider) = await offRefused(
+          'history.minimaxi.com',
+          'messages.1.content.0: thinking blocks cannot be sent while '
+              'thinking is disabled',
+        );
+        expect(bodies, hasLength(1));
+        expect(provider.learned.thinkingOffTried, isEmpty);
+      });
+
       test('a refused adaptive is not swapped for a budget', () async {
         // A host of its own: what this route learns must not reach the
         // bodies the tests above read.
@@ -460,10 +580,8 @@ void main() {
           bodies.map((b) => (b['thinking'] as Map?)?['type']),
           everyElement(isNot('enabled')),
         );
-        expect(
-          provider.learned.rejectedFields,
-          isNot(contains('thinking:enabled')),
-        );
+        // Its one form refused: thinking is given up, not tried another way.
+        expect(provider.learned.rejectedFields, contains('thinking'));
       });
 
       test('a form named without refusing thinking is thrown', () async {
@@ -534,6 +652,112 @@ void main() {
         );
         expect(body.containsKey('thinking'), isFalse);
       });
+    });
+
+    test('both forms refused by name give thinking up', () async {
+      final (bodies, provider) = await refusing('both-forms.example', {
+        'adaptive',
+        'enabled',
+      }, (type) => "thinking.type: '$type' is not supported for this model");
+      expect(bodies.map((b) => (b['thinking'] as Map?)?['type']), [
+        'adaptive',
+        'enabled',
+        null,
+      ]);
+      expect(
+        provider.learned.rejectedFields,
+        containsAll(['thinking:adaptive', 'thinking:enabled', 'thinking']),
+      );
+    });
+
+    test('an old bare `thinking` record still lets adaptive be asked', () {
+      // Written before the forms were told apart, when `enabled` was the
+      // only one sent: no verdict on adaptive where adaptive comes first.
+      const adaptive = MessagesThinking.adaptive;
+      const extended = MessagesThinking.extended;
+      expect(AnthropicProvider.refusedForms({'thinking'}, first: adaptive), {
+        extended,
+      });
+      // Where `enabled` comes first it was the model's own form, refused as
+      // a feature: what such a refusal records now.
+      expect(
+        AnthropicProvider.refusedForms({'thinking'}, first: extended),
+        MessagesThinking.values.toSet(),
+      );
+      expect(
+        AnthropicProvider.refusedForms({
+          'thinking',
+          'thinking:adaptive',
+        }, first: extended),
+        {adaptive},
+      );
+      expect(
+        AnthropicProvider.refusedForms({
+          'thinking',
+          'thinking:adaptive',
+          'thinking:enabled',
+        }, first: adaptive),
+        MessagesThinking.values.toSet(),
+      );
+    });
+
+    /// The bodies a route with an old bare `thinking` record sends for
+    /// [model]: the first request answered, the rest refused as an older
+    /// Claude refuses adaptive.
+    Future<List<Map<String, dynamic>>> legacy(String host, String model) async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = AnthropicProvider(
+        _config('https://$host', model: model, thinking: true),
+        client: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          bodies.add(body);
+          return (body['thinking'] as Map?)?['type'] == 'adaptive' &&
+                  !model.contains('4-6')
+              ? http.Response(
+                  jsonEncode({
+                    'type': 'error',
+                    'error': {
+                      'type': 'invalid_request_error',
+                      'message':
+                          "thinking.type: Input tag 'adaptive' found using "
+                          "'type' does not match any of the expected tags: "
+                          "'disabled', 'enabled'",
+                    },
+                  }),
+                  400,
+                )
+              : _stream(
+                  _reply([
+                    {'type': 'text', 'text': 'ok'},
+                  ]),
+                );
+        }),
+      );
+      LearnedStore.instance.update(
+        LearnedStore.routeKey(
+          protocol: AiProviderType.anthropic.id,
+          base: 'https://$host/v1',
+          model: model,
+          apiKey: 'sk-ant-secret',
+        ),
+        (b) => b.copyWith(rejectedFields: {'thinking'}),
+      );
+      expect(provider.learned.rejectedFields, {'thinking'});
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      return bodies;
+    }
+
+    test('an old bare `thinking` record is not the end of thinking', () async {
+      final bodies = await legacy('legacy-thinking.example', 'claude-opus-4-6');
+      expect(bodies.single['thinking'], {'type': 'adaptive'});
+    });
+
+    test('an old bare `thinking` record still ends it for a budget', () async {
+      // Its own form, `enabled`, was refused as a feature; asking adaptive
+      // of it would fail every request, since only a refusal of thinking
+      // itself may give thinking up.
+      final bodies = await legacy('legacy-budget.example', 'claude-3-5-haiku');
+      expect(bodies.single.containsKey('thinking'), isFalse);
     });
 
     test('a budget error is about the numbers, not the form', () async {
@@ -1097,6 +1321,44 @@ void main() {
       ),
       isFalse,
     );
+  });
+
+  test('a tool input streamed as two objects becomes one', () async {
+    final result = await AnthropicProvider(
+      _config('https://concatenated-input.example'),
+      client: MockClient(
+        (_) async => _stream([
+          {
+            'type': 'message_start',
+            'message': {'usage': <String, Object?>{}},
+          },
+          {
+            'type': 'content_block_start',
+            'index': 0,
+            'content_block': {
+              'type': 'tool_use',
+              'id': 't',
+              'name': 'f',
+              'input': <String, Object?>{},
+            },
+          },
+          for (final piece in ['{}', '{"title": "Dune"}'])
+            {
+              'type': 'content_block_delta',
+              'index': 0,
+              'delta': {'type': 'input_json_delta', 'partial_json': piece},
+            },
+          {'type': 'content_block_stop', 'index': 0},
+          {
+            'type': 'message_delta',
+            'delta': {'stop_reason': 'tool_use'},
+          },
+          {'type': 'message_stop'},
+        ]),
+      ),
+    ).chat(messages: const [UserMessage('u')], tools: const []);
+    expect(result.toolCalls.single.decodedArguments, {'title': 'Dune'});
+    expect((result.raw!.parts.single as Map)['input'], {'title': 'Dune'});
   });
 
   test('a mirror also gets the key as a bearer token', () async {

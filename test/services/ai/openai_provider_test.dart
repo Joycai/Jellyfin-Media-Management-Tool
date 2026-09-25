@@ -1386,6 +1386,44 @@ void main() {
     expect(result.toolCalls.single.arguments, '{"title":"Dune"}');
   });
 
+  test('non-streamed arguments written as two objects become one', () async {
+    final result =
+        await OpenAiProvider(
+          _config('concatenated-args-json'),
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {
+                      'tool_calls': [
+                        {
+                          'id': 'c',
+                          'type': 'function',
+                          'function': {
+                            'name': 'f',
+                            'arguments': '{}{"title":"Dune"}',
+                          },
+                        },
+                      ],
+                    },
+                    'finish_reason': 'tool_calls',
+                  },
+                ],
+              }),
+              200,
+            ),
+          ),
+        ).chat(
+          messages: const [UserMessage('u')],
+          tools: const [
+            ToolDefinition(name: 'f', description: 'd', parameters: {}),
+          ],
+        );
+    // As it is sent back: one object, not only when read.
+    expect(result.toolCalls.single.arguments, '{"title":"Dune"}');
+  });
+
   // Volcengine's 2.1 models put only a summary in `reasoning_content` and the
   // original, encrypted, in `encrypted_content` (KB 03 §3.2, measured
   // 2026-09-23). Sent back without it, the model reasons from the summary.

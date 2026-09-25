@@ -163,7 +163,7 @@ Everything lives in the `path_provider` application-support directory, as hand-r
 - `config.json` — settings (debounced 250ms, flushed on dispose). A legacy `performance_mode: true` migrates to `glass_intensity: 0` and the key is dropped. `baked_glass` defaults to true.
 - `ai_profiles.json` — AI channels, routes, models, task assignments and keys (`"v": 2`), kept separate so a slider drag never rewrites keys. A file without `channels` is read as flat profiles, byte-identically; a flat `ai_services` mirror is still written for older builds
 - `ai_learned.json` — what each route refused or ignored ([learned_behaviour.dart](lib/services/ai/learned_behaviour.dart)); holds a key hash, never a key
-- `logs/api-<date>.jsonl` — the opt-in AI request log ([api_log.dart](lib/services/ai/api_log.dart), Settings → Privacy, 7 days): every body sent, no headers, no query strings, long strings and images replaced by their length
+- `logs/api-<date>.jsonl` — the opt-in AI request log ([api_log.dart](lib/services/ai/api_log.dart), Settings → Privacy, 7 days): every body sent, no headers, no query strings, images replaced by their length and long strings cut to 200 characters
 - `sites.json` — custom search sites
 - `scrapers.json` — learned / user-edited scrape recipes (built-ins live in code)
 - `undo/op-*.json`, `undo/blobs/` — undo manifests and backup copies

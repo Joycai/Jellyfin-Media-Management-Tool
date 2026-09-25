@@ -2808,6 +2808,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reasoning was asked for, but the reply shows none';
 
   @override
+  String get aiStepThinkingRefused =>
+      'The route refused the request for reasoning';
+
+  @override
   String get aiStepTools => 'Called the test tool';
 
   @override

@@ -153,8 +153,9 @@ class AiHttp {
 
   /// The request field an OpenAI-style error names in `error.param`
   /// (`"top_k"`, `"reasoning.effort"`, `"include"`), or null. The message
-  /// is prose and may not name the field at all ("Encrypted content is not
-  /// supported with this model."); `param` is where OpenAI puts it.
+  /// is prose and may not name the field at all (audit V5 expects "Encrypted
+  /// content is not supported with this model." for `include` — unverified);
+  /// `param` is where OpenAI puts it.
   static String? errorParam(http.Response res) {
     try {
       final json = jsonDecode(utf8.decode(res.bodyBytes, allowMalformed: true));

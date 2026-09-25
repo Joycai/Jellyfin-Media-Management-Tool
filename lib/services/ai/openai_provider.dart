@@ -10,6 +10,7 @@ import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
 import 'platform_profiles.dart';
+import 'thinking_dialect.dart';
 
 /// How a request asks for JSON, most to least constrained. [OpenAiProvider]
 /// steps down this list when a server rejects the current form.
@@ -352,7 +353,7 @@ class OpenAiProvider implements AiProvider {
         // A model that cannot stop reasoning, saying so without naming the
         // switch (one that names it was handled above, as a refused field).
         // Remembered apart from refused fields: asking it *on* is still sent.
-        if (sendsDialectOff && _refusesThinkingOff(detail)) {
+        if (sendsDialectOff && refusesThinkingOff(detail)) {
           learn(
             (b) => b.copyWith(
               thinkingOffTried: {
@@ -605,16 +606,6 @@ class OpenAiProvider implements AiProvider {
                 ).hasMatch(detail))
       : detail.contains(field);
 
-  /// A refusal to stop reasoning that does not name the field. Zhipu's 5.3
-  /// generation answers every thinking parameter it will not take with
-  /// "该模型始终思考，不支持关闭思考" (KB 03 §3.1). No `mandatory` here: without
-  /// the field named beside it, that word also turns up in unrelated errors
-  /// ("messages is mandatory").
-  static bool _refusesThinkingOff(String detail) => RegExp(
-    '始终思考|不支持关闭|无法关闭|不能关闭|'
-    'cannot be (disabled|turned off)|always (thinks|reasons)',
-  ).hasMatch(detail);
-
   static bool _namesResponseFormat(String detail) =>
       detail.contains('response_format') ||
       detail.contains('json_object') ||
@@ -864,7 +855,7 @@ class OpenAiProvider implements AiProvider {
               name: _stringOrNull(function['name']) ?? '',
               // Some servers hand arguments back already decoded.
               arguments: switch (function['arguments']) {
-                String s => s,
+                String s => ToolCall.normalizeArguments(s),
                 null => '{}',
                 final Object other => jsonEncode(other),
               },

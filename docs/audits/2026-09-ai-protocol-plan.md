@@ -131,7 +131,7 @@ PR 划分：
    ```
 
    - `break`：非网络、又不是拒收工具的错误（404 模型名错、400 别的字段），第二次问答案也一样，不必再花一次请求。
-   - 「两次都用散文回答 → `unsupported`」保持不变（`lastError == null` 分支）。
+   - 「散文」逐次计数：每次都答散文才判 `unsupported`；一次失败加一次散文为 `inconclusive`（执行中改，见变更记录）。
 2. **分类**（让异常类型说实话）。`AiHttp` 增加一个构造函数：
 
    ```dart
@@ -347,7 +347,7 @@ PR 划分：
    },
    ```
 
-5. `TokenBudget.estimate` **不算** `encrypted`：`agent_runtime.dart` 的 `_opaque` 已经把 `encrypted_content`、签名这类不透明串排除在估算外（预算裁不动它们，算进去只会多裁工具结果），这里保持同一口径。
+5. `AgentRuntime.estimate`（它调用的字符计数器是 `TokenBudget.estimate`）**不算** `encrypted`：`agent_runtime.dart` 的 `_opaque` 已经把 `encrypted_content`、签名这类不透明串排除在估算外（预算裁不动它们，算进去只会多裁工具结果），这里保持同一口径。
 6. `ApiLog` 不用改：密文与 ② 的 `encrypted_content` 同样处理——超过 2048 字符的只留前 200 字符加长度，更短的原样记下。它不是凭据，日志也只在本机、默认关闭。
 
 **测试**
@@ -409,7 +409,7 @@ PR 划分：
    1. 预算类错误（文案同时含 `budget_tokens` 和 `max_tokens`）→ 保持现状，不当拒绝，照原样抛错。
    2. 文案含 `thinking`，且当前形态还没被拒过 → 记 `rejectedFields += {'thinking:<形态>'}`，下次换另一种形态重发。
       - 老模型收到 `adaptive` 的典型文案是「thinking.type: Input tag 'adaptive' … does not match … 'disabled', 'enabled'」，不在 `refusesThinking` 的正则里。所以这一级的判据是「点名 `thinking`」，而不是「拒绝措辞」。
-   3. 两种形态都被拒过，或者原本就满足 `refusesThinking` 且另一形态已试过 → 记 `thinking`，也就是现有行为，表示模型确实不支持思考。
+   3. 文案满足 `refusesThinking`（拒的是思考本身，或点名形态且另一形态已被拒）→ 两种形态与 `thinking` 一起记下；否则照原样抛错，不学习（执行中改，见变更记录）。
    - 形态选择：`forModel(model)` 得到首选；首选在 `rejectedFields` 里就用另一种；两种都在就不发 `thinking`。
 4. **静默关思考要能被看见。** 诊断页（[ai_diagnostics_page.dart:299](../../lib/widgets/settings/ai_diagnostics_page.dart)）现在只在思考**关**时显示「模型仍在推理」。补上对称的一步：
    - 思考**开**时显示一步：`result.reasoned` 为真显示 `aiStepThinkingOn`「模型在推理」；为假显示 `aiStepThinkingNotOn`「请求了推理，但回复里没有」，`ok: null`（待定，不是失败：adaptive 与 Gemini 动态思考遇到连接测试这么小的请求可能不想）。
@@ -456,7 +456,7 @@ PR 划分：
    - **MiniMax ④ 设为 true**。依据 03 §3：MiniMax-M3 的 ④ 只收 `adaptive | disabled`，没有 `display`。今天发的是 `enabled + budget_tokens`，一旦被 400，第 6 步之前的代码就会把思考静默关掉 30 天，正是 A13 的风险。`source` 写 `【KB 03 §3】MiniMax-M3 /anthropic: adaptive | disabled`。
    - **火山方舟 ④ 不加内置行**：KB 01 §9.3 没有记 ④ 的路径。路径核实后作为数据行补上（见 V4）。
    - **DeepSeek、百炼、智谱的 ④ 不声明**：它们默认开不开思考是 V4 待核实。在核实前，它们照第 6 步走 `standard`，关时什么都不发。
-3. `_payload`（[anthropic_provider.dart:242](../../lib/services/ai/anthropic_provider.dart)）：路线声明了开关、思考关、`thinking` 不在 `rejectedFields` 时，发 `thinking:{type:"disabled"}`。
+3. `_payload`（[anthropic_provider.dart:242](../../lib/services/ai/anthropic_provider.dart)）：路线声明了开关、思考关、`thinkingOffTried` 里没有 `dialect` 时，发 `thinking:{type:"disabled"}`（原为「`thinking` 不在 `rejectedFields`」，执行中改，见变更记录）。
    - 这时 `temperature` / `top_p` / `top_k` 照常发（思考并没有开）。
    - 开关路线的 `max_tokens` 不用抬到 2048：`adaptive` 不需要预算。
 4. 能力矩阵（[ai_capability_matrix.dart:293](../../lib/widgets/settings/ai_capability_matrix.dart)）：④ 路线声明了开关 → `(works, aiCellSwitch('thinking'))`；否则保持 `aiCellDefaultOff`。
@@ -664,3 +664,7 @@ PR 划分：
 | 2026-09-25 | A6：模型页的推理开关与「推理开关」一行、换路线对话框也读 `messagesThinkingSwitch`（`PlatformProfiles.switchFieldFor`） | 审查发现：没有采样预设的模型（如 MiniMax-M3）只在平台有开关时才能拨开关，原先只看 ① 的方言，`adaptive` 从界面上到不了，那一行还写着本地阶梯 |
 | 2026-09-25 | A9：① 的 JSON mode 判定也读 `param`（`response_format`） | 原方案保持它只看文案；审查发现只在 `param` 里点名 `response_format` 的 400 会直接抛错，与 A9 是同一类问题。`max_completion_tokens` 仍只看文案：`param: "max_tokens"` 也可能只是数值超限 |
 | 2026-09-25 | A11（乙）落地时收紧：`Sse.read` 只跳过并计数，放行由适配器按「能否证明没丢东西」决定——② 有终止事件时改用它自带的 `output`，没有就抛；④、③ 只要跳过过就抛；② 缺终止事件时，开了头（有事件带它的 `output_index`）却没有 `output_item.done` 的项也算截断，与 ④ 的「每块都已 `content_block_stop`」同一口径；空 `data:` 不算事件；③ 改用 `Sse.read` | 原方案「坏行跳过」对 ④ 的 `content_block_delta`、③ 的每个事件都成立不了：跳过的可能正是一段正文或工具参数，回复看起来却是完整的——这是比整条失败更糟的静默错误。原方案 ② 只看已收到的 `done` 项，一段完整正文后截在参数中间的调用会被当成只有正文的回答，调用悄悄丢掉。① 维持原来的跳过，不在本步范围 |
+| 2026-09-25 | A1：「散文」逐次计数，只有每次都答散文才判 `unsupported` | 第 1 步审查：旧的 `lastError == null` 判据会把「一次失败 + 一次散文」记成永久不支持 |
+| 2026-09-25 | A10：Messages 与 Gemini 的端点先去掉查询串和片段（`AiHttp.endpointBase`），剥路径段有前置非 `/` 的约束；错误里的 URL 用适配器自己算出的地址，不用 `res.request?.url` | 查询串在这两个适配器上本来就拼不出能用的地址；主机名恰好叫 `messages` / `models` 时不能剥；两种取法是同一个值 |
+| 2026-09-25 | 整体审查后的修正：④ 只在文案点名形态（`adaptive` / `enabled` / `thinking.type`）时换形态，拒的是思考本身就一次记下全部形态和 `thinking`；旧版本留下的单独 `thinking` 按「`enabled` 被拒」读；声明为开关的 ④ 路线被拒 `disabled` 时记 `dialect`、之后关思考不再发；④ 拼接的工具参数也合并；① 非流式也规整参数；② 的 `param` 为 `reasoning.encrypted_content` 时按 `include` 算；诊断页「请求了但被拒」单列一步；能力矩阵读 `rejectedFields` | 逐个提交读不出来、合起来才显出的问题：旧记录会让 Claude 4.6+ 的思考继续被关 30 天；V4 一旦把开关挂到智谱 ④，glm-5.3 关思考的每个请求都会失败；任何提到 thinking 的 400 都会换形态 |
+| 2026-09-25 | 上一行的复审：旧版本的单独 `thinking` 只在首选形态是 `adaptive`（Claude 4.6+、开关路线）时按「`enabled` 被拒」读，首选是 `enabled` 时仍按思考已放弃读；开关路线发 `disabled` 与否只看 `thinkingOffTried` 的 `dialect`，不再看 `rejectedFields` 里的 `thinking`（开思考时被拒不等于 `disabled` 被拒）；发 `disabled` 时，文案拒收 `thinking` 字段本身也记 `dialect`，关于历史里思考块的错误不学 | 首选 `enabled` 的模型（如 claude-3-5-haiku）带着旧记录会改发 `adaptive`，老模型点名形态却不拒思考本身的回复按第 3 条照原样抛错，原本能用的路线每个请求都失败；`removeWhere` 不再删 `thinking` 后，拒收整个字段的开关路线关思考时每个请求也会失败 |

@@ -136,7 +136,8 @@ class ToolCall {
   final String name;
 
   /// The arguments as the model wrote them, or merged into one object when
-  /// it wrote several back to back (see [mergeConcatenated]).
+  /// it wrote several back to back (see [mergeConcatenated]) — on Chat
+  /// Completions and Messages, the protocols that assemble them from pieces.
   final String arguments;
 
   const ToolCall({

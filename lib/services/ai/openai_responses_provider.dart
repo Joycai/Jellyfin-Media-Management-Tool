@@ -214,6 +214,12 @@ class OpenAiResponsesProvider implements AiProvider {
           final candidates = _optional.where(
             (f) => payload.containsKey(f) && !rejected.contains(f),
           );
+          // `reasoning.encrypted_content` is the value `include` asks for,
+          // not a path inside `reasoning` — as in [_names].
+          if (param != null &&
+              param.startsWith('reasoning.encrypted_content')) {
+            param = 'include';
+          }
           final refused =
               candidates
                   .where((f) => AiHttp.paramNames(param, f))

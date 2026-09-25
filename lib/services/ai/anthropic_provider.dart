@@ -123,8 +123,9 @@ class AnthropicProvider implements AiProvider {
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
     final key = _cacheKey;
     while (true) {
-      final rejected = _learned.of(key).rejectedFields;
-      final payload = _payload(messages, tools, rejected: rejected);
+      final learned = _learned.of(key);
+      final rejected = learned.rejectedFields;
+      final payload = _payload(messages, tools, learned: learned);
       final started = DateTime.now();
       void log({
         int? status,
@@ -193,12 +194,34 @@ class AnthropicProvider implements AiProvider {
         // remembered — `top_k` on a mirror, `temperature` beside `top_p`.
         if (res.statusCode == 400 || res.statusCode == 422) {
           final detail = error.toLowerCase();
+          // The model id is not the message: a relay's `…-thinking` model
+          // named in an unrelated error must not read as a refusal.
+          final about = detail.replaceAll(config.model.toLowerCase(), '');
+          // A switch route whose model cannot stop reasoning: remembered as
+          // on Chat Completions, and `disabled` left off its requests.
+          // One that does not know the field at all is left the same way,
+          // or thinking off would fail every request there.
+          if (payload['thinking'] case {'type': 'disabled'}
+              when !_aboutHistory(about) &&
+                  (refusesThinkingOff(about) ||
+                      refusesThinking(about) ||
+                      (about.contains('thinking') &&
+                          about.contains('disabled')))) {
+            _learned.update(
+              key,
+              (b) => b.copyWith(
+                thinkingOffTried: {
+                  ...b.thinkingOffTried,
+                  LearnedBehaviour.dialectOff,
+                },
+              ),
+            );
+            continue;
+          }
           final thinkingRefusal = _thinkingRefusal(
-            // The model id is not the message: a relay's `…-thinking` model
-            // named in an unrelated error must not read as a refusal.
-            detail.replaceAll(config.model.toLowerCase(), ''),
+            about,
             sent: _sentForm(payload),
-            rejected: rejected,
+            refused: refusedForms(rejected, first: _firstForm),
             swap: !PlatformProfiles.messagesSwitchFor(config),
           );
           if (thinkingRefusal != null) {
@@ -269,36 +292,70 @@ class AnthropicProvider implements AiProvider {
   /// What to remember when a request that asked for thinking in [sent] is
   /// refused with [detail], or null when the refusal is not about thinking.
   ///
-  /// A refused form is swapped for the other before thinking is given up:
-  /// an older Claude answers `adaptive` with "thinking.type: Input tag
-  /// 'adaptive' … does not match … 'disabled', 'enabled'", which names the
-  /// field without refusing the feature, and dropping thinking over it would
-  /// switch reasoning off for a month without a word. Only once the other
-  /// form was refused too, and the message refuses thinking itself, is
-  /// `thinking` recorded. A budget error is about the numbers, never the
-  /// form, and is thrown as it is. So is an error about the thinking blocks
-  /// in the conversation ("`thinking` or `redacted_thinking` blocks … cannot
-  /// be modified", "messages.3.content.0: Invalid `signature` in `thinking`
-  /// block"): the history is wrong, whichever form was asked for.
+  /// A refusal that names the form ("thinking.type: Input tag 'adaptive' …
+  /// does not match … 'disabled', 'enabled'", an older Claude; "…enabled is
+  /// not supported", a newer one) swaps it for the other: dropping thinking
+  /// over it would switch reasoning off for a month without a word. A
+  /// message that refuses thinking itself gives it up, every form at once —
+  /// also when it names the form and there is no other left to try. Any
+  /// other message is thrown as it is, even with no form left: only a
+  /// refusal of the feature may switch reasoning off. So is a budget error,
+  /// which is about the numbers, never the form, and an error about the
+  /// thinking blocks in the conversation ("`thinking` or `redacted_thinking`
+  /// blocks … cannot be modified", "messages.3.content.0: Invalid
+  /// `signature` in `thinking` block"): the history is wrong, whichever form
+  /// was asked for.
   ///
   /// A route declared as a switch has one form only ([swap] false).
   static Set<String>? _thinkingRefusal(
     String detail, {
     required MessagesThinking? sent,
-    required Set<String> rejected,
+    required Set<MessagesThinking> refused,
     required bool swap,
   }) {
     if (sent == null || !detail.contains('thinking')) return null;
     if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
       return null;
     }
-    if (RegExp(r'redacted_thinking|signature|messages\.\d').hasMatch(detail)) {
-      return null;
-    }
-    if (swap && !rejected.contains(sent.other.refusedName)) {
+    if (_aboutHistory(detail)) return null;
+    final namesForm =
+        detail.contains(sent.type) || detail.contains('thinking.type');
+    if (swap && namesForm && !refused.contains(sent.other)) {
       return {sent.refusedName};
     }
-    return refusesThinking(detail) ? {sent.refusedName, 'thinking'} : null;
+    if (!refusesThinking(detail)) return null;
+    return {
+      for (final form in MessagesThinking.values) form.refusedName,
+      'thinking',
+    };
+  }
+
+  /// Whether [detail] is about the thinking blocks already in the
+  /// conversation rather than about the request for thinking.
+  static bool _aboutHistory(String detail) =>
+      RegExp(r'redacted_thinking|signature|messages\.\d').hasMatch(detail);
+
+  /// The forms this route refused, where [first] is the form it is asked in
+  /// first. A bare `thinking` with neither form beside it was written before
+  /// the forms were told apart, when `enabled` was the only one sent and
+  /// only a refusal of thinking itself was recorded. Where `enabled` is also
+  /// the first form, that is what a refusal of thinking records now: every
+  /// form. Where adaptive comes first (Claude 4.6 and later, a switch
+  /// route), adaptive was never asked, and the record is no verdict on it.
+  static Set<MessagesThinking> refusedForms(
+    Set<String> rejected, {
+    required MessagesThinking first,
+  }) {
+    final forms = {
+      for (final form in MessagesThinking.values)
+        if (rejected.contains(form.refusedName)) form,
+    };
+    if (forms.isEmpty && rejected.contains('thinking')) {
+      return first == MessagesThinking.adaptive
+          ? {MessagesThinking.extended}
+          : MessagesThinking.values.toSet();
+    }
+    return forms;
   }
 
   /// The form [payload] asked for thinking in, if it did.
@@ -316,17 +373,20 @@ class AnthropicProvider implements AiProvider {
   ///
   /// A route declared as a switch asks adaptive only, the one form it takes.
   MessagesThinking? _form(Set<String> rejected) {
-    if (!config.thinkingEnabled || rejected.contains('thinking')) return null;
-    if (PlatformProfiles.messagesSwitchFor(config)) {
-      const form = MessagesThinking.adaptive;
-      return rejected.contains(form.refusedName) ? null : form;
-    }
-    final first = MessagesThinking.forModel(config.model);
-    for (final form in [first, first.other]) {
-      if (!rejected.contains(form.refusedName)) return form;
-    }
-    return null;
+    if (!config.thinkingEnabled) return null;
+    final first = _firstForm;
+    final refused = refusedForms(rejected, first: first);
+    final forms = PlatformProfiles.messagesSwitchFor(config)
+        ? [first]
+        : [first, first.other];
+    return forms.where((form) => !refused.contains(form)).firstOrNull;
   }
+
+  /// The form thinking is asked in before any refusal: adaptive on a switch
+  /// route, otherwise the model's own.
+  MessagesThinking get _firstForm => PlatformProfiles.messagesSwitchFor(config)
+      ? MessagesThinking.adaptive
+      : MessagesThinking.forModel(config.model);
 
   /// Sampling fields the adapter may leave out when a route refuses them;
   /// `thinking` has its own rules ([_thinkingRefusal]).
@@ -336,8 +396,9 @@ class AnthropicProvider implements AiProvider {
   Map<String, Object?> _payload(
     List<ChatMessage> messages,
     List<ToolDefinition> tools, {
-    required Set<String> rejected,
+    required LearnedBehaviour learned,
   }) {
+    final rejected = learned.rejectedFields;
     final values = config.sampling.values;
     final form = _form(rejected);
     // Thinking needs room inside max_tokens — for extended, a budget of at
@@ -371,9 +432,12 @@ class AnthropicProvider implements AiProvider {
       // A route declared as a switch is told off in its own words (its
       // platform may think by default); elsewhere off is the protocol's
       // default and nothing is sent.
-      if (!config.thinkingEnabled && PlatformProfiles.messagesSwitchFor(config))
+      if (!config.thinkingEnabled &&
+          PlatformProfiles.messagesSwitchFor(config) &&
+          !learned.thinkingOffTried.contains(LearnedBehaviour.dialectOff))
         'thinking': const {'type': 'disabled'},
-    }..removeWhere((k, _) => rejected.contains(k));
+      // `thinking` is decided above, form by form.
+    }..removeWhere((k, _) => k != 'thinking' && rejected.contains(k));
     return {
       'model': config.model,
       'max_tokens': maxTokens,
@@ -685,7 +749,7 @@ class AnthropicProvider implements AiProvider {
   }) async => RequestPreview(
     url: _messagesUri,
     headers: _headers(masked: true),
-    body: _payload(messages, tools, rejected: learned.rejectedFields),
+    body: _payload(messages, tools, learned: learned),
   );
 
   /// Anthropic reports no context size through the API.
@@ -733,9 +797,11 @@ class _Block {
       try {
         _block['input'] = jsonDecode(_json.toString());
       } on FormatException {
-        // Cut-off arguments: kept as text so the loop reports a bad call
-        // rather than an empty one.
-        _block['input'] = _json.toString();
+        // Objects written back to back are merged; cut-off arguments are
+        // kept as text so the loop reports a bad call rather than an empty
+        // one.
+        _block['input'] =
+            ToolCall.mergeConcatenated(_json.toString()) ?? _json.toString();
       }
     }
     return _block;

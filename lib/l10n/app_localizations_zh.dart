@@ -2703,6 +2703,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiStepThinkingNotOn => '请求了推理，但回复里没有';
 
   @override
+  String get aiStepThinkingRefused => '该线路拒收了推理请求';
+
+  @override
   String get aiStepTools => '调用了测试工具';
 
   @override

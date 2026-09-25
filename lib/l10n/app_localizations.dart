@@ -4922,6 +4922,12 @@ abstract class AppLocalizations {
   /// **'Reasoning was asked for, but the reply shows none'**
   String get aiStepThinkingNotOn;
 
+  /// No description provided for @aiStepThinkingRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The route refused the request for reasoning'**
+  String get aiStepThinkingRefused;
+
   /// No description provided for @aiStepTools.
   ///
   /// In en, this message translates to:

@@ -10,6 +10,16 @@
 /// switch and no ladder.
 library;
 
+/// Whether [detail], an error message in lower case, refuses to stop
+/// reasoning without naming the field. Zhipu's 5.3 generation answers every
+/// thinking parameter it will not take with "该模型始终思考，不支持关闭思考"
+/// (KB 03 §3.1). No `mandatory` here: without the field named beside it,
+/// that word also turns up in unrelated errors ("messages is mandatory").
+bool refusesThinkingOff(String detail) => RegExp(
+  '始终思考|不支持关闭|无法关闭|不能关闭|'
+  'cannot be (disabled|turned off)|always (thinks|reasons)',
+).hasMatch(detail);
+
 enum ThinkingDialect {
   /// `thinking: {"type": "enabled" | "disabled"}` — Zhipu BigModel, DeepSeek,
   /// Volcengine Ark.

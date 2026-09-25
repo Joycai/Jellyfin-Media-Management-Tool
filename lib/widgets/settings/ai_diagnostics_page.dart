@@ -13,6 +13,7 @@ import '../../services/ai/ai_provider.dart';
 import '../../services/ai/ai_service.dart';
 import '../../services/ai/api_log.dart';
 import '../../services/ai/connection_check.dart';
+import '../../services/ai/platform_profiles.dart';
 import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';
 import '../ui/app_controls.dart';
@@ -66,11 +67,29 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
 /// reasoning as quietly as a request for none. A reply without reasoning
 /// when it was asked for is undecided, not failed: adaptive thinking and
 /// Gemini's dynamic thinking may skip a request as small as the test's.
+///
+/// [refused]: the route refused the request for reasoning during the test
+/// and it is no longer sent — asked for, but not sent.
+/// Whether [rejected], a route's refused fields, holds the request for
+/// reasoning [config]'s protocol sends — on Messages, the `thinking` a
+/// refusal of the feature records beside its forms.
+bool reasoningRefused(AiConfig config, Set<String> rejected) =>
+    switch (config.provider) {
+      AiProviderType.anthropic => rejected.contains('thinking'),
+      AiProviderType.openAiResponses => rejected.contains('reasoning'),
+      AiProviderType.openAi => rejected.contains(
+        PlatformProfiles.dialectFor(config)?.field(thinking: true).key,
+      ),
+      AiProviderType.googleGenAi => false,
+    };
+
 ({bool? ok, String text}) thinkingStep(
   AppLocalizations l10n, {
   required bool asked,
   required bool reasoned,
+  bool refused = false,
 }) => switch ((asked, reasoned)) {
+  (true, false) when refused => (ok: false, text: l10n.aiStepThinkingRefused),
   (false, false) => (ok: true, text: l10n.aiStepThinkingOff),
   (false, true) => (ok: false, text: l10n.aiStepThinkingStillOn),
   (true, true) => (ok: true, text: l10n.aiStepThinkingOn),
@@ -295,10 +314,16 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
         ? null
         : result.limits.contextWindow;
     final typed = config.contextWindow;
+    // What the test itself learned: a route that refused the request for
+    // reasoning no longer sends it.
     final thinking = thinkingStep(
       l10n,
       asked: config.thinkingEnabled,
       reasoned: result.reasoned,
+      refused: reasoningRefused(
+        config,
+        AiService.providerFor(config).learned.rejectedFields,
+      ),
     );
     return [
       _Step(

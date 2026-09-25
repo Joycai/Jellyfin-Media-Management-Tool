@@ -666,6 +666,34 @@ void main() {
     );
   });
 
+  test('a param of reasoning.encrypted_content names include', () async {
+    // With thinking on, reading it as `reasoning` would drop reasoning.
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiResponsesProvider(
+      _config('param-encrypted.example', thinking: true),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return body.containsKey('include')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message': 'Not available for this model.',
+                    'param': 'reasoning.encrypted_content',
+                  },
+                }),
+                400,
+              )
+            : _stream([_completed()]);
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies.last.containsKey('include'), isFalse);
+    expect(bodies.last['reasoning'], {'effort': 'medium'});
+    expect(provider.learned.rejectedFields, {'include'});
+  });
+
   test('a stream that opens with a comment is still a stream', () async {
     final result = await OpenAiResponsesProvider(
       _config('comment.example'),

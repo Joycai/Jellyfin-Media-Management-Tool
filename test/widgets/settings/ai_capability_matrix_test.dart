@@ -87,53 +87,68 @@ void main() {
     expect(value.text, l10n.aiCellLadder);
   });
 
-  test('a Responses route that refused effort none runs at its default', () {
-    final responsesModel = AiModelEntry.create(
-      upstream: 'gpt-5.5',
-      route: AiProviderType.openAiResponses,
-    );
-    final responsesChannel =
-        AiChannel.create(
-              platform: PlatformProfiles.custom,
-              name: 'r',
-              apiKey: 'k',
-            )
-            .copyWith(
-              routes: [
-                const AiRoute(
-                  protocol: AiProviderType.openAiResponses,
-                  endpoint: 'https://responses.example/v1',
-                ),
-              ],
-            )
-            .withModel(responsesModel);
-    final provider = AiService.providerFor(
-      responsesChannel.configFor(responsesModel),
-    );
-    addTearDown(provider.forgetLearned);
-    LearnedStore.instance.update(
-      LearnedStore.routeKey(
-        protocol: AiProviderType.openAiResponses.id,
-        base: 'https://responses.example/v1',
-        model: 'gpt-5.5',
-        apiKey: 'k',
-      ),
-      (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.effortNone}),
-    );
-    expect(provider.learned.thinkingOffTried, {
-      LearnedBehaviour.effortNone,
-    }, reason: 'the test wrote the route the matrix reads');
+  // Refused `none`, or refused `reasoning` itself: nothing is sent when off.
+  for (final (what, learn)
+      in <(String, LearnedBehaviour Function(LearnedBehaviour))>[
+        (
+          'effort none',
+          (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.effortNone}),
+        ),
+        ('reasoning', (b) => b.copyWith(rejectedFields: {'reasoning'})),
+      ]) {
+    test('a Responses route that refused $what runs at its default', () {
+      final responsesModel = AiModelEntry.create(
+        upstream: 'gpt-5.5',
+        route: AiProviderType.openAiResponses,
+      );
+      final responsesChannel =
+          AiChannel.create(
+                platform: PlatformProfiles.custom,
+                name: 'r',
+                apiKey: 'k',
+              )
+              .copyWith(
+                routes: [
+                  const AiRoute(
+                    protocol: AiProviderType.openAiResponses,
+                    endpoint: 'https://responses.example/v1',
+                  ),
+                ],
+              )
+              .withModel(responsesModel);
+      final provider = AiService.providerFor(
+        responsesChannel.configFor(responsesModel),
+      );
+      addTearDown(provider.forgetLearned);
+      LearnedStore.instance.update(
+        LearnedStore.routeKey(
+          protocol: AiProviderType.openAiResponses.id,
+          base: 'https://responses.example/v1',
+          model: 'gpt-5.5',
+          apiKey: 'k',
+        ),
+        learn,
+      );
+      expect(
+        {
+          ...provider.learned.thinkingOffTried,
+          ...provider.learned.rejectedFields,
+        },
+        hasLength(1),
+        reason: 'the test wrote the route the matrix reads',
+      );
 
-    final value = capabilityCell(
-      l10n,
-      responsesChannel,
-      responsesModel,
-      AiProviderType.openAiResponses,
-      Capability.thinkingOff,
-    );
-    expect(value.state, CapabilityState.unavailable);
-    expect(value.text, l10n.aiCellModelDefault);
-  });
+      final value = capabilityCell(
+        l10n,
+        responsesChannel,
+        responsesModel,
+        AiProviderType.openAiResponses,
+        Capability.thinkingOff,
+      );
+      expect(value.state, CapabilityState.unavailable);
+      expect(value.text, l10n.aiCellModelDefault);
+    });
+  }
 
   test('a Messages route with a platform switch names it', () {
     final m = AiModelEntry.create(
@@ -154,6 +169,68 @@ void main() {
     );
     expect(value.state, CapabilityState.works);
     expect(value.text, l10n.aiCellSwitch('thinking'));
+  });
+
+  test('a platform switch refused by name is sent neither way', () {
+    final provider = AiService.providerFor(channel.configFor(model));
+    addTearDown(provider.forgetLearned);
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.openAi.id,
+        base: 'https://open.bigmodel.cn/api/paas/v4',
+        model: 'glm-4.6',
+        apiKey: 'k',
+      ),
+      (b) => b.copyWith(rejectedFields: {'thinking'}),
+    );
+    expect(provider.learned.rejectedFields, {'thinking'});
+
+    final value = cell(model, AiProviderType.openAi, Capability.thinkingOff);
+    expect(value.state, CapabilityState.unavailable);
+    expect(value.text, l10n.aiCellModelDefault);
+  });
+
+  test('a Messages switch the model refused off always reasons', () {
+    final m = AiModelEntry.create(
+      upstream: 'MiniMax-M3',
+      route: AiProviderType.anthropic,
+    );
+    final minimax =
+        AiChannel.create(
+              platform: PlatformProfiles.miniMax,
+              name: 'mm',
+              apiKey: 'k-always',
+            )
+            .copyWith(
+              routes: [const AiRoute(protocol: AiProviderType.anthropic)],
+            )
+            .withModel(m);
+    final config = minimax.configFor(m);
+    expect(config.provider, AiProviderType.anthropic);
+    final provider = AiService.providerFor(config);
+    addTearDown(provider.forgetLearned);
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.anthropic.id,
+        base: '${config.endpoint}/v1',
+        model: 'MiniMax-M3',
+        apiKey: 'k-always',
+      ),
+      (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.dialectOff}),
+    );
+    expect(provider.learned.thinkingOffTried, {
+      LearnedBehaviour.dialectOff,
+    }, reason: 'the test wrote the route the matrix reads');
+
+    final value = capabilityCell(
+      l10n,
+      minimax,
+      m,
+      AiProviderType.anthropic,
+      Capability.thinkingOff,
+    );
+    expect(value.state, CapabilityState.unavailable);
+    expect(value.text, l10n.aiCellAlwaysReasons);
   });
 
   test('tool calling reads the measurement on that route', () {
