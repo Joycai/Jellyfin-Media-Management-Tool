@@ -202,19 +202,19 @@ PR 划分：
    - 故意**不含** `mandatory`：这个词在「messages is mandatory」一类无关文案里也会出现。现有 `_namesField` 里用它时，要求文案同时点名字段，这里不点名，所以不能用。
    - KB 06 §2 提醒过：智谱这句文案覆盖 5.3 代**所有**非法思考参数。所以命中后只动思考字段，不做别的推断。
 2. 记在 `thinkingOffTried`，**不记在** `rejectedFields`：
-   - 在 `_exchange` 的 400/422 分支里、`refused` 查找之前插入：
+   - 在 `_exchange` 的 400/422 分支里、`refused` 查找之后插入（放在之前，「thinking cannot be disabled」这类点名字段的文案会被它截走，违反下面第 3 点）：
 
      ```dart
      if (dialectOff && _refusesThinkingOff(detail)) {
        learn((b) => b.copyWith(
-         thinkingOffTried: {...b.thinkingOffTried, _dialectOff},
+         thinkingOffTried: {...b.thinkingOffTried, LearnedBehaviour.dialectOff},
        ));
        continue;
      }
      ```
 
    - `dialectOff` 表示这次请求带了方言的「关」字段：方言不为空，且 `!sampling.thinking`，且 `thinkingOffTried` 里还没有 `'dialect'`。
-   - `_dialectOff = 'dialect'`。有方言的路线不走 `_ThinkingOff` 阶梯，所以这个名字不会和阶梯项冲突。
+   - `LearnedBehaviour.dialectOff = 'dialect'`。阶梯项没有叫这个名字的；但路线键里没有平台，改过平台的渠道会同时留着两种记录，所以能力矩阵数阶梯步数时不算它。
    - 为什么不放进 `rejectedFields`：放进去之后，用户打开思考时，`thinking:{type:"enabled"}` 也会被剥掉。对 5.3 无害（它反正始终在想），但对「偶尔 400 的其他模型」就是静默关思考，正是 A13 那一类错误。
    - `_compose` 增加参数 `bool dialectOffRefused`：为 true 且思考关时，不放 `dialectField`；思考开时照发。
    - `previewRequest`（:431）也要传这个参数，保证预览与实际请求一致。
@@ -657,3 +657,4 @@ PR 划分：
 | 2026-09-25 | 初稿 | — |
 | 2026-09-25 | 相对审查建议的四处细化：A2 载体不用 `ProviderTurn`、改为扩展 `ReasoningPassback`；A3 / A8 的「关」被拒记在 `thinkingOffTried` 而不是 `rejectedFields`；A10 的错误 URL 只在 404 / 405 时附加；A13 非 Claude 模型保持 `extended`，没有按 KB 缺省猜 `adaptive` | 对照代码后发现：`TokenBudget.estimate` 只按 `raw.parts` 估算；「关」被拒不代表「开」也被拒；错误文案上有子串学习，附加 URL 会误判；非 Claude 镜像的 `adaptive` 支持没有证据 |
 | 2026-09-25 | A11 定为乙；13 步合成一个 PR，每个提交先由一个子代理审查并修掉问题，最后整体审查一次再开 PR | 用户决定。上面的 PR 划分仍是评审顺序：提交按步号排列 |
+| 2026-09-25 | A8 的新判据挪到 `refused` 查找之后；`'dialect'` 成了常量 `LearnedBehaviour.dialectOff`；矩阵的阶梯计数不算它 | 放在之前会截走点名字段的文案，与第 3 点矛盾；路线键不含平台，同一集合里可能两种记录都有 |

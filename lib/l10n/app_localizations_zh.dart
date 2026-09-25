@@ -2758,6 +2758,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiCellPromptOnly => '无参数 · 只靠提示词';
 
   @override
+  String get aiCellAlwaysReasons => '该模型始终思考';
+
+  @override
   String get aiCellDefaultOff => '默认不思考';
 
   @override

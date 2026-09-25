@@ -211,6 +211,7 @@ class OpenAiProvider implements AiProvider {
         (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
       );
 
+      final dialectOffRefused = tried.contains(LearnedBehaviour.dialectOff);
       final (:optional, :payload) = _compose(
         messages: messages,
         tools: tools,
@@ -219,7 +220,14 @@ class OpenAiProvider implements AiProvider {
         mode: mode,
         maxCompletionTokens: maxCompletionTokens,
         rejected: rejected,
+        dialectOffRefused: dialectOffRefused,
       );
+      // Whether this request carries the platform's switch set to off.
+      final dialectOffKey = config.sampling.thinking
+          ? null
+          : PlatformProfiles.dialectFor(config)?.field(thinking: false).key;
+      final sendsDialectOff =
+          dialectOffKey != null && optional.containsKey(dialectOffKey);
       final body = jsonEncode(payload);
       final started = DateTime.now();
       void log({int? status, ChatResult? result, String? error}) =>
@@ -331,6 +339,20 @@ class OpenAiProvider implements AiProvider {
           }
           continue;
         }
+        // A model that cannot stop reasoning, saying so without naming the
+        // switch (one that names it was handled above, as a refused field).
+        // Remembered apart from refused fields: asking it *on* is still sent.
+        if (sendsDialectOff && _refusesThinkingOff(detail)) {
+          learn(
+            (b) => b.copyWith(
+              thinkingOffTried: {
+                ...b.thinkingOffTried,
+                LearnedBehaviour.dialectOff,
+              },
+            ),
+          );
+          continue;
+        }
       }
       throw AiHttp.statusError(res.statusCode, error);
     }
@@ -365,12 +387,17 @@ class OpenAiProvider implements AiProvider {
     required _JsonMode mode,
     required bool maxCompletionTokens,
     required Set<String> rejected,
+    required bool dialectOffRefused,
   }) {
     final sampling = config.sampling;
     final values = sampling.values;
     final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
     final dialect = PlatformProfiles.dialectFor(config);
-    final dialectField = dialect?.field(thinking: sampling.thinking);
+    // A model that refused the switch set to off is not asked again; on is
+    // still sent.
+    final dialectField = !sampling.thinking && dialectOffRefused
+        ? null
+        : dialect?.field(thinking: sampling.thinking);
 
     final optional = <String, Object>{
       'temperature': ?values.temperature,
@@ -448,6 +475,9 @@ class OpenAiProvider implements AiProvider {
       mode: _JsonMode.object,
       maxCompletionTokens: learned.maxCompletionTokens,
       rejected: learned.rejectedFields,
+      dialectOffRefused: learned.thinkingOffTried.contains(
+        LearnedBehaviour.dialectOff,
+      ),
     );
     final key = config.apiKey.trim();
     return RequestPreview(
@@ -559,6 +589,16 @@ class OpenAiProvider implements AiProvider {
                   'not supported|unsupported',
                 ).hasMatch(detail))
       : detail.contains(field);
+
+  /// A refusal to stop reasoning that does not name the field. Zhipu's 5.3
+  /// generation answers every thinking parameter it will not take with
+  /// "该模型始终思考，不支持关闭思考" (KB 03 §3.1). No `mandatory` here: without
+  /// the field named beside it, that word also turns up in unrelated errors
+  /// ("messages is mandatory").
+  static bool _refusesThinkingOff(String detail) => RegExp(
+    '始终思考|不支持关闭|无法关闭|不能关闭|'
+    'cannot be (disabled|turned off)|always (thinks|reasons)',
+  ).hasMatch(detail);
 
   static bool _namesResponseFormat(String detail) =>
       detail.contains('response_format') ||

@@ -6,6 +6,7 @@ import '../../models/ai_channel.dart';
 import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_provider.dart';
 import '../../services/ai/ai_service.dart';
+import '../../services/ai/learned_behaviour.dart';
 import '../../services/ai/platform_profiles.dart';
 import '../../theme/design_tokens.dart';
 import 'ai_services_screen.dart';
@@ -297,14 +298,21 @@ CapabilityCell capabilityCell(
         return (state: unmeasured, text: l10n.aiCellModelDefault);
       }
       final dialect = PlatformProfiles.dialectFor(config);
+      final tried = learned?.thinkingOffTried ?? const <String>{};
+      // The model refused its platform's switch set to off (Zhipu's 5.3).
+      if (dialect != null && tried.contains(LearnedBehaviour.dialectOff)) {
+        return (state: unavailable, text: l10n.aiCellAlwaysReasons);
+      }
       if (dialect != null) {
         return (
           state: works,
           text: l10n.aiCellSwitch(dialect.field(thinking: false).key),
         );
       }
-      final tried = learned?.thinkingOffTried ?? const <String>{};
-      return tried.length >= 2
+      // Only ladder steps count: a route key outlives its channel's platform,
+      // so a switch refused under one can still be on record here.
+      final steps = tried.where((w) => w != LearnedBehaviour.dialectOff);
+      return steps.length >= 2
           ? (state: unavailable, text: l10n.aiCellLadderExhausted)
           : (state: unmeasured, text: l10n.aiCellLadder);
     case Capability.usage:

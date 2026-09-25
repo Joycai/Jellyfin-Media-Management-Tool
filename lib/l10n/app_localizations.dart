@@ -5024,6 +5024,12 @@ abstract class AppLocalizations {
   /// **'no parameter · prompt only'**
   String get aiCellPromptOnly;
 
+  /// No description provided for @aiCellAlwaysReasons.
+  ///
+  /// In en, this message translates to:
+  /// **'this model always reasons'**
+  String get aiCellAlwaysReasons;
+
   /// No description provided for @aiCellDefaultOff.
   ///
   /// In en, this message translates to:

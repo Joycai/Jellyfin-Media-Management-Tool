@@ -36,6 +36,12 @@ class LearnedBehaviour {
   /// stored position would point at a different way once it changed.
   final Set<String> thinkingOffTried;
 
+  /// In [thinkingOffTried]: the model refused its platform's reasoning switch
+  /// set to off (Zhipu's 5.3 generation always reasons). No ladder way has
+  /// this name, but the set can hold both: a route key has no platform in
+  /// it, so a channel whose platform changed keeps what the old one learned.
+  static const dialectOff = 'dialect';
+
   final DateTime updated;
 
   LearnedBehaviour({

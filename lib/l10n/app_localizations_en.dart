@@ -2866,6 +2866,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiCellPromptOnly => 'no parameter · prompt only';
 
   @override
+  String get aiCellAlwaysReasons => 'this model always reasons';
+
+  @override
   String get aiCellDefaultOff => 'off by default';
 
   @override

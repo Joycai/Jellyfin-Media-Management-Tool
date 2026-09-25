@@ -1029,6 +1029,7 @@
     }
   },
   "aiCellPromptOnly": "no parameter · prompt only",
+  "aiCellAlwaysReasons": "this model always reasons",
   "aiCellDefaultOff": "off by default",
   "aiCellModelDefault": "the model’s default",
   "aiCellSentAs": "sent as {part} · not measured",

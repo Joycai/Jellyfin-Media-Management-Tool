@@ -34,6 +34,9 @@ http.Response _reply(String content, {String finishReason = 'stop'}) =>
       200,
     );
 
+/// A Chinese error message needs its charset, or `http.Response` refuses it.
+const _utf8Json = {'content-type': 'application/json; charset=utf-8'};
+
 Map<String, dynamic> _body(http.BaseRequest request) =>
     jsonDecode((request as http.Request).body) as Map<String, dynamic>;
 
@@ -893,6 +896,145 @@ void main() {
 
       expect(bodies.first['reasoning'], {'enabled': false});
       expect(bodies.last.containsKey('reasoning'), isFalse);
+    });
+
+    test('a model that always reasons is not asked off again', () async {
+      // Zhipu's 5.3 generation: the refusal does not name `thinking`
+      // (KB 03 §3.1, measured 2026-09-19).
+      final bodies = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        final body = _body(request);
+        bodies.add(body);
+        // A retry that never drops the switch would otherwise spin forever:
+        // a mock reply never yields to the timer that times the test out.
+        if (bodies.length > 8) throw StateError('the retries never stopped');
+        return (body['thinking'] as Map?)?['type'] == 'disabled'
+            ? http.Response(
+                jsonEncode({
+                  'error': {'code': '1210', 'message': '该模型始终思考，不支持关闭思考'},
+                }),
+                400,
+                headers: _utf8Json,
+              )
+            : _reply('ok');
+      });
+      AiConfig config({bool thinking = false}) => AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+        apiKey: 'k-always-reasons',
+        model: 'glm-5.3',
+        platform: 'zhipu',
+        thinkingEnabled: thinking,
+      );
+
+      final reply = await OpenAiProvider(
+        config(),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(reply.text, 'ok');
+      expect(bodies, hasLength(2));
+      expect(bodies.first['thinking'], {'type': 'disabled'});
+      expect(bodies.last.containsKey('thinking'), isFalse);
+      final learned = OpenAiProvider(config(), client: client).learned;
+      expect(learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
+      expect(learned.rejectedFields, isEmpty);
+
+      // Remembered: the next request goes out without the switch.
+      await OpenAiProvider(
+        config(),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies, hasLength(3));
+      expect(bodies.last.containsKey('thinking'), isFalse);
+      // The settings preview shows the request a task now sends.
+      final preview = await OpenAiProvider(
+        config(),
+        client: client,
+      ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+      expect(preview.body.containsKey('thinking'), isFalse);
+
+      // Asking it on is a different request, and is still sent.
+      await OpenAiProvider(
+        config(thinking: true),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies.last['thinking'], {'type': 'enabled'});
+      final onPreview = await OpenAiProvider(
+        config(thinking: true),
+        client: client,
+      ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+      expect(onPreview.body['thinking'], {'type': 'enabled'});
+    });
+
+    test('a refusal while asking reasoning on teaches nothing', () async {
+      // Only a refused *off* is learned; learning it here would retry the
+      // same request, since *on* is still sent.
+      var sent = 0;
+      final provider = OpenAiProvider(
+        const AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+          apiKey: 'k-refused-on',
+          model: 'glm-5.3',
+          platform: 'zhipu',
+          thinkingEnabled: true,
+        ),
+        client: MockClient((request) async {
+          if (++sent > 8) throw StateError('the retries never stopped');
+          return http.Response(
+            jsonEncode({
+              'error': {'code': '1210', 'message': '该模型始终思考，不支持关闭思考'},
+            }),
+            400,
+            headers: _utf8Json,
+          );
+        }),
+      );
+
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiException>()),
+      );
+      expect(sent, 1);
+      expect(provider.learned.isEmpty, isTrue);
+    });
+
+    test('an unrelated 400 on a switch route teaches nothing', () async {
+      // The second names no field and says `mandatory`, which a refusal of
+      // the switch only counts as beside the field's name.
+      for (final (i, message) in const [
+        'messages 参数非法',
+        "'messages' is mandatory",
+      ].indexed) {
+        var sent = 0;
+        final provider = OpenAiProvider(
+          AiConfig(
+            provider: AiProviderType.openAi,
+            endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+            apiKey: 'k-unrelated-400-$i',
+            model: 'glm-5.3',
+            platform: 'zhipu',
+          ),
+          client: MockClient((request) async {
+            sent++;
+            return http.Response(
+              jsonEncode({
+                'error': {'code': '1214', 'message': message},
+              }),
+              400,
+              headers: _utf8Json,
+            );
+          }),
+        );
+
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(isA<AiException>()),
+          reason: message,
+        );
+        expect(sent, 1, reason: message);
+        expect(provider.learned.isEmpty, isTrue, reason: message);
+      }
     });
 
     test('any other server sends no platform field', () async {
