@@ -395,6 +395,8 @@ class _AiModelPageState extends State<AiModelPage> {
     final learned = provider.learned;
     // A Chat Completions dialect or a Messages route declared as a switch.
     final switchField = PlatformProfiles.switchFieldFor(config);
+    // Otherwise Messages' or Responses' own field.
+    final protocolField = PlatformProfiles.protocolSwitchFieldFor(config);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
 
     Widget line(String label, Widget value) => Padding(
@@ -423,6 +425,8 @@ class _AiModelPageState extends State<AiModelPage> {
             Text(
               switchField != null
                   ? l10n.aiDialectField(switchField)
+                  : protocolField != null
+                  ? l10n.aiCellProtocolSwitch(protocolField)
                   : l10n.aiRouteLadder,
               style: note.copyWith(color: t.textBody),
             ),

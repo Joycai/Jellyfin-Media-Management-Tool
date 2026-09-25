@@ -126,7 +126,19 @@ void main() {
       model: 'm',
     );
     const custom = 'https://relay.example.com';
-    // The protocol carries the switch.
+    // The protocol carries the switch, and names it.
+    expect(
+      PlatformProfiles.protocolSwitchFieldFor(
+        on(AiProviderType.anthropic, custom),
+      ),
+      'thinking',
+    );
+    expect(
+      PlatformProfiles.protocolSwitchFieldFor(
+        on(AiProviderType.openAiResponses, custom),
+      ),
+      'reasoning.effort',
+    );
     expect(
       PlatformProfiles.thinkingSwitchable(on(AiProviderType.anthropic, custom)),
       isTrue,

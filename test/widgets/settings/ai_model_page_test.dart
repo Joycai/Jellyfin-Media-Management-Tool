@@ -114,6 +114,8 @@ void main() {
       route: AiProviderType.anthropic,
     );
 
+    // Not the local-server ladder: the protocol's own field.
+    expect(find.text('thinking · protocol field'), findsOneWidget);
     // The toggles on the page, in order: image input, video input, reasoning.
     final reasoning = find.byType(AppToggle).at(2);
     expect(tester.widget<AppToggle>(reasoning).onChanged, isNotNull);
@@ -138,6 +140,7 @@ void main() {
       route: AiProviderType.openAiResponses,
     );
 
+    expect(find.text('reasoning.effort · protocol field'), findsOneWidget);
     expect(
       tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
       isNotNull,
@@ -156,6 +159,11 @@ void main() {
       expect(
         tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
         isNull,
+        reason: '$route',
+      );
+      expect(
+        find.textContaining('local-server ladder'),
+        findsOneWidget,
         reason: '$route',
       );
       await settleSaves(tester);
