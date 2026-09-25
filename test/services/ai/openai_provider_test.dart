@@ -1336,6 +1336,56 @@ void main() {
     });
   });
 
+  test('arguments streamed as two objects become one', () async {
+    // A relay-served Claude streams an empty input before the real one
+    // (KB pitfall 105); sent back concatenated, a relay translating the turn
+    // to Messages refuses it.
+    final result =
+        await OpenAiProvider(
+          _config('concatenated-args'),
+          client: MockClient(
+            (_) async => http.Response(
+              [
+                for (final piece in ['{}', '{"title":"Dune"}'])
+                  _event({
+                    'choices': [
+                      {
+                        'delta': {
+                          'tool_calls': [
+                            {
+                              'index': 0,
+                              'id': 'c',
+                              'function': {'name': 'f', 'arguments': piece},
+                            },
+                          ],
+                        },
+                        'finish_reason': null,
+                      },
+                    ],
+                  }),
+                _event({
+                  'choices': [
+                    {
+                      'delta': <String, Object?>{},
+                      'finish_reason': 'tool_calls',
+                    },
+                  ],
+                }),
+                'data: [DONE]\n\n',
+              ].join(),
+              200,
+              headers: {'content-type': 'text/event-stream'},
+            ),
+          ),
+        ).chat(
+          messages: const [UserMessage('u')],
+          tools: const [
+            ToolDefinition(name: 'f', description: 'd', parameters: {}),
+          ],
+        );
+    expect(result.toolCalls.single.arguments, '{"title":"Dune"}');
+  });
+
   // Volcengine's 2.1 models put only a summary in `reasoning_content` and the
   // original, encrypted, in `encrypted_content` (KB 03 §3.2, measured
   // 2026-09-23). Sent back without it, the model reasons from the summary.

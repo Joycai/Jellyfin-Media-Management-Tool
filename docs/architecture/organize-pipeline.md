@@ -53,7 +53,7 @@ This is the core flow; understand it before touching anything under `lib/service
 - **`trimHistory` shrinks old tool results; it never removes a message**, for the same pairing reason.
 - Nothing relies on a forced `tool_choice` — some servers accept only `auto` while reasoning.
 
-Underneath, `AiProvider.chat` accumulates OpenAI `tool_calls` fragments by index (a repeated id or name fragment is ignored, since some servers resend them), passes a reasoning field back only on assistant messages that carry tool calls, and keeps Gemini's raw model parts verbatim, because their thought signatures are what the next turn is validated against.
+Underneath, `AiProvider.chat` accumulates OpenAI `tool_calls` fragments by index (a repeated id or name fragment is ignored, since some servers resend them; arguments that arrive as several objects back to back — a relay-served Claude streams an empty `{}` before the real input — are stored merged into one, because a relay translating the turn back to Messages refuses the concatenation), passes a reasoning field back only on assistant messages that carry tool calls, and keeps Gemini's raw model parts verbatim, because their thought signatures are what the next turn is validated against.
 
 ## Channels, routes and models
 

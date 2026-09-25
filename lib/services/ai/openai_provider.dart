@@ -1106,7 +1106,11 @@ class _PendingCall {
   ToolCall build(int index) => ToolCall(
     id: _id.isEmpty ? 'call_$index' : _id,
     name: _name,
-    arguments: _arguments.isEmpty ? '{}' : _arguments.toString(),
+    // Sent back as they are kept, so objects written back to back are
+    // merged here, not only when read.
+    arguments: _arguments.isEmpty
+        ? '{}'
+        : ToolCall.normalizeArguments(_arguments.toString()),
   );
 
   /// Providers vary between delta fragments and cumulative values. Keep the

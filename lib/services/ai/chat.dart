@@ -135,7 +135,8 @@ class ToolCall {
   final String id;
   final String name;
 
-  /// The arguments exactly as the model wrote them.
+  /// The arguments as the model wrote them, or merged into one object when
+  /// it wrote several back to back (see [mergeConcatenated]).
   final String arguments;
 
   const ToolCall({
@@ -153,8 +154,68 @@ class ToolCall {
       final value = jsonDecode(raw);
       return value is Map<String, dynamic> ? value : null;
     } on FormatException {
-      return null;
+      return mergeConcatenated(raw);
     }
+  }
+
+  /// [raw] as it should be sent back: unchanged, unless it is several JSON
+  /// objects back to back, which become the one object they merge into. A
+  /// relay translating the turn back to Messages must parse it, and would
+  /// refuse the concatenation on the next request.
+  static String normalizeArguments(String raw) {
+    try {
+      jsonDecode(raw);
+      return raw;
+    } on FormatException {
+      final merged = mergeConcatenated(raw);
+      return merged == null ? raw : jsonEncode(merged);
+    }
+  }
+
+  /// Several JSON objects written back to back — `{}{"id": 1}`, what a
+  /// relay-served Claude streams when it emits an empty input before the
+  /// real one (KB pitfall 105) — merged left to right. Null unless [raw] is
+  /// at least two objects with nothing but whitespace between them.
+  static Map<String, dynamic>? mergeConcatenated(String raw) {
+    final objects = <Map<String, dynamic>>[];
+    var depth = 0;
+    var start = 0;
+    var inString = false;
+    var escaped = false;
+    for (var i = 0; i < raw.length; i++) {
+      final char = raw[i];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (char == r'\') {
+          escaped = true;
+        } else if (char == '"') {
+          inString = false;
+        }
+      } else if (char == '"') {
+        if (depth == 0) return null;
+        inString = true;
+      } else if (char == '{') {
+        if (depth == 0) start = i;
+        depth++;
+      } else if (char == '}') {
+        if (depth == 0) return null;
+        depth--;
+        if (depth == 0) {
+          try {
+            final value = jsonDecode(raw.substring(start, i + 1));
+            if (value is! Map<String, dynamic>) return null;
+            objects.add(value);
+          } on FormatException {
+            return null;
+          }
+        }
+      } else if (depth == 0 && char.trim().isNotEmpty) {
+        return null;
+      }
+    }
+    if (depth != 0 || objects.length < 2) return null;
+    return {for (final object in objects) ...object};
   }
 }
 
