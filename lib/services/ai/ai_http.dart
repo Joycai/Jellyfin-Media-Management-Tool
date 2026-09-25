@@ -16,14 +16,20 @@ class AiHttp {
   /// lives for the process lifetime.
   static final http.Client client = http.Client();
 
-  /// Statuses that LLM endpoints commonly fail with transiently. We retry
-  /// these; anything else (4xx auth errors, 400 validation, etc.) is
-  /// returned to the caller so they can render the real error.
-  /// 529 is Anthropic's "overloaded".
-  static const _retryableStatuses = {408, 429, 502, 503, 504, 529};
+  /// Statuses that LLM endpoints commonly fail with transiently, before the
+  /// work began. We retry these; anything else (4xx auth errors, 400
+  /// validation, etc.) is returned to the caller so they can render the
+  /// real error. 529 is Anthropic's "overloaded".
+  ///
+  /// Not 408 or 504: both are a timeout on the way, and the upstream may
+  /// still be generating — and billing — the first attempt, exactly like a
+  /// client-side timeout. 502 stays: a gateway that got no valid answer
+  /// more likely failed before the upstream started.
+  static const _retryableStatuses = {429, 502, 503, 529};
 
   /// Calls [send] up to [maxAttempts] times with exponential backoff between
-  /// retries. Retries on:
+  /// retries — only for a request that is safe to send twice once refused.
+  /// Retries on:
   /// - [_retryableStatuses]
   /// - [TimeoutException], unless [retryTimeouts] is false
   /// - [SocketException] (network blips)
