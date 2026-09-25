@@ -394,4 +394,15 @@ abstract final class PlatformProfiles {
   static String? switchFieldFor(AiConfig config) =>
       dialectFor(config)?.field(thinking: false).key ??
       (messagesSwitchFor(config) ? 'thinking' : null);
+
+  /// Whether reasoning on [config]'s route can be switched on and off for a
+  /// model no sampling preset knows: through the field [switchFieldFor]
+  /// names, or through the protocol's own request — Messages sends
+  /// `thinking` only when asked for it, Responses sends `reasoning.effort`
+  /// either way. Chat Completions and Gemini without a documented field
+  /// have nothing to send for "on", only a ladder for "off".
+  static bool thinkingSwitchable(AiConfig config) =>
+      switchFieldFor(config) != null ||
+      config.provider == AiProviderType.anthropic ||
+      config.provider == AiProviderType.openAiResponses;
 }

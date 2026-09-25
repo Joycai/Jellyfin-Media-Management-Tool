@@ -116,4 +116,46 @@ void main() {
       isFalse,
     );
   });
+
+  test('reasoning is switchable where the route or its protocol can send '
+      'both', () {
+    AiConfig on(AiProviderType provider, String endpoint) => AiConfig(
+      provider: provider,
+      endpoint: endpoint,
+      apiKey: 'k',
+      model: 'm',
+    );
+    const custom = 'https://relay.example.com';
+    // The protocol carries the switch.
+    expect(
+      PlatformProfiles.thinkingSwitchable(on(AiProviderType.anthropic, custom)),
+      isTrue,
+    );
+    expect(
+      PlatformProfiles.thinkingSwitchable(
+        on(AiProviderType.openAiResponses, custom),
+      ),
+      isTrue,
+    );
+    // Only a documented field does.
+    expect(
+      PlatformProfiles.thinkingSwitchable(on(AiProviderType.openAi, custom)),
+      isFalse,
+    );
+    expect(
+      PlatformProfiles.thinkingSwitchable(
+        on(
+          AiProviderType.openAi,
+          'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      PlatformProfiles.thinkingSwitchable(
+        on(AiProviderType.googleGenAi, custom),
+      ),
+      isFalse,
+    );
+  });
 }

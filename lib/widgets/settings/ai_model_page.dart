@@ -462,7 +462,7 @@ class _AiModelPageState extends State<AiModelPage> {
             preset: SamplingPresets.forModel(model.upstream),
             controllers: _sampling,
             thinking: config.thinkingEnabled,
-            platformSwitch: switchField != null,
+            routeSwitch: PlatformProfiles.thinkingSwitchable(config),
             lastReasoned: _lastCheck?.reasoned,
             serverKind: _lastCheck?.serverKind,
             refused: learned.rejectedFields,

@@ -102,4 +102,63 @@ void main() {
     expect(preview, contains('"disabled"'));
     await settleSaves(tester);
   });
+
+  testWidgets('Messages switches reasoning without a preset or a platform '
+      'switch', (tester) async {
+    // No sampling preset knows Claude, and the official profile declares no
+    // switch: the protocol's own `thinking` field is the switch.
+    final model = await pump(
+      tester,
+      platform: PlatformProfiles.anthropic,
+      upstream: 'claude-sonnet-4-5',
+      route: AiProviderType.anthropic,
+    );
+
+    // The toggles on the page, in order: image input, video input, reasoning.
+    final reasoning = find.byType(AppToggle).at(2);
+    expect(tester.widget<AppToggle>(reasoning).onChanged, isNotNull);
+    await tester.tap(reasoning);
+    await tester.pumpAndSettle();
+
+    final entry = profiles.modelById(model.id)!;
+    expect(entry.channel.configFor(entry.model).thinkingEnabled, isTrue);
+    final preview = tester
+        .widgetList<SelectableText>(find.byType(SelectableText))
+        .map((w) => w.data ?? '')
+        .join();
+    expect(preview, contains('"thinking"'));
+    await settleSaves(tester);
+  });
+
+  testWidgets('Responses switches reasoning without a preset', (tester) async {
+    await pump(
+      tester,
+      platform: PlatformProfiles.openAi,
+      upstream: 'gpt-4.1',
+      route: AiProviderType.openAiResponses,
+    );
+
+    expect(
+      tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
+      isNotNull,
+    );
+    await settleSaves(tester);
+  });
+
+  testWidgets('without a preset or a documented field, "on" sends nothing, '
+      'so the switch stays off', (tester) async {
+    for (final (platform, route) in [
+      (PlatformProfiles.openAi, AiProviderType.openAi),
+      (PlatformProfiles.google, AiProviderType.googleGenAi),
+    ]) {
+      await pump(tester, platform: platform, upstream: 'x-1', route: route);
+
+      expect(
+        tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
+        isNull,
+        reason: '$route',
+      );
+      await settleSaves(tester);
+    }
+  });
 }
