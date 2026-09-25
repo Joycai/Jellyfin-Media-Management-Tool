@@ -151,6 +151,31 @@ class AiHttp {
     return 'HTTP ${res.statusCode}: $message';
   }
 
+  /// The request field an OpenAI-style error names in `error.param`
+  /// (`"top_k"`, `"reasoning.effort"`, `"include"`), or null. The message
+  /// is prose and may not name the field at all ("Encrypted content is not
+  /// supported with this model."); `param` is where OpenAI puts it.
+  static String? errorParam(http.Response res) {
+    try {
+      final json = jsonDecode(utf8.decode(res.bodyBytes, allowMalformed: true));
+      if (json case {'error': {'param': final String param}}) {
+        final trimmed = param.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
+    } on FormatException {
+      // Not JSON; the message is all there is.
+    }
+    return null;
+  }
+
+  /// Whether [param], from [errorParam], names [field] itself or a path
+  /// inside it (`reasoning.effort`, `messages[0]` → `messages`).
+  static bool paramNames(String? param, String field) =>
+      param != null &&
+      (param == field ||
+          param.startsWith('$field.') ||
+          param.startsWith('$field['));
+
   /// The exception for a non-2xx reply carrying [message].
   ///
   /// A bad key, an empty balance, a rate limit and the server's own failure

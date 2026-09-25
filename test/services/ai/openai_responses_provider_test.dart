@@ -397,6 +397,72 @@ void main() {
     );
   });
 
+  test('error.param names a refused field the message does not', () async {
+    // Audit V5: the message is unverified and constructed here; what is
+    // pinned is that `param` is read first.
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiResponsesProvider(
+      _config('param-include.example', model: 'gpt-4.1'),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return body.containsKey('include')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message':
+                        'Encrypted content is not supported with this model.',
+                    'param': 'include',
+                  },
+                }),
+                400,
+              )
+            : _stream([_completed()]);
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last.containsKey('include'), isFalse);
+    expect(provider.learned.rejectedFields, {'include'});
+  });
+
+  test('error.param outranks a field the message only mentions', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiResponsesProvider(
+      const AiConfig(
+        provider: AiProviderType.openAiResponses,
+        endpoint: 'https://param-first.example',
+        apiKey: 'sk-resp',
+        model: 'gpt-4.1',
+        temperature: 0.7,
+        topP: 0.9,
+      ),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return body.containsKey('top_p')
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: the message names `temperature` too, and
+                  // the field list is tried in order, `temperature` first.
+                  'error': {
+                    'message': 'top_p is not supported; tune temperature.',
+                    'param': 'top_p',
+                  },
+                }),
+                400,
+              )
+            : _stream([_completed()]);
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last['temperature'], 0.7);
+    expect(provider.learned.rejectedFields, {'top_p'});
+  });
+
   test('a stream that opens with a comment is still a stream', () async {
     final result = await OpenAiResponsesProvider(
       _config('comment.example'),

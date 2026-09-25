@@ -300,8 +300,11 @@ class OpenAiProvider implements AiProvider {
       }
 
       String error;
+      String? param;
       try {
-        error = AiHttp.describeError(await http.Response.fromStream(res));
+        final body = await http.Response.fromStream(res);
+        error = AiHttp.describeError(body);
+        param = AiHttp.errorParam(body);
       } catch (_) {
         error = 'HTTP ${res.statusCode}';
       }
@@ -318,13 +321,20 @@ class OpenAiProvider implements AiProvider {
         }
         if (jsonMode &&
             mode != _JsonMode.none &&
-            _namesResponseFormat(detail)) {
+            (AiHttp.paramNames(param, 'response_format') ||
+                _namesResponseFormat(detail))) {
           mode = _JsonMode.values[mode.index + 1];
           continue;
         }
-        final refused = optional.keys
-            .where((field) => _namesField(detail, field))
-            .firstOrNull;
+        // `error.param` first: it names the field even when the message
+        // does not. The message is the fallback for servers without it.
+        final refused =
+            optional.keys
+                .where((field) => AiHttp.paramNames(param, field))
+                .firstOrNull ??
+            optional.keys
+                .where((field) => _namesField(detail, field))
+                .firstOrNull;
         if (refused != null) {
           final isThinkingOffField =
               refused == 'chat_template_kwargs' ||

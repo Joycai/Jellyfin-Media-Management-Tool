@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:jellyfin_media_management_tool/services/ai/ai_http.dart';
@@ -47,5 +49,32 @@ void main() {
         expect(await send(status), (3, status), reason: '$status');
       }
     });
+  });
+
+  test('error.param is read when it is a string, and only then', () {
+    String? param(String body) => AiHttp.errorParam(http.Response(body, 400));
+    expect(param('{"error": {"message": "m", "param": "include"}}'), 'include');
+    expect(param('{"error": {"message": "m", "param": null}}'), isNull);
+    expect(param('{"error": {"message": "m", "param": " "}}'), isNull);
+    expect(param('{"error": "bare string"}'), isNull);
+    expect(param('{"param": "top_k"}'), isNull);
+    expect(param('<html>bad gateway</html>'), isNull);
+    // A malformed byte in the message does not cost the param.
+    final malformed = http.Response.bytes([
+      ...utf8.encode('{"error": {"message": "bad '),
+      0xff,
+      ...utf8.encode('", "param": "top_k"}}'),
+    ], 400);
+    expect(AiHttp.errorParam(malformed), 'top_k');
+  });
+
+  test('a param names a field or a path inside it', () {
+    expect(AiHttp.paramNames('reasoning.effort', 'reasoning'), isTrue);
+    expect(AiHttp.paramNames('include[0]', 'include'), isTrue);
+    expect(AiHttp.paramNames('top_k', 'top_k'), isTrue);
+    // A prefix of a longer name is another field.
+    expect(AiHttp.paramNames('top_p', 'top'), isFalse);
+    expect(AiHttp.paramNames('reasoning_effort', 'reasoning'), isFalse);
+    expect(AiHttp.paramNames(null, 'top_k'), isFalse);
   });
 }

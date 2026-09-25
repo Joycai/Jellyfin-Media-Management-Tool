@@ -187,22 +187,27 @@ class OpenAiResponsesProvider implements AiProvider {
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
         String error;
+        String? param;
         try {
-          error = AiHttp.describeError(await http.Response.fromStream(res));
+          final body = await http.Response.fromStream(res);
+          error = AiHttp.describeError(body);
+          param = AiHttp.errorParam(body);
         } catch (_) {
           error = 'HTTP ${res.statusCode}';
         }
         log(status: res.statusCode, error: error);
         if (res.statusCode == 400 || res.statusCode == 422) {
           final detail = error.toLowerCase();
-          final refused = _optional
-              .where(
-                (f) =>
-                    payload.containsKey(f) &&
-                    !rejected.contains(f) &&
-                    _names(detail, f),
-              )
-              .firstOrNull;
+          // `error.param` first: it names the field even when the message
+          // does not. The message is the fallback for servers without it.
+          final candidates = _optional.where(
+            (f) => payload.containsKey(f) && !rejected.contains(f),
+          );
+          final refused =
+              candidates
+                  .where((f) => AiHttp.paramNames(param, f))
+                  .firstOrNull ??
+              candidates.where((f) => _names(detail, f)).firstOrNull;
           // `reasoning` refused while asking for none says nothing about
           // asking for some: the route goes back to the model's default
           // when off, and still asks when on.

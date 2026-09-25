@@ -530,6 +530,102 @@ void main() {
     expect(bodies.single['top_k'], 40);
   });
 
+  test('error.param names a refused field the message does not', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiProvider(
+      const AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'http://param-named:1234',
+        apiKey: '',
+        model: 'local-model',
+        topK: 40,
+      ),
+      client: MockClient((request) async {
+        bodies.add(_body(request));
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return bodies.last.containsKey('top_k')
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: the shape OpenAI uses, with prose that
+                  // names no field.
+                  'error': {
+                    'message': 'This model does not accept that setting.',
+                    'param': 'top_k',
+                  },
+                }),
+                400,
+              )
+            : _reply('ok');
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last.containsKey('top_k'), isFalse);
+    expect(provider.learned.rejectedFields, {'top_k'});
+  });
+
+  test('error.param outranks a field the message only mentions', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiProvider(
+      const AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'http://param-first:1234',
+        apiKey: '',
+        model: 'local-model',
+        temperature: 0.7,
+        topK: 40,
+      ),
+      client: MockClient((request) async {
+        bodies.add(_body(request));
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return bodies.last.containsKey('top_k')
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: the message names `temperature` too, and
+                  // the field list is tried in order, `temperature` first.
+                  'error': {
+                    'message': 'top_k is not supported; tune temperature.',
+                    'param': 'top_k',
+                  },
+                }),
+                400,
+              )
+            : _reply('ok');
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last['temperature'], 0.7);
+    expect(provider.learned.rejectedFields, {'top_k'});
+  });
+
+  test('error.param naming response_format steps the JSON mode', () async {
+    final formats = <String?>[];
+    final provider = OpenAiProvider(
+      _config('param-json'),
+      client: MockClient((request) async {
+        final type = (_body(request)['response_format'] as Map?)?['type'];
+        formats.add(type as String?);
+        if (formats.length > 8) throw StateError('runaway retries');
+        return type == 'json_object'
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: prose that names no JSON mode.
+                  'error': {
+                    'message': 'This model cannot do that.',
+                    'param': 'response_format',
+                  },
+                }),
+                400,
+              )
+            : _reply('{}');
+      }),
+    );
+    await provider.complete(systemPrompt: 's', userPrompt: 'u');
+    expect(formats, ['json_object', 'json_schema']);
+    expect(provider.learned.rejectedFields, isEmpty);
+  });
+
   group('failures that arrive with HTTP 200', () {
     http.Response stream(List<Map<String, Object?>> events) => http.Response(
       [...events.map(_event), 'data: [DONE]\n\n'].join(),

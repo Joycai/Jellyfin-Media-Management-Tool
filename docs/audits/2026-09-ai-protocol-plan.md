@@ -662,3 +662,4 @@ PR 划分：
 | 2026-09-25 | A13：诊断页「请求了推理但没有」记为待定（`ok: null`），不是失败；带 `redacted_thinking` / `signature` / `messages.N` 的 400 与模型 id 里的 `thinking` 不参与学习 | 审查发现：adaptive 可能对小请求不想，标红会误导；这几类 400 是会话本身的错，拿来换形态会把思考静默关掉 |
 | 2026-09-25 | A6：开关路线开思考时 `max_tokens` 仍按 2048 下限抬高；被拒的 `adaptive` 不换成 `enabled` | 与第 6 步所有「开」的请求同一口径，下限无害；声明为开关的路线只收 `adaptive` / `disabled`，换成预算写法必然再被拒 |
 | 2026-09-25 | A6：模型页的推理开关与「推理开关」一行、换路线对话框也读 `messagesThinkingSwitch`（`PlatformProfiles.switchFieldFor`） | 审查发现：没有采样预设的模型（如 MiniMax-M3）只在平台有开关时才能拨开关，原先只看 ① 的方言，`adaptive` 从界面上到不了，那一行还写着本地阶梯 |
+| 2026-09-25 | A9：① 的 JSON mode 判定也读 `param`（`response_format`） | 原方案保持它只看文案；审查发现只在 `param` 里点名 `response_format` 的 400 会直接抛错，与 A9 是同一类问题。`max_completion_tokens` 仍只看文案：`param: "max_tokens"` 也可能只是数值超限 |
