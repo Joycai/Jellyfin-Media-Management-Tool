@@ -141,8 +141,9 @@ class AiService extends ChangeNotifier {
   /// and the answer recorded through [onToolSupport]. Throws [AiException]
   /// when it cannot call tools.
   ///
-  /// A probe that never reached the endpoint records nothing and reports the
-  /// transport failure instead. Writing its `false` to the profile would have
+  /// A probe that failed for a reason other than the model's (a dropped
+  /// connection, a bad key, a rate limit, a server error) records nothing and
+  /// reports that failure instead. Writing its `false` to the profile would have
   /// turned one dropped connection into a permanently disabled Organize
   /// button, and "this model does not call tools" is the wrong thing to tell
   /// someone whose Wi-Fi went down.

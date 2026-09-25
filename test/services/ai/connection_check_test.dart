@@ -1,7 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_cancel_token.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/anthropic_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
+import 'package:jellyfin_media_management_tool/services/ai/google_genai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/openai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/openai_responses_provider.dart';
 
 import '../../helpers/ai.dart';
 
@@ -138,6 +146,203 @@ void main() {
       );
       expect(AiConnectionCheck.replyText('  Hello!  '), 'Hello!');
       expect(AiConnectionCheck.replyText(''), '');
+    });
+  });
+
+  // Through a real adapter, so the status code takes the path it takes in
+  // the app: a fake provider throwing AiNetworkException hid that every
+  // non-2xx reply came out as a plain AiException, read here as "refuses
+  // tools" and recorded for good.
+  group('probeTools through a real adapter', () {
+    ({OpenAiProvider provider, List<http.BaseRequest> requests}) openAi(
+      String host,
+      int status,
+      String body,
+    ) {
+      final requests = <http.BaseRequest>[];
+      final provider = OpenAiProvider(
+        AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: 'http://$host:1234',
+          apiKey: '',
+          model: 'probe-model',
+        ),
+        client: MockClient((request) async {
+          requests.add(request);
+          // retry-after: 0 keeps withRetry's backoff out of the test.
+          return http.Response(
+            body,
+            status,
+            headers: const {'retry-after': '0'},
+          );
+        }),
+      );
+      return (provider: provider, requests: requests);
+    }
+
+    for (final status in [401, 402, 429, 503]) {
+      test('HTTP $status is inconclusive', () async {
+        final (:provider, requests: _) = openAi(
+          'probe-$status',
+          status,
+          jsonEncode({
+            'error': {'message': 'not this time'},
+          }),
+        );
+
+        final probe = await AiConnectionCheck.probeTools(provider);
+
+        expect(probe.outcome, ToolProbe.inconclusive);
+        expect(probe.error, startsWith('HTTP $status'));
+      });
+    }
+
+    test('a 400 naming tools is unsupported', () async {
+      final (:provider, :requests) = openAi(
+        'probe-refuses',
+        400,
+        jsonEncode({
+          'error': {'message': 'tools is not supported for this model'},
+        }),
+      );
+
+      final probe = await AiConnectionCheck.probeTools(provider);
+
+      expect(probe.outcome, ToolProbe.unsupported);
+      expect(requests, hasLength(1));
+    });
+
+    test('a 404 is inconclusive and not asked twice', () async {
+      final (:provider, :requests) = openAi(
+        'probe-404',
+        404,
+        jsonEncode({
+          'error': {'message': 'model not found'},
+        }),
+      );
+
+      final probe = await AiConnectionCheck.probeTools(provider);
+
+      expect(probe.outcome, ToolProbe.inconclusive);
+      expect(probe.error, 'HTTP 404: model not found');
+      expect(requests, hasLength(1));
+    });
+
+    test('one prose reply after a failed request is inconclusive', () async {
+      // The model had one chance, not two; its single stray reply must not
+      // be recorded as "does not call tools".
+      var calls = 0;
+      final provider = OpenAiProvider(
+        const AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: 'http://probe-500-then-prose:1234',
+          apiKey: '',
+          model: 'probe-model',
+        ),
+        client: MockClient((_) async {
+          // A 500 is not retried by withRetry, so this is the probe's own
+          // first attempt.
+          if (calls++ == 0) {
+            return http.Response('{"error": {"message": "boom"}}', 500);
+          }
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': 'Hello!'},
+                  'finish_reason': 'stop',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+
+      final probe = await AiConnectionCheck.probeTools(provider);
+
+      expect(calls, 2);
+      expect(probe.outcome, ToolProbe.inconclusive);
+      expect(probe.error, 'HTTP 500: boom');
+    });
+
+    test('every adapter reports an account or server status as such', () {
+      // What keeps the probe honest is the exception type the adapter picks,
+      // not only the probe's own reading of it.
+      MockClient status(int code) => MockClient(
+        (_) async => http.Response(
+          '{"error": {"message": "no"}}',
+          code,
+          headers: const {'retry-after': '0'},
+        ),
+      );
+      AiConfig config(AiProviderType type) => AiConfig(
+        provider: type,
+        endpoint: 'http://status-${type.name}.example',
+        apiKey: 'k',
+        model: 'm',
+      );
+      final adapters = <int, List<AiProvider>>{
+        for (final code in [401, 503, 404])
+          code: [
+            OpenAiProvider(config(AiProviderType.openAi), client: status(code)),
+            OpenAiResponsesProvider(
+              config(AiProviderType.openAiResponses),
+              client: status(code),
+            ),
+            AnthropicProvider(
+              config(AiProviderType.anthropic),
+              client: status(code),
+            ),
+            GoogleGenAiProvider(
+              config(AiProviderType.googleGenAi),
+              client: status(code),
+            ),
+          ],
+      };
+      for (final MapEntry(key: code, value: providers) in adapters.entries) {
+        for (final provider in providers) {
+          final matcher = isA<AiException>().having(
+            (e) => e is AiNetworkException,
+            'is AiNetworkException',
+            code != 404,
+          );
+          expect(
+            provider.chat(
+              messages: const [UserMessage('hi')],
+              tools: const [AiConnectionCheck.toolProbe],
+            ),
+            throwsA(matcher),
+            reason: '${provider.runtimeType} $code',
+          );
+        }
+      }
+    });
+
+    test("Anthropic's 529 is inconclusive", () async {
+      final provider = AnthropicProvider(
+        const AiConfig(
+          provider: AiProviderType.anthropic,
+          endpoint: 'http://probe-529.example',
+          apiKey: 'sk-ant',
+          model: 'claude-sonnet-5',
+        ),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'type': 'error',
+              'error': {'type': 'overloaded_error', 'message': 'Overloaded'},
+            }),
+            529,
+            headers: const {'retry-after': '0'},
+          ),
+        ),
+      );
+
+      final probe = await AiConnectionCheck.probeTools(provider);
+
+      expect(probe.outcome, ToolProbe.inconclusive);
+      expect(probe.error, 'HTTP 529: Overloaded');
     });
   });
 }

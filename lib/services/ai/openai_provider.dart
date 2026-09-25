@@ -332,7 +332,7 @@ class OpenAiProvider implements AiProvider {
           continue;
         }
       }
-      throw AiException(error);
+      throw AiHttp.statusError(res.statusCode, error);
     }
   }
 

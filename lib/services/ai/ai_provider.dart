@@ -129,8 +129,9 @@ class AiException implements Exception {
 }
 
 /// An [AiException] that settles nothing about the model: the request did not
-/// complete, or the server failed it for a reason of its own (a rate limit, an
-/// empty balance, an upstream crash, Gemini's catch-all `OTHER`).
+/// complete, or the server failed it for a reason of its own (a bad or
+/// unauthorised key, a rate limit, an empty balance, an upstream crash,
+/// Gemini's catch-all `OTHER`) — see `AiHttp.statusError`.
 ///
 /// The distinction is what keeps a network blip from being recorded as a fact
 /// about a model — see [AiConnectionCheck.probeTools].

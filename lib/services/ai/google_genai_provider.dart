@@ -243,7 +243,7 @@ class GoogleGenAiProvider implements AiProvider {
           offFailed();
           continue;
         }
-        throw AiException(error);
+        throw AiHttp.statusError(res.statusCode, error);
       }
 
       final ChatResult result;

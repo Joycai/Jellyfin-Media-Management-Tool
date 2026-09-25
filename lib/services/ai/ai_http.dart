@@ -145,6 +145,21 @@ class AiHttp {
     return 'HTTP ${res.statusCode}: $message';
   }
 
+  /// The exception for a non-2xx reply carrying [message].
+  ///
+  /// A bad key, an empty balance, a rate limit and the server's own failure
+  /// settle nothing about the model, so they are [AiNetworkException]s;
+  /// anything else is the request itself being refused.
+  static AiException statusError(int status, String message) =>
+      status == 401 ||
+          status == 402 ||
+          status == 403 ||
+          status == 408 ||
+          status == 429 ||
+          status >= 500
+      ? AiNetworkException(message)
+      : AiException(message);
+
   static Duration? _retryAfter(http.BaseResponse res) {
     final header = res.headers['retry-after'];
     if (header == null) return null;
