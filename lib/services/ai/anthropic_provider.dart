@@ -10,6 +10,7 @@ import 'ai_http.dart';
 import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
+import 'platform_profiles.dart';
 import 'sse.dart';
 import 'thinking_dialect.dart';
 
@@ -188,6 +189,7 @@ class AnthropicProvider implements AiProvider {
             detail.replaceAll(config.model.toLowerCase(), ''),
             sent: _sentForm(payload),
             rejected: rejected,
+            swap: !PlatformProfiles.messagesSwitchFor(config),
           );
           if (thinkingRefusal != null) {
             _learned.update(
@@ -264,10 +266,13 @@ class AnthropicProvider implements AiProvider {
   /// in the conversation ("`thinking` or `redacted_thinking` blocks … cannot
   /// be modified", "messages.3.content.0: Invalid `signature` in `thinking`
   /// block"): the history is wrong, whichever form was asked for.
+  ///
+  /// A route declared as a switch has one form only ([swap] false).
   static Set<String>? _thinkingRefusal(
     String detail, {
     required MessagesThinking? sent,
     required Set<String> rejected,
+    required bool swap,
   }) {
     if (sent == null || !detail.contains('thinking')) return null;
     if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
@@ -276,7 +281,9 @@ class AnthropicProvider implements AiProvider {
     if (RegExp(r'redacted_thinking|signature|messages\.\d').hasMatch(detail)) {
       return null;
     }
-    if (!rejected.contains(sent.other.refusedName)) return {sent.refusedName};
+    if (swap && !rejected.contains(sent.other.refusedName)) {
+      return {sent.refusedName};
+    }
     return refusesThinking(detail) ? {sent.refusedName, 'thinking'} : null;
   }
 
@@ -292,8 +299,14 @@ class AnthropicProvider implements AiProvider {
 
   /// The form this route asks for thinking in: the model's own first, the
   /// other once that was refused, none once both were.
+  ///
+  /// A route declared as a switch asks adaptive only, the one form it takes.
   MessagesThinking? _form(Set<String> rejected) {
     if (!config.thinkingEnabled || rejected.contains('thinking')) return null;
+    if (PlatformProfiles.messagesSwitchFor(config)) {
+      const form = MessagesThinking.adaptive;
+      return rejected.contains(form.refusedName) ? null : form;
+    }
     final first = MessagesThinking.forModel(config.model);
     for (final form in [first, first.other]) {
       if (!rejected.contains(form.refusedName)) return form;
@@ -341,6 +354,11 @@ class AnthropicProvider implements AiProvider {
           'budget_tokens': math.max(1024, maxTokens ~/ 2),
           if (_official) 'display': 'summarized',
         },
+      // A route declared as a switch is told off in its own words (its
+      // platform may think by default); elsewhere off is the protocol's
+      // default and nothing is sent.
+      if (!config.thinkingEnabled && PlatformProfiles.messagesSwitchFor(config))
+        'thinking': const {'type': 'disabled'},
     }..removeWhere((k, _) => rejected.contains(k));
     return {
       'model': config.model,

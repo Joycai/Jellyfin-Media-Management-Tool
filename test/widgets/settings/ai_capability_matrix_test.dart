@@ -135,6 +135,27 @@ void main() {
     expect(value.text, l10n.aiCellModelDefault);
   });
 
+  test('a Messages route with a platform switch names it', () {
+    final m = AiModelEntry.create(
+      upstream: 'MiniMax-M3',
+      route: AiProviderType.anthropic,
+    );
+    final minimax = AiChannel.create(
+      platform: PlatformProfiles.miniMax,
+      name: 'mm',
+      apiKey: 'k',
+    ).withModel(m);
+    final value = capabilityCell(
+      l10n,
+      minimax,
+      m,
+      AiProviderType.anthropic,
+      Capability.thinkingOff,
+    );
+    expect(value.state, CapabilityState.works);
+    expect(value.text, l10n.aiCellSwitch('thinking'));
+  });
+
   test('tool calling reads the measurement on that route', () {
     expect(
       cell(model, AiProviderType.openAi, Capability.tools).state,

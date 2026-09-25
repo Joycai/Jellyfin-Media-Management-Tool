@@ -39,7 +39,8 @@ enum MessagesThinking {
   adaptive,
 
   /// `{type: "enabled", budget_tokens: N}` — earlier Claude, and every
-  /// non-Claude model a mirror serves.
+  /// non-Claude model a mirror serves, unless the mirror's route is declared
+  /// a switch (`RouteSpec.messagesThinkingSwitch`), which takes adaptive.
   extended;
 
   /// The form [model] is asked in first.

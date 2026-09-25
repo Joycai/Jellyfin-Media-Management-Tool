@@ -80,4 +80,40 @@ void main() {
     }
     expect(PlatformProfiles.byId('nope'), PlatformProfiles.custom);
   });
+
+  test('only MiniMax declares a Messages thinking switch', () {
+    // MiniMax-M3's /anthropic takes `adaptive | disabled` only (KB 03 §3).
+    for (final profile in PlatformProfiles.all) {
+      final spec = profile.routes[AiProviderType.anthropic];
+      if (spec == null) continue;
+      expect(
+        spec.messagesThinkingSwitch,
+        profile.id == 'minimax',
+        reason: profile.id,
+      );
+    }
+    AiConfig messages(String endpoint) => AiConfig(
+      provider: AiProviderType.anthropic,
+      endpoint: endpoint,
+      apiKey: 'k',
+      model: 'm',
+    );
+    expect(
+      PlatformProfiles.messagesSwitchFor(
+        messages('https://api.minimaxi.com/anthropic'),
+      ),
+      isTrue,
+    );
+    // The same host on Chat Completions has no such switch.
+    expect(
+      PlatformProfiles.messagesSwitchFor(_at('https://api.minimaxi.com/v1')),
+      isFalse,
+    );
+    expect(
+      PlatformProfiles.messagesSwitchFor(
+        messages('https://open.bigmodel.cn/api/anthropic'),
+      ),
+      isFalse,
+    );
+  });
 }

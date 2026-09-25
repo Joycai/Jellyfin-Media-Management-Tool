@@ -51,11 +51,9 @@ class RouteSwitchDialog extends StatelessWidget {
     final notSet = l10n.aiNotSetNotSent;
 
     String thinking(RouteParams p, AiConfig config) {
-      final field = PlatformProfiles.dialectFor(
-        config,
-      )?.field(thinking: p.thinkingEnabled);
+      final field = PlatformProfiles.switchFieldFor(config);
       final state = p.thinkingEnabled ? l10n.aiOn : l10n.aiOff;
-      return field == null ? state : '$state · ${field.key}';
+      return field == null ? state : '$state · $field';
     }
 
     String sampling(RouteParams p) {

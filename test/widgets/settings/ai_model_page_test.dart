@@ -17,16 +17,18 @@ void main() {
     profiles = AiProfilesService();
   });
 
-  Future<AiModelEntry> pump(WidgetTester tester) async {
-    final model = AiModelEntry.create(
-      upstream: 'qwen-plus',
-      route: AiProviderType.openAi,
-    );
+  Future<AiModelEntry> pump(
+    WidgetTester tester, {
+    PlatformProfile platform = PlatformProfiles.dashScope,
+    String upstream = 'qwen-plus',
+    AiProviderType route = AiProviderType.openAi,
+  }) async {
+    final model = AiModelEntry.create(upstream: upstream, route: route);
     final channel = AiChannel.create(
-      platform: PlatformProfiles.dashScope,
+      platform: platform,
       name: 'Bailian',
       apiKey: 'sk-abcdefgh1234',
-    ).withModel(model);
+    ).copyWith(routes: [AiRoute(protocol: route)]).withModel(model);
     await profiles.addChannel(channel);
     await pumpAiPage(
       tester,
@@ -72,6 +74,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(profiles.modelById(model.id)!.model.imageInput, isTrue);
+    await settleSaves(tester);
+  });
+
+  testWidgets('a Messages route declared as a switch can be switched', (
+    tester,
+  ) async {
+    // MiniMax-M3 has no sampling preset, so only the platform's switch
+    // makes its reasoning toggle live.
+    await pump(
+      tester,
+      platform: PlatformProfiles.miniMax,
+      upstream: 'MiniMax-M3',
+      route: AiProviderType.anthropic,
+    );
+
+    expect(find.text('thinking · from the platform profile'), findsOneWidget);
+    // The toggles on the page, in order: image input, video input, reasoning.
+    expect(
+      tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
+      isNotNull,
+    );
+    final preview = tester
+        .widgetList<SelectableText>(find.byType(SelectableText))
+        .map((w) => w.data ?? '')
+        .join();
+    expect(preview, contains('"disabled"'));
     await settleSaves(tester);
   });
 }

@@ -289,9 +289,12 @@ CapabilityCell capabilityCell(
         }),
       );
     case Capability.thinkingOff:
-      // Extended thinking is off unless asked for.
+      // Messages thinking is off unless asked for; a route declared as a
+      // switch is sent `thinking: {type: "disabled"}` as well.
       if (protocol == AiProviderType.anthropic) {
-        return (state: works, text: l10n.aiCellDefaultOff);
+        return PlatformProfiles.messagesSwitchFor(config)
+            ? (state: works, text: l10n.aiCellSwitch('thinking'))
+            : (state: works, text: l10n.aiCellDefaultOff);
       }
       // Responses asks for `effort: none`. Sending it is not the same as
       // it being honoured — a relay can rewrite it to medium — so it stays

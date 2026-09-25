@@ -660,3 +660,5 @@ PR 划分：
 | 2026-09-25 | A8 的新判据挪到 `refused` 查找之后；`'dialect'` 成了常量 `LearnedBehaviour.dialectOff`；矩阵的阶梯计数不算它 | 放在之前会截走点名字段的文案，与第 3 点矛盾；路线键不含平台，同一集合里可能两种记录都有 |
 | 2026-09-25 | A2 的历史估算不算密文 | 原方案要求算进去；执行时发现 `_opaque` 对所有不透明串（含 ② 的 `encrypted_content`）一律不算，理由写在那里，照同一口径 |
 | 2026-09-25 | A13：诊断页「请求了推理但没有」记为待定（`ok: null`），不是失败；带 `redacted_thinking` / `signature` / `messages.N` 的 400 与模型 id 里的 `thinking` 不参与学习 | 审查发现：adaptive 可能对小请求不想，标红会误导；这几类 400 是会话本身的错，拿来换形态会把思考静默关掉 |
+| 2026-09-25 | A6：开关路线开思考时 `max_tokens` 仍按 2048 下限抬高；被拒的 `adaptive` 不换成 `enabled` | 与第 6 步所有「开」的请求同一口径，下限无害；声明为开关的路线只收 `adaptive` / `disabled`，换成预算写法必然再被拒 |
+| 2026-09-25 | A6：模型页的推理开关与「推理开关」一行、换路线对话框也读 `messagesThinkingSwitch`（`PlatformProfiles.switchFieldFor`） | 审查发现：没有采样预设的模型（如 MiniMax-M3）只在平台有开关时才能拨开关，原先只看 ① 的方言，`adaptive` 从界面上到不了，那一行还写着本地阶梯 |

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/anthropic_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/thinking_dialect.dart';
 
 AiConfig _config(
@@ -362,6 +363,128 @@ void main() {
         expect(provider.learned.rejectedFields, {'thinking:adaptive'});
       },
     );
+
+    group('on a platform that takes a switch', () {
+      // MiniMax's /anthropic: `adaptive | disabled`, no `display`, no budget.
+      Future<Map<String, dynamic>> minimax({required bool thinking}) async {
+        late Map<String, dynamic> body;
+        await AnthropicProvider(
+          _config(
+            'https://api.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+            thinking: thinking,
+          ),
+          client: MockClient((request) async {
+            body = jsonDecode(request.body);
+            return _stream(
+              _reply([
+                {'type': 'text', 'text': 'ok'},
+              ]),
+            );
+          }),
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+        return body;
+      }
+
+      test('off is sent as disabled, with sampling', () async {
+        final body = await minimax(thinking: false);
+        expect(body['thinking'], {'type': 'disabled'});
+        expect(body.containsKey('temperature'), isTrue);
+      });
+
+      test('on is adaptive, with no display or budget', () async {
+        final body = await minimax(thinking: true);
+        expect(body['thinking'], {'type': 'adaptive'});
+      });
+
+      test('a refused adaptive is not swapped for a budget', () async {
+        // A host of its own: what this route learns must not reach the
+        // bodies the tests above read.
+        final (bodies, provider) = await refusing(
+          'refused.minimaxi.com/anthropic',
+          {'adaptive'},
+          (type) => "thinking.type: unsupported value '$type'",
+          model: 'MiniMax-M3',
+        );
+        expect(
+          bodies.map((b) => (b['thinking'] as Map?)?['type']),
+          everyElement(isNot('enabled')),
+        );
+        expect(
+          provider.learned.rejectedFields,
+          isNot(contains('thinking:enabled')),
+        );
+      });
+
+      test('a form named without refusing thinking is thrown', () async {
+        // With no other form to try, only a refusal of thinking itself may
+        // drop it; anything else would switch reasoning off unasked.
+        final bodies = <Map<String, dynamic>>[];
+        final provider = AnthropicProvider(
+          _config(
+            'https://tag.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+            thinking: true,
+          ),
+          client: MockClient((request) async {
+            bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+            return http.Response(
+              jsonEncode({
+                'type': 'error',
+                'error': {
+                  'type': 'invalid_request_error',
+                  'message':
+                      "thinking.type: Input tag 'adaptive' found using "
+                      "'type' does not match any of the expected tags",
+                },
+              }),
+              400,
+            );
+          }),
+        );
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(isA<AiException>()),
+        );
+        expect(bodies, hasLength(1));
+        expect(provider.learned.rejectedFields, isEmpty);
+      });
+
+      test('adaptive on record as refused leaves no form to ask', () async {
+        final key = LearnedStore.routeKey(
+          protocol: AiProviderType.anthropic.id,
+          base: 'https://seeded.minimaxi.com/anthropic/v1',
+          model: 'MiniMax-M3',
+          apiKey: 'sk-ant-secret',
+        );
+        LearnedStore.instance.update(
+          key,
+          (b) => b.copyWith(rejectedFields: {'thinking:adaptive'}),
+        );
+        late Map<String, dynamic> body;
+        final provider = AnthropicProvider(
+          _config(
+            'https://seeded.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+            thinking: true,
+          ),
+          client: MockClient((request) async {
+            body = jsonDecode(request.body);
+            return _stream(
+              _reply([
+                {'type': 'text', 'text': 'ok'},
+              ]),
+            );
+          }),
+        );
+        expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+        await provider.chat(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(body.containsKey('thinking'), isFalse);
+      });
+    });
 
     test('a budget error is about the numbers, not the form', () async {
       final bodies = <Map<String, dynamic>>[];
