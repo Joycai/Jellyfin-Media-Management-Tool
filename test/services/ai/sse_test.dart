@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/sse.dart';
 
 http.StreamedResponse _body(String text, {bool eventStream = false}) =>
@@ -18,6 +19,40 @@ Future<SseRead> _read(String text, {bool eventStream = false}) => Sse.read(
 );
 
 void main() {
+  group('silence', () {
+    Future<SseRead> silent(List<String> before) => Sse.read(
+      http.StreamedResponse(
+        // What arrives, then nothing, and the connection never closes.
+        Stream<List<int>>.multi((controller) {
+          for (final chunk in before) {
+            controller.add(utf8.encode(chunk));
+          }
+        }),
+        200,
+        headers: const {'content-type': 'text/event-stream'},
+      ),
+      firstEventTimeout: const Duration(milliseconds: 30),
+      idleTimeout: const Duration(milliseconds: 30),
+    );
+
+    test('before the first event is a timeout', () async {
+      await expectLater(silent(const []), throwsA(isA<AiTimeoutException>()));
+    });
+
+    test('partway through the reply is a timeout', () async {
+      await expectLater(
+        silent(const ['data: {"a": 1}\n\n']),
+        throwsA(
+          isA<AiTimeoutException>().having(
+            (e) => e.message,
+            'message',
+            contains('partway'),
+          ),
+        ),
+      );
+    });
+  });
+
   test('comments and event names do not make a stream plain text', () async {
     final read = await _read(
       ': keep-alive\n\nevent: x\nid: 1\ndata: {"a": 1}\n\ndata: [DONE]\n\n',

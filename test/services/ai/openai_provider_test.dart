@@ -425,7 +425,7 @@ void main() {
     await expectLater(
       provider.complete(systemPrompt: 's', userPrompt: 'u'),
       throwsA(
-        isA<AiException>().having(
+        isA<AiTimeoutException>().having(
           (e) => e.message,
           'message',
           contains('stopped sending'),
@@ -453,7 +453,7 @@ void main() {
     await expectLater(
       provider.complete(systemPrompt: 's', userPrompt: 'u'),
       throwsA(
-        isA<AiException>().having(
+        isA<AiTimeoutException>().having(
           (e) => e.message,
           'message',
           contains('No response'),

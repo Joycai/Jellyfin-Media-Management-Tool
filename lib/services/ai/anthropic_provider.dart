@@ -171,7 +171,7 @@ class AnthropicProvider implements AiProvider {
         }
         final error = Sse.noResponse(firstEventTimeout);
         log(error: error);
-        throw AiNetworkException(error);
+        throw AiTimeoutException(error);
       } catch (e) {
         if (cancelToken?.isCancelled ?? false) {
           log(error: 'cancelled');

@@ -521,7 +521,7 @@ void main() {
 
       await expectLater(
         provider.complete(systemPrompt: 's', userPrompt: 'u'),
-        throwsA(isA<AiNetworkException>()),
+        throwsA(isA<AiTimeoutException>()),
       );
       // Future.timeout does not close the socket, so a retry would start a
       // second generation beside the one the server is still running.

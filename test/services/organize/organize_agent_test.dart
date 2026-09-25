@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/organize_plan.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_http.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/organize/filename_parser.dart';
 import 'package:jellyfin_media_management_tool/services/organize/jellyfin_naming.dart';
@@ -440,6 +441,56 @@ void main() {
       expect(provider.calls, 2);
       expect(run.plan.decidedGroups, 1);
       expect(run.plan.failedGroups, 0);
+    });
+
+    test('a timed-out batch is not rerun, and the rest go on', () async {
+      for (final timeout in [
+        const AiTimeoutException(
+          'The server stopped sending for 2 min partway through the reply.',
+        ),
+        AiHttp.statusError(504, 'HTTP 504: upstream timed out'),
+        AiHttp.statusError(408, 'HTTP 408: request timeout'),
+      ]) {
+        final provider = ScriptedChatProvider([
+          // The first batch decides one group, then the server goes quiet.
+          (_) => toolTurn([
+            (
+              'submit_group',
+              {'group': 'g1', 'mediaType': 'series', 'title': 'Show A'},
+            ),
+          ]),
+          (_) => throw timeout,
+          _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
+        ]);
+
+        final run = await OrganizeAgent(
+          provider,
+        ).run(folderName: 'Media', files: threeShows, batchSize: 2);
+
+        // The server may still be generating the first attempt; a rerun
+        // would bill a second one beside it.
+        expect(provider.calls, 3, reason: timeout.message);
+        expect(run.plan.decidedGroups, 2, reason: timeout.message);
+        expect(run.plan.failedGroups, 1, reason: timeout.message);
+        final b = run.plan.actions.singleWhere((a) => a.source.contains('B'));
+        expect(b.note, contains(timeout.message.substring(0, 12)));
+      }
+    });
+
+    test('a server or rate-limit failure is still rerun once', () async {
+      for (final status in [429, 502, 503]) {
+        final provider = ScriptedChatProvider([
+          (_) => throw AiHttp.statusError(status, 'HTTP $status'),
+          _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
+        ]);
+
+        final run = await OrganizeAgent(
+          provider,
+        ).run(folderName: 'Some Show', files: _show);
+
+        expect(provider.calls, 2, reason: '$status');
+        expect(run.plan.decidedGroups, 1, reason: '$status');
+      }
     });
 
     test('when every batch fails, the user sees the error', () async {

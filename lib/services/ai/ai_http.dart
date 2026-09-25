@@ -181,7 +181,9 @@ class AiHttp {
   ///
   /// A bad key, an empty balance, a rate limit and the server's own failure
   /// settle nothing about the model, so they are [AiNetworkException]s;
-  /// anything else is the request itself being refused.
+  /// anything else is the request itself being refused. A 408 or 504 is a
+  /// timeout on the way, and the upstream may still be generating: an
+  /// [AiTimeoutException], which nothing resends.
   ///
   /// A 404 or 405 — the address is wrong — also says where the request went
   /// ([url], through [safeUrl]), since a path the adapter built from a
@@ -192,10 +194,10 @@ class AiHttp {
     if (url != null && (status == 404 || status == 405)) {
       message = '$message — POST ${safeUrl(url)}';
     }
+    if (status == 408 || status == 504) return AiTimeoutException(message);
     return status == 401 ||
             status == 402 ||
             status == 403 ||
-            status == 408 ||
             status == 429 ||
             status >= 500
         ? AiNetworkException(message)

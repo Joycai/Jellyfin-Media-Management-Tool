@@ -1211,6 +1211,39 @@ void main() {
     expect(bodies.last.containsKey('temperature'), isFalse);
   });
 
+  test('a timed-out generation is sent once, as a timeout', () async {
+    for (final (name, answer) in [
+      (
+        'slow',
+        () async {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          return _stream(
+            _reply([
+              {'type': 'text', 'text': 'too late'},
+            ]),
+          );
+        },
+      ),
+      ('gateway', () async => http.Response('upstream timed out', 504)),
+    ]) {
+      var calls = 0;
+      final provider = AnthropicProvider(
+        _config('https://$name.example'),
+        firstEventTimeout: const Duration(milliseconds: 30),
+        client: MockClient((_) {
+          calls++;
+          return answer();
+        }),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiTimeoutException>()),
+        reason: name,
+      );
+      expect(calls, 1, reason: name);
+    }
+  });
+
   test('a stream that opens with a comment is still a stream', () async {
     final result = await AnthropicProvider(
       _config('https://comment.example'),
