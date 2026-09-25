@@ -1,6 +1,6 @@
 # Documentation
 
-Six kinds of document, and they answer different questions. Start with the one
+Seven kinds of document, and they answer different questions. Start with the one
 that matches yours:
 
 | Document | Answers |
@@ -11,6 +11,7 @@ that matches yours:
 | [`../CLAUDE.md`](../CLAUDE.md) | What will break if I change this? — the rules, one line each |
 | [`architecture/`](architecture/) | Why is the code shaped like this? — the reasons and measurements behind those rules |
 | [`spec/`](spec/) | What was the app *specified* to be? |
+| [`audits/`](audits/) | What did a review find wrong, and has it been fixed? |
 
 Everything under `docs/spec/` is a **spec** — the design and analysis the code was
 written against. Specs are a record of a source (a design project, a page
@@ -20,7 +21,7 @@ ones to trust; the spec carries a short note saying where it landed, and anythin
 built is listed in [`spec/ui-redesign/backlog.md`](spec/ui-redesign/backlog.md)
 rather than quietly dropped.
 
-The specs are written in Chinese; the rest of the documentation is in English.
+The specs and audits are written in Chinese; the rest of the documentation is in English.
 
 ## Architecture notes
 
@@ -34,6 +35,21 @@ and change both together.
 | [metadata-scraping.md](architecture/metadata-scraping.md) | The extraction ladder, page fetching, cookies and age gates, the scrape panel, artwork roles, NFO naming, folder refresh |
 | [rendering-and-theming.md](architecture/rendering-and-theming.md) | Design tokens, fonts, `GlassSurface`, the baked backdrop and blur with their measurements, the settings screen grid |
 | [window-and-native.md](architecture/window-and-native.md) | The custom title bar, Snap Layouts (B15), macOS traffic lights, the GPU adapter, the Windows thumbnail worker |
+
+## Audits
+
+An audit is a dated **record** of a review against an outside reference: what the
+code did at a named commit, what was wrong with it and why. Like a spec it is not
+rewritten when the code moves on — each finding has a status column, and a fix
+fills in its commit there. An audit may have a companion **plan**: how each
+finding will be fixed, step by step. Unlike the audit, a plan is amended as the
+work teaches something, with a change log at its end; progress still goes in the
+audit's status column.
+
+| | |
+|---|---|
+| [`audits/2026-09-ai-protocol.md`](audits/2026-09-ai-protocol.md) | The four AI protocol adapters (text and image input) checked against the ai-agent-architecture knowledge base: 13 findings, 7 of them silent, with reproductions and a fix order. |
+| [`audits/2026-09-ai-protocol-plan.md`](audits/2026-09-ai-protocol-plan.md) | Its fix plan: 13 commits in 5 PRs, each with the code change, the tests through a real adapter, and the rule documents to update in the same commit; what to do once each unverified item is measured. |
 
 ## UI redesign spec
 
