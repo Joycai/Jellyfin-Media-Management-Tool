@@ -252,7 +252,9 @@ class AiConnectionCheck {
   /// Asked twice: a small model sometimes answers the first time in prose even
   /// though it can call tools, and blocking every agent task on one stray
   /// reply would be worse than a second greeting. A transport failure gets the
-  /// second attempt too, for the same reason.
+  /// second attempt too, for the same reason — but not a timeout: the first
+  /// greeting may still be generating, and on a one-slot local server the
+  /// second would only queue behind it.
   ///
   /// The three outcomes are not interchangeable. A server that rejects the
   /// `tools` field by name, or a model that answers in prose twice, answers
@@ -282,10 +284,14 @@ class AiConnectionCheck {
         prose++;
       } on AiCancelled {
         rethrow;
+      } on AiTimeoutException catch (e) {
+        lastError = e.message;
+        break;
       } on AiNetworkException catch (e) {
         lastError = e.message;
       } on TimeoutException {
         lastError = 'No reply within ${timeout.inSeconds} s.';
+        break;
       } on AiException catch (e) {
         // Only a 400/422 that names tools answers the question, as in [run];
         // a 404, a model still loading or another field refused does not.

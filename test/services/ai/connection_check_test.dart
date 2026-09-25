@@ -228,6 +228,28 @@ void main() {
       expect(requests, hasLength(1));
     });
 
+    for (final status in [408, 504]) {
+      test(
+        'a timed-out HTTP $status is inconclusive and not asked twice',
+        () async {
+          final (:provider, :requests) = openAi(
+            'probe-timeout-$status',
+            status,
+            jsonEncode({
+              'error': {'message': 'timed out'},
+            }),
+          );
+
+          final probe = await AiConnectionCheck.probeTools(provider);
+
+          expect(probe.outcome, ToolProbe.inconclusive);
+          expect(probe.error, startsWith('HTTP $status'));
+          // The first greeting may still be generating.
+          expect(requests, hasLength(1));
+        },
+      );
+    }
+
     test('one prose reply after a failed request is inconclusive', () async {
       // The model had one chance, not two; its single stray reply must not
       // be recorded as "does not call tools".

@@ -140,7 +140,7 @@ class AiNetworkException extends AiException {
 }
 
 /// An [AiNetworkException] for a generation that timed out: the client heard
-/// nothing for too long, or a gateway answered 408 or 504.
+/// nothing for too long, or a gateway answered 408, 504 or Cloudflare's 524.
 ///
 /// The server may still be generating — and billing — the request, so
 /// nothing sends it again: not the transport (`AiHttp.withRetry`), and not

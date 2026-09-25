@@ -435,6 +435,25 @@ void main() {
     expect(sends, 1);
   });
 
+  test('headers that never arrive are a timeout, sent once', () async {
+    var sends = 0;
+    final provider = OpenAiProvider(
+      _config('no-headers'),
+      firstEventTimeout: const Duration(milliseconds: 30),
+      client: MockClient((_) async {
+        sends++;
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        return _reply('too late');
+      }),
+    );
+
+    await expectLater(
+      provider.complete(systemPrompt: 's', userPrompt: 'u'),
+      throwsA(isA<AiTimeoutException>()),
+    );
+    expect(sends, 1);
+  });
+
   test('a server that never starts answering times out once', () async {
     var sends = 0;
     final provider = OpenAiProvider(

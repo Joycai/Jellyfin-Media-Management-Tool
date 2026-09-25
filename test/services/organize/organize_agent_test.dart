@@ -473,7 +473,7 @@ void main() {
         expect(run.plan.decidedGroups, 2, reason: timeout.message);
         expect(run.plan.failedGroups, 1, reason: timeout.message);
         final b = run.plan.actions.singleWhere((a) => a.source.contains('B'));
-        expect(b.note, contains(timeout.message.substring(0, 12)));
+        expect(b.note, contains(timeout.message));
       }
     });
 

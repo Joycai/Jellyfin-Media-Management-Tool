@@ -21,9 +21,9 @@ class AiHttp {
   /// validation, etc.) is returned to the caller so they can render the
   /// real error. 529 is Anthropic's "overloaded".
   ///
-  /// Not 408 or 504: both are a timeout on the way, and the upstream may
-  /// still be generating — and billing — the first attempt, exactly like a
-  /// client-side timeout. 502 stays: a gateway that got no valid answer
+  /// Not 408, 504 or Cloudflare's 524: each is a timeout on the way, and
+  /// the upstream may still be generating — and billing — the first
+  /// attempt, exactly like a client-side timeout. 502 stays: a gateway that got no valid answer
   /// more likely failed before the upstream started.
   static const _retryableStatuses = {429, 502, 503, 529};
 
@@ -181,9 +181,11 @@ class AiHttp {
   ///
   /// A bad key, an empty balance, a rate limit and the server's own failure
   /// settle nothing about the model, so they are [AiNetworkException]s;
-  /// anything else is the request itself being refused. A 408 or 504 is a
-  /// timeout on the way, and the upstream may still be generating: an
-  /// [AiTimeoutException], which nothing resends.
+  /// anything else is the request itself being refused. A 408, a 504 or
+  /// Cloudflare's 524 (the origin sent no headers within 100 s — a relay
+  /// behind Cloudflare, over a long prefill) is a timeout on the way, and the
+  /// upstream may still be generating: an [AiTimeoutException], which
+  /// nothing resends.
   ///
   /// A 404 or 405 — the address is wrong — also says where the request went
   /// ([url], through [safeUrl]), since a path the adapter built from a
@@ -194,7 +196,9 @@ class AiHttp {
     if (url != null && (status == 404 || status == 405)) {
       message = '$message — POST ${safeUrl(url)}';
     }
-    if (status == 408 || status == 504) return AiTimeoutException(message);
+    if (status == 408 || status == 504 || status == 524) {
+      return AiTimeoutException(message);
+    }
     return status == 401 ||
             status == 402 ||
             status == 403 ||
