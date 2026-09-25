@@ -172,18 +172,28 @@ void main() {
     }
   });
 
-  for (final (route, model, refused) in [
-    (AiProviderType.openAiResponses, 'gpt-4.1', {'reasoning'}),
+  for (final (route, model, refused, line) in [
+    (
+      AiProviderType.openAiResponses,
+      'gpt-4.1',
+      {'reasoning'},
+      'the model’s default',
+    ),
     (
       AiProviderType.anthropic,
       'claude-sonnet-4-5',
       {'thinking:adaptive', 'thinking:enabled', 'thinking'},
+      'off by default',
     ),
   ]) {
     testWidgets('a ${route.id} route that refused its reasoning field sends it '
         'neither way, so the switch is off', (tester) async {
       const endpoint = 'https://relay.example/v1';
-      final entry = AiModelEntry.create(upstream: model, route: route);
+      // The refusal is learned while reasoning is on.
+      final entry = AiModelEntry.create(
+        upstream: model,
+        route: route,
+      ).copyWith(params: {route: const RouteParams(thinkingEnabled: true)});
       final channel =
           AiChannel.create(
                 platform: PlatformProfiles.custom,
@@ -224,11 +234,11 @@ void main() {
       );
 
       // What the capability matrix says too.
-      expect(find.text('the model’s default'), findsOneWidget);
-      expect(
-        tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
-        isNull,
-      );
+      expect(find.text(line), findsOneWidget);
+      // Drawn off, not stuck on: nothing is sent either way.
+      final toggle = tester.widget<AppToggle>(find.byType(AppToggle).at(2));
+      expect(toggle.onChanged, isNull);
+      expect(toggle.value, isFalse);
       await settleSaves(tester);
     });
   }

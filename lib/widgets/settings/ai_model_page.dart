@@ -400,6 +400,13 @@ class _AiModelPageState extends State<AiModelPage> {
       config,
       refused: learned.rejectedFields,
     );
+    // Refused: the adapter sends it neither way, whatever was saved. The
+    // refusal is learned while reasoning is on, so the saved value is
+    // shown as off rather than as a disabled switch stuck on.
+    final fieldRefused =
+        switchField == null &&
+        protocolField == null &&
+        PlatformProfiles.protocolSwitchFieldFor(config) != null;
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
 
     Widget line(String label, Widget value) => Padding(
@@ -430,9 +437,13 @@ class _AiModelPageState extends State<AiModelPage> {
                   ? l10n.aiDialectField(switchField)
                   : protocolField != null
                   ? l10n.aiCellProtocolSwitch(protocolField)
-                  : PlatformProfiles.protocolSwitchFieldFor(config) != null
-                  // Refused: sent neither way, as the matrix says.
-                  ? l10n.aiCellModelDefault
+                  // What the capability matrix says of the same route:
+                  // Messages without thinking does not reason; Responses
+                  // without `reasoning` runs at the model's default.
+                  : fieldRefused
+                  ? (config.provider == AiProviderType.anthropic
+                        ? l10n.aiCellDefaultOff
+                        : l10n.aiCellModelDefault)
                   : l10n.aiRouteLadder,
               style: note.copyWith(color: t.textBody),
             ),
@@ -471,7 +482,7 @@ class _AiModelPageState extends State<AiModelPage> {
           AiSamplingSection(
             preset: SamplingPresets.forModel(model.upstream),
             controllers: _sampling,
-            thinking: config.thinkingEnabled,
+            thinking: config.thinkingEnabled && !fieldRefused,
             routeSwitch: PlatformProfiles.thinkingSwitchable(
               config,
               refused: learned.rejectedFields,

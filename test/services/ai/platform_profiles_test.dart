@@ -183,7 +183,7 @@ void main() {
       PlatformProfiles.thinkingSwitchable(responses, refused: {'reasoning'}),
       isFalse,
     );
-    // Off refused alone: `effort: none` is left out, `medium` still sent.
+    // Another field refused: `reasoning` is still sent both ways.
     expect(
       PlatformProfiles.thinkingSwitchable(responses, refused: {'include'}),
       isTrue,
@@ -208,6 +208,15 @@ void main() {
     expect(
       PlatformProfiles.thinkingSwitchable(claude, refused: {'thinking'}),
       isFalse,
+    );
+    // Where adaptive comes first, the same record is no verdict on it: the
+    // model's own first form decides.
+    expect(
+      PlatformProfiles.thinkingSwitchable(
+        on(AiProviderType.anthropic, 'claude-sonnet-4-6'),
+        refused: {'thinking'},
+      ),
+      isTrue,
     );
   });
 }
