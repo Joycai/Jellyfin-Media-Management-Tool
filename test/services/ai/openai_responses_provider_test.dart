@@ -463,6 +463,31 @@ void main() {
     expect(provider.learned.rejectedFields, {'top_p'});
   });
 
+  test('a 404 says where it went', () async {
+    final provider = OpenAiResponsesProvider(
+      _config('responses-404.example/api'),
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'error': {'message': 'Not Found'},
+          }),
+          404,
+        ),
+      ),
+    );
+    await expectLater(
+      provider.chat(messages: const [UserMessage('u')], tools: const []),
+      throwsA(
+        isA<AiException>().having(
+          (e) => e.message,
+          'message',
+          'HTTP 404: Not Found — POST '
+              'https://responses-404.example/api/responses',
+        ),
+      ),
+    );
+  });
+
   test('a stream that opens with a comment is still a stream', () async {
     final result = await OpenAiResponsesProvider(
       _config('comment.example'),

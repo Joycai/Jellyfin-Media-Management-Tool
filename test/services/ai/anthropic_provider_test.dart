@@ -98,6 +98,55 @@ void main() {
       );
     });
 
+    test('a pasted full endpoint is cut back to its root', () async {
+      expect(
+        (await sent('https://api.anthropic.com/v1/messages')).url.toString(),
+        'https://api.anthropic.com/v1/messages',
+      );
+      expect(
+        (await sent(
+          'https://dashscope.aliyuncs.com/apps/anthropic/v1/messages/',
+        )).url.toString(),
+        'https://dashscope.aliyuncs.com/apps/anthropic/v1/messages',
+      );
+      expect(
+        (await sent(
+          'https://api.anthropic.com/v1/messages?beta=true',
+        )).url.toString(),
+        'https://api.anthropic.com/v1/messages',
+      );
+      // A host is not a path segment.
+      expect(
+        (await sent('http://messages')).url.toString(),
+        'http://messages/v1/messages',
+      );
+    });
+
+    test('a 404 says where it went, without the user info', () async {
+      final provider = AnthropicProvider(
+        _config('https://user:pass@wrong-path.example/api/claude'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': {'message': 'Not Found'},
+            }),
+            404,
+          ),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            'HTTP 404: Not Found — POST '
+                'https://wrong-path.example/api/claude/v1/messages',
+          ),
+        ),
+      );
+    });
+
     test('the key goes in x-api-key with a pinned version', () async {
       final request = await sent('https://api.anthropic.com');
       expect(request.headers['x-api-key'], 'sk-ant-secret');

@@ -224,7 +224,7 @@ void main() {
       final probe = await AiConnectionCheck.probeTools(provider);
 
       expect(probe.outcome, ToolProbe.inconclusive);
-      expect(probe.error, 'HTTP 404: model not found');
+      expect(probe.error, startsWith('HTTP 404: model not found'));
       expect(requests, hasLength(1));
     });
 

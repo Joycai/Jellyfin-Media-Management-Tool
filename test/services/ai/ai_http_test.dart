@@ -77,4 +77,23 @@ void main() {
     expect(AiHttp.paramNames('reasoning_effort', 'reasoning'), isFalse);
     expect(AiHttp.paramNames(null, 'top_k'), isFalse);
   });
+
+  test('a wrong address is named, and only a wrong address', () {
+    final url = Uri.parse('https://u:p@relay.example:8443/x/v1/messages?k=s#f');
+    expect(
+      AiHttp.statusError(404, 'HTTP 404', url: url).message,
+      'HTTP 404 — POST https://relay.example:8443/x/v1/messages',
+    );
+    expect(
+      AiHttp.statusError(405, 'HTTP 405', url: url).message,
+      'HTTP 405 — POST https://relay.example:8443/x/v1/messages',
+    );
+    for (final status in [400, 401, 422, 500]) {
+      expect(
+        AiHttp.statusError(status, 'HTTP $status', url: url).message,
+        'HTTP $status',
+        reason: '$status',
+      );
+    }
+  });
 }

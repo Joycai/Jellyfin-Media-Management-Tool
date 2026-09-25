@@ -60,11 +60,12 @@ class AnthropicProvider implements AiProvider {
   /// `…/v1` as typed, else the root with `/v1` added: Anthropic's own host
   /// is a bare origin, and the platforms that mirror it publish a prefix
   /// (`/apps/anthropic`, `/api/anthropic`) below which `/v1/messages` sits.
+  /// A pasted full endpoint (`…/v1/messages`) is cut back to its root first
+  /// — a path segment only, never a host named `messages`.
   String get _base {
-    var base = config.endpoint.trim();
-    while (base.endsWith('/')) {
-      base = base.substring(0, base.length - 1);
-    }
+    final base = AiHttp.endpointBase(
+      config.endpoint,
+    ).replaceFirst(RegExp(r'(?<=[^/])/messages$'), '');
     return base.endsWith('/v1') ? base : '$base/v1';
   }
 
@@ -216,7 +217,7 @@ class AnthropicProvider implements AiProvider {
             continue;
           }
         }
-        throw AiHttp.statusError(res.statusCode, error);
+        throw AiHttp.statusError(res.statusCode, error, url: _messagesUri);
       }
 
       final ChatResult result;

@@ -231,7 +231,7 @@ class OpenAiResponsesProvider implements AiProvider {
             continue;
           }
         }
-        throw AiHttp.statusError(res.statusCode, error);
+        throw AiHttp.statusError(res.statusCode, error, url: _responsesUri);
       }
 
       final ChatResult result;

@@ -149,6 +149,27 @@ void main() {
     );
   });
 
+  test('a 404 says where it went', () async {
+    final provider = OpenAiProvider(
+      _config('wrong-path'),
+      client: MockClient(
+        (_) async => http.Response(jsonEncode({'error': 'Not Found'}), 404),
+      ),
+    );
+
+    await expectLater(
+      provider.complete(systemPrompt: 's', userPrompt: 'u'),
+      throwsA(
+        isA<AiException>().having(
+          (e) => e.message,
+          'message',
+          'HTTP 404: Not Found — POST '
+              'http://wrong-path:1234/v1/chat/completions',
+        ),
+      ),
+    );
+  });
+
   test('sends the output cap, renamed when the model insists', () async {
     final keys = <String>[];
     final provider = OpenAiProvider(

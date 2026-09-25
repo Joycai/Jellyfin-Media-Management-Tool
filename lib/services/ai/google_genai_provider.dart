@@ -85,11 +85,14 @@ class GoogleGenAiProvider implements AiProvider {
 
   /// Normalized base URL with a `/v1*` segment, e.g.
   /// `https://generativelanguage.googleapis.com/v1beta`.
+  ///
+  /// A pasted `…/v1beta/models` or a full
+  /// `…/models/<model>:generateContent` is cut back to its root first — a
+  /// path segment only, never a host named `models`.
   String get _base {
-    var base = config.endpoint.trim();
-    while (base.endsWith('/')) {
-      base = base.substring(0, base.length - 1);
-    }
+    var base = AiHttp.endpointBase(
+      config.endpoint,
+    ).replaceFirst(RegExp(r'(?<=[^/])/models(/[^/]*)?$'), '');
     if (!base.contains('/v1')) {
       base = '$base/v1beta';
     }
@@ -243,7 +246,7 @@ class GoogleGenAiProvider implements AiProvider {
           offFailed();
           continue;
         }
-        throw AiHttp.statusError(res.statusCode, error);
+        throw AiHttp.statusError(res.statusCode, error, url: _generateUri());
       }
 
       final ChatResult result;

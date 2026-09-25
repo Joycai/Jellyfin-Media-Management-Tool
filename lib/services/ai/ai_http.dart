@@ -181,15 +181,46 @@ class AiHttp {
   /// A bad key, an empty balance, a rate limit and the server's own failure
   /// settle nothing about the model, so they are [AiNetworkException]s;
   /// anything else is the request itself being refused.
-  static AiException statusError(int status, String message) =>
-      status == 401 ||
-          status == 402 ||
-          status == 403 ||
-          status == 408 ||
-          status == 429 ||
-          status >= 500
-      ? AiNetworkException(message)
-      : AiException(message);
+  ///
+  /// A 404 or 405 — the address is wrong — also says where the request went
+  /// ([url], through [safeUrl]), since a path the adapter built from a
+  /// pasted endpoint is the one thing the user cannot see. Only then: the
+  /// learning that reads other refusals matches words in the message, and
+  /// a relay's path can contain `function` or `thinking`.
+  static AiException statusError(int status, String message, {Uri? url}) {
+    if (url != null && (status == 404 || status == 405)) {
+      message = '$message — POST ${safeUrl(url)}';
+    }
+    return status == 401 ||
+            status == 402 ||
+            status == 403 ||
+            status == 408 ||
+            status == 429 ||
+            status >= 500
+        ? AiNetworkException(message)
+        : AiException(message);
+  }
+
+  /// [url] without its query string, fragment or user info, any of which
+  /// can carry a credential (Google's key once travelled as `?key=`).
+  static String safeUrl(Uri url) => Uri(
+    scheme: url.scheme,
+    host: url.host,
+    port: url.hasPort ? url.port : null,
+    path: url.path,
+  ).toString();
+
+  /// [endpoint] as typed, trimmed, without a query string, fragment or
+  /// trailing slashes — the part an adapter builds its paths on.
+  static String endpointBase(String endpoint) {
+    var base = endpoint.trim();
+    final cut = base.indexOf(RegExp('[?#]'));
+    if (cut != -1) base = base.substring(0, cut);
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
+    }
+    return base;
+  }
 
   static Duration? _retryAfter(http.BaseResponse res) {
     final header = res.headers['retry-after'];

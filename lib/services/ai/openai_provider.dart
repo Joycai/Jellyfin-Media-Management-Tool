@@ -364,7 +364,7 @@ class OpenAiProvider implements AiProvider {
           continue;
         }
       }
-      throw AiHttp.statusError(res.statusCode, error);
+      throw AiHttp.statusError(res.statusCode, error, url: _chatUri);
     }
   }
 
