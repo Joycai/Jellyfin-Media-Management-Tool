@@ -87,6 +87,54 @@ void main() {
     expect(value.text, l10n.aiCellLadder);
   });
 
+  test('a Responses route that refused effort none runs at its default', () {
+    final responsesModel = AiModelEntry.create(
+      upstream: 'gpt-5.5',
+      route: AiProviderType.openAiResponses,
+    );
+    final responsesChannel =
+        AiChannel.create(
+              platform: PlatformProfiles.custom,
+              name: 'r',
+              apiKey: 'k',
+            )
+            .copyWith(
+              routes: [
+                const AiRoute(
+                  protocol: AiProviderType.openAiResponses,
+                  endpoint: 'https://responses.example/v1',
+                ),
+              ],
+            )
+            .withModel(responsesModel);
+    final provider = AiService.providerFor(
+      responsesChannel.configFor(responsesModel),
+    );
+    addTearDown(provider.forgetLearned);
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.openAiResponses.id,
+        base: 'https://responses.example/v1',
+        model: 'gpt-5.5',
+        apiKey: 'k',
+      ),
+      (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.effortNone}),
+    );
+    expect(provider.learned.thinkingOffTried, {
+      LearnedBehaviour.effortNone,
+    }, reason: 'the test wrote the route the matrix reads');
+
+    final value = capabilityCell(
+      l10n,
+      responsesChannel,
+      responsesModel,
+      AiProviderType.openAiResponses,
+      Capability.thinkingOff,
+    );
+    expect(value.state, CapabilityState.unavailable);
+    expect(value.text, l10n.aiCellModelDefault);
+  });
+
   test('tool calling reads the measurement on that route', () {
     expect(
       cell(model, AiProviderType.openAi, Capability.tools).state,
@@ -121,10 +169,14 @@ void main() {
       cell(model, AiProviderType.anthropic, Capability.thinkingOff).text,
       l10n.aiCellDefaultOff,
     );
-    expect(
-      cell(model, AiProviderType.openAiResponses, Capability.thinkingOff).state,
-      CapabilityState.unmeasured,
+    // Sent, but a relay can rewrite `none` to medium: not measured.
+    final responses = cell(
+      model,
+      AiProviderType.openAiResponses,
+      Capability.thinkingOff,
     );
+    expect(responses.state, CapabilityState.unmeasured);
+    expect(responses.text, l10n.aiCellProtocolSwitch('reasoning.effort'));
   });
 
   test('image input the user has not allowed says so', () {

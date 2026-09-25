@@ -42,6 +42,11 @@ class LearnedBehaviour {
   /// it, so a channel whose platform changed keeps what the old one learned.
   static const dialectOff = 'dialect';
 
+  /// In [thinkingOffTried] on a Responses route: `reasoning.effort: "none"`
+  /// was refused. The Chat Completions ladder has a way of the same name,
+  /// but a route key carries its protocol, so the two never share a set.
+  static const effortNone = 'effortNone';
+
   final DateTime updated;
 
   LearnedBehaviour({

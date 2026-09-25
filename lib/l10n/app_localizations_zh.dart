@@ -2761,6 +2761,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiCellAlwaysReasons => '该模型始终思考';
 
   @override
+  String aiCellProtocolSwitch(String field) {
+    return '$field · 协议字段';
+  }
+
+  @override
   String get aiCellDefaultOff => '默认不思考';
 
   @override

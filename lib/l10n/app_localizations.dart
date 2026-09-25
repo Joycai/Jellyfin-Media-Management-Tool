@@ -5030,6 +5030,12 @@ abstract class AppLocalizations {
   /// **'this model always reasons'**
   String get aiCellAlwaysReasons;
 
+  /// No description provided for @aiCellProtocolSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'{field} · protocol field'**
+  String aiCellProtocolSwitch(String field);
+
   /// No description provided for @aiCellDefaultOff.
   ///
   /// In en, this message translates to:

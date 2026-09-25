@@ -127,12 +127,16 @@ class OpenAiResponsesProvider implements AiProvider {
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
     final key = _cacheKey;
     while (true) {
-      final rejected = _learned.of(key).rejectedFields;
+      final learned = _learned.of(key);
+      final rejected = learned.rejectedFields;
       final payload = _payload(
         messages,
         tools,
         jsonMode: jsonMode,
         rejected: rejected,
+        offRefused: learned.thinkingOffTried.contains(
+          LearnedBehaviour.effortNone,
+        ),
       );
       final started = DateTime.now();
       void log({int? status, ChatResult? result, String? error}) =>
@@ -199,6 +203,21 @@ class OpenAiResponsesProvider implements AiProvider {
                     _names(detail, f),
               )
               .firstOrNull;
+          // `reasoning` refused while asking for none says nothing about
+          // asking for some: the route goes back to the model's default
+          // when off, and still asks when on.
+          if (refused == 'reasoning' && !config.thinkingEnabled) {
+            _learned.update(
+              key,
+              (b) => b.copyWith(
+                thinkingOffTried: {
+                  ...b.thinkingOffTried,
+                  LearnedBehaviour.effortNone,
+                },
+              ),
+            );
+            continue;
+          }
           if (refused != null) {
             _learned.update(
               key,
@@ -229,13 +248,21 @@ class OpenAiResponsesProvider implements AiProvider {
 
   /// Whether a rejection names [field]. `text`, `reasoning` and `include`
   /// are ordinary words, so they count only quoted or as a parameter path.
-  static bool _names(String detail, String field) =>
-      field == 'text' || field == 'reasoning' || field == 'include'
-      ? RegExp(
-          '["\'`]$field["\'`.\\[]|$field\\.(format|effort)|'
-          '$field (field|parameter)',
-        ).hasMatch(detail)
-      : detail.contains(field);
+  /// `reasoning.encrypted_content` is the value `include` asks for, so it
+  /// names `include`, never `reasoning`.
+  static bool _names(String detail, String field) {
+    const encrypted = 'reasoning.encrypted_content';
+    if (field == 'include' && detail.contains(encrypted)) return true;
+    final text = field == 'reasoning'
+        ? detail.replaceAll(encrypted, '')
+        : detail;
+    return field == 'text' || field == 'reasoning' || field == 'include'
+        ? RegExp(
+            '["\'`]$field["\'`.\\[]|$field\\.(format|effort)|'
+            '$field (field|parameter)',
+          ).hasMatch(text)
+        : text.contains(field);
+  }
 
   /// The request body — the one place it is built.
   Map<String, Object?> _payload(
@@ -243,6 +270,7 @@ class OpenAiResponsesProvider implements AiProvider {
     List<ToolDefinition> tools, {
     required bool jsonMode,
     required Set<String> rejected,
+    required bool offRefused,
   }) {
     final values = config.sampling.values;
     final instructions = messages
@@ -252,10 +280,15 @@ class OpenAiResponsesProvider implements AiProvider {
     final optional = <String, Object>{
       'temperature': ?values.temperature,
       'top_p': ?values.topP,
-      // Asked for only when on: there is no one low setting every model
-      // takes ("none", "minimal" and "low" are each refused somewhere), and
-      // the model's own default is what "off" has always meant here.
-      if (config.thinkingEnabled) 'reasoning': const {'effort': 'medium'},
+      // Off is asked for, not left to the model's default — that is medium
+      // on GPT-5.5/5.6 and high on Grok, paid for either way (KB 03 §7.1). A
+      // route that refuses `none` is remembered and left at its default; a
+      // relay that quietly rewrites it shows up as reasoning in the
+      // connection test.
+      if (config.thinkingEnabled)
+        'reasoning': const {'effort': 'medium'}
+      else if (!offRefused)
+        'reasoning': const {'effort': 'none'},
       'include': const ['reasoning.encrypted_content'],
       if (jsonMode)
         'text': const {
@@ -528,6 +561,9 @@ class OpenAiResponsesProvider implements AiProvider {
       tools,
       jsonMode: false,
       rejected: learned.rejectedFields,
+      offRefused: learned.thinkingOffTried.contains(
+        LearnedBehaviour.effortNone,
+      ),
     ),
   );
 

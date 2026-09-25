@@ -828,6 +828,7 @@
   "aiMergeConfirmBody": "线路和模型并入「{name}」，其余渠道随之删除。每个模型的地址、参数和任务指派都不变。",
   "aiCellPromptOnly": "无参数 · 只靠提示词",
   "aiCellAlwaysReasons": "该模型始终思考",
+  "aiCellProtocolSwitch": "{field} · 协议字段",
   "aiCellDefaultOff": "默认不思考",
   "aiCellModelDefault": "模型默认",
   "aiCellSentAs": "以 {part} 发出 · 未实测",

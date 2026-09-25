@@ -289,13 +289,23 @@ CapabilityCell capabilityCell(
         }),
       );
     case Capability.thinkingOff:
-      // Extended thinking is off unless asked for; Responses leaves reasoning
-      // to the model, since no one low setting is taken everywhere.
+      // Extended thinking is off unless asked for.
       if (protocol == AiProviderType.anthropic) {
         return (state: works, text: l10n.aiCellDefaultOff);
       }
+      // Responses asks for `effort: none`. Sending it is not the same as
+      // it being honoured — a relay can rewrite it to medium — so it stays
+      // unmeasured; the connection test's "still reasoned" is the judge.
       if (protocol == AiProviderType.openAiResponses) {
-        return (state: unmeasured, text: l10n.aiCellModelDefault);
+        return learned?.thinkingOffTried.contains(
+                  LearnedBehaviour.effortNone,
+                ) ==
+                true
+            ? (state: unavailable, text: l10n.aiCellModelDefault)
+            : (
+                state: unmeasured,
+                text: l10n.aiCellProtocolSwitch('reasoning.effort'),
+              );
       }
       final dialect = PlatformProfiles.dialectFor(config);
       final tried = learned?.thinkingOffTried ?? const <String>{};

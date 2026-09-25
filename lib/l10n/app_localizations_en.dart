@@ -2869,6 +2869,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiCellAlwaysReasons => 'this model always reasons';
 
   @override
+  String aiCellProtocolSwitch(String field) {
+    return '$field · protocol field';
+  }
+
+  @override
   String get aiCellDefaultOff => 'off by default';
 
   @override

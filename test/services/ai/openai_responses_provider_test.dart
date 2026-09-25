@@ -6,13 +6,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/openai_responses_provider.dart';
 
-AiConfig _config(String host, {String model = 'gpt-5.4'}) => AiConfig(
+AiConfig _config(
+  String host, {
+  String model = 'gpt-5.4',
+  bool thinking = false,
+}) => AiConfig(
   provider: AiProviderType.openAiResponses,
   endpoint: 'https://$host',
   apiKey: 'sk-resp',
   model: model,
+  thinkingEnabled: thinking,
 );
 
 http.Response _stream(List<Map<String, Object?>> events) => http.Response(
@@ -247,6 +253,149 @@ void main() {
       expect(bodies.last.containsKey('temperature'), isFalse);
     },
   );
+
+  group('reasoning', () {
+    Future<Map<String, dynamic>> sent(AiConfig config) async {
+      late Map<String, dynamic> body;
+      await OpenAiResponsesProvider(
+        config,
+        client: MockClient((request) async {
+          body = jsonDecode(request.body) as Map<String, dynamic>;
+          return _stream([_completed()]);
+        }),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      return body;
+    }
+
+    test('off asks for none, on asks for medium', () async {
+      // Left out, it ran at the model's own default: medium on GPT-5.5/5.6,
+      // high on Grok (KB 03 §7.1).
+      expect((await sent(_config('effort-off.example')))['reasoning'], {
+        'effort': 'none',
+      });
+      expect(
+        (await sent(_config('effort-on.example', thinking: true)))['reasoning'],
+        {'effort': 'medium'},
+      );
+    });
+
+    test(
+      'a refused none goes back to the default, and on still asks',
+      () async {
+        final bodies = <Map<String, dynamic>>[];
+        MockClient client() => MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          bodies.add(body);
+          if (bodies.length > 8) throw StateError('runaway retries');
+          return (body['reasoning'] as Map?)?['effort'] == 'none'
+              ? http.Response(
+                  jsonEncode({
+                    'error': {
+                      'message':
+                          "Unsupported value: 'reasoning.effort' does not "
+                          "support 'none' with this model.",
+                      'param': 'reasoning.effort',
+                    },
+                  }),
+                  400,
+                )
+              : _stream([_completed()]);
+        });
+
+        final off = OpenAiResponsesProvider(
+          _config('effort-refused.example'),
+          client: client(),
+        );
+        await off.chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('reasoning'), isFalse);
+        expect(off.learned.thinkingOffTried, {LearnedBehaviour.effortNone});
+        expect(off.learned.rejectedFields, isNot(contains('reasoning')));
+
+        // Remembered for the route, preview included.
+        await off.chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies, hasLength(3));
+        expect(bodies.last.containsKey('reasoning'), isFalse);
+        final preview = await off.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body.containsKey('reasoning'), isFalse);
+
+        // The same route asked for reasoning still asks.
+        await OpenAiResponsesProvider(
+          _config('effort-refused.example', thinking: true),
+          client: client(),
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies.last['reasoning'], {'effort': 'medium'});
+      },
+    );
+
+    test('reasoning refused while on is a refused field', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = OpenAiResponsesProvider(
+        _config('no-reasoning.example', thinking: true),
+        client: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          bodies.add(body);
+          if (bodies.length > 8) throw StateError('runaway retries');
+          return body.containsKey('reasoning')
+              ? http.Response(
+                  jsonEncode({
+                    'error': {
+                      'message':
+                          "Unsupported parameter: 'reasoning' is not "
+                          'supported with this model.',
+                    },
+                  }),
+                  400,
+                )
+              : _stream([_completed()]);
+        }),
+      );
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies, hasLength(2));
+      expect(provider.learned.rejectedFields, contains('reasoning'));
+      expect(provider.learned.thinkingOffTried, isEmpty);
+    });
+
+    test(
+      'an include refusal quoting its value is not about reasoning',
+      () async {
+        // `reasoning.encrypted_content` is what `include` asks for; read as
+        // naming `reasoning`, it would leave an off model at its default.
+        final bodies = <Map<String, dynamic>>[];
+        final provider = OpenAiResponsesProvider(
+          _config('no-include.example'),
+          client: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bodies.add(body);
+            if (bodies.length > 8) throw StateError('runaway retries');
+            return body.containsKey('include')
+                ? http.Response(
+                    jsonEncode({
+                      'error': {
+                        'message':
+                            "Unsupported value: 'reasoning.encrypted_content' "
+                            'is not supported with this model.',
+                      },
+                    }),
+                    400,
+                  )
+                : _stream([_completed()]);
+          }),
+        );
+        await provider.chat(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last['reasoning'], {'effort': 'none'});
+        expect(provider.learned.rejectedFields, {'include'});
+        expect(provider.learned.thinkingOffTried, isEmpty);
+      },
+    );
+  });
 
   test('a stream that opens with a comment is still a stream', () async {
     final result = await OpenAiResponsesProvider(
