@@ -672,37 +672,6 @@ void main() {
       );
     });
 
-    test('an old bare `thinking` record still lets adaptive be asked', () {
-      // Written before the forms were told apart, when `enabled` was the
-      // only one sent: no verdict on adaptive where adaptive comes first.
-      const adaptive = MessagesThinking.adaptive;
-      const extended = MessagesThinking.extended;
-      expect(AnthropicProvider.refusedForms({'thinking'}, first: adaptive), {
-        extended,
-      });
-      // Where `enabled` comes first it was the model's own form, refused as
-      // a feature: what such a refusal records now.
-      expect(
-        AnthropicProvider.refusedForms({'thinking'}, first: extended),
-        MessagesThinking.values.toSet(),
-      );
-      expect(
-        AnthropicProvider.refusedForms({
-          'thinking',
-          'thinking:adaptive',
-        }, first: extended),
-        {adaptive},
-      );
-      expect(
-        AnthropicProvider.refusedForms({
-          'thinking',
-          'thinking:adaptive',
-          'thinking:enabled',
-        }, first: adaptive),
-        MessagesThinking.values.toSet(),
-      );
-    });
-
     /// The bodies a route with an old bare `thinking` record sends for
     /// [model]: the first request answered, the rest refused as an older
     /// Claude refuses adaptive.

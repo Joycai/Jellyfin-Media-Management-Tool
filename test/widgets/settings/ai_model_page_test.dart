@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/ai_channel.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_model_page.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
@@ -169,4 +171,65 @@ void main() {
       await settleSaves(tester);
     }
   });
+
+  for (final (route, model, refused) in [
+    (AiProviderType.openAiResponses, 'gpt-4.1', {'reasoning'}),
+    (
+      AiProviderType.anthropic,
+      'claude-sonnet-4-5',
+      {'thinking:adaptive', 'thinking:enabled', 'thinking'},
+    ),
+  ]) {
+    testWidgets('a ${route.id} route that refused its reasoning field sends it '
+        'neither way, so the switch is off', (tester) async {
+      const endpoint = 'https://relay.example/v1';
+      final entry = AiModelEntry.create(upstream: model, route: route);
+      final channel =
+          AiChannel.create(
+                platform: PlatformProfiles.custom,
+                name: 'Relay',
+                apiKey: 'k',
+              )
+              .copyWith(
+                routes: [AiRoute(protocol: route, endpoint: endpoint)],
+              )
+              .withModel(entry);
+      final provider = AiService.providerFor(channel.configFor(entry));
+      addTearDown(provider.forgetLearned);
+      LearnedStore.instance.update(
+        LearnedStore.routeKey(
+          protocol: route.id,
+          base: endpoint,
+          model: model,
+          apiKey: 'k',
+        ),
+        (b) => b.copyWith(rejectedFields: refused),
+      );
+      expect(
+        provider.learned.rejectedFields,
+        refused,
+        reason: 'the test wrote the route the page reads',
+      );
+      await profiles.addChannel(channel);
+      await pumpAiPage(
+        tester,
+        AiModelPage(
+          channelId: channel.id,
+          modelId: entry.id,
+          onBack: () {},
+          onMatrix: () {},
+          onDiagnostics: () {},
+        ),
+        profiles: profiles,
+      );
+
+      // What the capability matrix says too.
+      expect(find.text('the model’s default'), findsOneWidget);
+      expect(
+        tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
+        isNull,
+      );
+      await settleSaves(tester);
+    });
+  }
 }

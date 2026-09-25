@@ -221,7 +221,7 @@ class AnthropicProvider implements AiProvider {
           final thinkingRefusal = _thinkingRefusal(
             about,
             sent: _sentForm(payload),
-            refused: refusedForms(rejected, first: _firstForm),
+            refused: MessagesThinking.refusedIn(rejected, first: _firstForm),
             swap: !PlatformProfiles.messagesSwitchFor(config),
           );
           if (thinkingRefusal != null) {
@@ -335,29 +335,6 @@ class AnthropicProvider implements AiProvider {
   static bool _aboutHistory(String detail) =>
       RegExp(r'redacted_thinking|signature|messages\.\d').hasMatch(detail);
 
-  /// The forms this route refused, where [first] is the form it is asked in
-  /// first. A bare `thinking` with neither form beside it was written before
-  /// the forms were told apart, when `enabled` was the only one sent and
-  /// only a refusal of thinking itself was recorded. Where `enabled` is also
-  /// the first form, that is what a refusal of thinking records now: every
-  /// form. Where adaptive comes first (Claude 4.6 and later, a switch
-  /// route), adaptive was never asked, and the record is no verdict on it.
-  static Set<MessagesThinking> refusedForms(
-    Set<String> rejected, {
-    required MessagesThinking first,
-  }) {
-    final forms = {
-      for (final form in MessagesThinking.values)
-        if (rejected.contains(form.refusedName)) form,
-    };
-    if (forms.isEmpty && rejected.contains('thinking')) {
-      return first == MessagesThinking.adaptive
-          ? {MessagesThinking.extended}
-          : MessagesThinking.values.toSet();
-    }
-    return forms;
-  }
-
   /// The form [payload] asked for thinking in, if it did.
   static MessagesThinking? _sentForm(Map<String, Object?> payload) =>
       switch (payload['thinking']) {
@@ -375,7 +352,7 @@ class AnthropicProvider implements AiProvider {
   MessagesThinking? _form(Set<String> rejected) {
     if (!config.thinkingEnabled) return null;
     final first = _firstForm;
-    final refused = refusedForms(rejected, first: first);
+    final refused = MessagesThinking.refusedIn(rejected, first: first);
     final forms = PlatformProfiles.messagesSwitchFor(config)
         ? [first]
         : [first, first.other];

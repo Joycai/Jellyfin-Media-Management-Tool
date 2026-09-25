@@ -400,16 +400,33 @@ abstract final class PlatformProfiles {
   /// when asked for it, Responses sends `reasoning.effort` either way.
   /// Chat Completions and Gemini have none — nothing to send for "on", only
   /// a ladder for "off".
-  static String? protocolSwitchFieldFor(AiConfig config) =>
-      switch (config.provider) {
-        AiProviderType.anthropic => 'thinking',
-        AiProviderType.openAiResponses => 'reasoning.effort',
-        AiProviderType.openAi || AiProviderType.googleGenAi => null,
-      };
+  ///
+  /// Null too once the route has [refused] it (`rejectedFields`), since the
+  /// adapter then sends it neither way: Responses' whole `reasoning`, or
+  /// every Messages form the route would try.
+  static String? protocolSwitchFieldFor(
+    AiConfig config, {
+    Set<String> refused = const {},
+  }) => switch (config.provider) {
+    AiProviderType.anthropic
+        when MessagesThinking.refusedIn(
+              refused,
+              first: MessagesThinking.forModel(config.model),
+            ).length <
+            MessagesThinking.values.length =>
+      'thinking',
+    AiProviderType.openAiResponses when !refused.contains('reasoning') =>
+      'reasoning.effort',
+    _ => null,
+  };
 
   /// Whether reasoning on [config]'s route can be switched on and off for a
   /// model no sampling preset knows: through a platform's field or the
-  /// protocol's own.
-  static bool thinkingSwitchable(AiConfig config) =>
-      switchFieldFor(config) != null || protocolSwitchFieldFor(config) != null;
+  /// protocol's own, unless the route [refused] it.
+  static bool thinkingSwitchable(
+    AiConfig config, {
+    Set<String> refused = const {},
+  }) =>
+      switchFieldFor(config) != null ||
+      protocolSwitchFieldFor(config, refused: refused) != null;
 }

@@ -170,4 +170,44 @@ void main() {
       isFalse,
     );
   });
+
+  test('a refused protocol field is no switch', () {
+    AiConfig on(AiProviderType provider, String model) => AiConfig(
+      provider: provider,
+      endpoint: 'https://relay.example.com',
+      apiKey: 'k',
+      model: model,
+    );
+    final responses = on(AiProviderType.openAiResponses, 'gpt-4.1');
+    expect(
+      PlatformProfiles.thinkingSwitchable(responses, refused: {'reasoning'}),
+      isFalse,
+    );
+    // Off refused alone: `effort: none` is left out, `medium` still sent.
+    expect(
+      PlatformProfiles.thinkingSwitchable(responses, refused: {'include'}),
+      isTrue,
+    );
+    final claude = on(AiProviderType.anthropic, 'claude-sonnet-4-5');
+    // One form refused: the other is still asked.
+    expect(
+      PlatformProfiles.protocolSwitchFieldFor(
+        claude,
+        refused: {'thinking:enabled'},
+      ),
+      'thinking',
+    );
+    expect(
+      PlatformProfiles.protocolSwitchFieldFor(
+        claude,
+        refused: {'thinking:adaptive', 'thinking:enabled'},
+      ),
+      isNull,
+    );
+    // A bare legacy record where `enabled` is the model's first form.
+    expect(
+      PlatformProfiles.thinkingSwitchable(claude, refused: {'thinking'}),
+      isFalse,
+    );
+  });
 }
