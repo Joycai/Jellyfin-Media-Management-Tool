@@ -80,6 +80,30 @@ void main() {
     ]);
   });
 
+  test('instructions go out empty when there is no system message', () async {
+    // The frame-vision request is a lone user message; a relay that finds
+    // `instructions` missing fills it with its own prompt.
+    late Map<String, dynamic> sent;
+    final provider = OpenAiResponsesProvider(
+      _config('no-system.example'),
+      client: MockClient((request) async {
+        sent = jsonDecode(request.body) as Map<String, dynamic>;
+        return _stream([_completed()]);
+      }),
+    );
+    final preview = await provider.previewRequest(
+      messages: const [UserMessage('frames')],
+      tools: const [],
+    );
+    expect(preview.body, containsPair('instructions', ''));
+
+    await provider.chat(
+      messages: const [UserMessage('frames')],
+      tools: const [],
+    );
+    expect(sent, containsPair('instructions', ''));
+  });
+
   test('finished items are the truth: calls, text, reasoning, usage', () async {
     final result = await OpenAiResponsesProvider(
       _config('items.example'),

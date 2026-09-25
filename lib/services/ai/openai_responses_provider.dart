@@ -264,7 +264,10 @@ class OpenAiResponsesProvider implements AiProvider {
     }..removeWhere((k, _) => rejected.contains(k));
     return {
       'model': config.model,
-      if (instructions.isNotEmpty) 'instructions': instructions,
+      // Always present, empty when there is no system message: a relay that
+      // finds `instructions` missing injects its own system prompt, 4.4K to
+      // 9K tokens on every request (KB 02 §7.1, 01 §9.2).
+      'instructions': instructions,
       'store': false,
       ...optional,
       'max_output_tokens': ?config.maxOutputTokens,
