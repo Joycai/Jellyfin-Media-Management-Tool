@@ -702,11 +702,15 @@ class OpenAiProvider implements AiProvider {
           final delta = choice['delta'];
           if (delta is Map) {
             content.write(_text(delta['content']));
-            for (final field in _reasoningFields) {
+            // One field per delta: a server that fills both with the same
+            // text would otherwise double it. The field seen first is
+            // read first from then on, the other only when it is empty.
+            for (final field in [?reasoningField, ..._reasoningFields]) {
               final piece = delta[field];
               if (piece is String && piece.isNotEmpty) {
                 reasoningField ??= field;
                 reasoningText.write(piece);
+                break;
               }
             }
             if (delta['encrypted_content'] case final String secret) {

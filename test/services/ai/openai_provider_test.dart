@@ -1145,6 +1145,80 @@ void main() {
     });
   });
 
+  group('reasoning in both fields', () {
+    Future<ChatResult> read(String host, List<Map<String, Object?>> deltas) =>
+        OpenAiProvider(
+          _config(host),
+          client: MockClient(
+            (_) async => http.Response(
+              [
+                for (final delta in deltas)
+                  _event({
+                    'choices': [
+                      {'delta': delta, 'finish_reason': null},
+                    ],
+                  }),
+                _event({
+                  'choices': [
+                    {
+                      'delta': {
+                        'tool_calls': [
+                          {
+                            'index': 0,
+                            'id': 'c',
+                            'function': {'name': 'f', 'arguments': '{}'},
+                          },
+                        ],
+                      },
+                      'finish_reason': 'tool_calls',
+                    },
+                  ],
+                }),
+                'data: [DONE]\n\n',
+              ].join(),
+              200,
+              headers: {'content-type': 'text/event-stream'},
+            ),
+          ),
+        ).chat(
+          messages: const [UserMessage('u')],
+          tools: const [
+            ToolDefinition(name: 'f', description: 'd', parameters: {}),
+          ],
+        );
+
+    test('the same text in both is read once', () async {
+      // Some relays fill `reasoning_content` and `reasoning` alike.
+      final result = await read('both-fields', [
+        {'reasoning_content': 'abc', 'reasoning': 'abc'},
+        {'reasoning_content': 'def', 'reasoning': 'def'},
+      ]);
+      expect(result.reasoning?.text, 'abcdef');
+      expect(result.reasoning?.field, 'reasoning_content');
+    });
+
+    test('the field seen first is the one read after', () async {
+      final result = await read('first-field', [
+        {'reasoning': 'abc'},
+        {'reasoning_content': 'xyz', 'reasoning': 'def'},
+      ]);
+      expect(result.reasoning?.text, 'abcdef');
+      expect(result.reasoning?.field, 'reasoning');
+    });
+
+    test('the other field is still read when the first is empty', () async {
+      // Preferring the first field must not drop text that only the other
+      // one carries.
+      final result = await read('other-field', [
+        {'reasoning_content': 'abc'},
+        {'reasoning_content': '', 'reasoning': 'def'},
+        {'reasoning': 'ghi'},
+      ]);
+      expect(result.reasoning?.text, 'abcdefghi');
+      expect(result.reasoning?.field, 'reasoning_content');
+    });
+  });
+
   // Volcengine's 2.1 models put only a summary in `reasoning_content` and the
   // original, encrypted, in `encrypted_content` (KB 03 §3.2, measured
   // 2026-09-23). Sent back without it, the model reasons from the summary.
