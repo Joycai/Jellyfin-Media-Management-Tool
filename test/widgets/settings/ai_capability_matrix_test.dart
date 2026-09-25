@@ -40,9 +40,12 @@ void main() {
       ),
       (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.dialectOff}),
     );
-    expect(provider.learned.thinkingOffTried, {
-      LearnedBehaviour.dialectOff,
-    }, reason: 'the test wrote the route the matrix reads');
+    const written = {LearnedBehaviour.dialectOff};
+    expect(
+      provider.learned.thinkingOffTried,
+      written,
+      reason: 'the test wrote the route the matrix reads',
+    );
 
     final value = cell(model, AiProviderType.openAi, Capability.thinkingOff);
     expect(value.state, CapabilityState.unavailable);
@@ -218,9 +221,12 @@ void main() {
       ),
       (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.dialectOff}),
     );
-    expect(provider.learned.thinkingOffTried, {
-      LearnedBehaviour.dialectOff,
-    }, reason: 'the test wrote the route the matrix reads');
+    const written = {LearnedBehaviour.dialectOff};
+    expect(
+      provider.learned.thinkingOffTried,
+      written,
+      reason: 'the test wrote the route the matrix reads',
+    );
 
     final value = capabilityCell(
       l10n,

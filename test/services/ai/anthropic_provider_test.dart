@@ -655,10 +655,12 @@ void main() {
     });
 
     test('both forms refused by name give thinking up', () async {
-      final (bodies, provider) = await refusing('both-forms.example', {
-        'adaptive',
-        'enabled',
-      }, (type) => "thinking.type: '$type' is not supported for this model");
+      const both = {'adaptive', 'enabled'};
+      final (bodies, provider) = await refusing(
+        'both-forms.example',
+        both,
+        (type) => "thinking.type: '$type' is not supported for this model",
+      );
       expect(bodies.map((b) => (b['thinking'] as Map?)?['type']), [
         'adaptive',
         'enabled',
