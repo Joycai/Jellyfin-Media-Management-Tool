@@ -412,7 +412,7 @@ PR 划分：
    3. 两种形态都被拒过，或者原本就满足 `refusesThinking` 且另一形态已试过 → 记 `thinking`，也就是现有行为，表示模型确实不支持思考。
    - 形态选择：`forModel(model)` 得到首选；首选在 `rejectedFields` 里就用另一种；两种都在就不发 `thinking`。
 4. **静默关思考要能被看见。** 诊断页（[ai_diagnostics_page.dart:299](../../lib/widgets/settings/ai_diagnostics_page.dart)）现在只在思考**关**时显示「模型仍在推理」。补上对称的一步：
-   - 思考**开**时显示一步：`result.reasoned` 为真显示 `aiStepThinkingOn`「模型在推理」；为假显示 `aiStepThinkingNotOn`「请求了推理，但回复里没有」，`ok: false`。
+   - 思考**开**时显示一步：`result.reasoned` 为真显示 `aiStepThinkingOn`「模型在推理」；为假显示 `aiStepThinkingNotOn`「请求了推理，但回复里没有」，`ok: null`（待定，不是失败：adaptive 与 Gemini 动态思考遇到连接测试这么小的请求可能不想）。
    - 这一步对四个协议族都有效，也能抓住中转站静默忽略 `thinking` 的情况（03 §3.3 表：翻译层后端不想）。
 
 **测试**（`anthropic_provider_test.dart`）
@@ -659,3 +659,4 @@ PR 划分：
 | 2026-09-25 | A11 定为乙；13 步合成一个 PR，每个提交先由一个子代理审查并修掉问题，最后整体审查一次再开 PR | 用户决定。上面的 PR 划分仍是评审顺序：提交按步号排列 |
 | 2026-09-25 | A8 的新判据挪到 `refused` 查找之后；`'dialect'` 成了常量 `LearnedBehaviour.dialectOff`；矩阵的阶梯计数不算它 | 放在之前会截走点名字段的文案，与第 3 点矛盾；路线键不含平台，同一集合里可能两种记录都有 |
 | 2026-09-25 | A2 的历史估算不算密文 | 原方案要求算进去；执行时发现 `_opaque` 对所有不透明串（含 ② 的 `encrypted_content`）一律不算，理由写在那里，照同一口径 |
+| 2026-09-25 | A13：诊断页「请求了推理但没有」记为待定（`ok: null`），不是失败；带 `redacted_thinking` / `signature` / `messages.N` 的 400 与模型 id 里的 `thinking` 不参与学习 | 审查发现：adaptive 可能对小请求不想，标红会误导；这几类 400 是会话本身的错，拿来换形态会把思考静默关掉 |

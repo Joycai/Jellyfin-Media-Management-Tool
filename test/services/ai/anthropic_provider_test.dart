@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/anthropic_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/thinking_dialect.dart';
 
 AiConfig _config(
   String endpoint, {
@@ -173,21 +174,275 @@ void main() {
     },
   );
 
-  test('thinking on sends a budget and no sampling', () async {
-    late Map<String, dynamic> body;
-    await AnthropicProvider(
-      _config('https://thinking.example', thinking: true, maxOutput: 16000),
-      client: MockClient((request) async {
-        body = jsonDecode(request.body);
-        return _stream(
-          _reply([
-            {'type': 'text', 'text': 'ok'},
-          ]),
+  group('thinking', () {
+    Future<Map<String, dynamic>> sent(
+      String endpoint, {
+      String model = 'claude-sonnet-5',
+    }) async {
+      late Map<String, dynamic> body;
+      await AnthropicProvider(
+        _config(endpoint, model: model, thinking: true, maxOutput: 16000),
+        client: MockClient((request) async {
+          body = jsonDecode(request.body);
+          return _stream(
+            _reply([
+              {'type': 'text', 'text': 'ok'},
+            ]),
+          );
+        }),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      return body;
+    }
+
+    test('Claude 4.6 on asks adaptive, and no sampling', () async {
+      final body = await sent('https://thinking.example');
+      // Not Anthropic's own host: no `display`, which mirrors do not document.
+      expect(body['thinking'], {'type': 'adaptive'});
+      expect(body.containsKey('temperature'), isFalse);
+    });
+
+    test("Anthropic's own host also asks for the summary", () async {
+      final adaptive = await sent('https://api.anthropic.com');
+      expect(adaptive['thinking'], {
+        'type': 'adaptive',
+        'display': 'summarized',
+      });
+      final extended = await sent(
+        'https://api.anthropic.com',
+        model: 'claude-sonnet-4-5',
+      );
+      expect(extended['thinking'], {
+        'type': 'enabled',
+        'budget_tokens': 8000,
+        'display': 'summarized',
+      });
+    });
+
+    test('an earlier Claude or a mirror model gets a budget', () async {
+      final body = await sent('https://budget.example', model: 'glm-4.7');
+      expect(body['thinking'], {'type': 'enabled', 'budget_tokens': 8000});
+      expect(body.containsKey('temperature'), isFalse);
+    });
+
+    test('the form follows the Claude generation', () {
+      const expected = {
+        'claude-sonnet-4-5': MessagesThinking.extended,
+        'claude-sonnet-4-5-20250929': MessagesThinking.extended,
+        'claude-opus-4-20250514': MessagesThinking.extended,
+        'claude-3-7-sonnet-20250219': MessagesThinking.extended,
+        'claude-haiku-4-5-20251001': MessagesThinking.extended,
+        'claude-opus-4-6': MessagesThinking.adaptive,
+        'claude-sonnet-4-6-20260101': MessagesThinking.adaptive,
+        'anthropic/claude-sonnet-4.6': MessagesThinking.adaptive,
+        'claude-sonnet-5': MessagesThinking.adaptive,
+        'claude-opus-5-5': MessagesThinking.adaptive,
+        'claude-fable-5-1': MessagesThinking.adaptive,
+        // Legacy, Vertex, Bedrock and relay spellings.
+        'claude-3-5-sonnet-latest': MessagesThinking.extended,
+        'claude-4-opus': MessagesThinking.extended,
+        'claude-sonnet-4-5@20250929': MessagesThinking.extended,
+        'anthropic.claude-sonnet-4-5-20250929-v1:0': MessagesThinking.extended,
+        'us.anthropic.claude-opus-4-6-v1': MessagesThinking.adaptive,
+        'claude-3-7-sonnet-20250219-thinking': MessagesThinking.extended,
+        'glm-4.7': MessagesThinking.extended,
+        'deepseek-v4': MessagesThinking.extended,
+        'MiniMax-M3': MessagesThinking.extended,
+      };
+      for (final MapEntry(key: model, value: form) in expected.entries) {
+        expect(MessagesThinking.forModel(model), form, reason: model);
+      }
+    });
+
+    /// A route that refuses [refuse] forms with [message]; the bodies sent.
+    Future<(List<Map<String, dynamic>>, AnthropicProvider)> refusing(
+      String host,
+      Set<String> refuse,
+      String Function(String type) message, {
+      String model = 'claude-opus-4-6',
+    }) async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = AnthropicProvider(
+        _config('https://$host', model: model, thinking: true),
+        client: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          bodies.add(body);
+          if (bodies.length > 8) throw StateError('runaway retries');
+          final type = (body['thinking'] as Map?)?['type'] as String?;
+          return type != null && refuse.contains(type)
+              ? http.Response(
+                  jsonEncode({
+                    'type': 'error',
+                    'error': {
+                      'type': 'invalid_request_error',
+                      'message': message(type),
+                    },
+                  }),
+                  400,
+                )
+              : _stream(
+                  _reply([
+                    {'type': 'text', 'text': 'ok'},
+                  ]),
+                );
+        }),
+      );
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      return (bodies, provider);
+    }
+
+    test('a refused form is swapped for the other, not given up', () async {
+      // An older model's answer to adaptive names the field without refusing
+      // thinking; reading it as a refusal switched reasoning off for a month.
+      final (bodies, provider) = await refusing(
+        'swap.example',
+        {'adaptive'},
+        (type) =>
+            "thinking.type: Input tag '$type' found using 'type' does not "
+            "match any of the expected tags: 'disabled', 'enabled'",
+      );
+      expect(bodies, hasLength(2));
+      expect(bodies.first['thinking'], {'type': 'adaptive'});
+      expect((bodies.last['thinking'] as Map)['type'], 'enabled');
+      expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+
+      // Remembered: the next request asks in the form that worked.
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies, hasLength(3));
+      expect((bodies.last['thinking'] as Map)['type'], 'enabled');
+    });
+
+    test('thinking is given up only once both forms are refused', () async {
+      final (bodies, provider) = await refusing('no-thinking.example', {
+        'adaptive',
+        'enabled',
+      }, (_) => 'thinking: Extra inputs are not permitted');
+      expect(bodies, hasLength(3));
+      expect(bodies.last.containsKey('thinking'), isFalse);
+      expect(
+        provider.learned.rejectedFields,
+        containsAll(['thinking:adaptive', 'thinking:enabled', 'thinking']),
+      );
+    });
+
+    test(
+      'the other form refused without refusing thinking is thrown',
+      () async {
+        // Both forms named, neither refused as a feature: giving thinking up
+        // here would be the silent month-long switch-off again.
+        final bodies = <Map<String, dynamic>>[];
+        final provider = AnthropicProvider(
+          _config(
+            'https://tag-mismatch.example',
+            model: 'claude-opus-4-6',
+            thinking: true,
+          ),
+          client: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bodies.add(body);
+            final type = (body['thinking'] as Map?)?['type'];
+            return http.Response(
+              jsonEncode({
+                'type': 'error',
+                'error': {
+                  'type': 'invalid_request_error',
+                  'message':
+                      "thinking.type: Input tag '$type' found using 'type' "
+                      'does not match any of the expected tags',
+                },
+              }),
+              400,
+            );
+          }),
         );
-      }),
-    ).chat(messages: const [UserMessage('u')], tools: const []);
-    expect(body['thinking'], {'type': 'enabled', 'budget_tokens': 8000});
-    expect(body.containsKey('temperature'), isFalse);
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(isA<AiException>()),
+        );
+        expect(bodies, hasLength(2));
+        expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+      },
+    );
+
+    test('a budget error is about the numbers, not the form', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = AnthropicProvider(
+        _config(
+          'https://budget-error.example',
+          model: 'claude-sonnet-4-5',
+          thinking: true,
+        ),
+        client: MockClient((request) async {
+          bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(
+            jsonEncode({
+              'type': 'error',
+              'error': {
+                'type': 'invalid_request_error',
+                'message':
+                    '`max_tokens` must be greater than '
+                    '`thinking.budget_tokens`',
+              },
+            }),
+            400,
+          );
+        }),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiException>()),
+      );
+      expect(bodies, hasLength(1));
+      expect(provider.learned.rejectedFields, isEmpty);
+    });
+
+    // Errors that say "thinking" without refusing either form: each is
+    // thrown on the first request, and nothing is learned from it.
+    for (final (i, (name, model, message)) in [
+      (
+        'about the thinking blocks in the history',
+        'claude-opus-4-6',
+        'messages.1.content.0: `thinking` or `redacted_thinking` blocks in '
+            'the latest assistant message cannot be modified',
+      ),
+      (
+        'about a thinking block bound to another conversation',
+        'claude-opus-4-6',
+        'messages.3.content.0: Invalid `signature` in `thinking` block. The '
+            'block is bound to a different conversation.',
+      ),
+      (
+        'naming a relay model whose id says thinking',
+        'claude-3-7-sonnet-20250219-thinking',
+        'model claude-3-7-sonnet-20250219-thinking is not supported',
+      ),
+    ].indexed) {
+      test('an error $name is thrown, not learned', () async {
+        final bodies = <Map<String, dynamic>>[];
+        final provider = AnthropicProvider(
+          _config(
+            'https://not-a-refusal-$i.example',
+            model: model,
+            thinking: true,
+          ),
+          client: MockClient((request) async {
+            bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+            return http.Response(
+              jsonEncode({
+                'type': 'error',
+                'error': {'type': 'invalid_request_error', 'message': message},
+              }),
+              400,
+            );
+          }),
+        );
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(isA<AiException>()),
+        );
+        expect(bodies, hasLength(1));
+        expect(provider.learned.rejectedFields, isEmpty);
+      });
+    }
   });
 
   group('the stream', () {

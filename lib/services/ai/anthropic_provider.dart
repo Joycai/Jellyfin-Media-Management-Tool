@@ -11,6 +11,7 @@ import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
 import 'sse.dart';
+import 'thinking_dialect.dart';
 
 /// Talks to the Anthropic Messages API (`/v1/messages`), and to the
 /// Anthropic-shaped routes other platforms mirror (DeepSeek, DashScope,
@@ -181,14 +182,28 @@ class AnthropicProvider implements AiProvider {
         // remembered — `top_k` on a mirror, `temperature` beside `top_p`.
         if (res.statusCode == 400 || res.statusCode == 422) {
           final detail = error.toLowerCase();
+          final thinkingRefusal = _thinkingRefusal(
+            // The model id is not the message: a relay's `…-thinking` model
+            // named in an unrelated error must not read as a refusal.
+            detail.replaceAll(config.model.toLowerCase(), ''),
+            sent: _sentForm(payload),
+            rejected: rejected,
+          );
+          if (thinkingRefusal != null) {
+            _learned.update(
+              key,
+              (b) => b.copyWith(
+                rejectedFields: {...b.rejectedFields, ...thinkingRefusal},
+              ),
+            );
+            continue;
+          }
           final refused = _optional
               .where(
                 (f) =>
                     payload.containsKey(f) &&
                     !rejected.contains(f) &&
-                    (f == 'thinking'
-                        ? refusesThinking(detail)
-                        : detail.contains(f)),
+                    detail.contains(f),
               )
               .firstOrNull;
           if (refused != null) {
@@ -235,8 +250,60 @@ class AnthropicProvider implements AiProvider {
     ).hasMatch(detail);
   }
 
-  /// Fields the adapter may leave out when a route refuses them.
-  static const _optional = ['temperature', 'top_p', 'top_k', 'thinking'];
+  /// What to remember when a request that asked for thinking in [sent] is
+  /// refused with [detail], or null when the refusal is not about thinking.
+  ///
+  /// A refused form is swapped for the other before thinking is given up:
+  /// an older Claude answers `adaptive` with "thinking.type: Input tag
+  /// 'adaptive' … does not match … 'disabled', 'enabled'", which names the
+  /// field without refusing the feature, and dropping thinking over it would
+  /// switch reasoning off for a month without a word. Only once the other
+  /// form was refused too, and the message refuses thinking itself, is
+  /// `thinking` recorded. A budget error is about the numbers, never the
+  /// form, and is thrown as it is. So is an error about the thinking blocks
+  /// in the conversation ("`thinking` or `redacted_thinking` blocks … cannot
+  /// be modified", "messages.3.content.0: Invalid `signature` in `thinking`
+  /// block"): the history is wrong, whichever form was asked for.
+  static Set<String>? _thinkingRefusal(
+    String detail, {
+    required MessagesThinking? sent,
+    required Set<String> rejected,
+  }) {
+    if (sent == null || !detail.contains('thinking')) return null;
+    if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
+      return null;
+    }
+    if (RegExp(r'redacted_thinking|signature|messages\.\d').hasMatch(detail)) {
+      return null;
+    }
+    if (!rejected.contains(sent.other.refusedName)) return {sent.refusedName};
+    return refusesThinking(detail) ? {sent.refusedName, 'thinking'} : null;
+  }
+
+  /// The form [payload] asked for thinking in, if it did.
+  static MessagesThinking? _sentForm(Map<String, Object?> payload) =>
+      switch (payload['thinking']) {
+        {'type': final String type} =>
+          MessagesThinking.values
+              .where((form) => form.type == type)
+              .firstOrNull,
+        _ => null,
+      };
+
+  /// The form this route asks for thinking in: the model's own first, the
+  /// other once that was refused, none once both were.
+  MessagesThinking? _form(Set<String> rejected) {
+    if (!config.thinkingEnabled || rejected.contains('thinking')) return null;
+    final first = MessagesThinking.forModel(config.model);
+    for (final form in [first, first.other]) {
+      if (!rejected.contains(form.refusedName)) return form;
+    }
+    return null;
+  }
+
+  /// Sampling fields the adapter may leave out when a route refuses them;
+  /// `thinking` has its own rules ([_thinkingRefusal]).
+  static const _optional = ['temperature', 'top_p', 'top_k'];
 
   /// The request body — the one place it is built.
   Map<String, Object?> _payload(
@@ -245,9 +312,10 @@ class AnthropicProvider implements AiProvider {
     required Set<String> rejected,
   }) {
     final values = config.sampling.values;
-    // Thinking needs a budget of at least 1024 inside max_tokens, with room
-    // left for the answer; a smaller cap is raised to make that possible.
-    final thinking = config.thinkingEnabled && !rejected.contains('thinking');
+    final form = _form(rejected);
+    // Thinking needs room inside max_tokens — for extended, a budget of at
+    // least 1024 with room left for the answer — so a smaller cap is raised.
+    final thinking = form != null;
     final maxTokens = thinking
         ? math.max(config.maxOutputTokens ?? defaultMaxTokens, 2048)
         : (config.maxOutputTokens ?? defaultMaxTokens);
@@ -256,14 +324,22 @@ class AnthropicProvider implements AiProvider {
         .map((m) => m.content)
         .join('\n\n');
     final optional = <String, Object>{
-      // Extended thinking takes no sampling overrides at all.
+      // Thinking, in either form, is sent with no sampling overrides.
       if (!thinking) 'temperature': ?values.temperature,
       if (!thinking) 'top_p': ?values.topP,
       if (!thinking) 'top_k': ?values.topK,
-      if (thinking)
+      // `display` only where it is documented: a mirror that has no such
+      // field may refuse it, or ignore it and hide the summary regardless.
+      if (form == MessagesThinking.adaptive)
+        'thinking': {
+          'type': 'adaptive',
+          if (_official) 'display': 'summarized',
+        },
+      if (form == MessagesThinking.extended)
         'thinking': {
           'type': 'enabled',
           'budget_tokens': math.max(1024, maxTokens ~/ 2),
+          if (_official) 'display': 'summarized',
         },
     }..removeWhere((k, _) => rejected.contains(k));
     return {

@@ -2697,6 +2697,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiStepThinkingStillOn => '模型仍在推理';
 
   @override
+  String get aiStepThinkingOn => '模型在推理';
+
+  @override
+  String get aiStepThinkingNotOn => '请求了推理，但回复里没有';
+
+  @override
   String get aiStepTools => '调用了测试工具';
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfin_media_management_tool/l10n/app_localizations_en.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_diagnostics_page.dart';
@@ -59,5 +60,28 @@ void main() {
     final second = tester.getTopLeft(find.textContaining('second-model'));
     expect(second.dy, lessThan(first.dy));
     await settleSaves(tester);
+  });
+
+  test('the reasoning step is judged by the reply, whichever way', () {
+    final l10n = AppLocalizationsEn();
+    expect(thinkingStep(l10n, asked: false, reasoned: false), (
+      ok: true,
+      text: l10n.aiStepThinkingOff,
+    ));
+    expect(thinkingStep(l10n, asked: false, reasoned: true), (
+      ok: false,
+      text: l10n.aiStepThinkingStillOn,
+    ));
+    expect(thinkingStep(l10n, asked: true, reasoned: true), (
+      ok: true,
+      text: l10n.aiStepThinkingOn,
+    ));
+    // A relay that drops the request for thinking says nothing — but an
+    // adaptive model may also skip thinking on a request this small, so it
+    // is undecided rather than failed.
+    expect(thinkingStep(l10n, asked: true, reasoned: false), (
+      ok: null,
+      text: l10n.aiStepThinkingNotOn,
+    ));
   });
 }

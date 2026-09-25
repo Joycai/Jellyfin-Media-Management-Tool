@@ -808,6 +808,8 @@
   "aiStepTruncated": "回复触到了输出上限",
   "aiStepThinkingOff": "思考已关闭",
   "aiStepThinkingStillOn": "模型仍在推理",
+  "aiStepThinkingOn": "模型在推理",
+  "aiStepThinkingNotOn": "请求了推理，但回复里没有",
   "aiStepTools": "调用了测试工具",
   "aiStepToolsNo": "没有调用测试工具",
   "aiStepToolsUnknown": "工具调用未定 —— 请求没有完成",

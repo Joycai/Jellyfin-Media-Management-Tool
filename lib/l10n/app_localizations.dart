@@ -4910,6 +4910,18 @@ abstract class AppLocalizations {
   /// **'The model still reasoned'**
   String get aiStepThinkingStillOn;
 
+  /// No description provided for @aiStepThinkingOn.
+  ///
+  /// In en, this message translates to:
+  /// **'The model reasoned'**
+  String get aiStepThinkingOn;
+
+  /// No description provided for @aiStepThinkingNotOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning was asked for, but the reply shows none'**
+  String get aiStepThinkingNotOn;
+
   /// No description provided for @aiStepTools.
   ///
   /// In en, this message translates to:

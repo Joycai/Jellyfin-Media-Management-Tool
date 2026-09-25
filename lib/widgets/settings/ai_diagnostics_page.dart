@@ -61,6 +61,22 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
   return result.truncated ? '$text\n${l10n.connectionTruncated}' : text;
 }
 
+/// The reasoning step of a connection test, judged by the reply both ways:
+/// a switch sent is not a switch taken, and a relay can drop a request for
+/// reasoning as quietly as a request for none. A reply without reasoning
+/// when it was asked for is undecided, not failed: adaptive thinking and
+/// Gemini's dynamic thinking may skip a request as small as the test's.
+({bool? ok, String text}) thinkingStep(
+  AppLocalizations l10n, {
+  required bool asked,
+  required bool reasoned,
+}) => switch ((asked, reasoned)) {
+  (false, false) => (ok: true, text: l10n.aiStepThinkingOff),
+  (false, true) => (ok: false, text: l10n.aiStepThinkingStillOn),
+  (true, true) => (ok: true, text: l10n.aiStepThinkingOn),
+  (true, false) => (ok: null, text: l10n.aiStepThinkingNotOn),
+};
+
 /// Diagnostics (Diagnostics artboard): test one route step by step, and read
 /// today's API log.
 class AiDiagnosticsPage extends StatefulWidget {
@@ -279,6 +295,11 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
         ? null
         : result.limits.contextWindow;
     final typed = config.contextWindow;
+    final thinking = thinkingStep(
+      l10n,
+      asked: config.thinkingEnabled,
+      reasoned: result.reasoned,
+    );
     return [
       _Step(
         ok: true,
@@ -296,13 +317,7 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
         ),
       ),
       if (result.truncated) _Step(ok: false, text: l10n.aiStepTruncated),
-      if (!config.thinkingEnabled)
-        _Step(
-          ok: !result.reasoned,
-          text: result.reasoned
-              ? l10n.aiStepThinkingStillOn
-              : l10n.aiStepThinkingOff,
-        ),
+      _Step(ok: thinking.ok, text: thinking.text),
       switch (result.supportsTools) {
         ToolProbe.supported => _Step(ok: true, text: l10n.aiStepTools),
         ToolProbe.unsupported => _Step(ok: false, text: l10n.aiStepToolsNo),

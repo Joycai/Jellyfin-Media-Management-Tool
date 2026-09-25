@@ -993,6 +993,8 @@
   "aiStepTruncated": "Reply hit the output limit",
   "aiStepThinkingOff": "Reasoning is off",
   "aiStepThinkingStillOn": "The model still reasoned",
+  "aiStepThinkingOn": "The model reasoned",
+  "aiStepThinkingNotOn": "Reasoning was asked for, but the reply shows none",
   "aiStepTools": "Called the test tool",
   "aiStepToolsNo": "Did not call the test tool",
   "aiStepToolsUnknown": "Tool calling undecided — the request did not complete",

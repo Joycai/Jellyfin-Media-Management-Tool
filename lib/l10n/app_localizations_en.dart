@@ -2801,6 +2801,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiStepThinkingStillOn => 'The model still reasoned';
 
   @override
+  String get aiStepThinkingOn => 'The model reasoned';
+
+  @override
+  String get aiStepThinkingNotOn =>
+      'Reasoning was asked for, but the reply shows none';
+
+  @override
   String get aiStepTools => 'Called the test tool';
 
   @override
