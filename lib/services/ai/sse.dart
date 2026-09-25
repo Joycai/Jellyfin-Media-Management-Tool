@@ -7,6 +7,11 @@
 /// must not decide whether the body is a stream at all. A body that is not a
 /// stream — a relay that ignored `stream: true` — comes back whole as
 /// [SseRead.plain].
+///
+/// An event whose data does not parse is skipped and counted in
+/// [SseRead.skipped], never thrown here: whether the reply can stand without
+/// it depends on the protocol, so each adapter decides. An empty `data:` is
+/// no event at all.
 library;
 
 import 'dart:async';
@@ -18,7 +23,11 @@ import 'ai_cancel_token.dart';
 import 'ai_http.dart';
 import 'ai_provider.dart';
 
-typedef SseRead = ({List<Map<dynamic, dynamic>> events, String? plain});
+typedef SseRead = ({
+  List<Map<dynamic, dynamic>> events,
+  String? plain,
+  int skipped,
+});
 
 abstract final class Sse {
   /// Reads [res] to its end, timed on silence: [firstEventTimeout] until
@@ -47,13 +56,15 @@ abstract final class Sse {
         : null;
     var started = false;
     var stopped = false;
+    var skipped = 0;
 
-    // An event that does not parse is a broken stream, not something to
-    // skip: the one dropped could be the tool call or the terminal event.
+    // An event that does not parse is counted, not thrown: the adapter knows
+    // whether the one dropped could have been part of the answer.
     void flush() {
       if (data.isEmpty) return;
       final joined = data.join('\n');
       data.clear();
+      if (joined.trim().isEmpty) return;
       if (joined.trim() == stopAt) {
         stopped = true;
         return;
@@ -62,9 +73,8 @@ abstract final class Sse {
       try {
         event = jsonDecode(joined);
       } on FormatException {
-        throw const AiNetworkException(
-          'The server sent a malformed stream event.',
-        );
+        skipped++;
+        return;
       }
       if (event is Map) {
         events.add(event);
@@ -121,8 +131,18 @@ abstract final class Sse {
     } finally {
       await lines.cancel();
     }
-    return (events: events, plain: sse == true ? null : plain.toString());
+    return (
+      events: events,
+      plain: sse == true ? null : plain.toString(),
+      skipped: skipped,
+    );
   }
+
+  /// What an adapter throws when [SseRead.skipped] events could have held
+  /// part of the answer.
+  static const malformed = AiNetworkException(
+    'The server sent a malformed stream event.',
+  );
 
   static String noResponse(Duration timeout) =>
       'No response from the server within ${duration(timeout)}.';

@@ -6,13 +6,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/openai_responses_provider.dart';
 
-AiConfig _config(String host, {String model = 'gpt-5.4'}) => AiConfig(
+AiConfig _config(
+  String host, {
+  String model = 'gpt-5.4',
+  bool thinking = false,
+}) => AiConfig(
   provider: AiProviderType.openAiResponses,
   endpoint: 'https://$host',
   apiKey: 'sk-resp',
   model: model,
+  thinkingEnabled: thinking,
 );
 
 http.Response _stream(List<Map<String, Object?>> events) => http.Response(
@@ -78,6 +85,30 @@ void main() {
     expect(body['input'], [
       {'role': 'user', 'content': 'u'},
     ]);
+  });
+
+  test('instructions go out empty when there is no system message', () async {
+    // The frame-vision request is a lone user message; a relay that finds
+    // `instructions` missing fills it with its own prompt.
+    late Map<String, dynamic> sent;
+    final provider = OpenAiResponsesProvider(
+      _config('no-system.example'),
+      client: MockClient((request) async {
+        sent = jsonDecode(request.body) as Map<String, dynamic>;
+        return _stream([_completed()]);
+      }),
+    );
+    final preview = await provider.previewRequest(
+      messages: const [UserMessage('frames')],
+      tools: const [],
+    );
+    expect(preview.body, containsPair('instructions', ''));
+
+    await provider.chat(
+      messages: const [UserMessage('frames')],
+      tools: const [],
+    );
+    expect(sent, containsPair('instructions', ''));
   });
 
   test('finished items are the truth: calls, text, reasoning, usage', () async {
@@ -177,19 +208,196 @@ void main() {
     },
   );
 
-  test('a stream with no terminal event is not an answer', () async {
-    await expectLater(
-      OpenAiResponsesProvider(
-        _config('no-terminal.example'),
-        client: MockClient(
-          (_) async => _stream([
+  group('a stream with no terminal event', () {
+    Future<ChatResult> read(String host, String body) =>
+        OpenAiResponsesProvider(
+          _config(host),
+          client: MockClient(
+            (_) async => http.Response(
+              body,
+              200,
+              headers: const {'content-type': 'text/event-stream'},
+            ),
+          ),
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+    String events(List<Map<String, Object?>> list) => [
+      for (final e in list) 'event: ${e['type']}\ndata: ${jsonEncode(e)}\n\n',
+    ].join();
+    final message = _done(0, {
+      'type': 'message',
+      'content': [
+        {'type': 'output_text', 'text': 'whole'},
+      ],
+    });
+
+    test('is an answer when its items arrived whole', () async {
+      // A relay that drops the last event.
+      final result = await read('no-terminal.example', events([message]));
+      expect(result.text, 'whole');
+      expect(result.finishReason, isNull);
+    });
+
+    test('is an answer when it holds a finished call', () async {
+      final result = await read(
+        'no-terminal-call.example',
+        events([
+          _done(0, {
+            'type': 'function_call',
+            'call_id': 'c1',
+            'name': 'f',
+            'arguments': '{}',
+          }),
+        ]),
+      );
+      expect(result.toolCalls.single.name, 'f');
+    });
+
+    test('is not an answer with nothing finished in it', () async {
+      // Cut mid-item: only deltas arrived.
+      await expectLater(
+        read(
+          'no-terminal-delta.example',
+          events([
+            {
+              'type': 'response.output_text.delta',
+              'output_index': 0,
+              'delta': 'half',
+            },
+          ]),
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+      // Reasoning alone is not an answer either.
+      await expectLater(
+        read(
+          'no-terminal-reasoning.example',
+          events([
+            _done(0, {'type': 'reasoning', 'encrypted_content': 'x'}),
+          ]),
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('is not an answer when an item it began never finished', () async {
+      // A finished message, then a call cut off mid-arguments: taking the
+      // message alone would drop the call.
+      await expectLater(
+        read(
+          'no-terminal-cut-call.example',
+          events([
+            message,
+            {
+              'type': 'response.output_item.added',
+              'output_index': 1,
+              'item': {'type': 'function_call', 'name': 'f'},
+            },
+            {
+              'type': 'response.function_call_arguments.delta',
+              'output_index': 1,
+              'delta': '{"a": ',
+            },
+          ]),
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('reports a finished refusal as one', () async {
+      await expectLater(
+        read(
+          'no-terminal-refusal.example',
+          events([
             _done(0, {
               'type': 'message',
               'content': [
-                {'type': 'output_text', 'text': 'half'},
+                {'type': 'refusal', 'refusal': 'no'},
               ],
             }),
           ]),
+        ),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            contains('refused'),
+          ),
+        ),
+      );
+    });
+
+    test('is marked in the request log', () async {
+      final dir = await Directory.systemTemp.createTemp('responses_log');
+      addTearDown(() async {
+        ApiLog.instance
+          ..enabled = false
+          ..directory = null;
+        await dir.delete(recursive: true);
+      });
+      ApiLog.instance
+        ..directory = dir
+        ..enabled = true;
+
+      await read('logged-no-terminal.example', events([message]));
+      await read('logged-terminal.example', events([message, _completed()]));
+      await ApiLog.instance.flush();
+
+      final lines = (await ApiLog.instance.currentFile!.readAsLines())
+          .map((l) => jsonDecode(l) as Map<String, dynamic>)
+          .toList();
+      expect(lines, hasLength(2));
+      expect(lines[0]['response']['incomplete_stream'], isTrue);
+      expect(
+        (lines[1]['response'] as Map).containsKey('incomplete_stream'),
+        isFalse,
+      );
+    });
+
+    test('is not an answer when an event was skipped', () async {
+      await expectLater(
+        read(
+          'no-terminal-skipped.example',
+          '${events([message])}data: {"type": "response.output_item\n\n',
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+  });
+
+  test('a skipped item is taken from the terminal event\'s copy', () async {
+    final whole = {
+      'type': 'message',
+      'content': [
+        {'type': 'output_text', 'text': 'from the terminal'},
+      ],
+    };
+    final terminal = _completed();
+    (terminal['response'] as Map)['output'] = [whole];
+    final result = await OpenAiResponsesProvider(
+      _config('skipped-item.example'),
+      client: MockClient(
+        (_) async => http.Response(
+          'data: {"type": "response.output_item.done", "item": \n\n'
+          'data: ${jsonEncode(terminal)}\n\n',
+          200,
+          headers: const {'content-type': 'text/event-stream'},
+        ),
+      ),
+    ).chat(messages: const [UserMessage('u')], tools: const []);
+    expect(result.text, 'from the terminal');
+
+    // With no copy to fall back on, the skipped event may have been the
+    // answer.
+    await expectLater(
+      OpenAiResponsesProvider(
+        _config('skipped-no-copy.example'),
+        client: MockClient(
+          (_) async => http.Response(
+            'data: {"type": "response.output_item.done", "item": \n\n'
+            'data: ${jsonEncode(_completed())}\n\n',
+            200,
+            headers: const {'content-type': 'text/event-stream'},
+          ),
         ),
       ).chat(messages: const [UserMessage('u')], tools: const []),
       throwsA(isA<AiNetworkException>()),
@@ -223,6 +431,268 @@ void main() {
       expect(bodies.last.containsKey('temperature'), isFalse);
     },
   );
+
+  group('reasoning', () {
+    Future<Map<String, dynamic>> sent(AiConfig config) async {
+      late Map<String, dynamic> body;
+      await OpenAiResponsesProvider(
+        config,
+        client: MockClient((request) async {
+          body = jsonDecode(request.body) as Map<String, dynamic>;
+          return _stream([_completed()]);
+        }),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      return body;
+    }
+
+    test('off asks for none, on asks for medium', () async {
+      // Left out, it ran at the model's own default: medium on GPT-5.5/5.6,
+      // high on Grok (KB 03 §7.1).
+      expect((await sent(_config('effort-off.example')))['reasoning'], {
+        'effort': 'none',
+      });
+      expect(
+        (await sent(_config('effort-on.example', thinking: true)))['reasoning'],
+        {'effort': 'medium'},
+      );
+    });
+
+    test(
+      'a refused none goes back to the default, and on still asks',
+      () async {
+        final bodies = <Map<String, dynamic>>[];
+        MockClient client() => MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          bodies.add(body);
+          if (bodies.length > 8) throw StateError('runaway retries');
+          return (body['reasoning'] as Map?)?['effort'] == 'none'
+              ? http.Response(
+                  jsonEncode({
+                    'error': {
+                      'message':
+                          "Unsupported value: 'reasoning.effort' does not "
+                          "support 'none' with this model.",
+                      'param': 'reasoning.effort',
+                    },
+                  }),
+                  400,
+                )
+              : _stream([_completed()]);
+        });
+
+        final off = OpenAiResponsesProvider(
+          _config('effort-refused.example'),
+          client: client(),
+        );
+        await off.chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('reasoning'), isFalse);
+        expect(off.learned.thinkingOffTried, {LearnedBehaviour.effortNone});
+        expect(off.learned.rejectedFields, isNot(contains('reasoning')));
+
+        // Remembered for the route, preview included.
+        await off.chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies, hasLength(3));
+        expect(bodies.last.containsKey('reasoning'), isFalse);
+        final preview = await off.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body.containsKey('reasoning'), isFalse);
+
+        // The same route asked for reasoning still asks.
+        await OpenAiResponsesProvider(
+          _config('effort-refused.example', thinking: true),
+          client: client(),
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies.last['reasoning'], {'effort': 'medium'});
+      },
+    );
+
+    test('reasoning refused while on is a refused field', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = OpenAiResponsesProvider(
+        _config('no-reasoning.example', thinking: true),
+        client: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          bodies.add(body);
+          if (bodies.length > 8) throw StateError('runaway retries');
+          return body.containsKey('reasoning')
+              ? http.Response(
+                  jsonEncode({
+                    'error': {
+                      'message':
+                          "Unsupported parameter: 'reasoning' is not "
+                          'supported with this model.',
+                    },
+                  }),
+                  400,
+                )
+              : _stream([_completed()]);
+        }),
+      );
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies, hasLength(2));
+      expect(provider.learned.rejectedFields, contains('reasoning'));
+      expect(provider.learned.thinkingOffTried, isEmpty);
+    });
+
+    test(
+      'an include refusal quoting its value is not about reasoning',
+      () async {
+        // `reasoning.encrypted_content` is what `include` asks for; read as
+        // naming `reasoning`, it would leave an off model at its default.
+        final bodies = <Map<String, dynamic>>[];
+        final provider = OpenAiResponsesProvider(
+          _config('no-include.example'),
+          client: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bodies.add(body);
+            if (bodies.length > 8) throw StateError('runaway retries');
+            return body.containsKey('include')
+                ? http.Response(
+                    jsonEncode({
+                      'error': {
+                        'message':
+                            "Unsupported value: 'reasoning.encrypted_content' "
+                            'is not supported with this model.',
+                      },
+                    }),
+                    400,
+                  )
+                : _stream([_completed()]);
+          }),
+        );
+        await provider.chat(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last['reasoning'], {'effort': 'none'});
+        expect(provider.learned.rejectedFields, {'include'});
+        expect(provider.learned.thinkingOffTried, isEmpty);
+      },
+    );
+  });
+
+  test('error.param names a refused field the message does not', () async {
+    // Audit V5: the message is unverified and constructed here; what is
+    // pinned is that `param` is read first.
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiResponsesProvider(
+      _config('param-include.example', model: 'gpt-4.1'),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return body.containsKey('include')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message':
+                        'Encrypted content is not supported with this model.',
+                    'param': 'include',
+                  },
+                }),
+                400,
+              )
+            : _stream([_completed()]);
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last.containsKey('include'), isFalse);
+    expect(provider.learned.rejectedFields, {'include'});
+  });
+
+  test('error.param outranks a field the message only mentions', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiResponsesProvider(
+      const AiConfig(
+        provider: AiProviderType.openAiResponses,
+        endpoint: 'https://param-first.example',
+        apiKey: 'sk-resp',
+        model: 'gpt-4.1',
+        temperature: 0.7,
+        topP: 0.9,
+      ),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return body.containsKey('top_p')
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: the message names `temperature` too, and
+                  // the field list is tried in order, `temperature` first.
+                  'error': {
+                    'message': 'top_p is not supported; tune temperature.',
+                    'param': 'top_p',
+                  },
+                }),
+                400,
+              )
+            : _stream([_completed()]);
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last['temperature'], 0.7);
+    expect(provider.learned.rejectedFields, {'top_p'});
+  });
+
+  test('a 404 says where it went', () async {
+    final provider = OpenAiResponsesProvider(
+      _config('responses-404.example/api'),
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'error': {'message': 'Not Found'},
+          }),
+          404,
+        ),
+      ),
+    );
+    await expectLater(
+      provider.chat(messages: const [UserMessage('u')], tools: const []),
+      throwsA(
+        isA<AiException>().having(
+          (e) => e.message,
+          'message',
+          'HTTP 404: Not Found — POST '
+              'https://responses-404.example/api/responses',
+        ),
+      ),
+    );
+  });
+
+  test('a param of reasoning.encrypted_content names include', () async {
+    // With thinking on, reading it as `reasoning` would drop reasoning.
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiResponsesProvider(
+      _config('param-encrypted.example', thinking: true),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return body.containsKey('include')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message': 'Not available for this model.',
+                    'param': 'reasoning.encrypted_content',
+                  },
+                }),
+                400,
+              )
+            : _stream([_completed()]);
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies.last.containsKey('include'), isFalse);
+    expect(bodies.last['reasoning'], {'effort': 'medium'});
+    expect(provider.learned.rejectedFields, {'include'});
+  });
 
   test('a stream that opens with a comment is still a stream', () async {
     final result = await OpenAiResponsesProvider(

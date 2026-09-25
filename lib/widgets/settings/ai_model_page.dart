@@ -393,7 +393,8 @@ class _AiModelPageState extends State<AiModelPage> {
   ) {
     final provider = AiService.providerFor(config);
     final learned = provider.learned;
-    final dialect = PlatformProfiles.dialectFor(config);
+    // A Chat Completions dialect or a Messages route declared as a switch.
+    final switchField = PlatformProfiles.switchFieldFor(config);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
 
     Widget line(String label, Widget value) => Padding(
@@ -420,8 +421,8 @@ class _AiModelPageState extends State<AiModelPage> {
           line(
             l10n.aiThinkingDialect,
             Text(
-              dialect != null
-                  ? l10n.aiDialectField(dialect.field(thinking: false).key)
+              switchField != null
+                  ? l10n.aiDialectField(switchField)
                   : l10n.aiRouteLadder,
               style: note.copyWith(color: t.textBody),
             ),
@@ -461,7 +462,7 @@ class _AiModelPageState extends State<AiModelPage> {
             preset: SamplingPresets.forModel(model.upstream),
             controllers: _sampling,
             thinking: config.thinkingEnabled,
-            platformSwitch: dialect != null,
+            platformSwitch: switchField != null,
             lastReasoned: _lastCheck?.reasoned,
             serverKind: _lastCheck?.serverKind,
             refused: learned.rejectedFields,

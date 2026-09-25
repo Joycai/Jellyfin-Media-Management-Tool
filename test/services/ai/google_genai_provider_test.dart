@@ -313,6 +313,109 @@ void main() {
     });
   });
 
+  group('address', () {
+    Future<Uri> sent(String endpoint) async {
+      late Uri seen;
+      await GoogleGenAiProvider(
+        AiConfig(
+          provider: AiProviderType.googleGenAi,
+          endpoint: endpoint,
+          apiKey: 'secret-key-value',
+          model: 'gemini-3-flash',
+        ),
+        client: MockClient((request) async {
+          seen = request.url;
+          return _text('ok');
+        }),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      return seen;
+    }
+
+    test('a pasted models URL is cut back to its root', () async {
+      const expected =
+          'https://generativelanguage.googleapis.com/v1beta/models/'
+          'gemini-3-flash:streamGenerateContent?alt=sse';
+      for (final pasted in [
+        'https://generativelanguage.googleapis.com/v1beta/models',
+        'https://generativelanguage.googleapis.com/v1beta/models/',
+        'https://generativelanguage.googleapis.com/v1beta/models/'
+            'gemini-3-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/'
+            'gemini-3-flash:streamGenerateContent?alt=sse',
+      ]) {
+        expect((await sent(pasted)).toString(), expected, reason: pasted);
+      }
+      // A key pasted into the URL is not sent along with it.
+      expect(
+        (await sent(
+          'https://generativelanguage.googleapis.com/v1beta?key=AIza-pasted',
+        )).toString(),
+        expected,
+      );
+      // A host is not a path segment.
+      expect(
+        (await sent('http://models')).toString(),
+        'http://models/v1beta/models/'
+        'gemini-3-flash:streamGenerateContent?alt=sse',
+      );
+    });
+
+    test('a 404 says where it went, and never the key', () async {
+      final provider = GoogleGenAiProvider(
+        _config('google-404.example'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': {'code': 404, 'message': 'models/x is not found'},
+            }),
+            404,
+          ),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>()
+              .having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'POST https://google-404.example/v1beta/models/'
+                  'gemini-2.5-flash:streamGenerateContent',
+                ),
+              )
+              .having((e) => e.message, 'message', isNot(contains('?')))
+              .having((e) => e.message, 'message', isNot(contains('key'))),
+        ),
+      );
+    });
+
+    test('any other refusal carries no URL', () async {
+      // Learning reads words in the message; a relay path is not one.
+      final provider = GoogleGenAiProvider(
+        _config('google-400.example'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': {'code': 400, 'message': 'bad request'},
+            }),
+            400,
+          ),
+        ),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(
+          isA<AiException>().having(
+            (e) => e.message,
+            'message',
+            'HTTP 400: bad request',
+          ),
+        ),
+      );
+    });
+  });
+
   group('transport failures', () {
     test('a network error never carries the API key', () async {
       final uri = Uri.parse(
@@ -427,6 +530,50 @@ void main() {
   });
 
   group('streaming', () {
+    String event(String text, {String? finish}) =>
+        'data: ${jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': text},
+                ],
+              },
+              'finishReason': ?finish,
+            },
+          ],
+        })}\n\n';
+    Future<ChatResult> read(String host, String body) => GoogleGenAiProvider(
+      _config(host),
+      client: MockClient(
+        (_) async => http.Response(
+          body,
+          200,
+          headers: const {'content-type': 'text/event-stream'},
+        ),
+      ),
+    ).chat(messages: const [UserMessage('u')], tools: const []);
+
+    test('a skipped event fails the reply it may have been part of', () async {
+      await expectLater(
+        read(
+          'gemini-skipped.example',
+          '${event('Hel')}data: {"candidates": \n\n'
+              '${event('lo', finish: 'STOP')}',
+        ),
+        throwsA(isA<AiNetworkException>()),
+      );
+    });
+
+    test('an empty data line or a [DONE] is no event', () async {
+      final result = await read(
+        'gemini-empty-data.example',
+        'data:\n\n${event('Hel')}${event('lo', finish: 'STOP')}'
+            'data: [DONE]\n\n',
+      );
+      expect(result.text, 'Hello');
+    });
+
     http.Response sse(List<Map<String, Object?>> events) => http.Response(
       [for (final e in events) 'data: ${jsonEncode(e)}\n\n'].join(),
       200,

@@ -36,10 +36,13 @@ enum ToolProbe {
   supported,
 
   /// The endpoint answered and the answer settles it: the model replied in
-  /// prose both times, or the server refused the `tools` field outright.
+  /// prose every time it was asked, or the server refused the `tools` field
+  /// by name.
   unsupported,
 
-  /// Nothing was learned — the request did not complete.
+  /// Nothing was learned — the request did not complete, or failed for a
+  /// reason that is not the model's (a bad key, a rate limit, a server error,
+  /// a wrong model name).
   inconclusive,
 }
 
@@ -252,16 +255,20 @@ class AiConnectionCheck {
   /// second attempt too, for the same reason.
   ///
   /// The three outcomes are not interchangeable. A server that rejects the
-  /// `tools` field answers the question — [ToolProbe.unsupported]. A request
-  /// that never reached it answers nothing — [ToolProbe.inconclusive], which
-  /// the caller must not record on the profile, because a recorded `false`
-  /// disables Organize and the scrape panel until a human re-tests.
+  /// `tools` field by name, or a model that answers in prose twice, answers
+  /// the question — [ToolProbe.unsupported]. A request that failed for any
+  /// other reason (never reached the server, a bad key, a rate limit, a
+  /// server error, a wrong model name) answers nothing —
+  /// [ToolProbe.inconclusive], which the caller must not record on the
+  /// profile, because a recorded `false` disables Organize and the scrape
+  /// panel until a human re-tests.
   static Future<ToolProbeResult> probeTools(
     AiProvider provider, {
     AiCancelToken? cancelToken,
     int attempts = 2,
   }) async {
     String? lastError;
+    var prose = 0;
     for (var attempt = 0; attempt < attempts; attempt++) {
       try {
         final result = await provider
@@ -272,7 +279,7 @@ class AiConnectionCheck {
             )
             .timeout(timeout);
         if (_called(result)) return (outcome: ToolProbe.supported, error: null);
-        lastError = null;
+        prose++;
       } on AiCancelled {
         rethrow;
       } on AiNetworkException catch (e) {
@@ -280,13 +287,20 @@ class AiConnectionCheck {
       } on TimeoutException {
         lastError = 'No reply within ${timeout.inSeconds} s.';
       } on AiException catch (e) {
-        // The endpoint answered and refused. That settles it.
-        return (outcome: ToolProbe.unsupported, error: e.message);
+        // Only a 400/422 that names tools answers the question, as in [run];
+        // a 404, a model still loading or another field refused does not.
+        if (refusesTools(e.message)) {
+          return (outcome: ToolProbe.unsupported, error: e.message);
+        }
+        lastError = e.message;
+        break; // Asking again gets the same answer.
       } catch (e) {
         lastError = e.toString();
       }
     }
-    return lastError == null
+    // Prose settles it only when every attempt got it: one stray reply beside
+    // a failed request is the model's single chance, not its answer.
+    return prose == attempts
         ? (outcome: ToolProbe.unsupported, error: null)
         : (outcome: ToolProbe.inconclusive, error: lastError);
   }

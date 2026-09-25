@@ -10,7 +10,9 @@ import 'ai_http.dart';
 import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
+import 'platform_profiles.dart';
 import 'sse.dart';
+import 'thinking_dialect.dart';
 
 /// Talks to the Anthropic Messages API (`/v1/messages`), and to the
 /// Anthropic-shaped routes other platforms mirror (DeepSeek, DashScope,
@@ -58,11 +60,12 @@ class AnthropicProvider implements AiProvider {
   /// `…/v1` as typed, else the root with `/v1` added: Anthropic's own host
   /// is a bare origin, and the platforms that mirror it publish a prefix
   /// (`/apps/anthropic`, `/api/anthropic`) below which `/v1/messages` sits.
+  /// A pasted full endpoint (`…/v1/messages`) is cut back to its root first
+  /// — a path segment only, never a host named `messages`.
   String get _base {
-    var base = config.endpoint.trim();
-    while (base.endsWith('/')) {
-      base = base.substring(0, base.length - 1);
-    }
+    final base = AiHttp.endpointBase(
+      config.endpoint,
+    ).replaceFirst(RegExp(r'(?<=[^/])/messages$'), '');
     return base.endsWith('/v1') ? base : '$base/v1';
   }
 
@@ -120,20 +123,30 @@ class AnthropicProvider implements AiProvider {
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
     final key = _cacheKey;
     while (true) {
-      final rejected = _learned.of(key).rejectedFields;
-      final payload = _payload(messages, tools, rejected: rejected);
+      final learned = _learned.of(key);
+      final rejected = learned.rejectedFields;
+      final payload = _payload(messages, tools, learned: learned);
       final started = DateTime.now();
-      void log({int? status, ChatResult? result, String? error}) =>
-          ApiLog.instance.record(
-            protocol: 'anthropic',
-            model: config.model,
-            url: _messagesUri,
-            request: payload,
-            status: status,
-            response: result == null ? null : Sse.summarise(result),
-            error: error,
-            elapsed: DateTime.now().difference(started),
-          );
+      void log({
+        int? status,
+        ChatResult? result,
+        String? error,
+        bool incomplete = false,
+      }) => ApiLog.instance.record(
+        protocol: 'anthropic',
+        model: config.model,
+        url: _messagesUri,
+        request: payload,
+        status: status,
+        response: result == null
+            ? null
+            : {
+                ...Sse.summarise(result),
+                if (incomplete) 'incomplete_stream': true,
+              },
+        error: error,
+        elapsed: DateTime.now().difference(started),
+      );
 
       http.StreamedResponse res;
       try {
@@ -181,14 +194,51 @@ class AnthropicProvider implements AiProvider {
         // remembered — `top_k` on a mirror, `temperature` beside `top_p`.
         if (res.statusCode == 400 || res.statusCode == 422) {
           final detail = error.toLowerCase();
+          // The model id is not the message: a relay's `…-thinking` model
+          // named in an unrelated error must not read as a refusal.
+          final about = detail.replaceAll(config.model.toLowerCase(), '');
+          // A switch route whose model cannot stop reasoning: remembered as
+          // on Chat Completions, and `disabled` left off its requests.
+          // One that does not know the field at all is left the same way,
+          // or thinking off would fail every request there.
+          if (payload['thinking'] case {'type': 'disabled'}
+              when !_aboutHistory(about) &&
+                  (refusesThinkingOff(about) ||
+                      refusesThinking(about) ||
+                      (about.contains('thinking') &&
+                          about.contains('disabled')))) {
+            _learned.update(
+              key,
+              (b) => b.copyWith(
+                thinkingOffTried: {
+                  ...b.thinkingOffTried,
+                  LearnedBehaviour.dialectOff,
+                },
+              ),
+            );
+            continue;
+          }
+          final thinkingRefusal = _thinkingRefusal(
+            about,
+            sent: _sentForm(payload),
+            refused: refusedForms(rejected, first: _firstForm),
+            swap: !PlatformProfiles.messagesSwitchFor(config),
+          );
+          if (thinkingRefusal != null) {
+            _learned.update(
+              key,
+              (b) => b.copyWith(
+                rejectedFields: {...b.rejectedFields, ...thinkingRefusal},
+              ),
+            );
+            continue;
+          }
           final refused = _optional
               .where(
                 (f) =>
                     payload.containsKey(f) &&
                     !rejected.contains(f) &&
-                    (f == 'thinking'
-                        ? refusesThinking(detail)
-                        : detail.contains(f)),
+                    detail.contains(f),
               )
               .firstOrNull;
           if (refused != null) {
@@ -199,12 +249,12 @@ class AnthropicProvider implements AiProvider {
             continue;
           }
         }
-        throw AiException(error);
+        throw AiHttp.statusError(res.statusCode, error, url: _messagesUri);
       }
 
-      final ChatResult result;
+      final ({ChatResult result, bool incomplete}) read;
       try {
-        result = await _read(res, cancelToken);
+        read = await _read(res, cancelToken);
       } on Object catch (e) {
         log(
           status: res.statusCode,
@@ -214,8 +264,12 @@ class AnthropicProvider implements AiProvider {
         );
         rethrow;
       }
-      log(status: res.statusCode, result: result);
-      return result;
+      log(
+        status: res.statusCode,
+        result: read.result,
+        incomplete: read.incomplete,
+      );
+      return read.result;
     }
   }
 
@@ -235,19 +289,121 @@ class AnthropicProvider implements AiProvider {
     ).hasMatch(detail);
   }
 
-  /// Fields the adapter may leave out when a route refuses them.
-  static const _optional = ['temperature', 'top_p', 'top_k', 'thinking'];
+  /// What to remember when a request that asked for thinking in [sent] is
+  /// refused with [detail], or null when the refusal is not about thinking.
+  ///
+  /// A refusal that names the form ("thinking.type: Input tag 'adaptive' …
+  /// does not match … 'disabled', 'enabled'", an older Claude; "…enabled is
+  /// not supported", a newer one) swaps it for the other: dropping thinking
+  /// over it would switch reasoning off for a month without a word. A
+  /// message that refuses thinking itself gives it up, every form at once —
+  /// also when it names the form and there is no other left to try. Any
+  /// other message is thrown as it is, even with no form left: only a
+  /// refusal of the feature may switch reasoning off. So is a budget error,
+  /// which is about the numbers, never the form, and an error about the
+  /// thinking blocks in the conversation ("`thinking` or `redacted_thinking`
+  /// blocks … cannot be modified", "messages.3.content.0: Invalid
+  /// `signature` in `thinking` block"): the history is wrong, whichever form
+  /// was asked for.
+  ///
+  /// A route declared as a switch has one form only ([swap] false).
+  static Set<String>? _thinkingRefusal(
+    String detail, {
+    required MessagesThinking? sent,
+    required Set<MessagesThinking> refused,
+    required bool swap,
+  }) {
+    if (sent == null || !detail.contains('thinking')) return null;
+    if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
+      return null;
+    }
+    if (_aboutHistory(detail)) return null;
+    final namesForm =
+        detail.contains(sent.type) || detail.contains('thinking.type');
+    if (swap && namesForm && !refused.contains(sent.other)) {
+      return {sent.refusedName};
+    }
+    if (!refusesThinking(detail)) return null;
+    return {
+      for (final form in MessagesThinking.values) form.refusedName,
+      'thinking',
+    };
+  }
+
+  /// Whether [detail] is about the thinking blocks already in the
+  /// conversation rather than about the request for thinking.
+  static bool _aboutHistory(String detail) =>
+      RegExp(r'redacted_thinking|signature|messages\.\d').hasMatch(detail);
+
+  /// The forms this route refused, where [first] is the form it is asked in
+  /// first. A bare `thinking` with neither form beside it was written before
+  /// the forms were told apart, when `enabled` was the only one sent and
+  /// only a refusal of thinking itself was recorded. Where `enabled` is also
+  /// the first form, that is what a refusal of thinking records now: every
+  /// form. Where adaptive comes first (Claude 4.6 and later, a switch
+  /// route), adaptive was never asked, and the record is no verdict on it.
+  static Set<MessagesThinking> refusedForms(
+    Set<String> rejected, {
+    required MessagesThinking first,
+  }) {
+    final forms = {
+      for (final form in MessagesThinking.values)
+        if (rejected.contains(form.refusedName)) form,
+    };
+    if (forms.isEmpty && rejected.contains('thinking')) {
+      return first == MessagesThinking.adaptive
+          ? {MessagesThinking.extended}
+          : MessagesThinking.values.toSet();
+    }
+    return forms;
+  }
+
+  /// The form [payload] asked for thinking in, if it did.
+  static MessagesThinking? _sentForm(Map<String, Object?> payload) =>
+      switch (payload['thinking']) {
+        {'type': final String type} =>
+          MessagesThinking.values
+              .where((form) => form.type == type)
+              .firstOrNull,
+        _ => null,
+      };
+
+  /// The form this route asks for thinking in: the model's own first, the
+  /// other once that was refused, none once both were.
+  ///
+  /// A route declared as a switch asks adaptive only, the one form it takes.
+  MessagesThinking? _form(Set<String> rejected) {
+    if (!config.thinkingEnabled) return null;
+    final first = _firstForm;
+    final refused = refusedForms(rejected, first: first);
+    final forms = PlatformProfiles.messagesSwitchFor(config)
+        ? [first]
+        : [first, first.other];
+    return forms.where((form) => !refused.contains(form)).firstOrNull;
+  }
+
+  /// The form thinking is asked in before any refusal: adaptive on a switch
+  /// route, otherwise the model's own.
+  MessagesThinking get _firstForm => PlatformProfiles.messagesSwitchFor(config)
+      ? MessagesThinking.adaptive
+      : MessagesThinking.forModel(config.model);
+
+  /// Sampling fields the adapter may leave out when a route refuses them;
+  /// `thinking` has its own rules ([_thinkingRefusal]).
+  static const _optional = ['temperature', 'top_p', 'top_k'];
 
   /// The request body — the one place it is built.
   Map<String, Object?> _payload(
     List<ChatMessage> messages,
     List<ToolDefinition> tools, {
-    required Set<String> rejected,
+    required LearnedBehaviour learned,
   }) {
+    final rejected = learned.rejectedFields;
     final values = config.sampling.values;
-    // Thinking needs a budget of at least 1024 inside max_tokens, with room
-    // left for the answer; a smaller cap is raised to make that possible.
-    final thinking = config.thinkingEnabled && !rejected.contains('thinking');
+    final form = _form(rejected);
+    // Thinking needs room inside max_tokens — for extended, a budget of at
+    // least 1024 with room left for the answer — so a smaller cap is raised.
+    final thinking = form != null;
     final maxTokens = thinking
         ? math.max(config.maxOutputTokens ?? defaultMaxTokens, 2048)
         : (config.maxOutputTokens ?? defaultMaxTokens);
@@ -256,16 +412,32 @@ class AnthropicProvider implements AiProvider {
         .map((m) => m.content)
         .join('\n\n');
     final optional = <String, Object>{
-      // Extended thinking takes no sampling overrides at all.
+      // Thinking, in either form, is sent with no sampling overrides.
       if (!thinking) 'temperature': ?values.temperature,
       if (!thinking) 'top_p': ?values.topP,
       if (!thinking) 'top_k': ?values.topK,
-      if (thinking)
+      // `display` only where it is documented: a mirror that has no such
+      // field may refuse it, or ignore it and hide the summary regardless.
+      if (form == MessagesThinking.adaptive)
+        'thinking': {
+          'type': 'adaptive',
+          if (_official) 'display': 'summarized',
+        },
+      if (form == MessagesThinking.extended)
         'thinking': {
           'type': 'enabled',
           'budget_tokens': math.max(1024, maxTokens ~/ 2),
+          if (_official) 'display': 'summarized',
         },
-    }..removeWhere((k, _) => rejected.contains(k));
+      // A route declared as a switch is told off in its own words (its
+      // platform may think by default); elsewhere off is the protocol's
+      // default and nothing is sent.
+      if (!config.thinkingEnabled &&
+          PlatformProfiles.messagesSwitchFor(config) &&
+          !learned.thinkingOffTried.contains(LearnedBehaviour.dialectOff))
+        'thinking': const {'type': 'disabled'},
+      // `thinking` is decided above, form by form.
+    }..removeWhere((k, _) => k != 'thinking' && rejected.contains(k));
     return {
       'model': config.model,
       'max_tokens': maxTokens,
@@ -354,7 +526,7 @@ class AnthropicProvider implements AiProvider {
     return out;
   }
 
-  Future<ChatResult> _read(
+  Future<({ChatResult result, bool incomplete})> _read(
     http.StreamedResponse res,
     AiCancelToken? cancelToken,
   ) async {
@@ -408,6 +580,8 @@ class AnthropicProvider implements AiProvider {
             final block = blocks[_int(event['index'])];
             final delta = event['delta'];
             if (block != null && delta is Map) block.add(delta);
+          case 'content_block_stop':
+            blocks[_int(event['index'])]?.closed = true;
           case 'message_delta':
             final delta = event['delta'];
             if (delta is Map && delta['stop_reason'] is String) {
@@ -421,16 +595,28 @@ class AnthropicProvider implements AiProvider {
     );
 
     if (read.plain case final plain?) {
-      return parseMessage(plain, model: config.model);
+      return (
+        result: parseMessage(plain, model: config.model),
+        incomplete: false,
+      );
     }
-    // A stream that ends without `message_stop` was cut off in transit; what
-    // arrived is not the whole answer.
-    if (!stopped) {
+    // A skipped event may have been a text or tool-input delta, and the
+    // reply would read as whole without it.
+    if (read.skipped > 0) throw Sse.malformed;
+    // Without `message_stop` — a relay that drops the last event, or a
+    // stream cut off — what arrived is an answer only when every block in
+    // it was closed and one of them is text or a tool call. A block cut
+    // mid-way, a tool input included, still fails. Cut exactly between two
+    // blocks it reads as complete — the price of taking these relays at all.
+    final incomplete = !stopped;
+    if (incomplete &&
+        (blocks.values.any((b) => !b.closed) ||
+            !blocks.values.any((b) => b.answers))) {
       throw const AiNetworkException(
         'The stream ended before the reply was complete.',
       );
     }
-    return _result(
+    final result = _result(
       [for (final block in blocks.values) block.finish()],
       stopReason: stopReason,
       promptTokens:
@@ -440,6 +626,7 @@ class AnthropicProvider implements AiProvider {
       completionTokens: usage['output_tokens'] ?? 0,
       model: config.model,
     );
+    return (result: result, incomplete: incomplete);
   }
 
   /// A non-streamed `message` object (a relay that ignored `stream`).
@@ -562,7 +749,7 @@ class AnthropicProvider implements AiProvider {
   }) async => RequestPreview(
     url: _messagesUri,
     headers: _headers(masked: true),
-    body: _payload(messages, tools, rejected: learned.rejectedFields),
+    body: _payload(messages, tools, learned: learned),
   );
 
   /// Anthropic reports no context size through the API.
@@ -578,7 +765,15 @@ class _Block {
   final Map<String, Object?> _block;
   final _json = StringBuffer();
 
+  /// `content_block_stop` arrived: nothing more of this block is coming.
+  bool closed = false;
+
   _Block(this._block);
+
+  /// Text or a tool call — what makes a reply an answer.
+  bool get answers =>
+      _block['type'] == 'tool_use' ||
+      (_block['type'] == 'text' && '${_block['text'] ?? ''}'.isNotEmpty);
 
   void add(Map<dynamic, dynamic> delta) {
     switch (delta['type']) {
@@ -602,9 +797,11 @@ class _Block {
       try {
         _block['input'] = jsonDecode(_json.toString());
       } on FormatException {
-        // Cut-off arguments: kept as text so the loop reports a bad call
-        // rather than an empty one.
-        _block['input'] = _json.toString();
+        // Objects written back to back are merged; cut-off arguments are
+        // kept as text so the loop reports a bad call rather than an empty
+        // one.
+        _block['input'] =
+            ToolCall.mergeConcatenated(_json.toString()) ?? _json.toString();
       }
     }
     return _block;

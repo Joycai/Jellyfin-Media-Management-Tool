@@ -103,6 +103,7 @@ void main() {
       expect(result.reasoning, (
         field: 'reasoning_content',
         text: 'Which title is it?',
+        encrypted: null,
       ));
     });
 
@@ -209,7 +210,11 @@ void main() {
               toolCalls: [
                 ToolCall(id: 'c1', name: 'submit', arguments: '{"title":"x"}'),
               ],
-              reasoning: (field: 'reasoning_content', text: 'thinking'),
+              reasoning: (
+                field: 'reasoning_content',
+                text: 'thinking',
+                encrypted: null,
+              ),
             ),
             ToolResultMessage(toolCallId: 'c1', name: 'submit', content: 'ok'),
             AssistantMessage(content: 'plain turn'),

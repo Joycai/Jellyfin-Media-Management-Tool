@@ -425,6 +425,7 @@ abstract final class AgentRuntime {
                     TokenBudget.estimate(call.name) +
                     TokenBudget.estimate(call.arguments),
               ) +
+              // Its encrypted part is opaque, as above, and left out.
               (toolCalls.isEmpty || reasoning == null
                   ? 0
                   : TokenBudget.estimate(reasoning.text)),

@@ -34,6 +34,9 @@ http.Response _reply(String content, {String finishReason = 'stop'}) =>
       200,
     );
 
+/// A Chinese error message needs its charset, or `http.Response` refuses it.
+const _utf8Json = {'content-type': 'application/json; charset=utf-8'};
+
 Map<String, dynamic> _body(http.BaseRequest request) =>
     jsonDecode((request as http.Request).body) as Map<String, dynamic>;
 
@@ -141,6 +144,27 @@ void main() {
           (e) => e.message,
           'message',
           'HTTP 400: No models loaded. Please load a model first.',
+        ),
+      ),
+    );
+  });
+
+  test('a 404 says where it went', () async {
+    final provider = OpenAiProvider(
+      _config('wrong-path'),
+      client: MockClient(
+        (_) async => http.Response(jsonEncode({'error': 'Not Found'}), 404),
+      ),
+    );
+
+    await expectLater(
+      provider.complete(systemPrompt: 's', userPrompt: 'u'),
+      throwsA(
+        isA<AiException>().having(
+          (e) => e.message,
+          'message',
+          'HTTP 404: Not Found — POST '
+              'http://wrong-path:1234/v1/chat/completions',
         ),
       ),
     );
@@ -527,6 +551,102 @@ void main() {
     expect(bodies.single['top_k'], 40);
   });
 
+  test('error.param names a refused field the message does not', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiProvider(
+      const AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'http://param-named:1234',
+        apiKey: '',
+        model: 'local-model',
+        topK: 40,
+      ),
+      client: MockClient((request) async {
+        bodies.add(_body(request));
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return bodies.last.containsKey('top_k')
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: the shape OpenAI uses, with prose that
+                  // names no field.
+                  'error': {
+                    'message': 'This model does not accept that setting.',
+                    'param': 'top_k',
+                  },
+                }),
+                400,
+              )
+            : _reply('ok');
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last.containsKey('top_k'), isFalse);
+    expect(provider.learned.rejectedFields, {'top_k'});
+  });
+
+  test('error.param outranks a field the message only mentions', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final provider = OpenAiProvider(
+      const AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'http://param-first:1234',
+        apiKey: '',
+        model: 'local-model',
+        temperature: 0.7,
+        topK: 40,
+      ),
+      client: MockClient((request) async {
+        bodies.add(_body(request));
+        if (bodies.length > 8) throw StateError('runaway retries');
+        return bodies.last.containsKey('top_k')
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: the message names `temperature` too, and
+                  // the field list is tried in order, `temperature` first.
+                  'error': {
+                    'message': 'top_k is not supported; tune temperature.',
+                    'param': 'top_k',
+                  },
+                }),
+                400,
+              )
+            : _reply('ok');
+      }),
+    );
+    await provider.chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last['temperature'], 0.7);
+    expect(provider.learned.rejectedFields, {'top_k'});
+  });
+
+  test('error.param naming response_format steps the JSON mode', () async {
+    final formats = <String?>[];
+    final provider = OpenAiProvider(
+      _config('param-json'),
+      client: MockClient((request) async {
+        final type = (_body(request)['response_format'] as Map?)?['type'];
+        formats.add(type as String?);
+        if (formats.length > 8) throw StateError('runaway retries');
+        return type == 'json_object'
+            ? http.Response(
+                jsonEncode({
+                  // Constructed: prose that names no JSON mode.
+                  'error': {
+                    'message': 'This model cannot do that.',
+                    'param': 'response_format',
+                  },
+                }),
+                400,
+              )
+            : _reply('{}');
+      }),
+    );
+    await provider.complete(systemPrompt: 's', userPrompt: 'u');
+    expect(formats, ['json_object', 'json_schema']);
+    expect(provider.learned.rejectedFields, isEmpty);
+  });
+
   group('failures that arrive with HTTP 200', () {
     http.Response stream(List<Map<String, Object?>> events) => http.Response(
       [...events.map(_event), 'data: [DONE]\n\n'].join(),
@@ -895,6 +1015,145 @@ void main() {
       expect(bodies.last.containsKey('reasoning'), isFalse);
     });
 
+    test('a model that always reasons is not asked off again', () async {
+      // Zhipu's 5.3 generation: the refusal does not name `thinking`
+      // (KB 03 §3.1, measured 2026-09-19).
+      final bodies = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        final body = _body(request);
+        bodies.add(body);
+        // A retry that never drops the switch would otherwise spin forever:
+        // a mock reply never yields to the timer that times the test out.
+        if (bodies.length > 8) throw StateError('the retries never stopped');
+        return (body['thinking'] as Map?)?['type'] == 'disabled'
+            ? http.Response(
+                jsonEncode({
+                  'error': {'code': '1210', 'message': '该模型始终思考，不支持关闭思考'},
+                }),
+                400,
+                headers: _utf8Json,
+              )
+            : _reply('ok');
+      });
+      AiConfig config({bool thinking = false}) => AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+        apiKey: 'k-always-reasons',
+        model: 'glm-5.3',
+        platform: 'zhipu',
+        thinkingEnabled: thinking,
+      );
+
+      final reply = await OpenAiProvider(
+        config(),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(reply.text, 'ok');
+      expect(bodies, hasLength(2));
+      expect(bodies.first['thinking'], {'type': 'disabled'});
+      expect(bodies.last.containsKey('thinking'), isFalse);
+      final learned = OpenAiProvider(config(), client: client).learned;
+      expect(learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
+      expect(learned.rejectedFields, isEmpty);
+
+      // Remembered: the next request goes out without the switch.
+      await OpenAiProvider(
+        config(),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies, hasLength(3));
+      expect(bodies.last.containsKey('thinking'), isFalse);
+      // The settings preview shows the request a task now sends.
+      final preview = await OpenAiProvider(
+        config(),
+        client: client,
+      ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+      expect(preview.body.containsKey('thinking'), isFalse);
+
+      // Asking it on is a different request, and is still sent.
+      await OpenAiProvider(
+        config(thinking: true),
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies.last['thinking'], {'type': 'enabled'});
+      final onPreview = await OpenAiProvider(
+        config(thinking: true),
+        client: client,
+      ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+      expect(onPreview.body['thinking'], {'type': 'enabled'});
+    });
+
+    test('a refusal while asking reasoning on teaches nothing', () async {
+      // Only a refused *off* is learned; learning it here would retry the
+      // same request, since *on* is still sent.
+      var sent = 0;
+      final provider = OpenAiProvider(
+        const AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+          apiKey: 'k-refused-on',
+          model: 'glm-5.3',
+          platform: 'zhipu',
+          thinkingEnabled: true,
+        ),
+        client: MockClient((request) async {
+          if (++sent > 8) throw StateError('the retries never stopped');
+          return http.Response(
+            jsonEncode({
+              'error': {'code': '1210', 'message': '该模型始终思考，不支持关闭思考'},
+            }),
+            400,
+            headers: _utf8Json,
+          );
+        }),
+      );
+
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiException>()),
+      );
+      expect(sent, 1);
+      expect(provider.learned.isEmpty, isTrue);
+    });
+
+    test('an unrelated 400 on a switch route teaches nothing', () async {
+      // The second names no field and says `mandatory`, which a refusal of
+      // the switch only counts as beside the field's name.
+      for (final (i, message) in const [
+        'messages 参数非法',
+        "'messages' is mandatory",
+      ].indexed) {
+        var sent = 0;
+        final provider = OpenAiProvider(
+          AiConfig(
+            provider: AiProviderType.openAi,
+            endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+            apiKey: 'k-unrelated-400-$i',
+            model: 'glm-5.3',
+            platform: 'zhipu',
+          ),
+          client: MockClient((request) async {
+            sent++;
+            return http.Response(
+              jsonEncode({
+                'error': {'code': '1214', 'message': message},
+              }),
+              400,
+              headers: _utf8Json,
+            );
+          }),
+        );
+
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(isA<AiException>()),
+          reason: message,
+        );
+        expect(sent, 1, reason: message);
+        expect(provider.learned.isEmpty, isTrue, reason: message);
+      }
+    });
+
     test('any other server sends no platform field', () async {
       final body = await sent('https://api.openai.com/v1', 'gpt-5.4-mini');
       expect(body.containsKey('thinking'), isFalse);
@@ -1000,6 +1259,371 @@ void main() {
     expect(content.last, {
       'type': 'image_url',
       'image_url': {'url': 'data:image/jpeg;base64,AQID'},
+    });
+  });
+
+  group('reasoning in both fields', () {
+    Future<ChatResult> read(String host, List<Map<String, Object?>> deltas) =>
+        OpenAiProvider(
+          _config(host),
+          client: MockClient(
+            (_) async => http.Response(
+              [
+                for (final delta in deltas)
+                  _event({
+                    'choices': [
+                      {'delta': delta, 'finish_reason': null},
+                    ],
+                  }),
+                _event({
+                  'choices': [
+                    {
+                      'delta': {
+                        'tool_calls': [
+                          {
+                            'index': 0,
+                            'id': 'c',
+                            'function': {'name': 'f', 'arguments': '{}'},
+                          },
+                        ],
+                      },
+                      'finish_reason': 'tool_calls',
+                    },
+                  ],
+                }),
+                'data: [DONE]\n\n',
+              ].join(),
+              200,
+              headers: {'content-type': 'text/event-stream'},
+            ),
+          ),
+        ).chat(
+          messages: const [UserMessage('u')],
+          tools: const [
+            ToolDefinition(name: 'f', description: 'd', parameters: {}),
+          ],
+        );
+
+    test('the same text in both is read once', () async {
+      // Some relays fill `reasoning_content` and `reasoning` alike.
+      final result = await read('both-fields', [
+        {'reasoning_content': 'abc', 'reasoning': 'abc'},
+        {'reasoning_content': 'def', 'reasoning': 'def'},
+      ]);
+      expect(result.reasoning?.text, 'abcdef');
+      expect(result.reasoning?.field, 'reasoning_content');
+    });
+
+    test('the field seen first is the one read after', () async {
+      final result = await read('first-field', [
+        {'reasoning': 'abc'},
+        {'reasoning_content': 'xyz', 'reasoning': 'def'},
+      ]);
+      expect(result.reasoning?.text, 'abcdef');
+      expect(result.reasoning?.field, 'reasoning');
+    });
+
+    test('the other field is still read when the first is empty', () async {
+      // Preferring the first field must not drop text that only the other
+      // one carries.
+      final result = await read('other-field', [
+        {'reasoning_content': 'abc'},
+        {'reasoning_content': '', 'reasoning': 'def'},
+        {'reasoning': 'ghi'},
+      ]);
+      expect(result.reasoning?.text, 'abcdefghi');
+      expect(result.reasoning?.field, 'reasoning_content');
+    });
+  });
+
+  test('arguments streamed as two objects become one', () async {
+    // A relay-served Claude streams an empty input before the real one
+    // (KB pitfall 105); sent back concatenated, a relay translating the turn
+    // to Messages refuses it.
+    final result =
+        await OpenAiProvider(
+          _config('concatenated-args'),
+          client: MockClient(
+            (_) async => http.Response(
+              [
+                for (final piece in ['{}', '{"title":"Dune"}'])
+                  _event({
+                    'choices': [
+                      {
+                        'delta': {
+                          'tool_calls': [
+                            {
+                              'index': 0,
+                              'id': 'c',
+                              'function': {'name': 'f', 'arguments': piece},
+                            },
+                          ],
+                        },
+                        'finish_reason': null,
+                      },
+                    ],
+                  }),
+                _event({
+                  'choices': [
+                    {
+                      'delta': <String, Object?>{},
+                      'finish_reason': 'tool_calls',
+                    },
+                  ],
+                }),
+                'data: [DONE]\n\n',
+              ].join(),
+              200,
+              headers: {'content-type': 'text/event-stream'},
+            ),
+          ),
+        ).chat(
+          messages: const [UserMessage('u')],
+          tools: const [
+            ToolDefinition(name: 'f', description: 'd', parameters: {}),
+          ],
+        );
+    expect(result.toolCalls.single.arguments, '{"title":"Dune"}');
+  });
+
+  test('non-streamed arguments written as two objects become one', () async {
+    final result =
+        await OpenAiProvider(
+          _config('concatenated-args-json'),
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {
+                      'tool_calls': [
+                        {
+                          'id': 'c',
+                          'type': 'function',
+                          'function': {
+                            'name': 'f',
+                            'arguments': '{}{"title":"Dune"}',
+                          },
+                        },
+                      ],
+                    },
+                    'finish_reason': 'tool_calls',
+                  },
+                ],
+              }),
+              200,
+            ),
+          ),
+        ).chat(
+          messages: const [UserMessage('u')],
+          tools: const [
+            ToolDefinition(name: 'f', description: 'd', parameters: {}),
+          ],
+        );
+    // As it is sent back: one object, not only when read.
+    expect(result.toolCalls.single.arguments, '{"title":"Dune"}');
+  });
+
+  // Volcengine's 2.1 models put only a summary in `reasoning_content` and the
+  // original, encrypted, in `encrypted_content` (KB 03 §3.2, measured
+  // 2026-09-23). Sent back without it, the model reasons from the summary.
+  group('encrypted reasoning', () {
+    Map<String, Object?> delta(Map<String, Object?> delta, {String? finish}) =>
+        {
+          'choices': [
+            {'delta': delta, 'finish_reason': finish},
+          ],
+        };
+    Map<String, Object?> call() => delta({
+      'tool_calls': [
+        {
+          'index': 0,
+          'id': 'call_v',
+          'function': {'name': 'lookup', 'arguments': '{}'},
+        },
+      ],
+    }, finish: 'tool_calls');
+    http.Response stream(List<Map<String, Object?>> events) => http.Response(
+      [for (final e in events) _event(e), 'data: [DONE]\n\n'].join(),
+      200,
+      headers: {'content-type': 'text/event-stream'},
+    );
+    const tool = ToolDefinition(
+      name: 'lookup',
+      description: 'd',
+      parameters: {},
+    );
+
+    /// Runs one tool round, then sends its turn back; returns the reply and
+    /// the assistant message the second request carried.
+    Future<(ChatResult, Map<String, dynamic>)> roundTrip(
+      String host,
+      List<Map<String, Object?>> events,
+    ) async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = OpenAiProvider(
+        _config(host),
+        client: MockClient((request) async {
+          bodies.add(_body(request));
+          return bodies.length == 1 ? stream(events) : _reply('done');
+        }),
+      );
+      final first = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [tool],
+      );
+      await provider.chat(
+        messages: [
+          const UserMessage('u'),
+          first.toMessage(),
+          const ToolResultMessage(
+            toolCallId: 'call_v',
+            name: 'lookup',
+            content: 'r',
+          ),
+        ],
+        tools: const [tool],
+      );
+      final assistant = (bodies.last['messages'] as List)
+          .cast<Map<String, dynamic>>()
+          .singleWhere((m) => m['role'] == 'assistant');
+      return (first, assistant);
+    }
+
+    test('kept, and sent back beside the summary', () async {
+      final (result, assistant) = await roundTrip('encrypted-both', [
+        delta({'reasoning_content': '\n', 'encrypted_content': 'djEN'}),
+        delta({'encrypted_content': 'AAAA'}),
+        call(),
+      ]);
+      expect(result.reasoning, (
+        field: 'reasoning_content',
+        text: '\n',
+        encrypted: 'djENAAAA',
+      ));
+      expect(result.reasoned, isTrue);
+      expect(assistant['reasoning_content'], '\n');
+      expect(assistant['encrypted_content'], 'djENAAAA');
+    });
+
+    test('alone when the summary is empty', () async {
+      final (result, assistant) = await roundTrip('encrypted-alone', [
+        delta({'encrypted_content': 'djEN'}),
+        call(),
+      ]);
+      expect(result.reasoning?.encrypted, 'djEN');
+      expect(result.reasoned, isTrue);
+      expect(assistant.containsKey('reasoning_content'), isFalse);
+      expect(assistant['encrypted_content'], 'djEN');
+    });
+
+    test('not on a turn without tool calls', () async {
+      late Map<String, dynamic> body;
+      await OpenAiProvider(
+        _config('encrypted-no-calls'),
+        client: MockClient((request) async {
+          body = _body(request);
+          return _reply('ok');
+        }),
+      ).chat(
+        messages: const [
+          UserMessage('u'),
+          AssistantMessage(
+            content: 'answer',
+            reasoning: (
+              field: 'reasoning_content',
+              text: 'summary',
+              encrypted: 'djEN',
+            ),
+          ),
+          UserMessage('next'),
+        ],
+        tools: const [tool],
+      );
+      final assistant = (body['messages'] as List)
+          .cast<Map<String, dynamic>>()
+          .singleWhere((m) => m['role'] == 'assistant');
+      expect(assistant.containsKey('reasoning_content'), isFalse);
+      expect(assistant.containsKey('encrypted_content'), isFalse);
+    });
+
+    test('read from a completion that is not a stream', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final provider = OpenAiProvider(
+        _config('encrypted-plain'),
+        client: MockClient((request) async {
+          bodies.add(_body(request));
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {
+                    'content': null,
+                    'reasoning_content': '',
+                    'encrypted_content': 'djEN',
+                    'tool_calls': [
+                      {
+                        'id': 'call_v',
+                        'type': 'function',
+                        'function': {'name': 'lookup', 'arguments': '{}'},
+                      },
+                    ],
+                  },
+                  'finish_reason': 'tool_calls',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      final result = await provider.chat(
+        messages: const [UserMessage('u')],
+        tools: const [tool],
+      );
+      expect(result.reasoning, (
+        field: 'reasoning_content',
+        text: '',
+        encrypted: 'djEN',
+      ));
+      expect(result.reasoned, isTrue);
+    });
+
+    // The measured shape: a blank summary beside the ciphertext. A stream
+    // keeps it as sent, and so does a plain completion.
+    test('kept with its summary from a completion', () async {
+      final result = await OpenAiProvider(
+        _config('encrypted-plain-summary'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {
+                    'content': null,
+                    'reasoning_content': '\n',
+                    'encrypted_content': 'djEN',
+                    'tool_calls': [
+                      {
+                        'id': 'call_v',
+                        'type': 'function',
+                        'function': {'name': 'lookup', 'arguments': '{}'},
+                      },
+                    ],
+                  },
+                  'finish_reason': 'tool_calls',
+                },
+              ],
+            }),
+            200,
+          ),
+        ),
+      ).chat(messages: const [UserMessage('u')], tools: const [tool]);
+      expect(result.reasoning, (
+        field: 'reasoning_content',
+        text: '\n',
+        encrypted: 'djEN',
+      ));
     });
   });
 }

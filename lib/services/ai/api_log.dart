@@ -20,6 +20,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'ai_http.dart';
+
 class ApiLog {
   ApiLog({this.directory, DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
@@ -84,12 +86,7 @@ class ApiLog {
       'model': model,
       // The query string and user info can carry a credential; nothing else
       // in them is worth reading back.
-      'url': Uri(
-        scheme: url.scheme,
-        host: url.host,
-        port: url.hasPort ? url.port : null,
-        path: url.path,
-      ).toString(),
+      'url': AiHttp.safeUrl(url),
       'status': ?status,
       'elapsed_ms': ?elapsed?.inMilliseconds,
       'request': redact(request),

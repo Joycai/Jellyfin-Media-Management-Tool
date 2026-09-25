@@ -2801,6 +2801,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiStepThinkingStillOn => 'The model still reasoned';
 
   @override
+  String get aiStepThinkingOn => 'The model reasoned';
+
+  @override
+  String get aiStepThinkingNotOn =>
+      'Reasoning was asked for, but the reply shows none';
+
+  @override
+  String get aiStepThinkingRefused =>
+      'The route refused the request for reasoning';
+
+  @override
   String get aiStepTools => 'Called the test tool';
 
   @override
@@ -2864,6 +2875,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiCellPromptOnly => 'no parameter · prompt only';
+
+  @override
+  String get aiCellAlwaysReasons => 'this model always reasons';
+
+  @override
+  String aiCellProtocolSwitch(String field) {
+    return '$field · protocol field';
+  }
 
   @override
   String get aiCellDefaultOff => 'off by default';

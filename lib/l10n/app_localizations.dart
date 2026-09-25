@@ -4910,6 +4910,24 @@ abstract class AppLocalizations {
   /// **'The model still reasoned'**
   String get aiStepThinkingStillOn;
 
+  /// No description provided for @aiStepThinkingOn.
+  ///
+  /// In en, this message translates to:
+  /// **'The model reasoned'**
+  String get aiStepThinkingOn;
+
+  /// No description provided for @aiStepThinkingNotOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning was asked for, but the reply shows none'**
+  String get aiStepThinkingNotOn;
+
+  /// No description provided for @aiStepThinkingRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The route refused the request for reasoning'**
+  String get aiStepThinkingRefused;
+
   /// No description provided for @aiStepTools.
   ///
   /// In en, this message translates to:
@@ -5023,6 +5041,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'no parameter · prompt only'**
   String get aiCellPromptOnly;
+
+  /// No description provided for @aiCellAlwaysReasons.
+  ///
+  /// In en, this message translates to:
+  /// **'this model always reasons'**
+  String get aiCellAlwaysReasons;
+
+  /// No description provided for @aiCellProtocolSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'{field} · protocol field'**
+  String aiCellProtocolSwitch(String field);
 
   /// No description provided for @aiCellDefaultOff.
   ///

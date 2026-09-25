@@ -6,6 +6,7 @@ import '../../models/ai_channel.dart';
 import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_provider.dart';
 import '../../services/ai/ai_service.dart';
+import '../../services/ai/learned_behaviour.dart';
 import '../../services/ai/platform_profiles.dart';
 import '../../theme/design_tokens.dart';
 import 'ai_services_screen.dart';
@@ -288,23 +289,51 @@ CapabilityCell capabilityCell(
         }),
       );
     case Capability.thinkingOff:
-      // Extended thinking is off unless asked for; Responses leaves reasoning
-      // to the model, since no one low setting is taken everywhere.
+      // Messages thinking is off unless asked for; a route declared as a
+      // switch is sent `thinking: {type: "disabled"}` as well.
+      final tried = learned?.thinkingOffTried ?? const <String>{};
+      final refused = learned?.rejectedFields ?? const <String>{};
       if (protocol == AiProviderType.anthropic) {
-        return (state: works, text: l10n.aiCellDefaultOff);
+        if (!PlatformProfiles.messagesSwitchFor(config)) {
+          return (state: works, text: l10n.aiCellDefaultOff);
+        }
+        return tried.contains(LearnedBehaviour.dialectOff)
+            ? (state: unavailable, text: l10n.aiCellAlwaysReasons)
+            : (state: works, text: l10n.aiCellSwitch('thinking'));
       }
+      // Responses asks for `effort: none`. Sending it is not the same as
+      // it being honoured — a relay can rewrite it to medium — so it stays
+      // unmeasured; the connection test's "still reasoned" is the judge.
       if (protocol == AiProviderType.openAiResponses) {
-        return (state: unmeasured, text: l10n.aiCellModelDefault);
+        // Refused off, or refused `reasoning` altogether: nothing is sent.
+        return tried.contains(LearnedBehaviour.effortNone) ||
+                refused.contains('reasoning')
+            ? (state: unavailable, text: l10n.aiCellModelDefault)
+            : (
+                state: unmeasured,
+                text: l10n.aiCellProtocolSwitch('reasoning.effort'),
+              );
       }
       final dialect = PlatformProfiles.dialectFor(config);
+      // The model refused its platform's switch set to off (Zhipu's 5.3).
+      if (dialect != null && tried.contains(LearnedBehaviour.dialectOff)) {
+        return (state: unavailable, text: l10n.aiCellAlwaysReasons);
+      }
+      // The switch refused by name is sent neither way.
+      if (dialect != null &&
+          refused.contains(dialect.field(thinking: false).key)) {
+        return (state: unavailable, text: l10n.aiCellModelDefault);
+      }
       if (dialect != null) {
         return (
           state: works,
           text: l10n.aiCellSwitch(dialect.field(thinking: false).key),
         );
       }
-      final tried = learned?.thinkingOffTried ?? const <String>{};
-      return tried.length >= 2
+      // Only ladder steps count: a route key outlives its channel's platform,
+      // so a switch refused under one can still be on record here.
+      final steps = tried.where((w) => w != LearnedBehaviour.dialectOff);
+      return steps.length >= 2
           ? (state: unavailable, text: l10n.aiCellLadderExhausted)
           : (state: unmeasured, text: l10n.aiCellLadder);
     case Capability.usage:

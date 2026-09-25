@@ -30,12 +30,24 @@ class RouteSpec {
   /// documented switch (the local-server ladder then applies).
   final ThinkingDialect? thinkingDialect;
 
+  /// A Messages route whose platform takes thinking as a switch: on is
+  /// `{type: "adaptive"}` with no `display`, off is `{type: "disabled"}`
+  /// (KB 03 §3, the `switch` dialect). Declared for a platform that thinks
+  /// unless told not to, or that accepts only those two types; anywhere
+  /// else off sends nothing and on takes the model's own form.
+  ///
+  /// A bool rather than a [ThinkingDialect]: those produce Chat Completions'
+  /// field shapes (`thinkingType` sends `enabled` with no budget), which
+  /// would be the wrong bytes on Messages.
+  final bool messagesThinkingSwitch;
+
   /// The platform's own documentation, or a measurement, behind this row.
   final String source;
 
   const RouteSpec({
     this.defaultPath = '',
     this.thinkingDialect,
+    this.messagesThinkingSwitch = false,
     required this.source,
   });
 }
@@ -226,7 +238,12 @@ abstract final class PlatformProfiles {
       ),
       AiProviderType.anthropic: RouteSpec(
         defaultPath: '/anthropic',
-        source: '【文档 2026-08】platform.minimaxi.com · Anthropic API',
+        // Sent `enabled` + budget, a 400 would once have switched thinking
+        // off for the route; only these two types are taken.
+        messagesThinkingSwitch: true,
+        source:
+            '【文档 2026-08】platform.minimaxi.com · Anthropic API; '
+            '【KB 03 §3】MiniMax-M3 /anthropic: adaptive | disabled',
       ),
     },
   );
@@ -365,4 +382,16 @@ abstract final class PlatformProfiles {
   /// How [config]'s route switches reasoning, or null for the ladder.
   static ThinkingDialect? dialectFor(AiConfig config) =>
       of(config).routes[config.provider]?.thinkingDialect;
+
+  /// Whether [config]'s route is a Messages route that takes thinking as a
+  /// switch — see [RouteSpec.messagesThinkingSwitch].
+  static bool messagesSwitchFor(AiConfig config) =>
+      config.provider == AiProviderType.anthropic &&
+      (of(config).routes[config.provider]?.messagesThinkingSwitch ?? false);
+
+  /// The field [config]'s route turns reasoning on and off with, or null
+  /// when its platform documents no switch.
+  static String? switchFieldFor(AiConfig config) =>
+      dialectFor(config)?.field(thinking: false).key ??
+      (messagesSwitchFor(config) ? 'thinking' : null);
 }

@@ -10,6 +10,7 @@ import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
 import 'platform_profiles.dart';
+import 'thinking_dialect.dart';
 
 /// How a request asks for JSON, most to least constrained. [OpenAiProvider]
 /// steps down this list when a server rejects the current form.
@@ -211,6 +212,7 @@ class OpenAiProvider implements AiProvider {
         (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
       );
 
+      final dialectOffRefused = tried.contains(LearnedBehaviour.dialectOff);
       final (:optional, :payload) = _compose(
         messages: messages,
         tools: tools,
@@ -219,7 +221,14 @@ class OpenAiProvider implements AiProvider {
         mode: mode,
         maxCompletionTokens: maxCompletionTokens,
         rejected: rejected,
+        dialectOffRefused: dialectOffRefused,
       );
+      // Whether this request carries the platform's switch set to off.
+      final dialectOffKey = config.sampling.thinking
+          ? null
+          : PlatformProfiles.dialectFor(config)?.field(thinking: false).key;
+      final sendsDialectOff =
+          dialectOffKey != null && optional.containsKey(dialectOffKey);
       final body = jsonEncode(payload);
       final started = DateTime.now();
       void log({int? status, ChatResult? result, String? error}) =>
@@ -292,8 +301,11 @@ class OpenAiProvider implements AiProvider {
       }
 
       String error;
+      String? param;
       try {
-        error = AiHttp.describeError(await http.Response.fromStream(res));
+        final body = await http.Response.fromStream(res);
+        error = AiHttp.describeError(body);
+        param = AiHttp.errorParam(body);
       } catch (_) {
         error = 'HTTP ${res.statusCode}';
       }
@@ -310,13 +322,20 @@ class OpenAiProvider implements AiProvider {
         }
         if (jsonMode &&
             mode != _JsonMode.none &&
-            _namesResponseFormat(detail)) {
+            (AiHttp.paramNames(param, 'response_format') ||
+                _namesResponseFormat(detail))) {
           mode = _JsonMode.values[mode.index + 1];
           continue;
         }
-        final refused = optional.keys
-            .where((field) => _namesField(detail, field))
-            .firstOrNull;
+        // `error.param` first: it names the field even when the message
+        // does not. The message is the fallback for servers without it.
+        final refused =
+            optional.keys
+                .where((field) => AiHttp.paramNames(param, field))
+                .firstOrNull ??
+            optional.keys
+                .where((field) => _namesField(detail, field))
+                .firstOrNull;
         if (refused != null) {
           final isThinkingOffField =
               refused == 'chat_template_kwargs' ||
@@ -331,8 +350,22 @@ class OpenAiProvider implements AiProvider {
           }
           continue;
         }
+        // A model that cannot stop reasoning, saying so without naming the
+        // switch (one that names it was handled above, as a refused field).
+        // Remembered apart from refused fields: asking it *on* is still sent.
+        if (sendsDialectOff && refusesThinkingOff(detail)) {
+          learn(
+            (b) => b.copyWith(
+              thinkingOffTried: {
+                ...b.thinkingOffTried,
+                LearnedBehaviour.dialectOff,
+              },
+            ),
+          );
+          continue;
+        }
       }
-      throw AiException(error);
+      throw AiHttp.statusError(res.statusCode, error, url: _chatUri);
     }
   }
 
@@ -365,12 +398,17 @@ class OpenAiProvider implements AiProvider {
     required _JsonMode mode,
     required bool maxCompletionTokens,
     required Set<String> rejected,
+    required bool dialectOffRefused,
   }) {
     final sampling = config.sampling;
     final values = sampling.values;
     final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
     final dialect = PlatformProfiles.dialectFor(config);
-    final dialectField = dialect?.field(thinking: sampling.thinking);
+    // A model that refused the switch set to off is not asked again; on is
+    // still sent.
+    final dialectField = !sampling.thinking && dialectOffRefused
+        ? null
+        : dialect?.field(thinking: sampling.thinking);
 
     final optional = <String, Object>{
       'temperature': ?values.temperature,
@@ -448,6 +486,9 @@ class OpenAiProvider implements AiProvider {
       mode: _JsonMode.object,
       maxCompletionTokens: learned.maxCompletionTokens,
       rejected: learned.rejectedFields,
+      dialectOffRefused: learned.thinkingOffTried.contains(
+        LearnedBehaviour.dialectOff,
+      ),
     );
     final key = config.apiKey.trim();
     return RequestPreview(
@@ -516,8 +557,13 @@ class OpenAiProvider implements AiProvider {
               'function': {'name': call.name, 'arguments': call.arguments},
             },
         ],
-      if (toolCalls.isNotEmpty && reasoning != null)
-        reasoning.field: reasoning.text,
+      // Volcengine takes its encrypted original beside the summary, and
+      // alone when the summary is empty (KB 03 §3.2).
+      if (toolCalls.isNotEmpty && reasoning != null) ...{
+        if (reasoning.text.isNotEmpty || reasoning.encrypted == null)
+          reasoning.field: reasoning.text,
+        'encrypted_content': ?reasoning.encrypted,
+      },
     },
     ToolResultMessage(:final toolCallId, :final content) => {
       'role': 'tool',
@@ -605,6 +651,8 @@ class OpenAiProvider implements AiProvider {
     final calls = SplayTreeMap<int, _PendingCall>();
     final reasoningText = StringBuffer();
     String? reasoningField;
+    // Volcengine's encrypted reasoning, joined in arrival order.
+    final encrypted = StringBuffer();
     bool? sse;
     String? finishReason;
     var promptTokens = 0;
@@ -655,12 +703,19 @@ class OpenAiProvider implements AiProvider {
           final delta = choice['delta'];
           if (delta is Map) {
             content.write(_text(delta['content']));
-            for (final field in _reasoningFields) {
+            // One field per delta: a server that fills both with the same
+            // text would otherwise double it. The field seen first is
+            // read first from then on, the other only when it is empty.
+            for (final field in [?reasoningField, ..._reasoningFields]) {
               final piece = delta[field];
               if (piece is String && piece.isNotEmpty) {
                 reasoningField ??= field;
                 reasoningText.write(piece);
+                break;
               }
+            }
+            if (delta['encrypted_content'] case final String secret) {
+              encrypted.write(secret);
             }
             final toolCalls = delta['tool_calls'];
             if (toolCalls is List) {
@@ -707,15 +762,20 @@ class OpenAiProvider implements AiProvider {
       toolCalls: [
         for (final entry in calls.entries) entry.value.build(entry.key),
       ],
-      reasoning: field == null
+      reasoning: field == null && encrypted.isEmpty
           ? null
-          : (field: field, text: reasoningText.toString()),
+          : (
+              field: field ?? _reasoningFields.first,
+              text: reasoningText.toString(),
+              encrypted: encrypted.isEmpty ? null : encrypted.toString(),
+            ),
       promptTokens: promptTokens,
       completionTokens: completionTokens,
       finishReason: finishReason,
       reasoned:
           inline ||
           reasoningText.toString().trim().isNotEmpty ||
+          encrypted.isNotEmpty ||
           reasoningTokens > 0,
     );
   }
@@ -762,12 +822,25 @@ class OpenAiProvider implements AiProvider {
 
     ReasoningPassback? reasoning;
     if (message is Map) {
+      final secret = message['encrypted_content'];
+      final encrypted = secret is String && secret.isNotEmpty ? secret : null;
       for (final field in _reasoningFields) {
         final value = message[field];
-        if (value is String && value.trim().isNotEmpty) {
-          reasoning = (field: field, text: value);
+        // Beside a ciphertext a blank summary is still what the server sent
+        // (Volcengine's is often "\n"), and goes back as it came, as a
+        // stream's would.
+        if (value is String &&
+            (encrypted == null ? value.trim() : value).isNotEmpty) {
+          reasoning = (field: field, text: value, encrypted: encrypted);
           break;
         }
+      }
+      if (reasoning == null && encrypted != null) {
+        reasoning = (
+          field: _reasoningFields.first,
+          text: '',
+          encrypted: encrypted,
+        );
       }
     }
     final rawCalls = message is Map ? message['tool_calls'] : null;
@@ -782,7 +855,7 @@ class OpenAiProvider implements AiProvider {
               name: _stringOrNull(function['name']) ?? '',
               // Some servers hand arguments back already decoded.
               arguments: switch (function['arguments']) {
-                String s => s,
+                String s => ToolCall.normalizeArguments(s),
                 null => '{}',
                 final Object other => jsonEncode(other),
               },
@@ -1024,7 +1097,11 @@ class _PendingCall {
   ToolCall build(int index) => ToolCall(
     id: _id.isEmpty ? 'call_$index' : _id,
     name: _name,
-    arguments: _arguments.isEmpty ? '{}' : _arguments.toString(),
+    // Sent back as they are kept, so objects written back to back are
+    // merged here, not only when read.
+    arguments: _arguments.isEmpty
+        ? '{}'
+        : ToolCall.normalizeArguments(_arguments.toString()),
   );
 
   /// Providers vary between delta fragments and cumulative values. Keep the

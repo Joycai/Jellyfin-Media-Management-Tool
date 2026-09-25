@@ -29,7 +29,9 @@ import 'sse.dart';
 ///   `response.output_item.done` are the truth; deltas only show progress.
 /// - `response.incomplete` says why: `max_output_tokens` is a cut-off
 ///   answer, `content_filter` a blocked one. A stream that ends with no
-///   terminal event is not an answer at all.
+///   terminal event is an answer only when every item in it arrived whole
+///   and it holds text or a call (a relay that drops the last event); it is
+///   logged as `incomplete_stream`, with no finish reason.
 class OpenAiResponsesProvider implements AiProvider {
   @override
   final AiConfig config;
@@ -127,25 +129,38 @@ class OpenAiResponsesProvider implements AiProvider {
     final client = _client ?? cancelToken?.client ?? AiHttp.client;
     final key = _cacheKey;
     while (true) {
-      final rejected = _learned.of(key).rejectedFields;
+      final learned = _learned.of(key);
+      final rejected = learned.rejectedFields;
       final payload = _payload(
         messages,
         tools,
         jsonMode: jsonMode,
         rejected: rejected,
+        offRefused: learned.thinkingOffTried.contains(
+          LearnedBehaviour.effortNone,
+        ),
       );
       final started = DateTime.now();
-      void log({int? status, ChatResult? result, String? error}) =>
-          ApiLog.instance.record(
-            protocol: 'responses',
-            model: config.model,
-            url: _responsesUri,
-            request: payload,
-            status: status,
-            response: result == null ? null : Sse.summarise(result),
-            error: error,
-            elapsed: DateTime.now().difference(started),
-          );
+      void log({
+        int? status,
+        ChatResult? result,
+        String? error,
+        bool incomplete = false,
+      }) => ApiLog.instance.record(
+        protocol: 'responses',
+        model: config.model,
+        url: _responsesUri,
+        request: payload,
+        status: status,
+        response: result == null
+            ? null
+            : {
+                ...Sse.summarise(result),
+                if (incomplete) 'incomplete_stream': true,
+              },
+        error: error,
+        elapsed: DateTime.now().difference(started),
+      );
 
       http.StreamedResponse res;
       try {
@@ -183,22 +198,48 @@ class OpenAiResponsesProvider implements AiProvider {
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
         String error;
+        String? param;
         try {
-          error = AiHttp.describeError(await http.Response.fromStream(res));
+          final body = await http.Response.fromStream(res);
+          error = AiHttp.describeError(body);
+          param = AiHttp.errorParam(body);
         } catch (_) {
           error = 'HTTP ${res.statusCode}';
         }
         log(status: res.statusCode, error: error);
         if (res.statusCode == 400 || res.statusCode == 422) {
           final detail = error.toLowerCase();
-          final refused = _optional
-              .where(
-                (f) =>
-                    payload.containsKey(f) &&
-                    !rejected.contains(f) &&
-                    _names(detail, f),
-              )
-              .firstOrNull;
+          // `error.param` first: it names the field even when the message
+          // does not. The message is the fallback for servers without it.
+          final candidates = _optional.where(
+            (f) => payload.containsKey(f) && !rejected.contains(f),
+          );
+          // `reasoning.encrypted_content` is the value `include` asks for,
+          // not a path inside `reasoning` — as in [_names].
+          if (param != null &&
+              param.startsWith('reasoning.encrypted_content')) {
+            param = 'include';
+          }
+          final refused =
+              candidates
+                  .where((f) => AiHttp.paramNames(param, f))
+                  .firstOrNull ??
+              candidates.where((f) => _names(detail, f)).firstOrNull;
+          // `reasoning` refused while asking for none says nothing about
+          // asking for some: the route goes back to the model's default
+          // when off, and still asks when on.
+          if (refused == 'reasoning' && !config.thinkingEnabled) {
+            _learned.update(
+              key,
+              (b) => b.copyWith(
+                thinkingOffTried: {
+                  ...b.thinkingOffTried,
+                  LearnedBehaviour.effortNone,
+                },
+              ),
+            );
+            continue;
+          }
           if (refused != null) {
             _learned.update(
               key,
@@ -207,12 +248,12 @@ class OpenAiResponsesProvider implements AiProvider {
             continue;
           }
         }
-        throw AiException(error);
+        throw AiHttp.statusError(res.statusCode, error, url: _responsesUri);
       }
 
-      final ChatResult result;
+      final ({ChatResult result, bool incomplete}) read;
       try {
-        result = await _read(res, cancelToken);
+        read = await _read(res, cancelToken);
       } on Object catch (e) {
         log(
           status: res.statusCode,
@@ -222,20 +263,32 @@ class OpenAiResponsesProvider implements AiProvider {
         );
         rethrow;
       }
-      log(status: res.statusCode, result: result);
-      return result;
+      log(
+        status: res.statusCode,
+        result: read.result,
+        incomplete: read.incomplete,
+      );
+      return read.result;
     }
   }
 
   /// Whether a rejection names [field]. `text`, `reasoning` and `include`
   /// are ordinary words, so they count only quoted or as a parameter path.
-  static bool _names(String detail, String field) =>
-      field == 'text' || field == 'reasoning' || field == 'include'
-      ? RegExp(
-          '["\'`]$field["\'`.\\[]|$field\\.(format|effort)|'
-          '$field (field|parameter)',
-        ).hasMatch(detail)
-      : detail.contains(field);
+  /// `reasoning.encrypted_content` is the value `include` asks for, so it
+  /// names `include`, never `reasoning`.
+  static bool _names(String detail, String field) {
+    const encrypted = 'reasoning.encrypted_content';
+    if (field == 'include' && detail.contains(encrypted)) return true;
+    final text = field == 'reasoning'
+        ? detail.replaceAll(encrypted, '')
+        : detail;
+    return field == 'text' || field == 'reasoning' || field == 'include'
+        ? RegExp(
+            '["\'`]$field["\'`.\\[]|$field\\.(format|effort)|'
+            '$field (field|parameter)',
+          ).hasMatch(text)
+        : text.contains(field);
+  }
 
   /// The request body — the one place it is built.
   Map<String, Object?> _payload(
@@ -243,6 +296,7 @@ class OpenAiResponsesProvider implements AiProvider {
     List<ToolDefinition> tools, {
     required bool jsonMode,
     required Set<String> rejected,
+    required bool offRefused,
   }) {
     final values = config.sampling.values;
     final instructions = messages
@@ -252,10 +306,15 @@ class OpenAiResponsesProvider implements AiProvider {
     final optional = <String, Object>{
       'temperature': ?values.temperature,
       'top_p': ?values.topP,
-      // Asked for only when on: there is no one low setting every model
-      // takes ("none", "minimal" and "low" are each refused somewhere), and
-      // the model's own default is what "off" has always meant here.
-      if (config.thinkingEnabled) 'reasoning': const {'effort': 'medium'},
+      // Off is asked for, not left to the model's default — that is medium
+      // on GPT-5.5/5.6 and high on Grok, paid for either way (KB 03 §7.1). A
+      // route that refuses `none` is remembered and left at its default; a
+      // relay that quietly rewrites it shows up as reasoning in the
+      // connection test.
+      if (config.thinkingEnabled)
+        'reasoning': const {'effort': 'medium'}
+      else if (!offRefused)
+        'reasoning': const {'effort': 'none'},
       'include': const ['reasoning.encrypted_content'],
       if (jsonMode)
         'text': const {
@@ -264,7 +323,10 @@ class OpenAiResponsesProvider implements AiProvider {
     }..removeWhere((k, _) => rejected.contains(k));
     return {
       'model': config.model,
-      if (instructions.isNotEmpty) 'instructions': instructions,
+      // Always present, empty when there is no system message: a relay that
+      // finds `instructions` missing injects its own system prompt, 4.4K to
+      // 9K tokens on every request (KB 02 §7.1, 01 §9.2).
+      'instructions': instructions,
       'store': false,
       ...optional,
       'max_output_tokens': ?config.maxOutputTokens,
@@ -342,11 +404,14 @@ class OpenAiResponsesProvider implements AiProvider {
       },
   ];
 
-  Future<ChatResult> _read(
+  Future<({ChatResult result, bool incomplete})> _read(
     http.StreamedResponse res,
     AiCancelToken? cancelToken,
   ) async {
     final items = SplayTreeMap<int, Map<String, Object?>>();
+    // Every item the stream began — an `output_item.added`, a delta — so
+    // one cut off before its `output_item.done` is noticed.
+    final begun = <int>{};
     Map<dynamic, dynamic>? terminal;
     final read = await Sse.read(
       res,
@@ -354,6 +419,9 @@ class OpenAiResponsesProvider implements AiProvider {
       idleTimeout: idleTimeout,
       cancelToken: cancelToken,
       onEvent: (event) {
+        if (event['output_index'] case final num index) {
+          begun.add(index.toInt());
+        }
         switch (event['type']) {
           case 'error':
             throw streamError(event);
@@ -381,23 +449,68 @@ class OpenAiResponsesProvider implements AiProvider {
         throw const AiException('Empty response from model.');
       }
       if (json is! Map) throw const AiException('Empty response from model.');
-      return parseResponse(json, model: config.model);
+      return (
+        result: parseResponse(json, model: config.model),
+        incomplete: false,
+      );
     }
-    // The echo check: a stream with no terminal event was cut off, and the
-    // items that did arrive are not the whole answer.
     final end = terminal;
     if (end == null) {
-      throw const AiNetworkException(
-        'The stream ended before the reply was complete.',
+      // No terminal event: a relay that drops the last one, or a stream cut
+      // off. It stands as an answer when every item it began arrived as a
+      // finished `output_item.done`, nothing was skipped, and it holds text
+      // or a call; a stream cut mid-item — a call after a finished message
+      // included — still fails. Cut exactly between two items it reads as
+      // complete — the price of taking these relays at all.
+      if (read.skipped > 0 ||
+          !begun.every(items.containsKey) ||
+          !items.values.any(_answers)) {
+        throw const AiNetworkException(
+          'The stream ended before the reply was complete.',
+        );
+      }
+      return (
+        result: parseResponse({
+          'output': items.values.toList(),
+        }, model: config.model),
+        incomplete: true,
       );
     }
     // The finished items streamed in order win over the copy in the
-    // terminal event, which some servers leave empty.
-    return parseResponse({
-      ...end,
-      if (items.isNotEmpty) 'output': items.values.toList(),
-    }, model: config.model);
+    // terminal event, which some servers leave empty — unless an event was
+    // skipped, which may have been one of them: then only the terminal
+    // event's own copy is whole.
+    final List<Object?>? output;
+    if (read.skipped == 0) {
+      output = items.isEmpty ? null : items.values.toList();
+    } else if (end['output'] case final List<Object?> whole
+        when whole.isNotEmpty) {
+      output = whole;
+    } else {
+      throw Sse.malformed;
+    }
+    return (
+      result: parseResponse({...end, 'output': ?output}, model: config.model),
+      incomplete: false,
+    );
   }
+
+  /// Whether a finished output item is part of an answer: a message with
+  /// text or a refusal (which [parseResponse] then reports), or a function
+  /// call.
+  static bool _answers(Map<String, Object?> item) => switch (item['type']) {
+    'function_call' => true,
+    'message' => switch (item['content']) {
+      final List<dynamic> parts => parts.any(
+        (part) =>
+            part is Map &&
+            (part['type'] == 'refusal' ||
+                (part['text'] is String && part['text'] != '')),
+      ),
+      _ => false,
+    },
+    _ => false,
+  };
 
   /// An `error` event mid-stream. The request was accepted, so this is the
   /// server's failure — unless it names the request as the problem. Public
@@ -525,6 +638,9 @@ class OpenAiResponsesProvider implements AiProvider {
       tools,
       jsonMode: false,
       rejected: learned.rejectedFields,
+      offRefused: learned.thinkingOffTried.contains(
+        LearnedBehaviour.effortNone,
+      ),
     ),
   );
 

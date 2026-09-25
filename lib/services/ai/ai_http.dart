@@ -16,14 +16,20 @@ class AiHttp {
   /// lives for the process lifetime.
   static final http.Client client = http.Client();
 
-  /// Statuses that LLM endpoints commonly fail with transiently. We retry
-  /// these; anything else (4xx auth errors, 400 validation, etc.) is
-  /// returned to the caller so they can render the real error.
-  /// 529 is Anthropic's "overloaded".
-  static const _retryableStatuses = {408, 429, 502, 503, 504, 529};
+  /// Statuses that LLM endpoints commonly fail with transiently, before the
+  /// work began. We retry these; anything else (4xx auth errors, 400
+  /// validation, etc.) is returned to the caller so they can render the
+  /// real error. 529 is Anthropic's "overloaded".
+  ///
+  /// Not 408 or 504: both are a timeout on the way, and the upstream may
+  /// still be generating — and billing — the first attempt, exactly like a
+  /// client-side timeout. 502 stays: a gateway that got no valid answer
+  /// more likely failed before the upstream started.
+  static const _retryableStatuses = {429, 502, 503, 529};
 
   /// Calls [send] up to [maxAttempts] times with exponential backoff between
-  /// retries. Retries on:
+  /// retries — only for a request that is safe to send twice once refused.
+  /// Retries on:
   /// - [_retryableStatuses]
   /// - [TimeoutException], unless [retryTimeouts] is false
   /// - [SocketException] (network blips)
@@ -143,6 +149,78 @@ class AiHttp {
     if (message == null || message.isEmpty) return 'HTTP ${res.statusCode}';
     if (message.length > 300) message = '${message.substring(0, 300)}…';
     return 'HTTP ${res.statusCode}: $message';
+  }
+
+  /// The request field an OpenAI-style error names in `error.param`
+  /// (`"top_k"`, `"reasoning.effort"`, `"include"`), or null. The message
+  /// is prose and may not name the field at all (audit V5 expects "Encrypted
+  /// content is not supported with this model." for `include` — unverified);
+  /// `param` is where OpenAI puts it.
+  static String? errorParam(http.Response res) {
+    try {
+      final json = jsonDecode(utf8.decode(res.bodyBytes, allowMalformed: true));
+      if (json case {'error': {'param': final String param}}) {
+        final trimmed = param.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
+    } on FormatException {
+      // Not JSON; the message is all there is.
+    }
+    return null;
+  }
+
+  /// Whether [param], from [errorParam], names [field] itself or a path
+  /// inside it (`reasoning.effort`, `messages[0]` → `messages`).
+  static bool paramNames(String? param, String field) =>
+      param != null &&
+      (param == field ||
+          param.startsWith('$field.') ||
+          param.startsWith('$field['));
+
+  /// The exception for a non-2xx reply carrying [message].
+  ///
+  /// A bad key, an empty balance, a rate limit and the server's own failure
+  /// settle nothing about the model, so they are [AiNetworkException]s;
+  /// anything else is the request itself being refused.
+  ///
+  /// A 404 or 405 — the address is wrong — also says where the request went
+  /// ([url], through [safeUrl]), since a path the adapter built from a
+  /// pasted endpoint is the one thing the user cannot see. Only then: the
+  /// learning that reads other refusals matches words in the message, and
+  /// a relay's path can contain `function` or `thinking`.
+  static AiException statusError(int status, String message, {Uri? url}) {
+    if (url != null && (status == 404 || status == 405)) {
+      message = '$message — POST ${safeUrl(url)}';
+    }
+    return status == 401 ||
+            status == 402 ||
+            status == 403 ||
+            status == 408 ||
+            status == 429 ||
+            status >= 500
+        ? AiNetworkException(message)
+        : AiException(message);
+  }
+
+  /// [url] without its query string, fragment or user info, any of which
+  /// can carry a credential (Google's key once travelled as `?key=`).
+  static String safeUrl(Uri url) => Uri(
+    scheme: url.scheme,
+    host: url.host,
+    port: url.hasPort ? url.port : null,
+    path: url.path,
+  ).toString();
+
+  /// [endpoint] as typed, trimmed, without a query string, fragment or
+  /// trailing slashes — the part an adapter builds its paths on.
+  static String endpointBase(String endpoint) {
+    var base = endpoint.trim();
+    final cut = base.indexOf(RegExp('[?#]'));
+    if (cut != -1) base = base.substring(0, cut);
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
+    }
+    return base;
   }
 
   static Duration? _retryAfter(http.BaseResponse res) {

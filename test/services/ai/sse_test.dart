@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/sse.dart';
 
 http.StreamedResponse _body(String text, {bool eventStream = false}) =>
@@ -40,10 +39,26 @@ void main() {
     expect(read.events, isEmpty);
   });
 
-  test('a malformed event is an error, never skipped', () async {
-    await expectLater(
-      _read('data: {"a": \n\n', eventStream: true),
-      throwsA(isA<AiNetworkException>()),
+  test('a malformed event is skipped and counted', () async {
+    // The adapter decides whether the reply stands without it.
+    final read = await _read(
+      'data: {"a": \n\ndata: {"b": 2}\n\n',
+      eventStream: true,
     );
+    expect(read.events, [
+      {'b': 2},
+    ]);
+    expect(read.skipped, 1);
+  });
+
+  test('an empty data line is no event at all', () async {
+    final read = await _read(
+      'data:\n\ndata: \n\ndata: {"b": 2}\n\n',
+      eventStream: true,
+    );
+    expect(read.events, [
+      {'b': 2},
+    ]);
+    expect(read.skipped, 0);
   });
 }

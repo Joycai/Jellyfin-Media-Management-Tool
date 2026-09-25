@@ -993,6 +993,9 @@
   "aiStepTruncated": "Reply hit the output limit",
   "aiStepThinkingOff": "Reasoning is off",
   "aiStepThinkingStillOn": "The model still reasoned",
+  "aiStepThinkingOn": "The model reasoned",
+  "aiStepThinkingNotOn": "Reasoning was asked for, but the reply shows none",
+  "aiStepThinkingRefused": "The route refused the request for reasoning",
   "aiStepTools": "Called the test tool",
   "aiStepToolsNo": "Did not call the test tool",
   "aiStepToolsUnknown": "Tool calling undecided — the request did not complete",
@@ -1029,6 +1032,15 @@
     }
   },
   "aiCellPromptOnly": "no parameter · prompt only",
+  "aiCellAlwaysReasons": "this model always reasons",
+  "aiCellProtocolSwitch": "{field} · protocol field",
+  "@aiCellProtocolSwitch": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
   "aiCellDefaultOff": "off by default",
   "aiCellModelDefault": "the model’s default",
   "aiCellSentAs": "sent as {part} · not measured",

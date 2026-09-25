@@ -2697,6 +2697,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiStepThinkingStillOn => '模型仍在推理';
 
   @override
+  String get aiStepThinkingOn => '模型在推理';
+
+  @override
+  String get aiStepThinkingNotOn => '请求了推理，但回复里没有';
+
+  @override
+  String get aiStepThinkingRefused => '该线路拒收了推理请求';
+
+  @override
   String get aiStepTools => '调用了测试工具';
 
   @override
@@ -2756,6 +2765,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiCellPromptOnly => '无参数 · 只靠提示词';
+
+  @override
+  String get aiCellAlwaysReasons => '该模型始终思考';
+
+  @override
+  String aiCellProtocolSwitch(String field) {
+    return '$field · 协议字段';
+  }
 
   @override
   String get aiCellDefaultOff => '默认不思考';

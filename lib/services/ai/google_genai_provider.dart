@@ -8,6 +8,7 @@ import 'ai_http.dart';
 import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
+import 'sse.dart';
 
 /// A way of asking Gemini for no reasoning, in the order they are tried.
 ///
@@ -85,11 +86,14 @@ class GoogleGenAiProvider implements AiProvider {
 
   /// Normalized base URL with a `/v1*` segment, e.g.
   /// `https://generativelanguage.googleapis.com/v1beta`.
+  ///
+  /// A pasted `…/v1beta/models` or a full
+  /// `…/models/<model>:generateContent` is cut back to its root first — a
+  /// path segment only, never a host named `models`.
   String get _base {
-    var base = config.endpoint.trim();
-    while (base.endsWith('/')) {
-      base = base.substring(0, base.length - 1);
-    }
+    var base = AiHttp.endpointBase(
+      config.endpoint,
+    ).replaceFirst(RegExp(r'(?<=[^/])/models(/[^/]*)?$'), '');
     if (!base.contains('/v1')) {
       base = '$base/v1beta';
     }
@@ -243,7 +247,7 @@ class GoogleGenAiProvider implements AiProvider {
           offFailed();
           continue;
         }
-        throw AiException(error);
+        throw AiHttp.statusError(res.statusCode, error, url: _generateUri());
       }
 
       final ChatResult result;
@@ -365,96 +369,32 @@ class GoogleGenAiProvider implements AiProvider {
   /// Reads every response object the server sent: one per `data:` event, or
   /// — from a relay that ignored `alt=sse` — the whole body as one object or
   /// an array of them. Times out on silence, as the class explains.
+  ///
+  /// A skipped event fails the read: each one carries parts of the answer
+  /// (or its finish reason), and the reply would read as whole without it.
   Future<({List<Map<dynamic, dynamic>> events, bool streamed})> _events(
     http.StreamedResponse res,
     AiCancelToken? cancelToken,
   ) async {
-    final lines = StreamIterator(
-      res.stream.transform(utf8.decoder).transform(const LineSplitter()),
+    final read = await Sse.read(
+      res,
+      firstEventTimeout: firstEventTimeout,
+      idleTimeout: idleTimeout,
+      cancelToken: cancelToken,
     );
-    final events = <Map<dynamic, dynamic>>[];
-    final plain = StringBuffer();
-    // One event's `data:` lines. SSE lets an event span several of them,
-    // joined by newlines, ended by a blank line.
-    final data = <String>[];
-    bool? sse = res.headers['content-type']?.contains('text/event-stream');
-    var started = false;
-
-    // An event that does not parse is a broken stream, not something to
-    // skip: the one dropped could be the function call or the finish reason.
-    void flush() {
-      if (data.isEmpty) return;
-      final Object? event;
-      try {
-        event = jsonDecode(data.join('\n'));
-      } on FormatException {
-        throw const AiNetworkException(
-          'The server sent a malformed stream event.',
-        );
-      } finally {
-        data.clear();
-      }
-      if (event is Map) events.add(event);
-    }
-
-    try {
-      while (true) {
-        final bool more;
-        try {
-          more = await lines.moveNext().timeout(
-            started ? idleTimeout : firstEventTimeout,
-          );
-        } on TimeoutException {
-          throw AiNetworkException(
-            started
-                ? 'The server stopped sending for ${_duration(idleTimeout)} '
-                      'partway through the reply.'
-                : _noResponse(firstEventTimeout),
-          );
-        }
-        if (!more) break;
-        final line = lines.current;
-        if (line.trim().isEmpty) {
-          if (sse == true) flush();
-          continue;
-        }
-        started = true;
-        // A stream may open with a comment, an event name or an id before
-        // its first data line; any of them says it is a stream.
-        sse ??=
-            line.startsWith('data:') ||
-            line.startsWith('event:') ||
-            line.startsWith('id:') ||
-            line.startsWith(':');
-        if (!sse) {
-          plain.writeln(line);
-          continue;
-        }
-        if (!line.startsWith('data:')) continue;
-        data.add(line.substring(5).trimLeft());
-      }
-      if (sse == true) flush();
-    } on AiException {
-      rethrow;
-    } catch (e) {
-      if (cancelToken?.isCancelled ?? false) throw const AiCancelled();
-      throw AiNetworkException(AiHttp.describeTransportError(e));
-    } finally {
-      // On an early exit this closes the connection, which is what tells the
-      // server to stop generating.
-      await lines.cancel();
-    }
-    if (sse != true && plain.isNotEmpty) {
+    if (read.skipped > 0) throw Sse.malformed;
+    final events = [...read.events];
+    if (read.plain case final plain? when plain.trim().isNotEmpty) {
       final Object? body;
       try {
-        body = jsonDecode(plain.toString());
+        body = jsonDecode(plain);
       } on FormatException {
         throw const AiException('Empty response from model.');
       }
       if (body is Map) events.add(body);
       if (body is List) events.addAll(body.whereType<Map<dynamic, dynamic>>());
     }
-    return (events: events, streamed: sse == true);
+    return (events: events, streamed: read.plain == null);
   }
 
   /// Folds the streamed responses into one [ChatResult].
