@@ -634,19 +634,19 @@ PR 划分：
 
 全部完成时，下面每一项都应成立：
 
-- [ ] 审查问题清单里 A1–A12 的状态都是提交号，A11 是「乙 + 提交号」。
-- [ ] 真实适配器 + `MockClient` 回 429、503、401、402 时，`probeTools` 的结果是 `inconclusive`，`onToolSupport` 没被调用。
-- [ ] 智谱 glm-5.3 在默认设置（思考关）下，第二个请求起可以正常使用。
-- [ ] ② 的每个请求都有 `instructions`；思考关时有 `reasoning:{effort:"none"}`，除非该路线学到了被拒。
-- [ ] 火山方舟 ① 的工具轮回传里带 `encrypted_content`。
-- [ ] ④ 对 Claude 4.6+ 发 `adaptive`，官方主机带 `display`；形态被拒时先换形态；诊断页能显示「请求了推理但没想」。
-- [ ] MiniMax ④ 关思考发 `disabled`、开思考发 `adaptive`。
-- [ ] 408 / 504 不重发。
-- [ ] `error.param` 能驱动学习。
-- [ ] 粘贴完整的 ④ / ③ 端点地址可以直接用；404 的错误信息带路径、不带查询串。
-- [ ] `{}{"id":1}` 能解析，且回传时已经是单个对象。
-- [ ] CLAUDE.md 与 organize-pipeline.md 里本计划点到的每一句都已同步。
-- [ ] `dart format --set-exit-if-changed .`、`flutter analyze --fatal-infos`、`flutter test` 全部通过。
+- [x] 审查问题清单里 A1–A12 的状态都是提交号，A11 是「乙 + 提交号」。
+- [x] 真实适配器 + `MockClient` 回 429、503、401、402 时，`probeTools` 的结果是 `inconclusive`，`onToolSupport` 没被调用。
+- [x] 智谱 glm-5.3 在默认设置（思考关）下，第二个请求起可以正常使用。
+- [x] ② 的每个请求都有 `instructions`；思考关时有 `reasoning:{effort:"none"}`，除非该路线学到了被拒。
+- [x] 火山方舟 ① 的工具轮回传里带 `encrypted_content`。
+- [x] ④ 对 Claude 4.6+ 发 `adaptive`，官方主机带 `display`；形态被拒时先换形态；诊断页能显示「请求了推理但没想」。
+- [x] MiniMax ④ 关思考发 `disabled`、开思考发 `adaptive`。
+- [x] 408 / 504 不重发。
+- [x] `error.param` 能驱动学习。
+- [x] 粘贴完整的 ④ / ③ 端点地址可以直接用；404 的错误信息带路径、不带查询串。
+- [x] `{}{"id":1}` 能解析，且回传时已经是单个对象。
+- [x] CLAUDE.md 与 organize-pipeline.md 里本计划点到的每一句都已同步。
+- [x] `dart format --set-exit-if-changed .`、`flutter analyze --fatal-infos`、`flutter test` 全部通过。
 
 ---
 
