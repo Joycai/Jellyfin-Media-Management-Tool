@@ -355,8 +355,10 @@ class AnthropicProvider implements AiProvider {
         '$_unrecognizedField',
       ).hasMatch(detail);
 
-  /// A sub-field of `thinking` named: `thinking.type`, `thinking.budget_tokens`.
-  static final _subField = RegExp(r'thinking\.\w');
+  /// A sub-field of `thinking` named — the ones a request carries, so that
+  /// "thinking.Please", a docs URL ending in `thinking.html` or a relay's
+  /// `…-thinking.v2` alias do not read as one.
+  static final _subField = RegExp(r'thinking\.(type|budget_tokens|display)\b');
 
   /// What a 400 [detail] says about the request for thinking that sent
   /// [sentType] (`adaptive`, `enabled` or `disabled`): the one reading both
@@ -384,12 +386,16 @@ class AnthropicProvider implements AiProvider {
       return ThinkingRefusal.unrelated;
     }
     if (refusesThinkingField(detail)) return ThinkingRefusal.fieldUnknown;
-    // The value sent, or any sub-field (`thinking.type`,
-    // `thinking.budget_tokens`), named: the server knows the field.
-    if (detail.contains(sentType) || _subField.hasMatch(detail)) {
-      return refusesThinking(detail)
-          ? ThinkingRefusal.valueRefused
-          : ThinkingRefusal.valueNamed;
+    // The value sent, or a sub-field, named: the server knows the field.
+    // A sub-field other than the type named on its own, with no refusal
+    // beside it — a budget out of range — is about the numbers.
+    final namesValue =
+        detail.contains(sentType) || detail.contains('thinking.type');
+    if (namesValue || _subField.hasMatch(detail)) {
+      if (refusesThinking(detail)) return ThinkingRefusal.valueRefused;
+      return namesValue
+          ? ThinkingRefusal.valueNamed
+          : ThinkingRefusal.unrelated;
     }
     if (refusesThinking(detail)) return ThinkingRefusal.featureRefused;
     return ThinkingRefusal.unrelated;

@@ -403,6 +403,42 @@ void main() {
       expect(provider.learned.thinkingOffTried, isEmpty);
     });
 
+    test('a budget out of range is thrown and teaches nothing', () async {
+      // The number is the user's to change; remembering the form as
+      // refused would fail every request after they did.
+      final bodies = <Map<String, dynamic>>[];
+      final provider = AnthropicProvider(
+        _config(
+          'https://budget-cap.example',
+          model: 'claude-sonnet-4-5',
+          thinking: true,
+          maxOutput: 131072,
+        ),
+        client: MockClient((request) async {
+          bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(
+            jsonEncode({
+              'type': 'error',
+              'error': {
+                'type': 'invalid_request_error',
+                'message':
+                    'thinking.budget_tokens\n  Input should be less than or '
+                    'equal to 32000 [type=less_than_equal, '
+                    'input_value=65536, input_type=int]',
+              },
+            }),
+            400,
+          );
+        }),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiException>()),
+      );
+      expect(bodies, hasLength(1));
+      expect(provider.learned.rejectedFields, isEmpty);
+    });
+
     test('a budget refused as an extra input is the form, swapped', () async {
       // A server modelled on `{type}` alone, with extra inputs forbidden:
       // the sub-field named says it knows the field, so adaptive is tried.
@@ -708,6 +744,20 @@ void main() {
           tools: const [],
         );
         expect(preview.body.containsKey('thinking'), isFalse);
+      });
+
+      test('a full stop after thinking is not a sub-field', () async {
+        // "thinking.Please" reads as thinking refused, not as a value the
+        // server knows: the field is given up, and the model is not said
+        // to always reason.
+        final (bodies, provider) = await offRefused(
+          'full-stop.minimaxi.com',
+          'The model does not support thinking.Please remove the parameter',
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(provider.learned.thinkingOffTried, isEmpty);
+        expect(provider.learned.rejectedFields, contains('thinking'));
       });
 
       test(
@@ -1645,11 +1695,26 @@ void main() {
       ThinkingRefusal.valueNamed,
     );
 
-    // Thinking itself, naming no field or value.
+    // Thinking itself, naming no field or value — a full stop, a docs URL
+    // or a relay alias after the word is not a sub-field.
     expect(
       read('this model does not support thinking'),
       ThinkingRefusal.featureRefused,
     );
+    for (final detail in [
+      'The model does not support thinking.Please remove the parameter',
+      'thinking is not supported by this model, see '
+          'https://docs.example.com/guide/thinking.html',
+      'thinking is not supported on -thinking.v2',
+    ]) {
+      for (final sent in ['adaptive', 'disabled']) {
+        expect(
+          read(detail, sent: sent),
+          ThinkingRefusal.featureRefused,
+          reason: '$detail / $sent',
+        );
+      }
+    }
     expect(
       read('`thinking` is not supported for this model', sent: 'disabled'),
       ThinkingRefusal.featureRefused,
@@ -1661,6 +1726,9 @@ void main() {
       // A budget error that names the form is still about the numbers.
       'thinking.type enabled requires max_tokens greater than '
           'thinking.budget_tokens',
+      // So is a budget out of range, with nothing refused beside it.
+      'thinking.budget_tokens\n  Input should be less than or equal to '
+          '32000 [type=less_than_equal, input_value=65536, input_type=int]',
       'messages.1.content.0: thinking blocks cannot be sent while thinking '
           'is disabled',
       'messages.3.content.0: Invalid `signature` in `thinking` block',
