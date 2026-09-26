@@ -298,7 +298,7 @@ CapabilityCell capabilityCell(
         // refused.
         case ReasoningRoute.protocolField
             when protocol == AiProviderType.anthropic:
-        case ReasoningRoute.onRefused when field == null:
+        case ReasoningRoute.refused when protocol == AiProviderType.anthropic:
           return (state: works, text: l10n.aiCellDefaultOff);
         // A switch sends off in its own words; a refused on changes nothing
         // there.

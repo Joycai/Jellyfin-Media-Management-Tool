@@ -220,14 +220,15 @@ void main() {
         read(claude, rejected: {'thinking:enabled'}).route,
         ReasoningRoute.protocolField,
       );
+      // Every form refused: nothing either way, and off is the default.
       expect(
         read(claude, rejected: {'thinking:adaptive', 'thinking:enabled'}),
-        (route: ReasoningRoute.onRefused, field: null),
+        (route: ReasoningRoute.refused, field: 'thinking'),
       );
       // A bare legacy record where `enabled` is the model's first form.
       expect(read(claude, rejected: {'thinking'}), (
-        route: ReasoningRoute.onRefused,
-        field: null,
+        route: ReasoningRoute.refused,
+        field: 'thinking',
       ));
       // Where adaptive comes first, the same record is no verdict on it: the
       // model's own first form decides.
@@ -281,14 +282,19 @@ void main() {
           for (final r in ReasoningRoute.values)
             if (r.switchable) r,
         ],
-        [ReasoningRoute.platformField, ReasoningRoute.protocolField],
+        [
+          ReasoningRoute.platformField,
+          ReasoningRoute.protocolField,
+          // Off is still sent, so the toggle can still turn reasoning off.
+          ReasoningRoute.onRefused,
+        ],
       );
       expect(ReasoningRoute.offRefused.drawnAs, isTrue);
-      expect(ReasoningRoute.onRefused.drawnAs, isFalse);
       expect(ReasoningRoute.refused.drawnAs, isFalse);
       for (final free in [
         ReasoningRoute.platformField,
         ReasoningRoute.protocolField,
+        ReasoningRoute.onRefused,
         ReasoningRoute.ladder,
       ]) {
         expect(free.drawnAs, isNull, reason: '$free');
@@ -437,7 +443,7 @@ void main() {
         );
         for (final (rejected, expected) in [
           (<String>{}, ReasoningRoute.protocolField),
-          ({'thinking:adaptive', 'thinking:enabled'}, ReasoningRoute.onRefused),
+          ({'thinking:adaptive', 'thinking:enabled'}, ReasoningRoute.refused),
         ]) {
           await check(
             claude,

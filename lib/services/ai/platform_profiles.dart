@@ -32,8 +32,9 @@ enum ReasoningRoute {
   /// Responses' `reasoning.effort`.
   protocolField,
 
-  /// On was refused and is no longer sent; off still works, so the route
-  /// runs with reasoning off.
+  /// On was refused and is no longer sent, but off still is (a Messages
+  /// switch route that refused `adaptive` still says `disabled`): the toggle
+  /// can still turn reasoning off, and on leaves the model at its default.
   onRefused,
 
   /// Off was refused, so off sends nothing and the model runs at its own
@@ -41,21 +42,23 @@ enum ReasoningRoute {
   /// refused by name too; the model reasons either way.
   offRefused,
 
-  /// The field was refused by name and is sent neither way.
+  /// Sent neither way: the field refused by name, or on a Messages route
+  /// every form of thinking — where off is the protocol's default anyway.
   refused,
 
   /// No switch at all: the local-server ladder, judged by the reply.
   ladder;
 
   /// Whether the settings toggle changes what this route sends.
-  bool get switchable => this == platformField || this == protocolField;
+  bool get switchable =>
+      this == platformField || this == protocolField || this == onRefused;
 
   /// What a toggle for a model no preset knows is drawn as, whatever was
   /// saved; null where it shows the saved choice.
   bool? get drawnAs => switch (this) {
     offRefused => true,
-    onRefused || refused => false,
-    platformField || protocolField || ladder => null,
+    refused => false,
+    platformField || protocolField || onRefused || ladder => null,
   };
 }
 
@@ -476,7 +479,7 @@ abstract final class PlatformProfiles {
         );
         return forms.length < MessagesThinking.values.length
             ? (route: ReasoningRoute.protocolField, field: 'thinking')
-            : (route: ReasoningRoute.onRefused, field: null);
+            : (route: ReasoningRoute.refused, field: 'thinking');
       case AiProviderType.openAiResponses:
         if (tried.contains(LearnedBehaviour.effortNone)) {
           return (route: ReasoningRoute.offRefused, field: 'reasoning.effort');

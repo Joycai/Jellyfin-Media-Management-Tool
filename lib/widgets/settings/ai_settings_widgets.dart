@@ -696,7 +696,13 @@ class AiSamplingSection extends StatelessWidget {
       return (text: l10n.thinkingAlwaysOn, warning: false);
     }
     final reasoned = lastReasoned;
-    if (reasoned == null || reasons || !switchable) return null;
+    // A field refused by name leaves the model at its default, which a test
+    // can show still reasons; only the server can change that.
+    if (reasoned == null ||
+        reasons ||
+        !(switchable || route == ReasoningRoute.refused)) {
+      return null;
+    }
     return reasoned
         ? (text: l10n.thinkingStillOn, warning: true)
         : (text: l10n.thinkingVerifiedOff, warning: false);

@@ -65,7 +65,8 @@ void main() {
       expect(
         toggle.onChanged != null,
         route == ReasoningRoute.platformField ||
-            route == ReasoningRoute.protocolField,
+            route == ReasoningRoute.protocolField ||
+            route == ReasoningRoute.onRefused,
         reason: '$route',
       );
     }
@@ -86,13 +87,14 @@ void main() {
 
     // Off refused: it reasons whatever was saved.
     expect(await drawn(ReasoningRoute.offRefused, saved: false), isTrue);
-    // On refused, or neither way: it does not.
-    expect(await drawn(ReasoningRoute.onRefused, saved: true), isFalse);
+    // Neither way: nothing asks it to.
     expect(await drawn(ReasoningRoute.refused, saved: true), isFalse);
-    // A working switch and the ladder show the saved choice.
+    // A switch that still works at least one way, and the ladder, show the
+    // saved choice.
     for (final route in [
       ReasoningRoute.platformField,
       ReasoningRoute.protocolField,
+      ReasoningRoute.onRefused,
       ReasoningRoute.ladder,
     ]) {
       for (final saved in [true, false]) {
@@ -118,6 +120,16 @@ void main() {
       tester,
       preset: null,
       route: ReasoningRoute.platformField,
+      lastReasoned: true,
+    );
+    expect(find.text(l10n.thinkingStillOn), findsOneWidget);
+
+    // So is one that was refused by name: the model runs at its default,
+    // and the test is how the user finds out that it reasons.
+    await reasoningSwitch(
+      tester,
+      preset: null,
+      route: ReasoningRoute.refused,
       lastReasoned: true,
     );
     expect(find.text(l10n.thinkingStillOn), findsOneWidget);

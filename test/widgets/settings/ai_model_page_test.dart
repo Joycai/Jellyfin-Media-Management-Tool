@@ -331,7 +331,7 @@ void main() {
           'MiniMax-M3',
           {'thinking:adaptive'},
           <String>{},
-          false,
+          true,
         ),
         (
           'a Responses route that refused effort none',
@@ -345,7 +345,7 @@ void main() {
           true,
         ),
       ]) {
-    testWidgets('$what: the switch is drawn as the route runs it, in the '
+    testWidgets('$what: the switch says what the route does, in the '
         'matrix\'s words', (tester) async {
       final l10n = AppLocalizationsEn();
       final (:entry, :channel) = await pumpRefused(
@@ -359,12 +359,17 @@ void main() {
         tried: tried,
       );
 
+      // A switch route that refused only on still sends off with its field:
+      // the toggle stays live, showing the saved choice, so off can be
+      // chosen. Anything else refused is drawn as it runs, and locked.
+      final offStillSent =
+          route == AiProviderType.anthropic && refused.isNotEmpty;
       final toggle = tester.widget<AppToggle>(find.byType(AppToggle).at(2));
-      expect(toggle.onChanged, isNull, reason: 'it would do nothing');
+      expect(toggle.onChanged != null, offStillSent);
       expect(toggle.value, on);
       expect(
         find.text(l10n.thinkingAlwaysOn),
-        on ? findsOneWidget : findsNothing,
+        tried.isNotEmpty ? findsOneWidget : findsNothing,
       );
 
       final cell = capabilityCell(
@@ -374,11 +379,8 @@ void main() {
         route,
         Capability.thinkingOff,
       );
-      // A switch route that refused only on still sends off with its
-      // field: the matrix names it as a switch, the page as the platform's.
-      final line = route == AiProviderType.anthropic && refused.isNotEmpty
-          ? l10n.aiDialectField('thinking')
-          : cell.text;
+      // There the matrix names it as a switch, the page as the platform's.
+      final line = offStillSent ? l10n.aiDialectField('thinking') : cell.text;
       expect(find.text(line), findsOneWidget);
       await settleSaves(tester);
     });
