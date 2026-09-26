@@ -197,10 +197,11 @@ void main() {
     );
 
     // Off sent, and refused by a model that cannot stop: reasoning is its
-    // default, and none shown is still off.
+    // default, and a reply that shows none is no proof that it stopped —
+    // the model page says it can only run with reasoning on.
     for (final (reasoned, expected) in [
       (true, (ok: null, text: l10n.aiStepThinkingCannotStop)),
-      (false, (ok: true, text: l10n.aiStepThinkingOff)),
+      (false, (ok: null, text: l10n.aiStepThinkingNotShown)),
     ]) {
       expect(
         step(
@@ -214,6 +215,45 @@ void main() {
         expected,
       );
     }
+    // Responses refused `none` without saying why: the model may not reason
+    // at all, so none shown is off.
+    expect(
+      step(
+        responses,
+        'https://r.io',
+        'gpt-4.1',
+        saved: false,
+        reasoned: false,
+        tried: {LearnedBehaviour.effortNone},
+      ),
+      (ok: true, text: l10n.aiStepThinkingOff),
+    );
+
+    // A locked toggle with nothing to switch: the model page is silent, and
+    // a reply that still reasons is the model's default here too — a local
+    // server sends nothing for off to a model no preset knows, and Gemini 3
+    // never thinks less than low.
+    for (final (provider, endpoint, model) in [
+      (AiProviderType.openAi, 'http://localhost:1234', 'glm-4.5-air'),
+      (AiProviderType.googleGenAi, 'https://g.example', 'gemini-3-pro'),
+      (responses, 'https://r.io', 'qwen3-30b-a3b-instruct-2507'),
+    ]) {
+      expect(step(provider, endpoint, model, saved: false, reasoned: true), (
+        ok: null,
+        text: l10n.aiStepThinkingCannotStop,
+      ), reason: model);
+    }
+    // A family the ladder can switch: the page warns, and so does this.
+    expect(
+      step(
+        AiProviderType.openAi,
+        'http://localhost:1234',
+        'qwen3-32b',
+        saved: false,
+        reasoned: true,
+      ),
+      (ok: false, text: l10n.aiStepThinkingStillOn),
+    );
   });
 
   test('the step reads the route as the model page does', () {

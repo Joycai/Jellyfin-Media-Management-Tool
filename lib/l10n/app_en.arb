@@ -997,6 +997,7 @@
   "aiStepThinkingNotOn": "Reasoning was asked for, but the reply shows none",
   "aiStepThinkingRefused": "The route refused the request for reasoning",
   "aiStepThinkingCannotStop": "The model reasoned — this route cannot turn it off",
+  "aiStepThinkingNotShown": "The reply shows no reasoning — though this model cannot stop it",
   "aiStepTools": "Called the test tool",
   "aiStepToolsNo": "Did not call the test tool",
   "aiStepToolsUnknown": "Tool calling undecided — the request did not complete",

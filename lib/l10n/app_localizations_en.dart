@@ -2816,6 +2816,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The model reasoned — this route cannot turn it off';
 
   @override
+  String get aiStepThinkingNotShown =>
+      'The reply shows no reasoning — though this model cannot stop it';
+
+  @override
   String get aiStepTools => 'Called the test tool';
 
   @override

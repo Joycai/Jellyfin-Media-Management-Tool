@@ -88,8 +88,10 @@ bool reasoningCannotStop(ReasoningRoute route) =>
 /// [refused]: the route refused the request for reasoning during the test
 /// and it is no longer sent — asked for, but not sent; a failure the user
 /// can clear by turning reasoning off, unless the toggle is [locked].
-/// [cannotStop]: off sends nothing on this route, so reasoning with it off
-/// is the model's default, the same thing the model page says.
+/// [cannotStop]: nothing the user can switch turns reasoning off here, so
+/// reasoning with it off is the model's default, not a failure.
+/// [alwaysReasons]: the model page says this model reasons whatever is
+/// sent, so a reply that shows none is not proof that it stopped.
 ({bool? ok, String text}) thinkingStep(
   AppLocalizations l10n, {
   required bool asked,
@@ -97,13 +99,17 @@ bool reasoningCannotStop(ReasoningRoute route) =>
   bool refused = false,
   bool locked = false,
   bool cannotStop = false,
+  bool alwaysReasons = false,
 }) => switch ((asked, reasoned)) {
   (true, false) when refused => (
     ok: locked ? null : false,
     text: l10n.aiStepThinkingRefused,
   ),
+  (false, false) when alwaysReasons => (
+    ok: null,
+    text: l10n.aiStepThinkingNotShown,
+  ),
   (false, false) => (ok: true, text: l10n.aiStepThinkingOff),
-  // Off sends nothing there: nothing the user can switch, so no failure.
   (false, true) when cannotStop => (
     ok: null,
     text: l10n.aiStepThinkingCannotStop,
@@ -114,12 +120,12 @@ bool reasoningCannotStop(ReasoningRoute route) =>
 };
 
 /// The reasoning step of a connection test on [config]'s route, after what
-/// the test [learned], giving the model page's verdict on the same reply:
-/// judged against the saved choice the test sent, save where the field is
-/// sent neither way for a model no preset knows — the saved choice asks
-/// nothing there and the page draws it off. A refusal the toggle cannot
-/// undo is not a failure the user can fix, and neither is reasoning from a
-/// model that cannot stop, whether its route or its family says so.
+/// the test [learned]. It is judged against the saved choice the test sent,
+/// save where the field is sent neither way for a model no preset knows —
+/// the saved choice asks nothing there and the model page draws it off. It
+/// fails only what the user can act on: a reply that still reasons where
+/// the model page warns too, and a refused request where the toggle can
+/// turn reasoning off.
 ({bool? ok, String text}) reasoningStepFor(
   AppLocalizations l10n,
   AiConfig config,
@@ -131,17 +137,25 @@ bool reasoningCannotStop(ReasoningRoute route) =>
     learned,
   );
   final preset = SamplingPresets.forModel(config.model);
+  // Where a model no preset knows is drawn off by a refusal, the page warns
+  // about reasoning like a live switch; elsewhere a locked toggle is silent.
+  final drawnOff = preset == null && route == ReasoningRoute.refused;
+  final switchable = reasoningSwitchable(preset, route);
+  // The model page says it can only run with reasoning on.
+  final alwaysReasons =
+      route == ReasoningRoute.offRefused ||
+      (preset?.reasons(requested: false) ?? false);
   return thinkingStep(
     l10n,
-    asked: preset == null && route == ReasoningRoute.refused
-        ? false
-        : config.thinkingEnabled,
+    asked: drawnOff ? false : config.thinkingEnabled,
     reasoned: reasoned,
     refused: reasoningRefused(route),
-    locked: !reasoningSwitchable(preset, route),
+    locked: !switchable,
     cannotStop:
         reasoningCannotStop(route) ||
-        (preset?.reasons(requested: false) ?? false),
+        alwaysReasons ||
+        !(switchable || drawnOff),
+    alwaysReasons: alwaysReasons,
   );
 }
 

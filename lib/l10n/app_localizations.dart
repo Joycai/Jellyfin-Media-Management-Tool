@@ -4934,6 +4934,12 @@ abstract class AppLocalizations {
   /// **'The model reasoned — this route cannot turn it off'**
   String get aiStepThinkingCannotStop;
 
+  /// No description provided for @aiStepThinkingNotShown.
+  ///
+  /// In en, this message translates to:
+  /// **'The reply shows no reasoning — though this model cannot stop it'**
+  String get aiStepThinkingNotShown;
+
   /// No description provided for @aiStepTools.
   ///
   /// In en, this message translates to:

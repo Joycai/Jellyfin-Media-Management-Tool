@@ -2709,6 +2709,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiStepThinkingCannotStop => '模型在推理 —— 这条线路关不掉推理';
 
   @override
+  String get aiStepThinkingNotShown => '回复里没有推理 —— 但这个模型关不掉推理';
+
+  @override
   String get aiStepTools => '调用了测试工具';
 
   @override
