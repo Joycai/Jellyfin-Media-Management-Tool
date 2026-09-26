@@ -201,10 +201,16 @@ class AnthropicProvider implements AiProvider {
             'type': 'disabled',
           } when !_aboutHistory(about)) {
             // A switch route whose model cannot stop reasoning, or whose
-            // server knows the field and not `disabled`: remembered as on
-            // Chat Completions, and `disabled` left off its requests.
+            // server knows the field and not `disabled` (the value, or
+            // `thinking.type`, named back): remembered as on Chat
+            // Completions, and `disabled` left off its requests. Words for
+            // a field it does not know come first: Pydantic echoes the
+            // value it refused beside them.
+            final namesOff =
+                about.contains('thinking') &&
+                (about.contains('disabled') || about.contains('thinking.type'));
             if (refusesThinkingOff(about) ||
-                (about.contains('thinking') && about.contains('disabled'))) {
+                (namesOff && !refusesThinkingField(about))) {
               _learned.update(
                 key,
                 (b) => b.copyWith(
@@ -295,32 +301,47 @@ class AnthropicProvider implements AiProvider {
       return false;
     }
     return RegExp(
-      'not support|unsupported|extra inputs|not permitted|not allowed|'
-      'unknown (field|parameter)|["\'`]thinking["\'`]',
+      'not support|unsupported|extra inputs|extra_forbidden|not permitted|'
+      'not allowed|unknown (field|parameter)|unrecognized|'
+      '["\'`]thinking["\'`]',
     ).hasMatch(detail);
   }
+
+  /// Whether [detail] refuses `thinking` in the words of a field the server
+  /// does not know — Pydantic's "Extra inputs are not permitted"
+  /// (`extra_forbidden`), "unknown field" — as against a value it will not
+  /// take. Read before the value is looked for: Pydantic echoes the
+  /// refused input (`input_value={'type': 'disabled'}`) beside the words.
+  static bool refusesThinkingField(String detail) =>
+      detail.contains('thinking') &&
+      RegExp(
+        'extra inputs|extra_forbidden|unknown (field|parameter)|unrecognized',
+      ).hasMatch(detail);
 
   /// What to remember when a request that asked for thinking in [sent] is
   /// refused with [detail], or null when the refusal is not about thinking.
   ///
-  /// A refusal that names the form ("thinking.type: Input tag 'adaptive' …
-  /// does not match … 'disabled', 'enabled'", an older Claude; "…enabled is
-  /// not supported", a newer one) swaps it for the other: dropping thinking
-  /// over it would switch reasoning off for a month without a word. A
-  /// message that refuses thinking itself gives it up, every form at once —
-  /// also when it names the form and there is no other left to try. Any
-  /// other message is thrown as it is, even with no form left: only a
-  /// refusal of the feature may switch reasoning off. So is a budget error,
-  /// which is about the numbers, never the form, and an error about the
-  /// thinking blocks in the conversation ("`thinking` or `redacted_thinking`
-  /// blocks … cannot be modified", "messages.3.content.0: Invalid
-  /// `signature` in `thinking` block"): the history is wrong, whichever form
-  /// was asked for.
+  /// A refusal in the words of a field the server does not know
+  /// ([refusesThinkingField]) gives thinking up, every form at once. One
+  /// that names the form ("thinking.type: Input tag 'adaptive' … does not
+  /// match … 'disabled', 'enabled'", an older Claude; "…enabled is not
+  /// supported", a newer one) swaps it for the other: dropping thinking
+  /// over it would switch reasoning off for a month without a word. Any
+  /// other message that refuses thinking itself gives it up, every form at
+  /// once — also when it names the form and there is no other left to
+  /// swap to. Any other message is thrown as it is, even with no form left:
+  /// only a refusal of the feature may switch reasoning off. So is a budget
+  /// error, which is about the numbers, never the form, and an error about
+  /// the thinking blocks in the conversation ("`thinking` or
+  /// `redacted_thinking` blocks … cannot be modified", "messages.3.content.0:
+  /// Invalid `signature` in `thinking` block"): the history is wrong,
+  /// whichever form was asked for.
   ///
   /// A route declared as a switch has one form only ([swap] false): a
-  /// refusal that names it gives it up, and off still says `disabled` — the
-  /// server knows the field; one that refuses thinking without naming the
-  /// form does not know the field, and nothing is sent either way.
+  /// refusal that names it gives up just that form, and off still says
+  /// `disabled` — the server knows the field; one that refuses thinking
+  /// without naming the form does not know the field, and nothing is sent
+  /// either way.
   static Set<String>? _thinkingRefusal(
     String detail, {
     required MessagesThinking? sent,
@@ -332,6 +353,7 @@ class AnthropicProvider implements AiProvider {
       return null;
     }
     if (_aboutHistory(detail)) return null;
+    if (refusesThinkingField(detail)) return _everyThinkingForm;
     final namesForm =
         detail.contains(sent.type) || detail.contains('thinking.type');
     if (swap && namesForm && !refused.contains(sent.other)) {

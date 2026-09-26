@@ -575,6 +575,66 @@ void main() {
         expect(preview.body.containsKey('thinking'), isFalse);
       });
 
+      test('a field refused in Pydantic words is the field, whatever it '
+          'echoes', () async {
+        // Pydantic's default message repeats the input it refused, value
+        // and all; the words say the field is unknown, and they win.
+        const echo =
+            '1 validation error for MessagesRequest\nthinking\n  Extra inputs '
+            "are not permitted [type=extra_forbidden, input_value={'type': "
+            "'%s'}, input_type=dict]";
+        final (offBodies, offProvider) = await offRefused(
+          'echo-off.minimaxi.com',
+          echo.replaceFirst('%s', 'disabled'),
+        );
+        expect(offBodies, hasLength(2));
+        expect(offBodies.last.containsKey('thinking'), isFalse);
+        expect(offProvider.learned.thinkingOffTried, isEmpty);
+        expect(offProvider.learned.rejectedFields, contains('thinking'));
+
+        final (onBodies, onProvider) = await refusing(
+          'echo-on.minimaxi.com/anthropic',
+          {'adaptive'},
+          (type) => echo.replaceFirst('%s', type),
+          model: 'MiniMax-M3',
+        );
+        expect(onBodies, hasLength(2));
+        expect(onBodies.last.containsKey('thinking'), isFalse);
+        expect(onProvider.learned.rejectedFields, {
+          'thinking',
+          'thinking:adaptive',
+          'thinking:enabled',
+        });
+        final off = AnthropicProvider(
+          _config(
+            'https://echo-on.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+          ),
+        );
+        final preview = await off.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body.containsKey('thinking'), isFalse);
+      });
+
+      test(
+        'a refusal naming thinking.type is of the value, either way',
+        () async {
+          // The sub-field named says the server knows the field: off records
+          // the model cannot be told off, as on records only the form.
+          final (bodies, provider) = await offRefused(
+            'type-off.minimaxi.com',
+            'invalid params: thinking.type is not supported',
+          );
+          expect(bodies, hasLength(2));
+          expect(provider.learned.thinkingOffTried, {
+            LearnedBehaviour.dialectOff,
+          });
+          expect(provider.learned.rejectedFields, isEmpty);
+        },
+      );
+
       test(
         'a server that knows the field and not disabled cannot stop',
         () async {
