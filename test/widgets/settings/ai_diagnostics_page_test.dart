@@ -127,31 +127,49 @@ void main() {
     );
     const responses = AiProviderType.openAiResponses;
 
-    // Asked for, refused by name, and the model reasoned at its default
-    // anyway: the reply is what counts.
+    // Sent neither way, for a model no preset knows: the saved "on" (the
+    // refusal is learned while on) asks nothing, and the model page draws
+    // the toggle off and warns when it still reasons. So does this step.
+    for (final (reasoned, expected) in [
+      (true, (ok: false, text: l10n.aiStepThinkingStillOn)),
+      (false, (ok: true, text: l10n.aiStepThinkingOff)),
+    ]) {
+      expect(
+        step(
+          responses,
+          'https://r.io',
+          'grok-4.5',
+          saved: true,
+          reasoned: reasoned,
+          rejected: {'reasoning'},
+        ),
+        expected,
+      );
+    }
+    // A family with no reasoning mode is locked too, with its saved "on"
+    // still sent until refused: said, not failed.
     expect(
       step(
         responses,
         'https://r.io',
-        'grok-4.5',
-        saved: true,
-        reasoned: true,
-        rejected: {'reasoning'},
-      ),
-      (ok: true, text: l10n.aiStepThinkingOn),
-    );
-    // Refused with no reply reasoning: a model no preset knows is locked
-    // there, with the saved "on" nothing can change — said, not failed.
-    expect(
-      step(
-        responses,
-        'https://r.io',
-        'grok-4.5',
+        'qwen3-30b-a3b-instruct-2507',
         saved: true,
         reasoned: false,
         rejected: {'reasoning'},
       ),
       (ok: null, text: l10n.aiStepThinkingRefused),
+    );
+    // A family that always reasons, asked off on a route that sends it: the
+    // model page says it cannot stop, and so does this step.
+    expect(
+      step(
+        responses,
+        'https://r.io',
+        'qwen3-30b-a3b-thinking-2507',
+        saved: false,
+        reasoned: true,
+      ),
+      (ok: null, text: l10n.aiStepThinkingCannotStop),
     );
     // A preset family's toggle stays live, so the user can turn it off.
     expect(

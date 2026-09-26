@@ -188,13 +188,18 @@ void main() {
     // A field refused by name leaves the model at its default, where the
     // test is how the user finds out that it reasons; the server's settings
     // are the only switch left.
-    await reasoningSwitch(
-      tester,
-      preset: null,
-      route: ReasoningRoute.refused,
-      lastReasoned: true,
-    );
-    expect(find.text(l10n.thinkingStillOn), findsOneWidget);
+    // Saved either way: the refusal is learned while on, and the saved
+    // choice sends nothing there.
+    for (final saved in [false, true]) {
+      await reasoningSwitch(
+        tester,
+        preset: null,
+        route: ReasoningRoute.refused,
+        thinking: saved,
+        lastReasoned: true,
+      );
+      expect(find.text(l10n.thinkingStillOn), findsOneWidget, reason: '$saved');
+    }
 
     // A preset family with no reasoning mode decides for itself, on a
     // refused field as on a working one.

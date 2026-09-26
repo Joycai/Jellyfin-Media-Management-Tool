@@ -114,9 +114,12 @@ bool reasoningCannotStop(ReasoningRoute route) =>
 };
 
 /// The reasoning step of a connection test on [config]'s route, after what
-/// the test [learned]: judged against the saved choice the test sent, and
-/// against the route's state as the model page reads it — a refusal the
-/// model page's toggle cannot undo is not a failure the user can fix.
+/// the test [learned], giving the model page's verdict on the same reply:
+/// judged against the saved choice the test sent, save where the field is
+/// sent neither way for a model no preset knows — the saved choice asks
+/// nothing there and the page draws it off. A refusal the toggle cannot
+/// undo is not a failure the user can fix, and neither is reasoning from a
+/// model that cannot stop, whether its route or its family says so.
 ({bool? ok, String text}) reasoningStepFor(
   AppLocalizations l10n,
   AiConfig config,
@@ -127,13 +130,18 @@ bool reasoningCannotStop(ReasoningRoute route) =>
     config,
     learned,
   );
+  final preset = SamplingPresets.forModel(config.model);
   return thinkingStep(
     l10n,
-    asked: config.thinkingEnabled,
+    asked: preset == null && route == ReasoningRoute.refused
+        ? false
+        : config.thinkingEnabled,
     reasoned: reasoned,
     refused: reasoningRefused(route),
-    locked: !reasoningSwitchable(SamplingPresets.forModel(config.model), route),
-    cannotStop: reasoningCannotStop(route),
+    locked: !reasoningSwitchable(preset, route),
+    cannotStop:
+        reasoningCannotStop(route) ||
+        (preset?.reasons(requested: false) ?? false),
   );
 }
 
