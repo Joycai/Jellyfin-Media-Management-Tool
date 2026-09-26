@@ -70,10 +70,12 @@ String? reasoningRefusalText(
 bool reasoningSwitchable(SamplingPreset? preset, ReasoningRoute route) =>
     preset?.thinkingIsOptional ?? route.switchable;
 
-/// Whether the model page warns when a test still reasoned with reasoning
-/// off: where the toggle is live, and where a field refused both ways draws
-/// a model no preset knows off — only the server can change its default.
-/// Diagnostics fails the same reply in the same places.
+/// Whether the model page judges a test with reasoning off at all: where
+/// the toggle is live, and where a field refused both ways draws a model no
+/// preset knows off — only the server can change its default. Where off was
+/// refused (`offRefused`, `offToDefault`) the page and Diagnostics each say
+/// the model's default instead of warning; everywhere else here a test that
+/// still reasoned is a warning on the page and a failed step in Diagnostics.
 bool reasoningWarns(SamplingPreset? preset, ReasoningRoute route) =>
     reasoningSwitchable(preset, route) ||
     (preset == null && route == ReasoningRoute.refused);
@@ -709,8 +711,9 @@ class AiSamplingSection extends StatelessWidget {
     );
   }
 
-  /// A line under the switch: what the family allows, or — when reasoning
-  /// can be switched off — whether the last test showed it actually was.
+  /// A line under the switch: what the family allows, or — where the page
+  /// judges a test ([reasoningWarns]) — whether the last test showed
+  /// reasoning off, the model's default where off was refused.
   /// That second case is the one worth a line, because servers ignore the
   /// fields that turn it off without saying so.
   ({String text, bool warning})? _thinkingStatus(

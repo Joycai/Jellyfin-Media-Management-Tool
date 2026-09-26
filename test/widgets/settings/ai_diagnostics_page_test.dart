@@ -235,6 +235,19 @@ void main() {
       ),
       (ok: true, text: l10n.aiStepThinkingOff),
     );
+    // The toggle stays live there, yet a reply that reasons is the model's
+    // default, not a switch the user can fix.
+    expect(
+      step(
+        responses,
+        'https://r.io',
+        'o3',
+        saved: false,
+        reasoned: true,
+        tried: {LearnedBehaviour.effortNone},
+      ),
+      (ok: null, text: l10n.aiStepThinkingCannotStop),
+    );
 
     // A locked toggle with nothing to switch: the model page is silent, and
     // a reply that still reasons is the model's default here too — a local
