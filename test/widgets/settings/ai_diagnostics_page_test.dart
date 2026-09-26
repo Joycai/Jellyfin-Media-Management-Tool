@@ -274,6 +274,57 @@ void main() {
       ),
       (ok: false, text: l10n.aiStepThinkingStillOn),
     );
+
+    // Chat Completions sends the choice the family's preset resolves the
+    // saved one to, and the step is judged against that: a family with no
+    // reasoning mode saved on is sent off, so none shown is off — not a
+    // request that went unanswered — and reasoning is the model's own.
+    const zhipu = 'https://open.bigmodel.cn/api/paas/v4';
+    for (final (reasoned, expected) in [
+      (false, (ok: true, text: l10n.aiStepThinkingOff)),
+      (true, (ok: null, text: l10n.aiStepThinkingCannotStop)),
+    ]) {
+      expect(
+        step(
+          AiProviderType.openAi,
+          zhipu,
+          'qwen3-30b-a3b-instruct-2507',
+          saved: true,
+          reasoned: reasoned,
+        ),
+        expected,
+        reason: 'reasoned $reasoned',
+      );
+    }
+    // A family that always reasons saved off is sent on: reasoning is what
+    // was asked for, and none shown is the open question it is anywhere.
+    for (final (reasoned, expected) in [
+      (true, (ok: true, text: l10n.aiStepThinkingOn)),
+      (false, (ok: null, text: l10n.aiStepThinkingNotOn)),
+    ]) {
+      expect(
+        step(
+          AiProviderType.openAi,
+          zhipu,
+          'deepseek-r1',
+          saved: false,
+          reasoned: reasoned,
+        ),
+        expected,
+        reason: 'reasoned $reasoned',
+      );
+    }
+    // So is one that only picks an effort, on the ladder.
+    expect(
+      step(
+        AiProviderType.openAi,
+        'http://localhost:1234',
+        'gpt-oss-20b',
+        saved: false,
+        reasoned: true,
+      ),
+      (ok: true, text: l10n.aiStepThinkingOn),
+    );
   });
 
   test('the step reads the route as the model page does', () {

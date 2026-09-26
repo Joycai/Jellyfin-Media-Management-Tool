@@ -459,6 +459,18 @@ abstract final class PlatformProfiles {
       ? MessagesThinking.adaptive
       : MessagesThinking.forModel(config.model);
 
+  /// Whether [config]'s requests ask for reasoning, before any refusal.
+  /// The saved choice — which Chat Completions resolves through the
+  /// family's preset ([ResolvedSampling.thinking]: a family that always or
+  /// never reasons is sent as it runs, with that mode's sampling values),
+  /// and every other protocol sends as saved. Mirrors each adapter, as
+  /// [reasoningRouteFor] does; `platform_profiles_test` holds the two
+  /// against the bodies.
+  static bool thinkingAskedFor(AiConfig config) =>
+      config.provider == AiProviderType.openAi
+      ? config.sampling.thinking
+      : config.thinkingEnabled;
+
   /// How [config]'s route switches reasoning after what it [learned], and
   /// the field it does it with. Mirrors each adapter's own reading of the
   /// same memory; `platform_profiles_test` holds the two side by side.

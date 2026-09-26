@@ -515,5 +515,83 @@ void main() {
         }
       });
     });
+
+    // What each body says about reasoning is what the adapter sends before
+    // any refusal; `thinkingAskedFor` must read the same.
+    test('thinkingAskedFor is what the adapter sends', () async {
+      Future<Map<String, dynamic>> body(AiConfig config) async =>
+          (await AiService.providerFor(config).previewRequest(
+            messages: const [UserMessage('u')],
+            tools: const [],
+          ))!.body;
+      // One family of each kind, and a model no preset knows.
+      const models = {
+        'mystery-model': null,
+        'qwen3-30b-a3b-instruct-2507': ThinkingControl.none,
+        'qwen3-32b': ThinkingControl.softSwitch,
+        'qwen3-30b-a3b-thinking-2507': ThinkingControl.alwaysOn,
+        'gpt-oss-20b': ThinkingControl.effortOnly,
+      };
+      for (final MapEntry(key: model, value: control) in models.entries) {
+        expect(SamplingPresets.forModel(model)?.thinkingControl, control);
+        for (final saved in [true, false]) {
+          // Chat Completions resolves the saved choice through the preset:
+          // the platform's field carries the mode the family runs in.
+          final chat = at(AiProviderType.openAi, zhipu, model, thinking: saved);
+          final chatAsked =
+              ((await body(chat))['thinking'] as Map)['type'] == 'enabled';
+          expect(
+            PlatformProfiles.thinkingAskedFor(chat),
+            chatAsked,
+            reason: 'chat $model saved $saved',
+          );
+          expect(chatAsked, switch (control) {
+            ThinkingControl.none => false,
+            ThinkingControl.alwaysOn || ThinkingControl.effortOnly => true,
+            _ => saved,
+          }, reason: 'chat $model saved $saved');
+
+          // The other protocols send the saved choice as it is.
+          final messages = at(
+            AiProviderType.anthropic,
+            relay,
+            model,
+            thinking: saved,
+          );
+          expect(
+            PlatformProfiles.thinkingAskedFor(messages),
+            (await body(messages)).containsKey('thinking'),
+            reason: 'messages $model saved $saved',
+          );
+          final responses = at(
+            AiProviderType.openAiResponses,
+            relay,
+            model,
+            thinking: saved,
+          );
+          expect(
+            PlatformProfiles.thinkingAskedFor(responses),
+            ((await body(responses))['reasoning'] as Map)['effort'] != 'none',
+            reason: 'responses $model saved $saved',
+          );
+          final gemini = at(
+            AiProviderType.googleGenAi,
+            'https://g.example',
+            model,
+            thinking: saved,
+          );
+          expect(
+            PlatformProfiles.thinkingAskedFor(gemini),
+            !((await body(gemini))['generationConfig'] as Map).containsKey(
+              'thinkingConfig',
+            ),
+            reason: 'gemini $model saved $saved',
+          );
+          for (final other in [messages, responses, gemini]) {
+            expect(PlatformProfiles.thinkingAskedFor(other), saved);
+          }
+        }
+      }
+    });
   });
 }
