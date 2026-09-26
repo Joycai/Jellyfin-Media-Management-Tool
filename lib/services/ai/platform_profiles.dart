@@ -37,7 +37,8 @@ enum ReasoningRoute {
   onRefused,
 
   /// Off was refused, so off sends nothing and the model runs at its own
-  /// default — which reasons. On is still sent.
+  /// default — which reasons. On is still sent, unless the field was later
+  /// refused by name too; the model reasons either way.
   offRefused,
 
   /// The field was refused by name and is sent neither way.
@@ -463,8 +464,9 @@ abstract final class PlatformProfiles {
   /// the field it does it with. Mirrors each adapter's own reading of the
   /// same memory; `platform_profiles_test` holds the two side by side.
   ///
-  /// A model that answered "always reasons" is checked before a field
-  /// refused by name: it says more, and either way nothing goes out for off.
+  /// A refused off is checked before a field refused by name, on every
+  /// protocol: it says the model reasons, where the name alone says only
+  /// that nothing is sent, and either way nothing goes out for off.
   static ({ReasoningRoute route, String? field}) reasoningRouteFor(
     AiConfig config,
     LearnedBehaviour learned,
@@ -507,11 +509,11 @@ abstract final class PlatformProfiles {
             ? (route: ReasoningRoute.protocolField, field: 'thinking')
             : (route: ReasoningRoute.onRefused, field: null);
       case AiProviderType.openAiResponses:
-        if (refused.contains('reasoning')) {
-          return (route: ReasoningRoute.refused, field: 'reasoning.effort');
-        }
         if (tried.contains(LearnedBehaviour.effortNone)) {
           return (route: ReasoningRoute.offRefused, field: 'reasoning.effort');
+        }
+        if (refused.contains('reasoning')) {
+          return (route: ReasoningRoute.refused, field: 'reasoning.effort');
         }
         return (route: ReasoningRoute.protocolField, field: 'reasoning.effort');
     }

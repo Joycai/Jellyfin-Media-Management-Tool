@@ -302,13 +302,14 @@ void main() {
         route: ReasoningRoute.refused,
         field: 'reasoning.effort',
       ));
+      // A refused none says the model reasons: that outranks the name.
       expect(
         read(
           grok,
           rejected: {'reasoning'},
           tried: {LearnedBehaviour.effortNone},
         ).route,
-        ReasoningRoute.refused,
+        ReasoningRoute.offRefused,
       );
     });
 
@@ -388,7 +389,10 @@ void main() {
         }
         switch (route) {
           case ReasoningRoute.offRefused:
-            expect(whenOn, isNotNull, reason: 'on is still sent');
+            // On is still sent, unless the field was refused by name too.
+            if (rejected.isEmpty) {
+              expect(whenOn, isNotNull, reason: 'on is still sent');
+            }
             expect(whenOff, isNull);
           case ReasoningRoute.onRefused:
             expect(whenOn, isNull);
@@ -416,6 +420,11 @@ void main() {
             ReasoningRoute.offRefused,
           ),
           ({'thinking'}, <String>{}, ReasoningRoute.refused),
+          (
+            {'thinking'},
+            {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offRefused,
+          ),
         ]) {
           await check(
             glm,
@@ -443,6 +452,11 @@ void main() {
             ReasoningRoute.offRefused,
           ),
           ({'thinking:adaptive'}, <String>{}, ReasoningRoute.onRefused),
+          (
+            {'thinking:adaptive'},
+            {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offRefused,
+          ),
         ]) {
           await check(
             m3,
@@ -488,6 +502,11 @@ void main() {
             ReasoningRoute.offRefused,
           ),
           ({'reasoning'}, <String>{}, ReasoningRoute.refused),
+          (
+            {'reasoning'},
+            {LearnedBehaviour.effortNone},
+            ReasoningRoute.offRefused,
+          ),
         ]) {
           await check(
             grok,
