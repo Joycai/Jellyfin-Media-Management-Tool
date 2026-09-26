@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -250,6 +251,22 @@ void main() {
       );
     }
 
+    // testWidgets for its fake clock: the probe's own cap is 90 s.
+    testWidgets('its own timeout is asked again, for a model still loading', (
+      tester,
+    ) async {
+      final provider = _NeverAnswers();
+      ToolProbeResult? probe;
+      unawaited(AiConnectionCheck.probeTools(provider).then((r) => probe = r));
+
+      await tester.pump(AiConnectionCheck.timeout);
+      await tester.pump(AiConnectionCheck.timeout);
+
+      expect(provider.asked, 2);
+      expect(probe?.outcome, ToolProbe.inconclusive);
+      expect(probe?.error, contains('No reply within'));
+    });
+
     test('one prose reply after a failed request is inconclusive', () async {
       // The model had one chance, not two; its single stray reply must not
       // be recorded as "does not call tools".
@@ -403,4 +420,20 @@ class _CountsForget extends ScriptedProvider {
 
   @override
   void forgetLearned() => forgotten++;
+}
+
+/// Never answers: only the probe's own timeout ends a request.
+class _NeverAnswers extends ScriptedProvider {
+  var asked = 0;
+  _NeverAnswers() : super(['{"reply": "hi"}']);
+
+  @override
+  Future<ChatResult> chat({
+    required List<ChatMessage> messages,
+    required List<ToolDefinition> tools,
+    AiCancelToken? cancelToken,
+  }) {
+    asked++;
+    return Completer<ChatResult>().future;
+  }
 }

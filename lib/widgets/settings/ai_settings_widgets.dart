@@ -459,9 +459,9 @@ class AiSamplingSection extends StatelessWidget {
   final bool thinking;
 
   /// Whether the route has its own reasoning switch — a platform's field,
-  /// or the protocol's own (`PlatformProfiles.thinkingSwitchable`) — which
-  /// works for any model on it, not only the families a preset knows are
-  /// hybrid.
+  /// or the protocol's own (`PlatformProfiles.protocolSwitchFieldFor`) —
+  /// which works for any model on it, not only the families a preset knows
+  /// are hybrid.
   final bool routeSwitch;
 
   /// What the last test on this route showed; null when none ran.

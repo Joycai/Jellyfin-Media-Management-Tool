@@ -172,6 +172,60 @@ void main() {
     }
   });
 
+  /// A model on a relay's [route] that has learned it refuses [refused],
+  /// with reasoning saved on — the state a refusal is learned in.
+  Future<AiModelEntry> pumpRefused(
+    WidgetTester tester, {
+    required AiProviderType route,
+    required String model,
+    required Set<String> refused,
+  }) async {
+    const endpoint = 'https://relay.example/v1';
+    final entry = AiModelEntry.create(
+      upstream: model,
+      route: route,
+    ).copyWith(params: {route: const RouteParams(thinkingEnabled: true)});
+    final channel =
+        AiChannel.create(
+              platform: PlatformProfiles.custom,
+              name: 'Relay',
+              apiKey: 'k',
+            )
+            .copyWith(
+              routes: [AiRoute(protocol: route, endpoint: endpoint)],
+            )
+            .withModel(entry);
+    final provider = AiService.providerFor(channel.configFor(entry));
+    addTearDown(provider.forgetLearned);
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: route.id,
+        base: endpoint,
+        model: model,
+        apiKey: 'k',
+      ),
+      (b) => b.copyWith(rejectedFields: refused),
+    );
+    expect(
+      provider.learned.rejectedFields,
+      refused,
+      reason: 'the test wrote the route the page reads',
+    );
+    await profiles.addChannel(channel);
+    await pumpAiPage(
+      tester,
+      AiModelPage(
+        channelId: channel.id,
+        modelId: entry.id,
+        onBack: () {},
+        onMatrix: () {},
+        onDiagnostics: () {},
+      ),
+      profiles: profiles,
+    );
+    return entry;
+  }
+
   for (final (route, model, refused, line) in [
     (
       AiProviderType.openAiResponses,
@@ -188,50 +242,7 @@ void main() {
   ]) {
     testWidgets('a ${route.id} route that refused its reasoning field sends it '
         'neither way, so the switch is off', (tester) async {
-      const endpoint = 'https://relay.example/v1';
-      // The refusal is learned while reasoning is on.
-      final entry = AiModelEntry.create(
-        upstream: model,
-        route: route,
-      ).copyWith(params: {route: const RouteParams(thinkingEnabled: true)});
-      final channel =
-          AiChannel.create(
-                platform: PlatformProfiles.custom,
-                name: 'Relay',
-                apiKey: 'k',
-              )
-              .copyWith(
-                routes: [AiRoute(protocol: route, endpoint: endpoint)],
-              )
-              .withModel(entry);
-      final provider = AiService.providerFor(channel.configFor(entry));
-      addTearDown(provider.forgetLearned);
-      LearnedStore.instance.update(
-        LearnedStore.routeKey(
-          protocol: route.id,
-          base: endpoint,
-          model: model,
-          apiKey: 'k',
-        ),
-        (b) => b.copyWith(rejectedFields: refused),
-      );
-      expect(
-        provider.learned.rejectedFields,
-        refused,
-        reason: 'the test wrote the route the page reads',
-      );
-      await profiles.addChannel(channel);
-      await pumpAiPage(
-        tester,
-        AiModelPage(
-          channelId: channel.id,
-          modelId: entry.id,
-          onBack: () {},
-          onMatrix: () {},
-          onDiagnostics: () {},
-        ),
-        profiles: profiles,
-      );
+      await pumpRefused(tester, route: route, model: model, refused: refused);
 
       // What the capability matrix says too.
       expect(find.text(line), findsOneWidget);
@@ -242,4 +253,26 @@ void main() {
       await settleSaves(tester);
     });
   }
+
+  testWidgets('a preset model on a refused route still follows its saved '
+      'choice', (tester) async {
+    // Qwen3's preset switches reasoning itself and picks the sampling values
+    // from the saved choice, so the switch stays live and truthful.
+    final entry = await pumpRefused(
+      tester,
+      route: AiProviderType.anthropic,
+      model: 'qwen3-32b',
+      refused: {'thinking:adaptive', 'thinking:enabled', 'thinking'},
+    );
+
+    final reasoning = find.byType(AppToggle).at(2);
+    expect(tester.widget<AppToggle>(reasoning).value, isTrue);
+    await tester.tap(reasoning);
+    await tester.pumpAndSettle();
+
+    final saved = profiles.modelById(entry.id)!;
+    expect(saved.channel.configFor(saved.model).thinkingEnabled, isFalse);
+    expect(tester.widget<AppToggle>(reasoning).value, isFalse);
+    await settleSaves(tester);
+  });
 }

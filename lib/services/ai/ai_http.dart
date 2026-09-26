@@ -23,8 +23,8 @@ class AiHttp {
   ///
   /// Not 408, 504 or Cloudflare's 524: each is a timeout on the way, and
   /// the upstream may still be generating — and billing — the first
-  /// attempt, exactly like a client-side timeout. 502 stays: a gateway that got no valid answer
-  /// more likely failed before the upstream started.
+  /// attempt, exactly like a client-side timeout. 502 stays: a gateway that
+  /// got no valid answer more likely failed before the upstream started.
   static const _retryableStatuses = {429, 502, 503, 529};
 
   /// Calls [send] up to [maxAttempts] times with exponential backoff between

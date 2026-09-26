@@ -117,57 +117,31 @@ void main() {
     );
   });
 
-  test('reasoning is switchable where the route or its protocol can send '
-      'both', () {
-    AiConfig on(AiProviderType provider, String endpoint) => AiConfig(
+  test('Messages and Responses carry the switch in the protocol', () {
+    AiConfig on(AiProviderType provider) => AiConfig(
       provider: provider,
-      endpoint: endpoint,
+      endpoint: 'https://relay.example.com',
       apiKey: 'k',
       model: 'm',
     );
-    const custom = 'https://relay.example.com';
-    // The protocol carries the switch, and names it.
     expect(
-      PlatformProfiles.protocolSwitchFieldFor(
-        on(AiProviderType.anthropic, custom),
-      ),
+      PlatformProfiles.protocolSwitchFieldFor(on(AiProviderType.anthropic)),
       'thinking',
     );
     expect(
       PlatformProfiles.protocolSwitchFieldFor(
-        on(AiProviderType.openAiResponses, custom),
+        on(AiProviderType.openAiResponses),
       ),
       'reasoning.effort',
     );
+    // Nothing to send for "on": only a platform's documented field does.
     expect(
-      PlatformProfiles.thinkingSwitchable(on(AiProviderType.anthropic, custom)),
-      isTrue,
+      PlatformProfiles.protocolSwitchFieldFor(on(AiProviderType.openAi)),
+      isNull,
     );
     expect(
-      PlatformProfiles.thinkingSwitchable(
-        on(AiProviderType.openAiResponses, custom),
-      ),
-      isTrue,
-    );
-    // Only a documented field does.
-    expect(
-      PlatformProfiles.thinkingSwitchable(on(AiProviderType.openAi, custom)),
-      isFalse,
-    );
-    expect(
-      PlatformProfiles.thinkingSwitchable(
-        on(
-          AiProviderType.openAi,
-          'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        ),
-      ),
-      isTrue,
-    );
-    expect(
-      PlatformProfiles.thinkingSwitchable(
-        on(AiProviderType.googleGenAi, custom),
-      ),
-      isFalse,
+      PlatformProfiles.protocolSwitchFieldFor(on(AiProviderType.googleGenAi)),
+      isNull,
     );
   });
 
@@ -178,45 +152,25 @@ void main() {
       apiKey: 'k',
       model: model,
     );
+    String? field(AiConfig config, Set<String> refused) =>
+        PlatformProfiles.protocolSwitchFieldFor(config, refused: refused);
+
     final responses = on(AiProviderType.openAiResponses, 'gpt-4.1');
-    expect(
-      PlatformProfiles.thinkingSwitchable(responses, refused: {'reasoning'}),
-      isFalse,
-    );
+    expect(field(responses, {'reasoning'}), isNull);
     // Another field refused: `reasoning` is still sent both ways.
-    expect(
-      PlatformProfiles.thinkingSwitchable(responses, refused: {'include'}),
-      isTrue,
-    );
+    expect(field(responses, {'include'}), 'reasoning.effort');
+
     final claude = on(AiProviderType.anthropic, 'claude-sonnet-4-5');
     // One form refused: the other is still asked.
-    expect(
-      PlatformProfiles.protocolSwitchFieldFor(
-        claude,
-        refused: {'thinking:enabled'},
-      ),
-      'thinking',
-    );
-    expect(
-      PlatformProfiles.protocolSwitchFieldFor(
-        claude,
-        refused: {'thinking:adaptive', 'thinking:enabled'},
-      ),
-      isNull,
-    );
+    expect(field(claude, {'thinking:enabled'}), 'thinking');
+    expect(field(claude, {'thinking:adaptive', 'thinking:enabled'}), isNull);
     // A bare legacy record where `enabled` is the model's first form.
-    expect(
-      PlatformProfiles.thinkingSwitchable(claude, refused: {'thinking'}),
-      isFalse,
-    );
+    expect(field(claude, {'thinking'}), isNull);
     // Where adaptive comes first, the same record is no verdict on it: the
     // model's own first form decides.
     expect(
-      PlatformProfiles.thinkingSwitchable(
-        on(AiProviderType.anthropic, 'claude-sonnet-4-6'),
-        refused: {'thinking'},
-      ),
-      isTrue,
+      field(on(AiProviderType.anthropic, 'claude-sonnet-4-6'), {'thinking'}),
+      'thinking',
     );
   });
 }

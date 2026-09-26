@@ -400,13 +400,12 @@ class _AiModelPageState extends State<AiModelPage> {
       config,
       refused: learned.rejectedFields,
     );
-    // Refused: the adapter sends it neither way, whatever was saved. The
-    // refusal is learned while reasoning is on, so the saved value is
-    // shown as off rather than as a disabled switch stuck on.
+    // Refused: the adapter sends it neither way, whatever was saved.
     final fieldRefused =
         switchField == null &&
         protocolField == null &&
         PlatformProfiles.protocolSwitchFieldFor(config) != null;
+    final preset = SamplingPresets.forModel(model.upstream);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
 
     Widget line(String label, Widget value) => Padding(
@@ -480,13 +479,15 @@ class _AiModelPageState extends State<AiModelPage> {
           ],
           const SizedBox(height: AppSpacing.md12),
           AiSamplingSection(
-            preset: SamplingPresets.forModel(model.upstream),
+            preset: preset,
             controllers: _sampling,
-            thinking: config.thinkingEnabled && !fieldRefused,
-            routeSwitch: PlatformProfiles.thinkingSwitchable(
-              config,
-              refused: learned.rejectedFields,
-            ),
+            // The refusal is learned while reasoning is on, so a model no
+            // preset knows is drawn off rather than as a disabled switch
+            // stuck on. A preset still decides for itself: its sampling
+            // values follow the saved choice whatever the route sends.
+            thinking:
+                config.thinkingEnabled && !(fieldRefused && preset == null),
+            routeSwitch: switchField != null || protocolField != null,
             lastReasoned: _lastCheck?.reasoned,
             serverKind: _lastCheck?.serverKind,
             refused: learned.rejectedFields,

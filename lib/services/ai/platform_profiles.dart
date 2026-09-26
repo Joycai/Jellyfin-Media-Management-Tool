@@ -419,14 +419,4 @@ abstract final class PlatformProfiles {
       'reasoning.effort',
     _ => null,
   };
-
-  /// Whether reasoning on [config]'s route can be switched on and off for a
-  /// model no sampling preset knows: through a platform's field or the
-  /// protocol's own, unless the route [refused] it.
-  static bool thinkingSwitchable(
-    AiConfig config, {
-    Set<String> refused = const {},
-  }) =>
-      switchFieldFor(config) != null ||
-      protocolSwitchFieldFor(config, refused: refused) != null;
 }
