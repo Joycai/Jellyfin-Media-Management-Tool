@@ -137,23 +137,23 @@ bool reasoningCannotStop(ReasoningRoute route) =>
     learned,
   );
   final preset = SamplingPresets.forModel(config.model);
-  // Where a model no preset knows is drawn off by a refusal, the page warns
-  // about reasoning like a live switch; elsewhere a locked toggle is silent.
-  final drawnOff = preset == null && route == ReasoningRoute.refused;
-  final switchable = reasoningSwitchable(preset, route);
   // The model page says it can only run with reasoning on.
   final alwaysReasons =
       route == ReasoningRoute.offRefused ||
       (preset?.reasons(requested: false) ?? false);
   return thinkingStep(
     l10n,
-    asked: drawnOff ? false : config.thinkingEnabled,
+    // A model no preset knows is drawn off where the field is sent neither
+    // way; the saved choice asks nothing there.
+    asked: preset == null && route == ReasoningRoute.refused
+        ? false
+        : config.thinkingEnabled,
     reasoned: reasoned,
     refused: reasoningRefused(route),
-    locked: !switchable,
-    // Off refused, or a locked toggle the page is silent on (a family that
-    // always reasons among them).
-    cannotStop: reasoningCannotStop(route) || !(switchable || drawnOff),
+    locked: !reasoningSwitchable(preset, route),
+    // Off refused, or reasoning the model page does not warn about (a family
+    // that always reasons among it).
+    cannotStop: reasoningCannotStop(route) || !reasoningWarns(preset, route),
     alwaysReasons: alwaysReasons,
   );
 }

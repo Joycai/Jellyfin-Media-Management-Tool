@@ -71,11 +71,11 @@ void main() {
           ],
           models: [model],
         );
-    Future<void> pump() => pumpAiPage(
+    Future<void> pump([AiModelEntry? m]) => pumpAiPage(
       tester,
       RouteSwitchDialog(
-        channel: channel,
-        model: model,
+        channel: channel.copyWith(models: [m ?? model]),
+        model: m ?? model,
         to: AiProviderType.anthropic,
       ),
       profiles: AiProfilesService(),
@@ -104,6 +104,15 @@ void main() {
     );
     await pump();
     expect(find.text('off · thinking'), findsNothing);
+    // On is still sent there, so it is still named.
+    await pump(
+      model.copyWith(
+        params: {
+          AiProviderType.openAi: const RouteParams(thinkingEnabled: true),
+        },
+      ),
+    );
+    expect(find.text('on · thinking'), findsOneWidget);
   });
 
   testWidgets('a switch route that refused on still names the field for off', (

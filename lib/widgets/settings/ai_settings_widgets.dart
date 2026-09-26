@@ -70,6 +70,14 @@ String? reasoningRefusalText(
 bool reasoningSwitchable(SamplingPreset? preset, ReasoningRoute route) =>
     preset?.thinkingIsOptional ?? route.switchable;
 
+/// Whether the model page warns when a test still reasoned with reasoning
+/// off: where the toggle is live, and where a field refused both ways draws
+/// a model no preset knows off — only the server can change its default.
+/// Diagnostics fails the same reply in the same places.
+bool reasoningWarns(SamplingPreset? preset, ReasoningRoute route) =>
+    reasoningSwitchable(preset, route) ||
+    (preset == null && route == ReasoningRoute.refused);
+
 /// A platform's name in the UI language. Product names stay as they are.
 String platformName(AppLocalizations l10n, PlatformProfile platform) =>
     switch (platform.id) {
@@ -548,7 +556,7 @@ class AiSamplingSection extends StatelessWidget {
     final reasons =
         preset?.reasons(requested: thinking) ?? route.drawnAs ?? thinking;
     final values = preset?.valuesFor(thinking: reasons);
-    final status = _thinkingStatus(l10n, reasons, switchable);
+    final status = _thinkingStatus(l10n, reasons);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
 
     String label(SamplingField field) => switch (field) {
@@ -708,7 +716,6 @@ class AiSamplingSection extends StatelessWidget {
   ({String text, bool warning})? _thinkingStatus(
     AppLocalizations l10n,
     bool reasons,
-    bool switchable,
   ) {
     switch (preset?.thinkingControl) {
       case ThinkingControl.alwaysOn:
@@ -724,12 +731,8 @@ class AiSamplingSection extends StatelessWidget {
       return (text: l10n.thinkingAlwaysOn, warning: false);
     }
     final reasoned = lastReasoned;
-    // A field refused by name leaves a model no preset knows at its default,
-    // which a test can show still reasons; only the server can change that.
-    // A preset's own family decides for it, as on a working switch.
-    if (reasoned == null ||
-        reasons ||
-        !(switchable || (preset == null && route == ReasoningRoute.refused))) {
+    // Only where a switch, or the server, can do something about it.
+    if (reasoned == null || reasons || !reasoningWarns(preset, route)) {
       return null;
     }
     if (!reasoned) return (text: l10n.thinkingVerifiedOff, warning: false);
