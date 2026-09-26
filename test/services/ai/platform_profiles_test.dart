@@ -459,6 +459,25 @@ void main() {
             <String>{},
             ReasoningRoute.refused,
           ),
+          // Every form is the field, with or without the bare name.
+          (
+            {'thinking:adaptive', 'thinking:enabled'},
+            <String>{},
+            ReasoningRoute.refused,
+          ),
+          // A bare record beside a form is read by the forms alone.
+          (
+            {'thinking', 'thinking:adaptive'},
+            <String>{},
+            ReasoningRoute.onRefused,
+          ),
+          // The model said it cannot stop, and later the field was refused
+          // too: nothing is sent, and the model's word stands.
+          (
+            {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+            {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offRefused,
+          ),
         ]) {
           await check(
             m3,

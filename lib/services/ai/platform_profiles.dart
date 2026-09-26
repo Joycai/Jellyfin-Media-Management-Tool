@@ -52,7 +52,8 @@ enum ReasoningRoute {
   offToDefault,
 
   /// Sent neither way: the field refused by name, or on a Messages route
-  /// every form of thinking — where off is the protocol's default anyway.
+  /// every form of thinking — where off is the protocol's default anyway,
+  /// except on a switch route, whose platform may think by default.
   refused,
 
   /// No switch at all: the local-server ladder, judged by the reply.

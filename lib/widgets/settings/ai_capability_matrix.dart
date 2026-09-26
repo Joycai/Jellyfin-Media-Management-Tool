@@ -309,8 +309,9 @@ CapabilityCell capabilityCell(
         // unmeasured; the connection test's "still reasoned" is the judge.
         case ReasoningRoute.protocolField:
           return (state: unmeasured, text: l10n.aiCellProtocolSwitch(field!));
-        // Nothing is sent for off. Only Messages, whose thinking is off
-        // unless asked for, still gets what off means.
+        // Nothing is sent for off. Only Messages off a switch route
+        // (`messagesDefaultOff`), whose thinking is off unless asked for,
+        // still gets what off means.
         case ReasoningRoute.offRefused:
         case ReasoningRoute.offToDefault:
         case ReasoningRoute.refused:

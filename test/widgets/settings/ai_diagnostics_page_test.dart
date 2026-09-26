@@ -202,6 +202,28 @@ void main() {
       ),
       (ok: false, text: l10n.aiStepThinkingRefused),
     );
+    // A switch route whose server does not know the field: sent neither
+    // way, so the saved choice asks nothing and the reply is the model's
+    // own — off, or a warning the page gives too.
+    for (final saved in [true, false]) {
+      for (final (reasoned, expected) in [
+        (false, (ok: true, text: l10n.aiStepThinkingOff)),
+        (true, (ok: false, text: l10n.aiStepThinkingStillOn)),
+      ]) {
+        expect(
+          step(
+            AiProviderType.anthropic,
+            'https://api.minimaxi.com/anthropic',
+            'MiniMax-M3',
+            saved: saved,
+            reasoned: reasoned,
+            rejected: {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+          ),
+          expected,
+          reason: 'saved $saved reasoned $reasoned',
+        );
+      }
+    }
 
     // Off sent, and refused by a model that cannot stop: reasoning is its
     // default, and a reply that shows none is no proof that it stopped —
