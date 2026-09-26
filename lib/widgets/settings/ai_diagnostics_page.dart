@@ -64,7 +64,9 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
 
 /// Whether the request for reasoning is no longer sent on a route in
 /// [route] (`PlatformProfiles.reasoningRouteFor`): on was refused, or the
-/// field is sent neither way.
+/// field is sent neither way. Not the rare route that cannot stop and later
+/// refused on too (`offRefused` does not say): there a reply without
+/// reasoning reads as not shown, as the route-switch dialog names the field.
 bool reasoningRefused(ReasoningRoute route) =>
     route == ReasoningRoute.onRefused || route == ReasoningRoute.refused;
 

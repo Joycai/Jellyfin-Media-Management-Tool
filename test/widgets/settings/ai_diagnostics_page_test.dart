@@ -166,6 +166,18 @@ void main() {
       ),
       isTrue,
     );
+    // Refused both ways: the model page warns that it still reasons, so this
+    // is a failed step, not the model's own default.
+    expect(
+      reasoningCannotStop(
+        route(
+          responses,
+          rejected: {'reasoning'},
+          tried: {LearnedBehaviour.effortNone},
+        ),
+      ),
+      isFalse,
+    );
 
     // Chat Completions: the platform's switch, and nothing without one.
     final zhipu = config(
@@ -174,6 +186,7 @@ void main() {
       'glm-5.3',
     );
     expect(reasoningRefused(route(zhipu, rejected: {'thinking'})), isTrue);
+    expect(reasoningCannotStop(route(zhipu, rejected: {'thinking'})), isFalse);
     expect(reasoningRefused(route(zhipu, rejected: {'top_k'})), isFalse);
     expect(
       reasoningCannotStop(route(zhipu, tried: {LearnedBehaviour.dialectOff})),
