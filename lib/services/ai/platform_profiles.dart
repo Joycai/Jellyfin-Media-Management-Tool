@@ -52,7 +52,8 @@ enum ReasoningRoute {
   offToDefault,
 
   /// Sent neither way: the field refused by name, or on a Messages route
-  /// every form of thinking — where off is the protocol's default anyway.
+  /// every form of thinking — where off is the protocol's default anyway,
+  /// except on a switch route, whose platform may think by default.
   refused,
 
   /// No switch at all: the local-server ladder, judged by the reply.
@@ -459,6 +460,18 @@ abstract final class PlatformProfiles {
       ? MessagesThinking.adaptive
       : MessagesThinking.forModel(config.model);
 
+  /// Whether [config]'s requests ask for reasoning, before any refusal.
+  /// The saved choice — which Chat Completions resolves through the
+  /// family's preset ([ResolvedSampling.thinking]: a family that always or
+  /// never reasons is sent as it runs, with that mode's sampling values),
+  /// and every other protocol sends as saved. Mirrors each adapter, as
+  /// [reasoningRouteFor] does; `platform_profiles_test` holds the two
+  /// against the bodies.
+  static bool thinkingAskedFor(AiConfig config) =>
+      config.provider == AiProviderType.openAi
+      ? config.sampling.thinking
+      : config.thinkingEnabled;
+
   /// How [config]'s route switches reasoning after what it [learned], and
   /// the field it does it with. Mirrors each adapter's own reading of the
   /// same memory; `platform_profiles_test` holds the two side by side.
@@ -492,10 +505,17 @@ abstract final class PlatformProfiles {
           refused,
           first: messagesFirstFormFor(config),
         );
-        // A switch route asks adaptive only, and says off as `disabled`.
+        // A switch route asks adaptive only, and says off as `disabled`. A
+        // server there that does not know the field records every form,
+        // and nothing is sent either way; one that refused the form still
+        // takes `disabled`. (A legacy bare record is a verdict on
+        // `enabled` alone, which a switch route never sends.)
         if (messagesSwitchFor(config)) {
           if (tried.contains(LearnedBehaviour.dialectOff)) {
             return (route: ReasoningRoute.offRefused, field: 'thinking');
+          }
+          if (forms.length == MessagesThinking.values.length) {
+            return (route: ReasoningRoute.refused, field: 'thinking');
           }
           return forms.contains(MessagesThinking.adaptive)
               ? (route: ReasoningRoute.onRefused, field: 'thinking')

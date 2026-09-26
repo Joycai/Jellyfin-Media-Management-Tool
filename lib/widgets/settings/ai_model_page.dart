@@ -435,7 +435,7 @@ class _AiModelPageState extends State<AiModelPage> {
               ReasoningRoute.refused => reasoningRefusalText(
                 l10n,
                 route,
-                config.provider,
+                config,
               )!,
             }, style: note.copyWith(color: t.textBody)),
           ),

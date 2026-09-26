@@ -309,18 +309,17 @@ CapabilityCell capabilityCell(
         // unmeasured; the connection test's "still reasoned" is the judge.
         case ReasoningRoute.protocolField:
           return (state: unmeasured, text: l10n.aiCellProtocolSwitch(field!));
-        // Nothing is sent for off. Only Messages, whose thinking is off
-        // unless asked for, still gets what off means.
+        // Nothing is sent for off. Only Messages off a switch route
+        // (`messagesDefaultOff`), whose thinking is off unless asked for,
+        // still gets what off means.
         case ReasoningRoute.offRefused:
         case ReasoningRoute.offToDefault:
         case ReasoningRoute.refused:
           return (
-            state:
-                route == ReasoningRoute.refused &&
-                    protocol == AiProviderType.anthropic
+            state: route == ReasoningRoute.refused && messagesDefaultOff(config)
                 ? works
                 : unavailable,
-            text: reasoningRefusalText(l10n, route, protocol)!,
+            text: reasoningRefusalText(l10n, route, config)!,
           );
         case ReasoningRoute.ladder:
           // Only ladder steps count: a route key outlives its channel's

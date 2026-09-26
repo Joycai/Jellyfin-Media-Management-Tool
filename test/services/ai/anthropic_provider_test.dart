@@ -362,6 +362,134 @@ void main() {
       expect((bodies.last['thinking'] as Map)['type'], 'enabled');
     });
 
+    test(
+      'a sub-field refused in unknown-field words is the form, swapped',
+      () async {
+        // A Pydantic server with `extra=forbid` whose model takes only
+        // adaptive and disabled: the budget is the extra input, and
+        // `thinking.type` is named, so the server knows the field. Giving up
+        // every form here would switch reasoning off for a month.
+        final (bodies, provider) = await refusing(
+          'subfield.example',
+          {'enabled'},
+          (_) =>
+              '2 validation errors for MessagesRequest\nthinking.type\n  Input '
+              "should be 'adaptive' or 'disabled' [type=literal_error, "
+              "input_value='enabled', input_type=str]\nthinking.budget_tokens\n"
+              '  Extra inputs are not permitted [type=extra_forbidden, '
+              'input_value=1024, input_type=int]',
+          model: 'claude-sonnet-4-5',
+        );
+        expect(bodies, hasLength(2));
+        expect((bodies.first['thinking'] as Map)['type'], 'enabled');
+        expect(bodies.last['thinking'], {'type': 'adaptive'});
+        expect(provider.learned.rejectedFields, {'thinking:enabled'});
+      },
+    );
+
+    test('a form refused beside "always thinks" is the form, swapped', () async {
+      // "Cannot stop" answers off alone; asked on, the words beside the
+      // form name say the form was refused, and the other is tried.
+      final (bodies, provider) = await refusing(
+        'always-on.example',
+        {'adaptive'},
+        (type) =>
+            "thinking.type: '$type' is not supported; this model always thinks",
+        model: 'claude-sonnet-4-6',
+      );
+      expect(bodies, hasLength(2));
+      expect((bodies.last['thinking'] as Map)['type'], 'enabled');
+      expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+      expect(provider.learned.thinkingOffTried, isEmpty);
+    });
+
+    test('a budget out of range is thrown and teaches nothing', () async {
+      // The number is the user's to change; remembering the form as
+      // refused would fail every request after they did.
+      final bodies = <Map<String, dynamic>>[];
+      final provider = AnthropicProvider(
+        _config(
+          'https://budget-cap.example',
+          model: 'claude-sonnet-4-5',
+          thinking: true,
+          maxOutput: 131072,
+        ),
+        client: MockClient((request) async {
+          bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(
+            jsonEncode({
+              'type': 'error',
+              'error': {
+                'type': 'invalid_request_error',
+                'message':
+                    'thinking.budget_tokens\n  Input should be less than or '
+                    'equal to 32000 [type=less_than_equal, '
+                    'input_value=65536, input_type=int]',
+              },
+            }),
+            400,
+          );
+        }),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiException>()),
+      );
+      expect(bodies, hasLength(1));
+      expect(provider.learned.rejectedFields, isEmpty);
+    });
+
+    test('a budget refused as an extra input is the form, swapped', () async {
+      // A server modelled on `{type}` alone, with extra inputs forbidden:
+      // the sub-field named says it knows the field, so adaptive is tried.
+      final (bodies, provider) = await refusing(
+        'no-budget.example',
+        {'enabled'},
+        (_) =>
+            'thinking.budget_tokens\n  Extra inputs are not permitted '
+            '[type=extra_forbidden, input_value=1024, input_type=int]',
+        model: 'claude-sonnet-4-5',
+      );
+      expect(bodies, hasLength(2));
+      expect(bodies.last['thinking'], {'type': 'adaptive'});
+      expect(provider.learned.rejectedFields, {'thinking:enabled'});
+    });
+
+    test(
+      'an unrecognized model named after thinking teaches nothing',
+      () async {
+        // A relay's upstream alias, left over after the model id is taken
+        // out: about the model, not the field.
+        final bodies = <Map<String, dynamic>>[];
+        final provider = AnthropicProvider(
+          _config(
+            'https://alias.example',
+            model: 'claude-sonnet-4-5',
+            thinking: true,
+          ),
+          client: MockClient((request) async {
+            bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+            return http.Response(
+              jsonEncode({
+                'type': 'error',
+                'error': {
+                  'type': 'invalid_request_error',
+                  'message': 'unrecognized model: claude-sonnet-4-5-thinking',
+                },
+              }),
+              400,
+            );
+          }),
+        );
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(isA<AiException>()),
+        );
+        expect(bodies, hasLength(1));
+        expect(provider.learned.rejectedFields, isEmpty);
+      },
+    );
+
     test('a refusal of thinking itself gives up every form', () async {
       // The field is refused, not a form of it: trying the other form would
       // be one more refused request.
@@ -545,17 +673,160 @@ void main() {
 
       test('a server that does not know thinking stops being told', () async {
         // Thinking off must not fail every request on a route whose server
-        // refuses the field outright.
+        // refuses the field outright — and that is the field refused by
+        // name, not a model that cannot stop: it says nothing about
+        // whether the model reasons.
         final (bodies, provider) = await offRefused(
           'unknown-field.minimaxi.com',
           'thinking: Extra inputs are not permitted',
         );
         expect(bodies, hasLength(2));
         expect(bodies.last.containsKey('thinking'), isFalse);
-        expect(provider.learned.thinkingOffTried, {
-          LearnedBehaviour.dialectOff,
+        expect(provider.learned.thinkingOffTried, isEmpty);
+        expect(provider.learned.rejectedFields, {
+          'thinking',
+          'thinking:adaptive',
+          'thinking:enabled',
         });
+        // On is not asked there either.
+        final on = AnthropicProvider(
+          _config(
+            'https://unknown-field.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+            thinking: true,
+          ),
+        );
+        final preview = await on.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body.containsKey('thinking'), isFalse);
       });
+
+      test('a field refused in Pydantic words is the field, whatever it '
+          'echoes', () async {
+        // Pydantic's default message repeats the input it refused, value
+        // and all; the words say the field is unknown, and they win.
+        const echo =
+            '1 validation error for MessagesRequest\nthinking\n  Extra inputs '
+            "are not permitted [type=extra_forbidden, input_value={'type': "
+            "'%s'}, input_type=dict]";
+        final (offBodies, offProvider) = await offRefused(
+          'echo-off.minimaxi.com',
+          echo.replaceFirst('%s', 'disabled'),
+        );
+        expect(offBodies, hasLength(2));
+        expect(offBodies.last.containsKey('thinking'), isFalse);
+        expect(offProvider.learned.thinkingOffTried, isEmpty);
+        expect(offProvider.learned.rejectedFields, contains('thinking'));
+
+        final (onBodies, onProvider) = await refusing(
+          'echo-on.minimaxi.com/anthropic',
+          {'adaptive'},
+          (type) => echo.replaceFirst('%s', type),
+          model: 'MiniMax-M3',
+        );
+        expect(onBodies, hasLength(2));
+        expect(onBodies.last.containsKey('thinking'), isFalse);
+        expect(onProvider.learned.rejectedFields, {
+          'thinking',
+          'thinking:adaptive',
+          'thinking:enabled',
+        });
+        final off = AnthropicProvider(
+          _config(
+            'https://echo-on.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+          ),
+        );
+        final preview = await off.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body.containsKey('thinking'), isFalse);
+      });
+
+      test('a full stop after thinking is not a sub-field', () async {
+        // "thinking.Please" reads as thinking refused, not as a value the
+        // server knows: the field is given up, and the model is not said
+        // to always reason.
+        final (bodies, provider) = await offRefused(
+          'full-stop.minimaxi.com',
+          'The model does not support thinking.Please remove the parameter',
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(provider.learned.thinkingOffTried, isEmpty);
+        expect(provider.learned.rejectedFields, contains('thinking'));
+      });
+
+      test(
+        'a refusal naming thinking.type is of the value, either way',
+        () async {
+          // The sub-field named says the server knows the field: off records
+          // the model cannot be told off, as on records only the form.
+          final (bodies, provider) = await offRefused(
+            'type-off.minimaxi.com',
+            'invalid params: thinking.type is not supported',
+          );
+          expect(bodies, hasLength(2));
+          expect(provider.learned.thinkingOffTried, {
+            LearnedBehaviour.dialectOff,
+          });
+          expect(provider.learned.rejectedFields, isEmpty);
+        },
+      );
+
+      test(
+        'a server that knows the field and not disabled cannot stop',
+        () async {
+          // The value named back: the server takes `thinking`, only not off,
+          // so the model reasons at its default and on is still asked.
+          final (bodies, provider) = await offRefused(
+            'no-disabled.minimaxi.com',
+            "thinking.type: Input tag 'disabled' found using 'type' does not "
+                "match any of the expected tags: 'adaptive'",
+          );
+          expect(bodies, hasLength(2));
+          expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(provider.learned.thinkingOffTried, {
+            LearnedBehaviour.dialectOff,
+          });
+          expect(provider.learned.rejectedFields, isEmpty);
+        },
+      );
+
+      test(
+        'a server that does not know thinking refuses on the same way',
+        () async {
+          final (bodies, provider) = await refusing(
+            'unknown-field-on.minimaxi.com/anthropic',
+            {'adaptive'},
+            (_) => 'thinking: Extra inputs are not permitted',
+            model: 'MiniMax-M3',
+          );
+          expect(bodies, hasLength(2));
+          expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(provider.learned.thinkingOffTried, isEmpty);
+          expect(provider.learned.rejectedFields, {
+            'thinking',
+            'thinking:adaptive',
+            'thinking:enabled',
+          });
+          // Nor is off told `disabled` any more.
+          final off = AnthropicProvider(
+            _config(
+              'https://unknown-field-on.minimaxi.com/anthropic',
+              model: 'MiniMax-M3',
+            ),
+          );
+          final preview = await off.previewRequest(
+            messages: const [UserMessage('u')],
+            tools: const [],
+          );
+          expect(preview.body.containsKey('thinking'), isFalse);
+        },
+      );
 
       test('an error about the history teaches nothing about off', () async {
         final (bodies, provider) = await offRefused(
@@ -581,7 +852,20 @@ void main() {
           everyElement(isNot('enabled')),
         );
         // Its one form refused: thinking is given up, not tried another way.
-        expect(provider.learned.rejectedFields, contains('thinking'));
+        // The form is what was named, so the server knows the field, and
+        // off still says `disabled`.
+        expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+        final off = AnthropicProvider(
+          _config(
+            'https://refused.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+          ),
+        );
+        final preview = await off.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body['thinking'], {'type': 'disabled'});
       });
 
       test('a form named without refusing thinking is thrown', () async {
@@ -1325,6 +1609,153 @@ void main() {
       ),
       isFalse,
     );
+  });
+
+  test('a 400 about thinking is read the same way, whichever way was asked', () {
+    ThinkingRefusal read(String detail, {String sent = 'adaptive'}) =>
+        AnthropicProvider.readThinkingRefusal(
+          detail.toLowerCase(),
+          sentType: sent,
+        );
+    const echo =
+        "[type=extra_forbidden, input_value={'type': '%s'}, input_type=dict]";
+
+    // The model cannot stop: said without naming the field, and only in
+    // answer to off — asked on, the same words read as what is beside them.
+    expect(
+      read('该模型始终思考，不支持关闭思考', sent: 'disabled'),
+      ThinkingRefusal.cannotStop,
+    );
+    expect(
+      read('this model always thinks', sent: 'disabled'),
+      ThinkingRefusal.cannotStop,
+    );
+    expect(
+      read('thinking.type 参数非法：该模型始终思考，不支持关闭思考', sent: 'adaptive'),
+      ThinkingRefusal.valueNamed,
+    );
+    expect(read('this model always thinks'), ThinkingRefusal.unrelated);
+
+    // The field itself unknown, in each server's words — whatever value
+    // Pydantic echoes beside them.
+    for (final detail in [
+      'thinking: Extra inputs are not permitted',
+      'thinking\n  Extra inputs are not permitted ${echo.replaceFirst('%s', 'disabled')}',
+      'thinking\n  Extra inputs are not permitted ${echo.replaceFirst('%s', 'adaptive')}',
+      'thinking: unknown field',
+      'Unknown parameter: thinking',
+      'Unrecognized request argument supplied: thinking',
+    ]) {
+      for (final sent in ['adaptive', 'enabled', 'disabled']) {
+        expect(
+          read(detail, sent: sent),
+          ThinkingRefusal.fieldUnknown,
+          reason: '$detail / $sent',
+        );
+      }
+    }
+
+    // A sub-field named says the server knows the field: the value, even
+    // in unknown-field words.
+    expect(
+      read(
+        "thinking.type\n  Input should be 'adaptive' or 'disabled' "
+        "[type=literal_error, input_value='enabled']\nthinking.budget_tokens\n"
+        '  Extra inputs are not permitted [type=extra_forbidden]',
+        sent: 'enabled',
+      ),
+      ThinkingRefusal.valueRefused,
+    );
+    expect(
+      read("thinking.type: unsupported value 'adaptive'"),
+      ThinkingRefusal.valueRefused,
+    );
+    // Any sub-field, not only the type.
+    expect(
+      read(
+        'thinking.budget_tokens\n  Extra inputs are not permitted '
+        '[type=extra_forbidden, input_value=1024]',
+        sent: 'enabled',
+      ),
+      ThinkingRefusal.valueRefused,
+    );
+    expect(
+      read('invalid params: thinking.type is not supported', sent: 'disabled'),
+      ThinkingRefusal.valueRefused,
+    );
+    expect(
+      read(
+        "thinking.type: Input tag 'adaptive' found using 'type' does not "
+        "match any of the expected tags: 'disabled', 'enabled'",
+      ),
+      ThinkingRefusal.valueNamed,
+    );
+    expect(
+      read('thinking is disabled for this account', sent: 'disabled'),
+      ThinkingRefusal.valueNamed,
+    );
+
+    // Thinking itself, naming no field or value — a full stop, a docs URL
+    // or a relay alias after the word is not a sub-field.
+    expect(
+      read('this model does not support thinking'),
+      ThinkingRefusal.featureRefused,
+    );
+    for (final detail in [
+      'The model does not support thinking.Please remove the parameter',
+      'thinking is not supported by this model, see '
+          'https://docs.example.com/guide/thinking.html',
+      'thinking is not supported on -thinking.v2',
+    ]) {
+      for (final sent in ['adaptive', 'disabled']) {
+        expect(
+          read(detail, sent: sent),
+          ThinkingRefusal.featureRefused,
+          reason: '$detail / $sent',
+        );
+      }
+    }
+    expect(
+      read('`thinking` is not supported for this model', sent: 'disabled'),
+      ThinkingRefusal.featureRefused,
+    );
+
+    // Not about the request for thinking.
+    for (final detail in [
+      'max_tokens must be greater than thinking.budget_tokens',
+      // A budget error that names the form is still about the numbers.
+      'thinking.type enabled requires max_tokens greater than '
+          'thinking.budget_tokens',
+      // So is a budget out of range, with nothing refused beside it.
+      'thinking.budget_tokens\n  Input should be less than or equal to '
+          '32000 [type=less_than_equal, input_value=65536, input_type=int]',
+      'messages.1.content.0: thinking blocks cannot be sent while thinking '
+          'is disabled',
+      'messages.3.content.0: Invalid `signature` in `thinking` block',
+      // A relay's upstream alias, left after the model id is taken out.
+      'unrecognized model: -thinking',
+      'model -thinking is unavailable',
+      'top_k: Extra inputs are not permitted',
+    ]) {
+      for (final sent in ['adaptive', 'enabled', 'disabled']) {
+        expect(
+          read(detail, sent: sent),
+          ThinkingRefusal.unrelated,
+          reason: '$detail / $sent',
+        );
+      }
+    }
+
+    // Unknown-field words are a kind of refusal: one set within the other.
+    for (final detail in [
+      'thinking: extra inputs are not permitted',
+      'thinking: unknown field',
+      'unrecognized request argument supplied: thinking',
+      'thinking [type=extra_forbidden]',
+    ]) {
+      expect(AnthropicProvider.refusesThinkingField(detail), isTrue);
+      expect(AnthropicProvider.refusesThinking(detail), isTrue, reason: detail);
+    }
   });
 
   test('a tool input streamed as two objects becomes one', () async {
