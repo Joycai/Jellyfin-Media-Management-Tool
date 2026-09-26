@@ -39,8 +39,9 @@ enum ReasoningRoute {
 
   /// The model said it cannot stop reasoning (Zhipu's 5.3 generation, a
   /// switch route that refused `disabled`), so off sends nothing and the
-  /// model reasons at its default. On is still sent, unless the field was
-  /// later refused by name too; the model reasons either way.
+  /// model reasons at its default. On is still sent, unless on was later
+  /// refused too (the field by name, or `adaptive` on a switch route); the
+  /// model reasons either way.
   offRefused,
 
   /// Off was refused without saying why, so off sends nothing and the

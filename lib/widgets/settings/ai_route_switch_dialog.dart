@@ -54,7 +54,8 @@ class RouteSwitchDialog extends StatelessWidget {
     // The platform field is named where the saved choice still sends it:
     // both ways on a working switch, off on a switch route that refused on,
     // on where the model said it cannot stop — except on the rare route that
-    // later refused the name too, which is named although nothing is sent.
+    // later refused on too (the name, or a switch route's `adaptive`), which
+    // is named although nothing is sent.
     String thinking(RouteParams p, AiConfig config) {
       final (:route, :field) = PlatformProfiles.reasoningRouteFor(
         config,
