@@ -550,6 +550,32 @@ void main() {
             ThinkingControl.alwaysOn || ThinkingControl.effortOnly => true,
             _ => saved,
           }, reason: 'chat $model saved $saved');
+          // Whichever field the platform takes.
+          final dashScope = at(
+            AiProviderType.openAi,
+            'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            model,
+            thinking: saved,
+          );
+          expect(
+            PlatformProfiles.thinkingAskedFor(dashScope),
+            (await body(dashScope))['enable_thinking'],
+            reason: 'dashscope $model saved $saved',
+          );
+          // The ladder resolves the same, though it has nothing to send for
+          // on: it asks off only where the family can be switched.
+          final local = at(
+            AiProviderType.openAi,
+            'http://localhost:1234',
+            model,
+            thinking: saved,
+          );
+          expect(PlatformProfiles.thinkingAskedFor(local), chatAsked);
+          expect(
+            (await body(local)).containsKey('chat_template_kwargs'),
+            control == ThinkingControl.softSwitch && !saved,
+            reason: 'local $model saved $saved',
+          );
 
           // The other protocols send the saved choice as it is.
           final messages = at(
