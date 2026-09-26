@@ -690,8 +690,8 @@ class AiSamplingSection extends StatelessWidget {
       default:
         break;
     }
-    // Off was refused: a test that still reasoned says nothing new, and
-    // "turn it off on the server" would be the wrong advice.
+    // The model said it cannot stop: a test that still reasoned says nothing
+    // new, and "turn it off on the server" would be the wrong advice.
     if (route == ReasoningRoute.offRefused) {
       return (text: l10n.thinkingAlwaysOn, warning: false);
     }
@@ -703,9 +703,12 @@ class AiSamplingSection extends StatelessWidget {
         !(switchable || route == ReasoningRoute.refused)) {
       return null;
     }
-    return reasoned
-        ? (text: l10n.thinkingStillOn, warning: true)
-        : (text: l10n.thinkingVerifiedOff, warning: false);
+    if (!reasoned) return (text: l10n.thinkingVerifiedOff, warning: false);
+    // Off was refused and nothing was sent for it, so the reasoning was the
+    // model's own default: there is no switch left to turn off.
+    return route == ReasoningRoute.offToDefault
+        ? (text: l10n.thinkingAlwaysOn, warning: false)
+        : (text: l10n.thinkingStillOn, warning: true);
   }
 }
 

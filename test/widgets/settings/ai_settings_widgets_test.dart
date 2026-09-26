@@ -126,8 +126,28 @@ void main() {
     );
     expect(find.text(l10n.thinkingStillOn), findsOneWidget);
 
-    // So is one that was refused by name: the model runs at its default,
-    // and the test is how the user finds out that it reasons.
+    // Off refused without a reason: reasoning there is the model's default,
+    // and a test is what shows it.
+    await reasoningSwitch(
+      tester,
+      preset: null,
+      route: ReasoningRoute.offToDefault,
+      lastReasoned: true,
+    );
+    expect(find.text(l10n.thinkingAlwaysOn), findsOneWidget);
+    expect(find.text(l10n.thinkingStillOn), findsNothing);
+    await reasoningSwitch(
+      tester,
+      preset: null,
+      route: ReasoningRoute.offToDefault,
+      lastReasoned: false,
+    );
+    expect(find.text(l10n.thinkingVerifiedOff), findsOneWidget);
+    expect(find.text(l10n.thinkingAlwaysOn), findsNothing);
+
+    // A field refused by name leaves the model at its default, where the
+    // test is how the user finds out that it reasons; the server's settings
+    // are the only switch left.
     await reasoningSwitch(
       tester,
       preset: null,
