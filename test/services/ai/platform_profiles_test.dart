@@ -252,8 +252,10 @@ void main() {
         route: ReasoningRoute.protocolField,
         field: 'reasoning.effort',
       ));
+      // Refused none: a model that always reasons and one that cannot
+      // reason are refused alike.
       expect(read(grok, tried: {LearnedBehaviour.effortNone}), (
-        route: ReasoningRoute.offRefused,
+        route: ReasoningRoute.offToDefault,
         field: 'reasoning.effort',
       ));
       expect(read(grok, rejected: {'reasoning'}), (
@@ -265,14 +267,14 @@ void main() {
         read(grok, rejected: {'include'}).route,
         ReasoningRoute.protocolField,
       );
-      // A refused none says the model reasons: that outranks the name.
+      // Refused by name as well: nothing either way.
       expect(
         read(
           grok,
           rejected: {'reasoning'},
           tried: {LearnedBehaviour.effortNone},
         ).route,
-        ReasoningRoute.offRefused,
+        ReasoningRoute.refused,
       );
     });
 
@@ -287,6 +289,8 @@ void main() {
           ReasoningRoute.protocolField,
           // Off is still sent, so the toggle can still turn reasoning off.
           ReasoningRoute.onRefused,
+          // On is still sent; what off does, only a test shows.
+          ReasoningRoute.offToDefault,
         ],
       );
       expect(ReasoningRoute.offRefused.drawnAs, isTrue);
@@ -295,6 +299,7 @@ void main() {
         ReasoningRoute.platformField,
         ReasoningRoute.protocolField,
         ReasoningRoute.onRefused,
+        ReasoningRoute.offToDefault,
         ReasoningRoute.ladder,
       ]) {
         expect(free.drawnAs, isNull, reason: '$free');
@@ -361,6 +366,9 @@ void main() {
             if (rejected.isEmpty) {
               expect(whenOn, isNotNull, reason: 'on is still sent');
             }
+            expect(whenOff, isNull);
+          case ReasoningRoute.offToDefault:
+            expect(whenOn, isNotNull, reason: 'on is still sent');
             expect(whenOff, isNull);
           case ReasoningRoute.onRefused:
             expect(whenOn, isNull);
@@ -467,13 +475,13 @@ void main() {
           (
             <String>{},
             {LearnedBehaviour.effortNone},
-            ReasoningRoute.offRefused,
+            ReasoningRoute.offToDefault,
           ),
           ({'reasoning'}, <String>{}, ReasoningRoute.refused),
           (
             {'reasoning'},
             {LearnedBehaviour.effortNone},
-            ReasoningRoute.offRefused,
+            ReasoningRoute.refused,
           ),
         ]) {
           await check(

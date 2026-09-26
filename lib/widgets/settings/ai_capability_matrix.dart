@@ -311,8 +311,7 @@ CapabilityCell capabilityCell(
         case ReasoningRoute.protocolField:
           return (state: unmeasured, text: l10n.aiCellProtocolSwitch(field!));
         // Refused off, or refused `reasoning` altogether: nothing is sent.
-        case ReasoningRoute.offRefused
-            when protocol == AiProviderType.openAiResponses:
+        case ReasoningRoute.offToDefault:
         case ReasoningRoute.refused:
           return (state: unavailable, text: l10n.aiCellModelDefault);
         // The model refused its switch set to off (Zhipu's 5.3).

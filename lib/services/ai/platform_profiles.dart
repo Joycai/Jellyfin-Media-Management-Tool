@@ -37,10 +37,18 @@ enum ReasoningRoute {
   /// can still turn reasoning off, and on leaves the model at its default.
   onRefused,
 
-  /// Off was refused, so off sends nothing and the model runs at its own
-  /// default — which reasons. On is still sent, unless the field was later
-  /// refused by name too; the model reasons either way.
+  /// The model said it cannot stop reasoning (Zhipu's 5.3 generation, a
+  /// switch route that refused `disabled`), so off sends nothing and the
+  /// model reasons at its default. On is still sent, unless the field was
+  /// later refused by name too; the model reasons either way.
   offRefused,
+
+  /// Off was refused without saying why, so off sends nothing and the
+  /// model runs at its default — which may or may not reason: Responses
+  /// refuses `effort: none` alike from a model that always reasons (Grok,
+  /// o3) and from one that cannot reason at all (GPT-4.1). On is still
+  /// sent; only a test shows what off does.
+  offToDefault,
 
   /// Sent neither way: the field refused by name, or on a Messages route
   /// every form of thinking — where off is the protocol's default anyway.
@@ -51,14 +59,21 @@ enum ReasoningRoute {
 
   /// Whether the settings toggle changes what this route sends.
   bool get switchable =>
-      this == platformField || this == protocolField || this == onRefused;
+      this == platformField ||
+      this == protocolField ||
+      this == onRefused ||
+      this == offToDefault;
 
   /// What a toggle for a model no preset knows is drawn as, whatever was
   /// saved; null where it shows the saved choice.
   bool? get drawnAs => switch (this) {
     offRefused => true,
     refused => false,
-    platformField || protocolField || onRefused || ladder => null,
+    platformField ||
+    protocolField ||
+    onRefused ||
+    offToDefault ||
+    ladder => null,
   };
 }
 
@@ -436,9 +451,11 @@ abstract final class PlatformProfiles {
   /// the field it does it with. Mirrors each adapter's own reading of the
   /// same memory; `platform_profiles_test` holds the two side by side.
   ///
-  /// A refused off is checked before a field refused by name, on every
-  /// protocol: it says the model reasons, where the name alone says only
-  /// that nothing is sent, and either way nothing goes out for off.
+  /// Where a refused off says the model reasons (Chat Completions, a
+  /// Messages switch route) it is checked before a field refused by name,
+  /// which alone says only that nothing is sent. On Responses it says
+  /// nothing of the kind, and a field refused by name as well means
+  /// nothing goes out either way.
   static ({ReasoningRoute route, String? field}) reasoningRouteFor(
     AiConfig config,
     LearnedBehaviour learned,
@@ -481,11 +498,14 @@ abstract final class PlatformProfiles {
             ? (route: ReasoningRoute.protocolField, field: 'thinking')
             : (route: ReasoningRoute.refused, field: 'thinking');
       case AiProviderType.openAiResponses:
-        if (tried.contains(LearnedBehaviour.effortNone)) {
-          return (route: ReasoningRoute.offRefused, field: 'reasoning.effort');
-        }
         if (refused.contains('reasoning')) {
           return (route: ReasoningRoute.refused, field: 'reasoning.effort');
+        }
+        if (tried.contains(LearnedBehaviour.effortNone)) {
+          return (
+            route: ReasoningRoute.offToDefault,
+            field: 'reasoning.effort',
+          );
         }
         return (route: ReasoningRoute.protocolField, field: 'reasoning.effort');
     }

@@ -359,17 +359,20 @@ void main() {
         tried: tried,
       );
 
-      // A switch route that refused only on still sends off with its field:
-      // the toggle stays live, showing the saved choice, so off can be
-      // chosen. Anything else refused is drawn as it runs, and locked.
+      // A switch route that refused only on still sends off with its field,
+      // and Responses that refused none still sends on: the toggle stays
+      // live on the saved choice. Anything else refused is drawn as it
+      // runs, and locked.
       final offStillSent =
           route == AiProviderType.anthropic && refused.isNotEmpty;
+      final onStillSent = route == AiProviderType.openAiResponses;
       final toggle = tester.widget<AppToggle>(find.byType(AppToggle).at(2));
-      expect(toggle.onChanged != null, offStillSent);
+      expect(toggle.onChanged != null, offStillSent || onStillSent);
       expect(toggle.value, on);
+      // Only a model that said it cannot stop reasoning is said to.
       expect(
         find.text(l10n.thinkingAlwaysOn),
-        tried.isNotEmpty ? findsOneWidget : findsNothing,
+        tried.isNotEmpty && !onStillSent ? findsOneWidget : findsNothing,
       );
 
       final cell = capabilityCell(

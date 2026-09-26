@@ -66,7 +66,8 @@ void main() {
         toggle.onChanged != null,
         route == ReasoningRoute.platformField ||
             route == ReasoningRoute.protocolField ||
-            route == ReasoningRoute.onRefused,
+            route == ReasoningRoute.onRefused ||
+            route == ReasoningRoute.offToDefault,
         reason: '$route',
       );
     }
@@ -95,6 +96,7 @@ void main() {
       ReasoningRoute.platformField,
       ReasoningRoute.protocolField,
       ReasoningRoute.onRefused,
+      ReasoningRoute.offToDefault,
       ReasoningRoute.ladder,
     ]) {
       for (final saved in [true, false]) {
