@@ -58,7 +58,10 @@ enum ReasoningRoute {
   /// No switch at all: the local-server ladder, judged by the reply.
   ladder;
 
-  /// Whether the settings toggle changes what this route sends.
+  /// Whether a model no preset knows gets a live toggle here: where turning
+  /// it can change whether the model reasons. Not where the model said it
+  /// cannot stop (on is still sent, but it reasons either way), and not the
+  /// ladder, which has nothing to send for on.
   bool get switchable =>
       this == platformField ||
       this == protocolField ||

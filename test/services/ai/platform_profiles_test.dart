@@ -466,7 +466,8 @@ void main() {
             rejected: rejected,
           );
         }
-        // Against adaptive, a bare record leaves extended to try.
+        // Against adaptive, a bare record reads as extended refused, so
+        // adaptive is still asked.
         AiConfig claude46({bool thinking = false}) => at(
           AiProviderType.anthropic,
           relay,
