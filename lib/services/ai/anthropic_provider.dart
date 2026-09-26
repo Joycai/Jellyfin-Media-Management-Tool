@@ -17,17 +17,19 @@ import 'thinking_dialect.dart';
 /// What a 400 says about a request for thinking, read the same way whether
 /// on or off was asked ([AnthropicProvider.readThinkingRefusal]).
 enum ThinkingRefusal {
-  /// The model cannot stop reasoning ("该模型始终思考，不支持关闭思考").
+  /// The model cannot stop reasoning ("该模型始终思考，不支持关闭思考"). Read
+  /// only when off was asked: it answers that question alone.
   cannotStop,
 
   /// The server does not know the `thinking` field.
   fieldUnknown,
 
-  /// The server knows the field and refuses the value sent, in so many
-  /// words ("unsupported value 'adaptive'").
+  /// The server knows the field — the value sent or a sub-field is named
+  /// — and refuses in so many words ("unsupported value 'adaptive'",
+  /// "thinking.budget_tokens: Extra inputs are not permitted").
   valueRefused,
 
-  /// The value sent, or `thinking.type`, is named without thinking being
+  /// The value sent, or a sub-field, is named without thinking being
   /// refused ("Input tag 'adaptive' … does not match … 'enabled'").
   valueNamed,
 
@@ -347,11 +349,14 @@ class AnthropicProvider implements AiProvider {
   /// says the server knows the field, whatever the words: it is the value.
   static bool refusesThinkingField(String detail) =>
       detail.contains('thinking') &&
-      !RegExp(r'thinking\.\w').hasMatch(detail) &&
+      !_subField.hasMatch(detail) &&
       RegExp(
         'extra inputs|extra_forbidden|unknown (field|parameter)|'
         '$_unrecognizedField',
       ).hasMatch(detail);
+
+  /// A sub-field of `thinking` named: `thinking.type`, `thinking.budget_tokens`.
+  static final _subField = RegExp(r'thinking\.\w');
 
   /// What a 400 [detail] says about the request for thinking that sent
   /// [sentType] (`adaptive`, `enabled` or `disabled`): the one reading both
@@ -369,14 +374,19 @@ class AnthropicProvider implements AiProvider {
   }) {
     if (_aboutHistory(detail)) return ThinkingRefusal.unrelated;
     // Said without naming the field ("始终思考"): read before the field is
-    // looked for.
-    if (refusesThinkingOff(detail)) return ThinkingRefusal.cannotStop;
+    // looked for. It answers off alone: asked on, the same words beside a
+    // form or the field are read as those.
+    if (sentType == 'disabled' && refusesThinkingOff(detail)) {
+      return ThinkingRefusal.cannotStop;
+    }
     if (!detail.contains('thinking')) return ThinkingRefusal.unrelated;
     if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
       return ThinkingRefusal.unrelated;
     }
     if (refusesThinkingField(detail)) return ThinkingRefusal.fieldUnknown;
-    if (detail.contains(sentType) || detail.contains('thinking.type')) {
+    // The value sent, or any sub-field (`thinking.type`,
+    // `thinking.budget_tokens`), named: the server knows the field.
+    if (detail.contains(sentType) || _subField.hasMatch(detail)) {
       return refusesThinking(detail)
           ? ThinkingRefusal.valueRefused
           : ThinkingRefusal.valueNamed;

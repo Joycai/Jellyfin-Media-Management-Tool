@@ -387,6 +387,38 @@ void main() {
       },
     );
 
+    test('a form refused beside "always thinks" is the form, swapped', () async {
+      // "Cannot stop" answers off alone; asked on, the words beside the
+      // form name say the form was refused, and the other is tried.
+      final (bodies, provider) = await refusing(
+        'always-on.example',
+        {'adaptive'},
+        (type) =>
+            "thinking.type: '$type' is not supported; this model always thinks",
+        model: 'claude-sonnet-4-6',
+      );
+      expect(bodies, hasLength(2));
+      expect((bodies.last['thinking'] as Map)['type'], 'enabled');
+      expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+      expect(provider.learned.thinkingOffTried, isEmpty);
+    });
+
+    test('a budget refused as an extra input is the form, swapped', () async {
+      // A server modelled on `{type}` alone, with extra inputs forbidden:
+      // the sub-field named says it knows the field, so adaptive is tried.
+      final (bodies, provider) = await refusing(
+        'no-budget.example',
+        {'enabled'},
+        (_) =>
+            'thinking.budget_tokens\n  Extra inputs are not permitted '
+            '[type=extra_forbidden, input_value=1024, input_type=int]',
+        model: 'claude-sonnet-4-5',
+      );
+      expect(bodies, hasLength(2));
+      expect(bodies.last['thinking'], {'type': 'adaptive'});
+      expect(provider.learned.rejectedFields, {'thinking:enabled'});
+    });
+
     test(
       'an unrecognized model named after thinking teaches nothing',
       () async {
@@ -1538,7 +1570,8 @@ void main() {
     const echo =
         "[type=extra_forbidden, input_value={'type': '%s'}, input_type=dict]";
 
-    // The model cannot stop: said without naming the field.
+    // The model cannot stop: said without naming the field, and only in
+    // answer to off — asked on, the same words read as what is beside them.
     expect(
       read('该模型始终思考，不支持关闭思考', sent: 'disabled'),
       ThinkingRefusal.cannotStop,
@@ -1547,6 +1580,11 @@ void main() {
       read('this model always thinks', sent: 'disabled'),
       ThinkingRefusal.cannotStop,
     );
+    expect(
+      read('thinking.type 参数非法：该模型始终思考，不支持关闭思考', sent: 'adaptive'),
+      ThinkingRefusal.valueNamed,
+    );
+    expect(read('this model always thinks'), ThinkingRefusal.unrelated);
 
     // The field itself unknown, in each server's words — whatever value
     // Pydantic echoes beside them.
@@ -1582,6 +1620,15 @@ void main() {
       read("thinking.type: unsupported value 'adaptive'"),
       ThinkingRefusal.valueRefused,
     );
+    // Any sub-field, not only the type.
+    expect(
+      read(
+        'thinking.budget_tokens\n  Extra inputs are not permitted '
+        '[type=extra_forbidden, input_value=1024]',
+        sent: 'enabled',
+      ),
+      ThinkingRefusal.valueRefused,
+    );
     expect(
       read('invalid params: thinking.type is not supported', sent: 'disabled'),
       ThinkingRefusal.valueRefused,
@@ -1611,6 +1658,9 @@ void main() {
     // Not about the request for thinking.
     for (final detail in [
       'max_tokens must be greater than thinking.budget_tokens',
+      // A budget error that names the form is still about the numbers.
+      'thinking.type enabled requires max_tokens greater than '
+          'thinking.budget_tokens',
       'messages.1.content.0: thinking blocks cannot be sent while thinking '
           'is disabled',
       'messages.3.content.0: Invalid `signature` in `thinking` block',
@@ -1619,7 +1669,7 @@ void main() {
       'model -thinking is unavailable',
       'top_k: Extra inputs are not permitted',
     ]) {
-      for (final sent in ['adaptive', 'disabled']) {
+      for (final sent in ['adaptive', 'enabled', 'disabled']) {
         expect(
           read(detail, sent: sent),
           ThinkingRefusal.unrelated,
