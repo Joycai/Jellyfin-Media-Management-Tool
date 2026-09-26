@@ -448,6 +448,14 @@ abstract final class PlatformProfiles {
       config.provider == AiProviderType.anthropic &&
       (of(config).routes[config.provider]?.messagesThinkingSwitch ?? false);
 
+  /// The form [config]'s Messages route asks thinking in before any
+  /// refusal: adaptive on a switch route, the one form it takes, otherwise
+  /// the model's own. The adapter and [reasoningRouteFor] both read it.
+  static MessagesThinking messagesFirstFormFor(AiConfig config) =>
+      messagesSwitchFor(config)
+      ? MessagesThinking.adaptive
+      : MessagesThinking.forModel(config.model);
+
   /// How [config]'s route switches reasoning after what it [learned], and
   /// the field it does it with. Mirrors each adapter's own reading of the
   /// same memory; `platform_profiles_test` holds the two side by side.
@@ -477,24 +485,20 @@ abstract final class PlatformProfiles {
       case AiProviderType.googleGenAi:
         return (route: ReasoningRoute.ladder, field: null);
       case AiProviderType.anthropic:
+        final forms = MessagesThinking.refusedIn(
+          refused,
+          first: messagesFirstFormFor(config),
+        );
         // A switch route asks adaptive only, and says off as `disabled`.
         if (messagesSwitchFor(config)) {
           if (tried.contains(LearnedBehaviour.dialectOff)) {
             return (route: ReasoningRoute.offRefused, field: 'thinking');
           }
-          final forms = MessagesThinking.refusedIn(
-            refused,
-            first: MessagesThinking.adaptive,
-          );
           return forms.contains(MessagesThinking.adaptive)
               ? (route: ReasoningRoute.onRefused, field: 'thinking')
               : (route: ReasoningRoute.platformField, field: 'thinking');
         }
         // Elsewhere off is the protocol's default: nothing to refuse.
-        final forms = MessagesThinking.refusedIn(
-          refused,
-          first: MessagesThinking.forModel(config.model),
-        );
         return forms.length < MessagesThinking.values.length
             ? (route: ReasoningRoute.protocolField, field: 'thinking')
             : (route: ReasoningRoute.refused, field: 'thinking');

@@ -359,11 +359,10 @@ class AnthropicProvider implements AiProvider {
     return forms.where((form) => !refused.contains(form)).firstOrNull;
   }
 
-  /// The form thinking is asked in before any refusal: adaptive on a switch
-  /// route, otherwise the model's own.
-  MessagesThinking get _firstForm => PlatformProfiles.messagesSwitchFor(config)
-      ? MessagesThinking.adaptive
-      : MessagesThinking.forModel(config.model);
+  /// The form thinking is asked in before any refusal
+  /// ([PlatformProfiles.messagesFirstFormFor]).
+  MessagesThinking get _firstForm =>
+      PlatformProfiles.messagesFirstFormFor(config);
 
   /// Sampling fields the adapter may leave out when a route refuses them;
   /// `thinking` has its own rules ([_thinkingRefusal]).

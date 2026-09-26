@@ -433,6 +433,9 @@ void main() {
             {LearnedBehaviour.dialectOff},
             ReasoningRoute.offRefused,
           ),
+          // A legacy bare record is read against the form asked first:
+          // adaptive here, though the model's own would be extended.
+          ({'thinking'}, <String>{}, ReasoningRoute.platformField),
         ]) {
           await check(
             m3,
@@ -452,6 +455,8 @@ void main() {
         for (final (rejected, expected) in [
           (<String>{}, ReasoningRoute.protocolField),
           ({'thinking:adaptive', 'thinking:enabled'}, ReasoningRoute.refused),
+          // A legacy bare record, against the extended this model asks first.
+          ({'thinking'}, ReasoningRoute.refused),
         ]) {
           await check(
             claude,
@@ -461,6 +466,20 @@ void main() {
             rejected: rejected,
           );
         }
+        // Against adaptive, a bare record leaves extended to try.
+        AiConfig claude46({bool thinking = false}) => at(
+          AiProviderType.anthropic,
+          relay,
+          'claude-sonnet-4-6',
+          thinking: thinking,
+        );
+        await check(
+          claude46,
+          base: '$relay/v1',
+          wire: 'thinking',
+          expected: ReasoningRoute.protocolField,
+          rejected: {'thinking'},
+        );
       });
 
       test('Responses', () async {

@@ -63,6 +63,16 @@ String? reasoningRefusalText(
   ReasoningRoute.ladder => null,
 };
 
+/// Whether reasoning runs as the model page draws its toggle: a preset
+/// family decides for itself, a model no preset knows is drawn as a refused
+/// switch runs it ([ReasoningRoute.drawnAs]), and otherwise the [saved]
+/// choice. Diagnostics judges its reasoning step by the same answer.
+bool reasoningDrawn({
+  required SamplingPreset? preset,
+  required ReasoningRoute route,
+  required bool saved,
+}) => preset?.reasons(requested: saved) ?? route.drawnAs ?? saved;
+
 /// A platform's name in the UI language. Product names stay as they are.
 String platformName(AppLocalizations l10n, PlatformProfile platform) =>
     switch (platform.id) {
@@ -540,8 +550,11 @@ class AiSamplingSection extends StatelessWidget {
     final switchable = preset != null
         ? preset.thinkingIsOptional
         : route.switchable;
-    final reasons =
-        preset?.reasons(requested: thinking) ?? route.drawnAs ?? thinking;
+    final reasons = reasoningDrawn(
+      preset: preset,
+      route: route,
+      saved: thinking,
+    );
     final values = preset?.valuesFor(thinking: reasons);
     final status = _thinkingStatus(l10n, reasons, switchable);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);

@@ -8,6 +8,7 @@ import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_diagnostics_page.dart';
+import 'package:jellyfin_media_management_tool/widgets/settings/ai_settings_widgets.dart';
 
 import '../../helpers/settings.dart';
 
@@ -99,6 +100,26 @@ void main() {
     ));
     expect(
       thinkingStep(l10n, asked: false, reasoned: false, cannotStop: true),
+      (ok: true, text: l10n.aiStepThinkingOff),
+    );
+  });
+
+  test('the step is asked as the model page draws the toggle', () {
+    final l10n = AppLocalizationsEn();
+    // A switch refused by name locks a model no preset knows off, with the
+    // saved "on" left where nothing can change it: not a failed step.
+    final asked = reasoningDrawn(
+      preset: null,
+      route: ReasoningRoute.refused,
+      saved: true,
+    );
+    expect(
+      thinkingStep(
+        l10n,
+        asked: asked,
+        reasoned: false,
+        refused: reasoningRefused(ReasoningRoute.refused),
+      ),
       (ok: true, text: l10n.aiStepThinkingOff),
     );
   });

@@ -331,9 +331,15 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
       config,
       AiService.providerFor(config).learned,
     );
+    // Asked as the model page draws it: a refused switch that locks the
+    // toggle leaves the saved choice where nothing can change it.
     final thinking = thinkingStep(
       l10n,
-      asked: config.thinkingEnabled,
+      asked: reasoningDrawn(
+        preset: SamplingPresets.forModel(entry.model.upstream),
+        route: route,
+        saved: config.thinkingEnabled,
+      ),
       reasoned: result.reasoned,
       refused: reasoningRefused(route),
       cannotStop: reasoningCannotStop(route),
