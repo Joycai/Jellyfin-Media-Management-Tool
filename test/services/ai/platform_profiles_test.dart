@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/services/ai/thinking_dialect.dart';
 
@@ -172,5 +174,331 @@ void main() {
       field(on(AiProviderType.anthropic, 'claude-sonnet-4-6'), {'thinking'}),
       'thinking',
     );
+  });
+
+  group('reasoningRouteFor', () {
+    AiConfig at(
+      AiProviderType provider,
+      String endpoint,
+      String model, {
+      bool thinking = false,
+    }) => AiConfig(
+      provider: provider,
+      endpoint: endpoint,
+      apiKey: 'k',
+      model: model,
+      thinkingEnabled: thinking,
+    );
+    const zhipu = 'https://open.bigmodel.cn/api/paas/v4';
+    const miniMax = 'https://api.minimaxi.com/anthropic';
+    const relay = 'https://relay.example.com';
+
+    ({ReasoningRoute route, String? field}) read(
+      AiConfig config, {
+      Set<String> rejected = const {},
+      Set<String> tried = const {},
+    }) => PlatformProfiles.reasoningRouteFor(
+      config,
+      LearnedBehaviour(rejectedFields: rejected, thinkingOffTried: tried),
+    );
+
+    test('Chat Completions: the platform dialect, or the ladder', () {
+      final glm = at(AiProviderType.openAi, zhipu, 'glm-5.3');
+      expect(read(glm), (
+        route: ReasoningRoute.platformField,
+        field: 'thinking',
+      ));
+      expect(read(glm, tried: {LearnedBehaviour.dialectOff}), (
+        route: ReasoningRoute.offRefused,
+        field: 'thinking',
+      ));
+      expect(read(glm, rejected: {'thinking'}), (
+        route: ReasoningRoute.refused,
+        field: 'thinking',
+      ));
+      // "Always reasons" says more than the refused name.
+      expect(
+        read(
+          glm,
+          rejected: {'thinking'},
+          tried: {LearnedBehaviour.dialectOff},
+        ).route,
+        ReasoningRoute.offRefused,
+      );
+      // Another field refused leaves the switch alone.
+      expect(
+        read(glm, rejected: {'top_k'}).route,
+        ReasoningRoute.platformField,
+      );
+
+      final local = at(AiProviderType.openAi, 'http://localhost:1234', 'm');
+      expect(read(local), (route: ReasoningRoute.ladder, field: null));
+      // A switch refused under another platform is no switch here.
+      expect(
+        read(local, tried: {LearnedBehaviour.dialectOff}).route,
+        ReasoningRoute.ladder,
+      );
+    });
+
+    test('Gemini has only the ladder', () {
+      expect(read(at(AiProviderType.googleGenAi, relay, 'gemini-3-pro')), (
+        route: ReasoningRoute.ladder,
+        field: null,
+      ));
+    });
+
+    test('Messages: a switch route, or the protocol field', () {
+      final m3 = at(AiProviderType.anthropic, miniMax, 'MiniMax-M3');
+      expect(read(m3), (
+        route: ReasoningRoute.platformField,
+        field: 'thinking',
+      ));
+      expect(read(m3, tried: {LearnedBehaviour.dialectOff}), (
+        route: ReasoningRoute.offRefused,
+        field: 'thinking',
+      ));
+      // A switch route asks adaptive only; refused, on is not sent.
+      expect(read(m3, rejected: {'thinking:adaptive'}), (
+        route: ReasoningRoute.onRefused,
+        field: 'thinking',
+      ));
+      expect(
+        read(m3, rejected: {'thinking:enabled'}).route,
+        ReasoningRoute.platformField,
+      );
+
+      final claude = at(AiProviderType.anthropic, relay, 'claude-sonnet-4-5');
+      expect(read(claude), (
+        route: ReasoningRoute.protocolField,
+        field: 'thinking',
+      ));
+      // One form refused: the other is still asked.
+      expect(
+        read(claude, rejected: {'thinking:enabled'}).route,
+        ReasoningRoute.protocolField,
+      );
+      expect(
+        read(claude, rejected: {'thinking:adaptive', 'thinking:enabled'}),
+        (route: ReasoningRoute.onRefused, field: null),
+      );
+      // Off is the protocol's default there: nothing to refuse.
+      expect(
+        read(claude, tried: {LearnedBehaviour.dialectOff}).route,
+        ReasoningRoute.protocolField,
+      );
+    });
+
+    test('Responses: reasoning.effort, until refused', () {
+      final grok = at(AiProviderType.openAiResponses, relay, 'grok-4.5');
+      expect(read(grok), (
+        route: ReasoningRoute.protocolField,
+        field: 'reasoning.effort',
+      ));
+      expect(read(grok, tried: {LearnedBehaviour.effortNone}), (
+        route: ReasoningRoute.offRefused,
+        field: 'reasoning.effort',
+      ));
+      expect(read(grok, rejected: {'reasoning'}), (
+        route: ReasoningRoute.refused,
+        field: 'reasoning.effort',
+      ));
+      expect(
+        read(
+          grok,
+          rejected: {'reasoning'},
+          tried: {LearnedBehaviour.effortNone},
+        ).route,
+        ReasoningRoute.refused,
+      );
+    });
+
+    test('what a toggle does, and is drawn as', () {
+      expect(
+        [
+          for (final r in ReasoningRoute.values)
+            if (r.switchable) r,
+        ],
+        [ReasoningRoute.platformField, ReasoningRoute.protocolField],
+      );
+      expect(ReasoningRoute.offRefused.drawnAs, isTrue);
+      expect(ReasoningRoute.onRefused.drawnAs, isFalse);
+      expect(ReasoningRoute.refused.drawnAs, isFalse);
+      for (final free in [
+        ReasoningRoute.platformField,
+        ReasoningRoute.protocolField,
+        ReasoningRoute.ladder,
+      ]) {
+        expect(free.drawnAs, isNull, reason: '$free');
+      }
+    });
+
+    // The adapters read the same memory on their own; what each state says
+    // the toggle does is held against the body they would send.
+    group('agrees with what the adapters send', () {
+      Future<void> check(
+        AiConfig Function({bool thinking}) make, {
+        required String base,
+        required String wire,
+        required ReasoningRoute expected,
+        Set<String> rejected = const {},
+        Set<String> tried = const {},
+      }) async {
+        final learned = LearnedBehaviour(
+          rejectedFields: rejected,
+          thinkingOffTried: tried,
+        );
+        final config = make();
+        final key = LearnedStore.routeKey(
+          protocol: config.provider.id,
+          base: base,
+          model: config.model,
+          apiKey: config.apiKey,
+        );
+        final on = AiService.providerFor(make(thinking: true));
+        final off = AiService.providerFor(config);
+        addTearDown(on.forgetLearned);
+        LearnedStore.instance.update(
+          key,
+          (b) => b.copyWith(rejectedFields: rejected, thinkingOffTried: tried),
+        );
+        expect(
+          off.learned.sameAs(learned),
+          isTrue,
+          reason: 'the test wrote the route the adapter reads',
+        );
+
+        Future<Object?> sent(AiProvider provider) async =>
+            (await provider.previewRequest(
+              messages: const [UserMessage('u')],
+              tools: const [],
+            ))!.body[wire];
+        final whenOn = await sent(on);
+        final whenOff = await sent(off);
+
+        final route = PlatformProfiles.reasoningRouteFor(config, learned).route;
+        expect(route, expected);
+        // A live toggle changes the body. The converse does not hold: with
+        // off refused the two bodies differ, but the model reasons in both.
+        if (route.switchable) {
+          expect(
+            whenOn,
+            isNot(whenOff),
+            reason: 'a live toggle does something',
+          );
+        }
+        switch (route) {
+          case ReasoningRoute.offRefused:
+            expect(whenOn, isNotNull, reason: 'on is still sent');
+            expect(whenOff, isNull);
+          case ReasoningRoute.onRefused:
+            expect(whenOn, isNull);
+          case ReasoningRoute.refused:
+            expect(whenOn, isNull);
+            expect(whenOff, isNull);
+          case ReasoningRoute.platformField:
+            expect(whenOn, isNotNull);
+            expect(whenOff, isNotNull);
+          case ReasoningRoute.protocolField:
+            expect(whenOn, isNotNull);
+          case ReasoningRoute.ladder:
+            fail('no field to hold against');
+        }
+      }
+
+      test('Chat Completions with a dialect', () async {
+        AiConfig glm({bool thinking = false}) =>
+            at(AiProviderType.openAi, zhipu, 'glm-5.3', thinking: thinking);
+        for (final (rejected, tried, expected) in [
+          (<String>{}, <String>{}, ReasoningRoute.platformField),
+          (
+            <String>{},
+            {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offRefused,
+          ),
+          ({'thinking'}, <String>{}, ReasoningRoute.refused),
+        ]) {
+          await check(
+            glm,
+            base: zhipu,
+            wire: 'thinking',
+            expected: expected,
+            rejected: rejected,
+            tried: tried,
+          );
+        }
+      });
+
+      test('Messages', () async {
+        AiConfig m3({bool thinking = false}) => at(
+          AiProviderType.anthropic,
+          miniMax,
+          'MiniMax-M3',
+          thinking: thinking,
+        );
+        for (final (rejected, tried, expected) in [
+          (<String>{}, <String>{}, ReasoningRoute.platformField),
+          (
+            <String>{},
+            {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offRefused,
+          ),
+          ({'thinking:adaptive'}, <String>{}, ReasoningRoute.onRefused),
+        ]) {
+          await check(
+            m3,
+            base: '$miniMax/v1',
+            wire: 'thinking',
+            expected: expected,
+            rejected: rejected,
+            tried: tried,
+          );
+        }
+        AiConfig claude({bool thinking = false}) => at(
+          AiProviderType.anthropic,
+          relay,
+          'claude-sonnet-4-5',
+          thinking: thinking,
+        );
+        for (final (rejected, expected) in [
+          (<String>{}, ReasoningRoute.protocolField),
+          ({'thinking:adaptive', 'thinking:enabled'}, ReasoningRoute.onRefused),
+        ]) {
+          await check(
+            claude,
+            base: '$relay/v1',
+            wire: 'thinking',
+            expected: expected,
+            rejected: rejected,
+          );
+        }
+      });
+
+      test('Responses', () async {
+        AiConfig grok({bool thinking = false}) => at(
+          AiProviderType.openAiResponses,
+          relay,
+          'grok-4.5',
+          thinking: thinking,
+        );
+        for (final (rejected, tried, expected) in [
+          (<String>{}, <String>{}, ReasoningRoute.protocolField),
+          (
+            <String>{},
+            {LearnedBehaviour.effortNone},
+            ReasoningRoute.offRefused,
+          ),
+          ({'reasoning'}, <String>{}, ReasoningRoute.refused),
+        ]) {
+          await check(
+            grok,
+            base: '$relay/v1',
+            wire: 'reasoning',
+            expected: expected,
+            rejected: rejected,
+            tried: tried,
+          );
+        }
+      });
+    });
   });
 }

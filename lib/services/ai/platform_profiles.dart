@@ -14,10 +14,49 @@
 library;
 
 import 'ai_provider.dart';
+import 'learned_behaviour.dart';
 import 'thinking_dialect.dart';
 
 /// Where a platform runs.
 enum PlatformKind { vendor, relay, local, custom }
+
+/// How a route switches reasoning now, after what it has refused — what the
+/// adapters send, read by the settings screens so that none of them works it
+/// out on its own ([PlatformProfiles.reasoningRouteFor]).
+enum ReasoningRoute {
+  /// A platform's field, sent both ways: a Chat Completions dialect, or a
+  /// Messages route declared as a switch.
+  platformField,
+
+  /// The protocol's own field: Messages' `thinking`, sent only for on, and
+  /// Responses' `reasoning.effort`.
+  protocolField,
+
+  /// On was refused and is no longer sent; off still works, so the route
+  /// runs with reasoning off.
+  onRefused,
+
+  /// Off was refused, so off sends nothing and the model runs at its own
+  /// default — which reasons. On is still sent.
+  offRefused,
+
+  /// The field was refused by name and is sent neither way.
+  refused,
+
+  /// No switch at all: the local-server ladder, judged by the reply.
+  ladder;
+
+  /// Whether the settings toggle changes what this route sends.
+  bool get switchable => this == platformField || this == protocolField;
+
+  /// What a toggle for a model no preset knows is drawn as, whatever was
+  /// saved; null where it shows the saved choice.
+  bool? get drawnAs => switch (this) {
+    offRefused => true,
+    onRefused || refused => false,
+    platformField || protocolField || ladder => null,
+  };
+}
 
 /// One protocol on one platform.
 class RouteSpec {
@@ -419,4 +458,62 @@ abstract final class PlatformProfiles {
       'reasoning.effort',
     _ => null,
   };
+
+  /// How [config]'s route switches reasoning after what it [learned], and
+  /// the field it does it with. Mirrors each adapter's own reading of the
+  /// same memory; `platform_profiles_test` holds the two side by side.
+  ///
+  /// A model that answered "always reasons" is checked before a field
+  /// refused by name: it says more, and either way nothing goes out for off.
+  static ({ReasoningRoute route, String? field}) reasoningRouteFor(
+    AiConfig config,
+    LearnedBehaviour learned,
+  ) {
+    final tried = learned.thinkingOffTried;
+    final refused = learned.rejectedFields;
+    switch (config.provider) {
+      case AiProviderType.openAi:
+        final field = dialectFor(config)?.field(thinking: false).key;
+        if (field == null) return (route: ReasoningRoute.ladder, field: null);
+        if (tried.contains(LearnedBehaviour.dialectOff)) {
+          return (route: ReasoningRoute.offRefused, field: field);
+        }
+        if (refused.contains(field)) {
+          return (route: ReasoningRoute.refused, field: field);
+        }
+        return (route: ReasoningRoute.platformField, field: field);
+      case AiProviderType.googleGenAi:
+        return (route: ReasoningRoute.ladder, field: null);
+      case AiProviderType.anthropic:
+        // A switch route asks adaptive only, and says off as `disabled`.
+        if (messagesSwitchFor(config)) {
+          if (tried.contains(LearnedBehaviour.dialectOff)) {
+            return (route: ReasoningRoute.offRefused, field: 'thinking');
+          }
+          final forms = MessagesThinking.refusedIn(
+            refused,
+            first: MessagesThinking.adaptive,
+          );
+          return forms.contains(MessagesThinking.adaptive)
+              ? (route: ReasoningRoute.onRefused, field: 'thinking')
+              : (route: ReasoningRoute.platformField, field: 'thinking');
+        }
+        // Elsewhere off is the protocol's default: nothing to refuse.
+        final forms = MessagesThinking.refusedIn(
+          refused,
+          first: MessagesThinking.forModel(config.model),
+        );
+        return forms.length < MessagesThinking.values.length
+            ? (route: ReasoningRoute.protocolField, field: 'thinking')
+            : (route: ReasoningRoute.onRefused, field: null);
+      case AiProviderType.openAiResponses:
+        if (refused.contains('reasoning')) {
+          return (route: ReasoningRoute.refused, field: 'reasoning.effort');
+        }
+        if (tried.contains(LearnedBehaviour.effortNone)) {
+          return (route: ReasoningRoute.offRefused, field: 'reasoning.effort');
+        }
+        return (route: ReasoningRoute.protocolField, field: 'reasoning.effort');
+    }
+  }
 }
