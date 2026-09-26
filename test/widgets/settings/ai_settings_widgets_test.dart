@@ -47,21 +47,18 @@ void main() {
     }
   });
 
-  test('reasoning is drawn as a refused switch runs it, bar a preset', () {
-    bool drawn(SamplingPreset? preset, ReasoningRoute route, bool saved) =>
-        reasoningDrawn(preset: preset, route: route, saved: saved);
-    // A model no preset knows, locked by a refusal: the saved choice is
-    // stuck where it was when the refusal was learned, and does not count.
-    expect(drawn(null, ReasoningRoute.refused, true), isFalse);
-    expect(drawn(null, ReasoningRoute.offRefused, false), isTrue);
-    expect(drawn(null, ReasoningRoute.platformField, true), isTrue);
-    expect(drawn(null, ReasoningRoute.onRefused, false), isFalse);
-    // A preset family decides for itself, whatever the route.
+  test('a toggle is live on a working switch, or where a preset says', () {
+    for (final route in ReasoningRoute.values) {
+      expect(reasoningSwitchable(null, route), route.switchable);
+    }
+    // A known family decides for itself, whatever the route.
     final qwen3 = SamplingPresets.forModel('qwen3-32b')!;
-    expect(drawn(qwen3, ReasoningRoute.refused, true), isTrue);
-    expect(drawn(qwen3, ReasoningRoute.offRefused, false), isFalse);
+    expect(reasoningSwitchable(qwen3, ReasoningRoute.refused), isTrue);
     final instruct = SamplingPresets.forModel('qwen3-30b-a3b-instruct-2507')!;
-    expect(drawn(instruct, ReasoningRoute.platformField, true), isFalse);
+    expect(
+      reasoningSwitchable(instruct, ReasoningRoute.platformField),
+      isFalse,
+    );
   });
 
   Future<AppToggle> reasoningSwitch(

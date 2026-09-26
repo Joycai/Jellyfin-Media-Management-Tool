@@ -13,6 +13,7 @@ import '../../services/ai/ai_provider.dart';
 import '../../services/ai/ai_service.dart';
 import '../../services/ai/api_log.dart';
 import '../../services/ai/connection_check.dart';
+import '../../services/ai/learned_behaviour.dart';
 import '../../services/ai/platform_profiles.dart';
 import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';
@@ -85,17 +86,22 @@ bool reasoningCannotStop(ReasoningRoute route) =>
 /// Gemini's dynamic thinking may skip a request as small as the test's.
 ///
 /// [refused]: the route refused the request for reasoning during the test
-/// and it is no longer sent — asked for, but not sent. [cannotStop]: off
-/// sends nothing on this route, so reasoning with it off is the model's
-/// default, the same thing the model page says.
+/// and it is no longer sent — asked for, but not sent; a failure the user
+/// can clear by turning reasoning off, unless the toggle is [locked].
+/// [cannotStop]: off sends nothing on this route, so reasoning with it off
+/// is the model's default, the same thing the model page says.
 ({bool? ok, String text}) thinkingStep(
   AppLocalizations l10n, {
   required bool asked,
   required bool reasoned,
   bool refused = false,
+  bool locked = false,
   bool cannotStop = false,
 }) => switch ((asked, reasoned)) {
-  (true, false) when refused => (ok: false, text: l10n.aiStepThinkingRefused),
+  (true, false) when refused => (
+    ok: locked ? null : false,
+    text: l10n.aiStepThinkingRefused,
+  ),
   (false, false) => (ok: true, text: l10n.aiStepThinkingOff),
   // Off sends nothing there: nothing the user can switch, so no failure.
   (false, true) when cannotStop => (
@@ -106,6 +112,30 @@ bool reasoningCannotStop(ReasoningRoute route) =>
   (true, true) => (ok: true, text: l10n.aiStepThinkingOn),
   (true, false) => (ok: null, text: l10n.aiStepThinkingNotOn),
 };
+
+/// The reasoning step of a connection test on [config]'s route, after what
+/// the test [learned]: judged against the saved choice the test sent, and
+/// against the route's state as the model page reads it — a refusal the
+/// model page's toggle cannot undo is not a failure the user can fix.
+({bool? ok, String text}) reasoningStepFor(
+  AppLocalizations l10n,
+  AiConfig config,
+  LearnedBehaviour learned, {
+  required bool reasoned,
+}) {
+  final (:route, field: _) = PlatformProfiles.reasoningRouteFor(
+    config,
+    learned,
+  );
+  return thinkingStep(
+    l10n,
+    asked: config.thinkingEnabled,
+    reasoned: reasoned,
+    refused: reasoningRefused(route),
+    locked: !reasoningSwitchable(SamplingPresets.forModel(config.model), route),
+    cannotStop: reasoningCannotStop(route),
+  );
+}
 
 /// Diagnostics (Diagnostics artboard): test one route step by step, and read
 /// today's API log.
@@ -327,22 +357,11 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
     final typed = config.contextWindow;
     // What the test itself learned: a route that refused the request for
     // reasoning no longer sends it.
-    final (:route, field: _) = PlatformProfiles.reasoningRouteFor(
+    final thinking = reasoningStepFor(
+      l10n,
       config,
       AiService.providerFor(config).learned,
-    );
-    // Asked as the model page draws it: a refused switch that locks the
-    // toggle leaves the saved choice where nothing can change it.
-    final thinking = thinkingStep(
-      l10n,
-      asked: reasoningDrawn(
-        preset: SamplingPresets.forModel(entry.model.upstream),
-        route: route,
-        saved: config.thinkingEnabled,
-      ),
       reasoned: result.reasoned,
-      refused: reasoningRefused(route),
-      cannotStop: reasoningCannotStop(route),
     );
     return [
       _Step(

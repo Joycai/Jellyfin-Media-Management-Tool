@@ -8,7 +8,6 @@ import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_diagnostics_page.dart';
-import 'package:jellyfin_media_management_tool/widgets/settings/ai_settings_widgets.dart';
 
 import '../../helpers/settings.dart';
 
@@ -104,24 +103,99 @@ void main() {
     );
   });
 
-  test('the step is asked as the model page draws the toggle', () {
+  test('the step is judged against what the test sent', () {
     final l10n = AppLocalizationsEn();
-    // A switch refused by name locks a model no preset knows off, with the
-    // saved "on" left where nothing can change it: not a failed step.
-    final asked = reasoningDrawn(
-      preset: null,
-      route: ReasoningRoute.refused,
-      saved: true,
-    );
-    expect(
-      thinkingStep(
-        l10n,
-        asked: asked,
-        reasoned: false,
-        refused: reasoningRefused(ReasoningRoute.refused),
+    ({bool? ok, String text}) step(
+      AiProviderType provider,
+      String endpoint,
+      String model, {
+      required bool saved,
+      required bool reasoned,
+      Set<String> rejected = const {},
+      Set<String> tried = const {},
+    }) => reasoningStepFor(
+      l10n,
+      AiConfig(
+        provider: provider,
+        endpoint: endpoint,
+        apiKey: 'k',
+        model: model,
+        thinkingEnabled: saved,
       ),
-      (ok: true, text: l10n.aiStepThinkingOff),
+      LearnedBehaviour(rejectedFields: rejected, thinkingOffTried: tried),
+      reasoned: reasoned,
     );
+    const responses = AiProviderType.openAiResponses;
+
+    // Asked for, refused by name, and the model reasoned at its default
+    // anyway: the reply is what counts.
+    expect(
+      step(
+        responses,
+        'https://r.io',
+        'grok-4.5',
+        saved: true,
+        reasoned: true,
+        rejected: {'reasoning'},
+      ),
+      (ok: true, text: l10n.aiStepThinkingOn),
+    );
+    // Refused with no reply reasoning: a model no preset knows is locked
+    // there, with the saved "on" nothing can change — said, not failed.
+    expect(
+      step(
+        responses,
+        'https://r.io',
+        'grok-4.5',
+        saved: true,
+        reasoned: false,
+        rejected: {'reasoning'},
+      ),
+      (ok: null, text: l10n.aiStepThinkingRefused),
+    );
+    // A preset family's toggle stays live, so the user can turn it off.
+    expect(
+      step(
+        responses,
+        'https://r.io',
+        'qwen3-32b',
+        saved: true,
+        reasoned: false,
+        rejected: {'reasoning'},
+      ),
+      (ok: false, text: l10n.aiStepThinkingRefused),
+    );
+    // So does a switch route that refused only on.
+    expect(
+      step(
+        AiProviderType.anthropic,
+        'https://api.minimaxi.com/anthropic',
+        'MiniMax-M3',
+        saved: true,
+        reasoned: false,
+        rejected: {'thinking:adaptive'},
+      ),
+      (ok: false, text: l10n.aiStepThinkingRefused),
+    );
+
+    // Off sent, and refused by a model that cannot stop: reasoning is its
+    // default, and none shown is still off.
+    for (final (reasoned, expected) in [
+      (true, (ok: null, text: l10n.aiStepThinkingCannotStop)),
+      (false, (ok: true, text: l10n.aiStepThinkingOff)),
+    ]) {
+      expect(
+        step(
+          AiProviderType.openAi,
+          'https://open.bigmodel.cn/api/paas/v4',
+          'glm-5.3',
+          saved: false,
+          reasoned: reasoned,
+          tried: {LearnedBehaviour.dialectOff},
+        ),
+        expected,
+      );
+    }
   });
 
   test('the step reads the route as the model page does', () {
