@@ -362,6 +362,66 @@ void main() {
       expect((bodies.last['thinking'] as Map)['type'], 'enabled');
     });
 
+    test(
+      'a sub-field refused in unknown-field words is the form, swapped',
+      () async {
+        // A Pydantic server with `extra=forbid` whose model takes only
+        // adaptive and disabled: the budget is the extra input, and
+        // `thinking.type` is named, so the server knows the field. Giving up
+        // every form here would switch reasoning off for a month.
+        final (bodies, provider) = await refusing(
+          'subfield.example',
+          {'enabled'},
+          (_) =>
+              '2 validation errors for MessagesRequest\nthinking.type\n  Input '
+              "should be 'adaptive' or 'disabled' [type=literal_error, "
+              "input_value='enabled', input_type=str]\nthinking.budget_tokens\n"
+              '  Extra inputs are not permitted [type=extra_forbidden, '
+              'input_value=1024, input_type=int]',
+          model: 'claude-sonnet-4-5',
+        );
+        expect(bodies, hasLength(2));
+        expect((bodies.first['thinking'] as Map)['type'], 'enabled');
+        expect(bodies.last['thinking'], {'type': 'adaptive'});
+        expect(provider.learned.rejectedFields, {'thinking:enabled'});
+      },
+    );
+
+    test(
+      'an unrecognized model named after thinking teaches nothing',
+      () async {
+        // A relay's upstream alias, left over after the model id is taken
+        // out: about the model, not the field.
+        final bodies = <Map<String, dynamic>>[];
+        final provider = AnthropicProvider(
+          _config(
+            'https://alias.example',
+            model: 'claude-sonnet-4-5',
+            thinking: true,
+          ),
+          client: MockClient((request) async {
+            bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+            return http.Response(
+              jsonEncode({
+                'type': 'error',
+                'error': {
+                  'type': 'invalid_request_error',
+                  'message': 'unrecognized model: claude-sonnet-4-5-thinking',
+                },
+              }),
+              400,
+            );
+          }),
+        );
+        await expectLater(
+          provider.chat(messages: const [UserMessage('u')], tools: const []),
+          throwsA(isA<AiException>()),
+        );
+        expect(bodies, hasLength(1));
+        expect(provider.learned.rejectedFields, isEmpty);
+      },
+    );
+
     test('a refusal of thinking itself gives up every form', () async {
       // The field is refused, not a form of it: trying the other form would
       // be one more refused request.
@@ -1467,6 +1527,117 @@ void main() {
       ),
       isFalse,
     );
+  });
+
+  test('a 400 about thinking is read the same way, whichever way was asked', () {
+    ThinkingRefusal read(String detail, {String sent = 'adaptive'}) =>
+        AnthropicProvider.readThinkingRefusal(
+          detail.toLowerCase(),
+          sentType: sent,
+        );
+    const echo =
+        "[type=extra_forbidden, input_value={'type': '%s'}, input_type=dict]";
+
+    // The model cannot stop: said without naming the field.
+    expect(
+      read('该模型始终思考，不支持关闭思考', sent: 'disabled'),
+      ThinkingRefusal.cannotStop,
+    );
+    expect(
+      read('this model always thinks', sent: 'disabled'),
+      ThinkingRefusal.cannotStop,
+    );
+
+    // The field itself unknown, in each server's words — whatever value
+    // Pydantic echoes beside them.
+    for (final detail in [
+      'thinking: Extra inputs are not permitted',
+      'thinking\n  Extra inputs are not permitted ${echo.replaceFirst('%s', 'disabled')}',
+      'thinking\n  Extra inputs are not permitted ${echo.replaceFirst('%s', 'adaptive')}',
+      'thinking: unknown field',
+      'Unknown parameter: thinking',
+      'Unrecognized request argument supplied: thinking',
+    ]) {
+      for (final sent in ['adaptive', 'enabled', 'disabled']) {
+        expect(
+          read(detail, sent: sent),
+          ThinkingRefusal.fieldUnknown,
+          reason: '$detail / $sent',
+        );
+      }
+    }
+
+    // A sub-field named says the server knows the field: the value, even
+    // in unknown-field words.
+    expect(
+      read(
+        "thinking.type\n  Input should be 'adaptive' or 'disabled' "
+        "[type=literal_error, input_value='enabled']\nthinking.budget_tokens\n"
+        '  Extra inputs are not permitted [type=extra_forbidden]',
+        sent: 'enabled',
+      ),
+      ThinkingRefusal.valueRefused,
+    );
+    expect(
+      read("thinking.type: unsupported value 'adaptive'"),
+      ThinkingRefusal.valueRefused,
+    );
+    expect(
+      read('invalid params: thinking.type is not supported', sent: 'disabled'),
+      ThinkingRefusal.valueRefused,
+    );
+    expect(
+      read(
+        "thinking.type: Input tag 'adaptive' found using 'type' does not "
+        "match any of the expected tags: 'disabled', 'enabled'",
+      ),
+      ThinkingRefusal.valueNamed,
+    );
+    expect(
+      read('thinking is disabled for this account', sent: 'disabled'),
+      ThinkingRefusal.valueNamed,
+    );
+
+    // Thinking itself, naming no field or value.
+    expect(
+      read('this model does not support thinking'),
+      ThinkingRefusal.featureRefused,
+    );
+    expect(
+      read('`thinking` is not supported for this model', sent: 'disabled'),
+      ThinkingRefusal.featureRefused,
+    );
+
+    // Not about the request for thinking.
+    for (final detail in [
+      'max_tokens must be greater than thinking.budget_tokens',
+      'messages.1.content.0: thinking blocks cannot be sent while thinking '
+          'is disabled',
+      'messages.3.content.0: Invalid `signature` in `thinking` block',
+      // A relay's upstream alias, left after the model id is taken out.
+      'unrecognized model: -thinking',
+      'model -thinking is unavailable',
+      'top_k: Extra inputs are not permitted',
+    ]) {
+      for (final sent in ['adaptive', 'disabled']) {
+        expect(
+          read(detail, sent: sent),
+          ThinkingRefusal.unrelated,
+          reason: '$detail / $sent',
+        );
+      }
+    }
+
+    // Unknown-field words are a kind of refusal: one set within the other.
+    for (final detail in [
+      'thinking: extra inputs are not permitted',
+      'thinking: unknown field',
+      'unrecognized request argument supplied: thinking',
+      'thinking [type=extra_forbidden]',
+    ]) {
+      expect(AnthropicProvider.refusesThinkingField(detail), isTrue);
+      expect(AnthropicProvider.refusesThinking(detail), isTrue, reason: detail);
+    }
   });
 
   test('a tool input streamed as two objects becomes one', () async {
