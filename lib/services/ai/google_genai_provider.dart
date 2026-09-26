@@ -218,7 +218,7 @@ class GoogleGenAiProvider implements AiProvider {
         }
         final error = _noResponse(firstEventTimeout);
         log(error: error);
-        throw AiNetworkException(error);
+        throw AiTimeoutException(error);
       } catch (e) {
         // Closing the client to cancel surfaces as a generic ClientException;
         // report it as a cancellation, not a network failure.

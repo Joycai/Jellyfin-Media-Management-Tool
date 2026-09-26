@@ -458,9 +458,11 @@ class AiSamplingSection extends StatelessWidget {
   final Map<SamplingField, TextEditingController> controllers;
   final bool thinking;
 
-  /// Whether the platform has its own reasoning switch, which works for any
-  /// model on it — not only the families a preset knows are hybrid.
-  final bool platformSwitch;
+  /// Whether the route has its own reasoning switch — a platform's field,
+  /// or the protocol's own (`PlatformProfiles.protocolSwitchFieldFor`) —
+  /// which works for any model on it, not only the families a preset knows
+  /// are hybrid.
+  final bool routeSwitch;
 
   /// What the last test on this route showed; null when none ran.
   final bool? lastReasoned;
@@ -477,7 +479,7 @@ class AiSamplingSection extends StatelessWidget {
     required this.preset,
     required this.controllers,
     required this.thinking,
-    required this.platformSwitch,
+    required this.routeSwitch,
     required this.lastReasoned,
     required this.serverKind,
     required this.refused,
@@ -509,10 +511,8 @@ class AiSamplingSection extends StatelessWidget {
     final preset = this.preset;
     // Mirrors what the provider sends: a known family decides whether its
     // reasoning can be switched at all; a model no preset knows can be
-    // switched only where the platform has a switch.
-    final switchable = preset != null
-        ? preset.thinkingIsOptional
-        : platformSwitch;
+    // switched only where its route has a switch.
+    final switchable = preset != null ? preset.thinkingIsOptional : routeSwitch;
     final reasons = preset?.reasons(requested: thinking) ?? thinking;
     final values = preset?.valuesFor(thinking: reasons);
     final status = _thinkingStatus(l10n, reasons, switchable);

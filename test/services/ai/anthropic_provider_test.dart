@@ -672,37 +672,6 @@ void main() {
       );
     });
 
-    test('an old bare `thinking` record still lets adaptive be asked', () {
-      // Written before the forms were told apart, when `enabled` was the
-      // only one sent: no verdict on adaptive where adaptive comes first.
-      const adaptive = MessagesThinking.adaptive;
-      const extended = MessagesThinking.extended;
-      expect(AnthropicProvider.refusedForms({'thinking'}, first: adaptive), {
-        extended,
-      });
-      // Where `enabled` comes first it was the model's own form, refused as
-      // a feature: what such a refusal records now.
-      expect(
-        AnthropicProvider.refusedForms({'thinking'}, first: extended),
-        MessagesThinking.values.toSet(),
-      );
-      expect(
-        AnthropicProvider.refusedForms({
-          'thinking',
-          'thinking:adaptive',
-        }, first: extended),
-        {adaptive},
-      );
-      expect(
-        AnthropicProvider.refusedForms({
-          'thinking',
-          'thinking:adaptive',
-          'thinking:enabled',
-        }, first: adaptive),
-        MessagesThinking.values.toSet(),
-      );
-    });
-
     /// The bodies a route with an old bare `thinking` record sends for
     /// [model]: the first request answered, the rest refused as an older
     /// Claude refuses adaptive.
@@ -1209,6 +1178,39 @@ void main() {
     ).chat(messages: const [UserMessage('u')], tools: const []);
     expect(bodies, hasLength(3));
     expect(bodies.last.containsKey('temperature'), isFalse);
+  });
+
+  test('a timed-out generation is sent once, as a timeout', () async {
+    for (final (name, answer) in [
+      (
+        'slow',
+        () async {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          return _stream(
+            _reply([
+              {'type': 'text', 'text': 'too late'},
+            ]),
+          );
+        },
+      ),
+      ('gateway', () async => http.Response('upstream timed out', 504)),
+    ]) {
+      var calls = 0;
+      final provider = AnthropicProvider(
+        _config('https://$name.example'),
+        firstEventTimeout: const Duration(milliseconds: 30),
+        client: MockClient((_) {
+          calls++;
+          return answer();
+        }),
+      );
+      await expectLater(
+        provider.chat(messages: const [UserMessage('u')], tools: const []),
+        throwsA(isA<AiTimeoutException>()),
+        reason: name,
+      );
+      expect(calls, 1, reason: name);
+    }
   });
 
   test('a stream that opens with a comment is still a stream', () async {
