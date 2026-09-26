@@ -188,8 +188,8 @@ void main() {
     // A field refused by name leaves the model at its default, where the
     // test is how the user finds out that it reasons; the server's settings
     // are the only switch left.
-    // Saved either way: the refusal is learned while on, and the saved
-    // choice sends nothing there.
+    // Saved either way: the refusal is usually learned while on, and the
+    // saved choice sends nothing there.
     for (final saved in [false, true]) {
       await reasoningSwitch(
         tester,

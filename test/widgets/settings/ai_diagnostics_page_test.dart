@@ -127,9 +127,10 @@ void main() {
     );
     const responses = AiProviderType.openAiResponses;
 
-    // Sent neither way, for a model no preset knows: the saved "on" (the
-    // refusal is learned while on) asks nothing, and the model page draws
-    // the toggle off and warns when it still reasons. So does this step.
+    // Sent neither way, for a model no preset knows: the saved choice
+    // (usually "on", most refusals being learned while on) asks nothing, and
+    // the model page draws the toggle off and warns when it still reasons.
+    // So does this step.
     for (final (reasoned, expected) in [
       (true, (ok: false, text: l10n.aiStepThinkingStillOn)),
       (false, (ok: true, text: l10n.aiStepThinkingOff)),
@@ -160,17 +161,23 @@ void main() {
       (ok: null, text: l10n.aiStepThinkingRefused),
     );
     // A family that always reasons, asked off on a route that sends it: the
-    // model page says it cannot stop, and so does this step.
-    expect(
-      step(
-        responses,
-        'https://r.io',
-        'qwen3-30b-a3b-thinking-2507',
-        saved: false,
-        reasoned: true,
-      ),
-      (ok: null, text: l10n.aiStepThinkingCannotStop),
-    );
+    // model page says it cannot stop, and so does this step — and a reply
+    // that shows none is not taken as off.
+    for (final (reasoned, expected) in [
+      (true, (ok: null, text: l10n.aiStepThinkingCannotStop)),
+      (false, (ok: null, text: l10n.aiStepThinkingNotShown)),
+    ]) {
+      expect(
+        step(
+          responses,
+          'https://r.io',
+          'qwen3-30b-a3b-thinking-2507',
+          saved: false,
+          reasoned: reasoned,
+        ),
+        expected,
+      );
+    }
     // A preset family's toggle stays live, so the user can turn it off.
     expect(
       step(

@@ -151,10 +151,9 @@ bool reasoningCannotStop(ReasoningRoute route) =>
     reasoned: reasoned,
     refused: reasoningRefused(route),
     locked: !switchable,
-    cannotStop:
-        reasoningCannotStop(route) ||
-        alwaysReasons ||
-        !(switchable || drawnOff),
+    // Off refused, or a locked toggle the page is silent on (a family that
+    // always reasons among them).
+    cannotStop: reasoningCannotStop(route) || !(switchable || drawnOff),
     alwaysReasons: alwaysReasons,
   );
 }
