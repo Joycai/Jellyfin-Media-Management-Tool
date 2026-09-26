@@ -21,14 +21,22 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
-  FLUTTER_VERSION: "3.44.2"
   APP_BASENAME: jellyfin-media-management-tool
 
 jobs:
+  check:
+    name: Check
+    uses: ./.github/workflows/pr-check.yml
+
   prepare:
     name: Resolve version
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.resolve.outputs.version }}
       tag: ${{ steps.resolve.outputs.tag }}
@@ -38,8 +46,9 @@ jobs:
 
       - name: Resolve version
         id: resolve
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          INPUT_VERSION="${{ inputs.version }}"
           if [ -n "$INPUT_VERSION" ]; then
             VERSION="$INPUT_VERSION"
           else
@@ -53,10 +62,32 @@ jobs:
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved version: $VERSION (tag v$VERSION)"
 
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          # The "## [X.Y.Z]" section, up to the next "## " heading.
+          awk -v v="$VERSION" '
+            /^## \[/ { in_section = index($0, "## [" v "]") == 1 }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::warning::CHANGELOG.md has no [$VERSION] section; the release body will only carry the generated notes."
+            printf '_No CHANGELOG entry for %s._\n' "$VERSION" > release-notes.md
+          fi
+          cat release-notes.md
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
   build-macos:
     name: Build macOS (DMG)
-    needs: prepare
+    needs: [prepare, check]
     runs-on: macos-latest
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,12 +95,12 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version-file: .fvmrc
           channel: stable
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build macOS app
         run: flutter build macos --release
@@ -77,6 +108,8 @@ jobs:
       - name: Create DMG
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: |
           brew install create-dmg
           APP_PATH="build/macos/Build/Products/Release/Jellyfin Media Management Tool.app"
@@ -100,8 +133,9 @@ jobs:
 
   build-windows:
     name: Build Windows (Installer + Portable)
-    needs: prepare
+    needs: [prepare, check]
     runs-on: windows-latest
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -109,12 +143,12 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version-file: .fvmrc
           channel: stable
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Build Windows app
         run: flutter build windows --release
@@ -133,8 +167,12 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          choco install innosetup -y --no-progress
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${env:VERSION}" "scripts\inno_setup.iss"
+          # The runner image ships Inno Setup 6; install it only if that changes.
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc "/DMyAppVersion=${env:VERSION}" "scripts\inno_setup.iss"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -145,10 +183,59 @@ jobs:
             dist/*.zip
           if-no-files-found: error
 
+  build-linux:
+    name: Build Linux (tar.gz)
+    needs: [prepare, check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libmpv-dev libepoxy-dev \
+            libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libjpeg-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build Linux app
+        run: flutter build linux --release
+
+      - name: Create tarball
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          mkdir -p dist
+          # The bundle is relocatable; it needs libmpv, FFmpeg and libjpeg from
+          # the system at run time (see CLAUDE.md, Platform-specific notes).
+          tar -C build/linux/x64/release -czf \
+            "dist/${APP_BASENAME}-${VERSION}-linux-x64.tar.gz" \
+            --transform "s,^bundle,${APP_BASENAME}-${VERSION}," bundle
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
   release:
     name: Create GitHub Release
-    needs: [prepare, build-macos, build-windows]
+    needs: [prepare, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -162,8 +249,11 @@ jobs:
           name: ${{ needs.prepare.outputs.tag }}
           draft: ${{ inputs.draft }}
           prerelease: ${{ inputs.prerelease }}
+          # The CHANGELOG section comes first; GitHub appends its generated notes.
+          body_path: artifacts/release-notes/release-notes.md
           generate_release_notes: true
           files: |
             artifacts/**/*.dmg
             artifacts/**/*.exe
             artifacts/**/*.zip
+            artifacts/**/*.tar.gz

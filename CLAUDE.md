@@ -22,9 +22,10 @@ It states the rules in a line each. The reasons, measurements and history behind
 - `flutter build windows` (or `macos` / `linux`) — release build
 - Windows installer: run Inno Setup on `scripts/inno_setup.iss` after `flutter build windows`
 - Windows MSIX: `dart run msix:create` builds `build/windows/x64/runner/Release/*.msix` (runs `flutter build windows` first). Config lives in the `msix_config` block of `pubspec.yaml`; `--store` targets the Microsoft Store. Keep `msix_version` (a.b.c.d) in sync with `version:`.
-- Version bumps: use the `sync-version` skill (`.claude/skills/sync-version/`) — the version is hardcoded in four places and they drift otherwise.
+- Version bumps: use the `sync-version` skill (`.claude/skills/sync-version/`) — the version is hardcoded in four places and they drift otherwise. `scripts/check_version_sync.sh` asserts they agree; CI runs it.
+- The Flutter version CI builds with is pinned once, in `.fvmrc` (both workflows read it via `flutter-version-file`). `fvm use` picks up the same file locally. Keep the local SDK on that version: a newer `dart format` splits code differently, and `flutter pub get --enforce-lockfile` in CI refuses a lock file resolved under a different SDK.
 
-**CI** (`.github/workflows/pr-check.yml`) runs format, analyze and test on every PR to `main`. Run all three before pushing — an unformatted file or a lint *info* fails the build.
+**CI** (`.github/workflows/pr-check.yml`) runs format, analyze and test on every PR to `main`, after checking that `pubspec.lock` resolves as committed, that the generated `lib/l10n/*.dart` match the ARB files, and that the version copies agree. Run format, analyze and test before pushing — an unformatted file or a lint *info* fails the build. `build.yml` compiles the three desktop runners (`flutter build <os> --release`) on every push to `main`, and on a PR only when `windows/`, `macos/`, `linux/`, `pubspec.*` or `.fvmrc` changed — `flutter test` never compiles native code, so that is the only pre-release check of it. `release.yml` (manual) reuses `pr-check.yml` as a gate, builds the DMG, the Windows installer + portable ZIP and a Linux tarball, and takes the release body from the version's `CHANGELOG.md` section.
 
 ## Conventions
 

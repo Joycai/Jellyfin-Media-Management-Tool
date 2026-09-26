@@ -5,18 +5,22 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Reused by release.yml so a release cannot be cut from a red tree.
+  workflow_call:
+
+permissions:
+  contents: read
 
 concurrency:
-  group: pr-check-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  FLUTTER_VERSION: "3.44.2"
+  group: pr-check-${{ github.event_name }}-${{ github.ref }}
+  # Superseded PR pushes are cancelled; main and release checks run to the end.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  analyze-and-test:
+  check:
     name: Format / Analyze / Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,12 +28,24 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          # One pinned version for CI, fvm and the release builds.
+          flutter-version-file: .fvmrc
           channel: stable
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        # The committed lock file is the dependency set under test; a Flutter
+        # whose SDK-pinned packages differ fails here instead of re-resolving.
+        run: flutter pub get --enforce-lockfile
+
+      - name: Verify generated localizations are committed
+        run: |
+          flutter gen-l10n
+          git diff --exit-code --stat -- lib/l10n \
+            || { echo "::error::lib/l10n is stale or hand-edited; run 'flutter gen-l10n' and commit the result."; exit 1; }
+
+      - name: Verify version copies agree
+        run: scripts/check_version_sync.sh
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .

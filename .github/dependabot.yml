@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      pub-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # flutter_localizations pins intl exactly; a caret bump fails version solving.
+      - dependency-name: intl
