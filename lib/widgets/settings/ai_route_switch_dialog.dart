@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/ai_channel.dart';
 import '../../services/ai/ai_provider.dart';
+import '../../services/ai/ai_service.dart';
 import '../../services/ai/platform_profiles.dart';
 import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
@@ -50,10 +51,15 @@ class RouteSwitchDialog extends StatelessWidget {
     final afterConfig = channel.configFor(model.switchedTo(to));
     final notSet = l10n.aiNotSetNotSent;
 
+    // The platform field is named only while it still works both ways:
+    // one this route refused is not what on and off send.
     String thinking(RouteParams p, AiConfig config) {
-      final field = PlatformProfiles.switchFieldFor(config);
+      final (:route, :field) = PlatformProfiles.reasoningRouteFor(
+        config,
+        AiService.providerFor(config).learned,
+      );
       final state = p.thinkingEnabled ? l10n.aiOn : l10n.aiOff;
-      return field == null ? state : '$state · $field';
+      return route == ReasoningRoute.platformField ? '$state · $field' : state;
     }
 
     String sampling(RouteParams p) {

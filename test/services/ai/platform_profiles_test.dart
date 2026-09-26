@@ -119,63 +119,6 @@ void main() {
     );
   });
 
-  test('Messages and Responses carry the switch in the protocol', () {
-    AiConfig on(AiProviderType provider) => AiConfig(
-      provider: provider,
-      endpoint: 'https://relay.example.com',
-      apiKey: 'k',
-      model: 'm',
-    );
-    expect(
-      PlatformProfiles.protocolSwitchFieldFor(on(AiProviderType.anthropic)),
-      'thinking',
-    );
-    expect(
-      PlatformProfiles.protocolSwitchFieldFor(
-        on(AiProviderType.openAiResponses),
-      ),
-      'reasoning.effort',
-    );
-    // Nothing to send for "on": only a platform's documented field does.
-    expect(
-      PlatformProfiles.protocolSwitchFieldFor(on(AiProviderType.openAi)),
-      isNull,
-    );
-    expect(
-      PlatformProfiles.protocolSwitchFieldFor(on(AiProviderType.googleGenAi)),
-      isNull,
-    );
-  });
-
-  test('a refused protocol field is no switch', () {
-    AiConfig on(AiProviderType provider, String model) => AiConfig(
-      provider: provider,
-      endpoint: 'https://relay.example.com',
-      apiKey: 'k',
-      model: model,
-    );
-    String? field(AiConfig config, Set<String> refused) =>
-        PlatformProfiles.protocolSwitchFieldFor(config, refused: refused);
-
-    final responses = on(AiProviderType.openAiResponses, 'gpt-4.1');
-    expect(field(responses, {'reasoning'}), isNull);
-    // Another field refused: `reasoning` is still sent both ways.
-    expect(field(responses, {'include'}), 'reasoning.effort');
-
-    final claude = on(AiProviderType.anthropic, 'claude-sonnet-4-5');
-    // One form refused: the other is still asked.
-    expect(field(claude, {'thinking:enabled'}), 'thinking');
-    expect(field(claude, {'thinking:adaptive', 'thinking:enabled'}), isNull);
-    // A bare legacy record where `enabled` is the model's first form.
-    expect(field(claude, {'thinking'}), isNull);
-    // Where adaptive comes first, the same record is no verdict on it: the
-    // model's own first form decides.
-    expect(
-      field(on(AiProviderType.anthropic, 'claude-sonnet-4-6'), {'thinking'}),
-      'thinking',
-    );
-  });
-
   group('reasoningRouteFor', () {
     AiConfig at(
       AiProviderType provider,
@@ -281,6 +224,20 @@ void main() {
         read(claude, rejected: {'thinking:adaptive', 'thinking:enabled'}),
         (route: ReasoningRoute.onRefused, field: null),
       );
+      // A bare legacy record where `enabled` is the model's first form.
+      expect(read(claude, rejected: {'thinking'}), (
+        route: ReasoningRoute.onRefused,
+        field: null,
+      ));
+      // Where adaptive comes first, the same record is no verdict on it: the
+      // model's own first form decides.
+      expect(
+        read(
+          at(AiProviderType.anthropic, relay, 'claude-sonnet-4-6'),
+          rejected: {'thinking'},
+        ).route,
+        ReasoningRoute.protocolField,
+      );
       // Off is the protocol's default there: nothing to refuse.
       expect(
         read(claude, tried: {LearnedBehaviour.dialectOff}).route,
@@ -302,6 +259,11 @@ void main() {
         route: ReasoningRoute.refused,
         field: 'reasoning.effort',
       ));
+      // Another field refused: `reasoning` is still sent both ways.
+      expect(
+        read(grok, rejected: {'include'}).route,
+        ReasoningRoute.protocolField,
+      );
       // A refused none says the model reasons: that outranks the name.
       expect(
         read(

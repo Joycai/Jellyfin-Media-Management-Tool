@@ -393,18 +393,10 @@ class _AiModelPageState extends State<AiModelPage> {
   ) {
     final provider = AiService.providerFor(config);
     final learned = provider.learned;
-    // A Chat Completions dialect or a Messages route declared as a switch.
-    final switchField = PlatformProfiles.switchFieldFor(config);
-    // Otherwise Messages' or Responses' own field, unless it was refused.
-    final protocolField = PlatformProfiles.protocolSwitchFieldFor(
+    final (:route, :field) = PlatformProfiles.reasoningRouteFor(
       config,
-      refused: learned.rejectedFields,
+      learned,
     );
-    // Refused: the adapter sends it neither way, whatever was saved.
-    final fieldRefused =
-        switchField == null &&
-        protocolField == null &&
-        PlatformProfiles.protocolSwitchFieldFor(config) != null;
     final preset = SamplingPresets.forModel(model.upstream);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
 
@@ -431,21 +423,24 @@ class _AiModelPageState extends State<AiModelPage> {
         children: [
           line(
             l10n.aiThinkingDialect,
-            Text(
-              switchField != null
-                  ? l10n.aiDialectField(switchField)
-                  : protocolField != null
-                  ? l10n.aiCellProtocolSwitch(protocolField)
-                  // What the capability matrix says of the same route:
-                  // Messages without thinking does not reason; Responses
-                  // without `reasoning` runs at the model's default.
-                  : fieldRefused
-                  ? (config.provider == AiProviderType.anthropic
-                        ? l10n.aiCellDefaultOff
-                        : l10n.aiCellModelDefault)
-                  : l10n.aiRouteLadder,
-              style: note.copyWith(color: t.textBody),
-            ),
+            Text(switch (route) {
+              ReasoningRoute.platformField => l10n.aiDialectField(field!),
+              ReasoningRoute.protocolField => l10n.aiCellProtocolSwitch(field!),
+              // Once refused, what the capability matrix says of the route:
+              // a switch route still sends off; Messages without thinking
+              // does not reason; a model that refused off reasons anyway,
+              // at its own default on Responses.
+              ReasoningRoute.onRefused =>
+                field != null
+                    ? l10n.aiDialectField(field)
+                    : l10n.aiCellDefaultOff,
+              ReasoningRoute.offRefused =>
+                config.provider == AiProviderType.openAiResponses
+                    ? l10n.aiCellModelDefault
+                    : l10n.aiCellAlwaysReasons,
+              ReasoningRoute.refused => l10n.aiCellModelDefault,
+              ReasoningRoute.ladder => l10n.aiRouteLadder,
+            }, style: note.copyWith(color: t.textBody)),
           ),
           line(
             l10n.aiParamTools,
@@ -481,13 +476,8 @@ class _AiModelPageState extends State<AiModelPage> {
           AiSamplingSection(
             preset: preset,
             controllers: _sampling,
-            // The refusal is learned while reasoning is on, so a model no
-            // preset knows is drawn off rather than as a disabled switch
-            // stuck on. A preset still decides for itself: its sampling
-            // values follow the saved choice whatever the route sends.
-            thinking:
-                config.thinkingEnabled && !(fieldRefused && preset == null),
-            routeSwitch: switchField != null || protocolField != null,
+            thinking: config.thinkingEnabled,
+            route: route,
             lastReasoned: _lastCheck?.reasoned,
             serverKind: _lastCheck?.serverKind,
             refused: learned.rejectedFields,

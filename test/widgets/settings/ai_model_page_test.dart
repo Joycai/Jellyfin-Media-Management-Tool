@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfin_media_management_tool/l10n/app_localizations_en.dart';
 import 'package:jellyfin_media_management_tool/models/ai_channel.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
+import 'package:jellyfin_media_management_tool/widgets/settings/ai_capability_matrix.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_model_page.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
 
@@ -172,22 +174,27 @@ void main() {
     }
   });
 
-  /// A model on a relay's [route] that has learned it refuses [refused],
-  /// with reasoning saved on — the state a refusal is learned in.
-  Future<AiModelEntry> pumpRefused(
+  /// A model on [route] that has learned it refuses [refused] and the ways
+  /// of turning reasoning off in [tried], with reasoning saved on — the
+  /// state a refusal of on is learned in. A relay unless [platform] says
+  /// otherwise; [base] is the route key's URL where the adapter derives it.
+  Future<({AiModelEntry entry, AiChannel channel})> pumpRefused(
     WidgetTester tester, {
     required AiProviderType route,
     required String model,
-    required Set<String> refused,
+    Set<String> refused = const {},
+    Set<String> tried = const {},
+    PlatformProfile? platform,
+    String endpoint = 'https://relay.example/v1',
+    String? base,
   }) async {
-    const endpoint = 'https://relay.example/v1';
     final entry = AiModelEntry.create(
       upstream: model,
       route: route,
     ).copyWith(params: {route: const RouteParams(thinkingEnabled: true)});
     final channel =
         AiChannel.create(
-              platform: PlatformProfiles.custom,
+              platform: platform ?? PlatformProfiles.custom,
               name: 'Relay',
               apiKey: 'k',
             )
@@ -200,15 +207,17 @@ void main() {
     LearnedStore.instance.update(
       LearnedStore.routeKey(
         protocol: route.id,
-        base: endpoint,
+        base: base ?? endpoint,
         model: model,
         apiKey: 'k',
       ),
-      (b) => b.copyWith(rejectedFields: refused),
+      (b) => b.copyWith(rejectedFields: refused, thinkingOffTried: tried),
     );
     expect(
-      provider.learned.rejectedFields,
-      refused,
+      provider.learned.sameAs(
+        LearnedBehaviour(rejectedFields: refused, thinkingOffTried: tried),
+      ),
+      isTrue,
       reason: 'the test wrote the route the page reads',
     );
     await profiles.addChannel(channel);
@@ -223,7 +232,7 @@ void main() {
       ),
       profiles: profiles,
     );
-    return entry;
+    return (entry: entry, channel: channel);
   }
 
   for (final (route, model, refused, line) in [
@@ -258,7 +267,7 @@ void main() {
       'choice', (tester) async {
     // Qwen3's preset switches reasoning itself and picks the sampling values
     // from the saved choice, so the switch stays live and truthful.
-    final entry = await pumpRefused(
+    final (:entry, channel: _) = await pumpRefused(
       tester,
       route: AiProviderType.anthropic,
       model: 'qwen3-32b',
@@ -275,4 +284,103 @@ void main() {
     expect(tester.widget<AppToggle>(reasoning).value, isFalse);
     await settleSaves(tester);
   });
+
+  const zhipu = 'https://open.bigmodel.cn/api/paas/v4';
+  const miniMax = 'https://api.minimaxi.com/anthropic';
+  for (final (what, platform, route, endpoint, base, model, refused, tried, on)
+      in [
+        (
+          'a Zhipu model that refused its switch set to off',
+          PlatformProfiles.zhipu,
+          AiProviderType.openAi,
+          zhipu,
+          zhipu,
+          'glm-5.3',
+          <String>{},
+          {LearnedBehaviour.dialectOff},
+          true,
+        ),
+        (
+          'a Zhipu route that refused its switch by name',
+          PlatformProfiles.zhipu,
+          AiProviderType.openAi,
+          zhipu,
+          zhipu,
+          'glm-5.3',
+          {'thinking'},
+          <String>{},
+          false,
+        ),
+        (
+          'a MiniMax switch route that refused disabled',
+          PlatformProfiles.miniMax,
+          AiProviderType.anthropic,
+          miniMax,
+          '$miniMax/v1',
+          'MiniMax-M3',
+          <String>{},
+          {LearnedBehaviour.dialectOff},
+          true,
+        ),
+        (
+          'a MiniMax switch route that refused adaptive',
+          PlatformProfiles.miniMax,
+          AiProviderType.anthropic,
+          miniMax,
+          '$miniMax/v1',
+          'MiniMax-M3',
+          {'thinking:adaptive'},
+          <String>{},
+          false,
+        ),
+        (
+          'a Responses route that refused effort none',
+          PlatformProfiles.custom,
+          AiProviderType.openAiResponses,
+          'https://relay.example/v1',
+          'https://relay.example/v1',
+          'grok-4.5',
+          <String>{},
+          {LearnedBehaviour.effortNone},
+          true,
+        ),
+      ]) {
+    testWidgets('$what: the switch is drawn as the route runs it, in the '
+        'matrix\'s words', (tester) async {
+      final l10n = AppLocalizationsEn();
+      final (:entry, :channel) = await pumpRefused(
+        tester,
+        platform: platform,
+        route: route,
+        endpoint: endpoint,
+        base: base,
+        model: model,
+        refused: refused,
+        tried: tried,
+      );
+
+      final toggle = tester.widget<AppToggle>(find.byType(AppToggle).at(2));
+      expect(toggle.onChanged, isNull, reason: 'it would do nothing');
+      expect(toggle.value, on);
+      expect(
+        find.text(l10n.thinkingAlwaysOn),
+        on ? findsOneWidget : findsNothing,
+      );
+
+      final cell = capabilityCell(
+        l10n,
+        channel,
+        entry,
+        route,
+        Capability.thinkingOff,
+      );
+      // A switch route that refused only on still sends off with its
+      // field: the matrix names it as a switch, the page as the platform's.
+      final line = route == AiProviderType.anthropic && refused.isNotEmpty
+          ? l10n.aiDialectField('thinking')
+          : cell.text;
+      expect(find.text(line), findsOneWidget);
+      await settleSaves(tester);
+    });
+  }
 }

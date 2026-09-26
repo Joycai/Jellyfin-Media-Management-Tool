@@ -458,11 +458,11 @@ class AiSamplingSection extends StatelessWidget {
   final Map<SamplingField, TextEditingController> controllers;
   final bool thinking;
 
-  /// Whether the route has its own reasoning switch — a platform's field,
-  /// or the protocol's own (`PlatformProfiles.protocolSwitchFieldFor`) —
-  /// which works for any model on it, not only the families a preset knows
-  /// are hybrid.
-  final bool routeSwitch;
+  /// How the route switches reasoning after what it has refused
+  /// (`PlatformProfiles.reasoningRouteFor`). A working switch serves any
+  /// model on it, not only the families a preset knows are hybrid; a refused
+  /// one decides what a model no preset knows is drawn as.
+  final ReasoningRoute route;
 
   /// What the last test on this route showed; null when none ran.
   final bool? lastReasoned;
@@ -479,7 +479,7 @@ class AiSamplingSection extends StatelessWidget {
     required this.preset,
     required this.controllers,
     required this.thinking,
-    required this.routeSwitch,
+    required this.route,
     required this.lastReasoned,
     required this.serverKind,
     required this.refused,
@@ -511,9 +511,14 @@ class AiSamplingSection extends StatelessWidget {
     final preset = this.preset;
     // Mirrors what the provider sends: a known family decides whether its
     // reasoning can be switched at all; a model no preset knows can be
-    // switched only where its route has a switch.
-    final switchable = preset != null ? preset.thinkingIsOptional : routeSwitch;
-    final reasons = preset?.reasons(requested: thinking) ?? thinking;
+    // switched only where its route has a working switch, and is otherwise
+    // drawn as the route runs it. A preset model's toggle keeps the saved
+    // choice, which picks its sampling values whatever the route sends.
+    final switchable = preset != null
+        ? preset.thinkingIsOptional
+        : route.switchable;
+    final reasons =
+        preset?.reasons(requested: thinking) ?? route.drawnAs ?? thinking;
     final values = preset?.valuesFor(thinking: reasons);
     final status = _thinkingStatus(l10n, reasons, switchable);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
@@ -684,6 +689,11 @@ class AiSamplingSection extends StatelessWidget {
         return (text: l10n.thinkingEffortOnly, warning: false);
       default:
         break;
+    }
+    // Off was refused: a test that still reasoned says nothing new, and
+    // "turn it off on the server" would be the wrong advice.
+    if (route == ReasoningRoute.offRefused) {
+      return (text: l10n.thinkingAlwaysOn, warning: false);
     }
     final reasoned = lastReasoned;
     if (reasoned == null || reasons || !switchable) return null;
