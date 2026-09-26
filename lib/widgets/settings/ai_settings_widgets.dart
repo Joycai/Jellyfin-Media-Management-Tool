@@ -40,21 +40,29 @@ bool protocolInBuild(AiProviderType protocol) => switch (protocol) {
   AiProviderType.openAiResponses => true,
 };
 
+/// Whether off means no reasoning on [config]'s route: Messages, whose
+/// thinking is off unless asked for — except on a switch route, whose
+/// platform may think by default.
+bool messagesDefaultOff(AiConfig config) =>
+    config.provider == AiProviderType.anthropic &&
+    !PlatformProfiles.messagesSwitchFor(config);
+
 /// What the capability matrix and the model page's route line both say of a
 /// route whose reasoning switch was refused, in the same words; null for a
 /// switch that works and for the ladder, which each page words its own way.
 String? reasoningRefusalText(
   AppLocalizations l10n,
   ReasoningRoute route,
-  AiProviderType protocol,
+  AiConfig config,
 ) => switch (route) {
   // The model said it cannot stop reasoning.
   ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
   // Off refused without a reason: the model's default, reasoning or not.
   ReasoningRoute.offToDefault => l10n.aiCellModelDefault,
-  // Sent neither way; Messages without thinking does not reason.
+  // Sent neither way; Messages without thinking does not reason, except on
+  // a switch route, whose platform may think by default.
   ReasoningRoute.refused =>
-    protocol == AiProviderType.anthropic
+    messagesDefaultOff(config)
         ? l10n.aiCellDefaultOff
         : l10n.aiCellModelDefault,
   ReasoningRoute.platformField ||

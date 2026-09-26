@@ -504,10 +504,17 @@ abstract final class PlatformProfiles {
           refused,
           first: messagesFirstFormFor(config),
         );
-        // A switch route asks adaptive only, and says off as `disabled`.
+        // A switch route asks adaptive only, and says off as `disabled`. A
+        // server there that does not know the field records every form,
+        // and nothing is sent either way; one that refused the form still
+        // takes `disabled`. (A legacy bare record is a verdict on
+        // `enabled` alone, which a switch route never sends.)
         if (messagesSwitchFor(config)) {
           if (tried.contains(LearnedBehaviour.dialectOff)) {
             return (route: ReasoningRoute.offRefused, field: 'thinking');
+          }
+          if (forms.length == MessagesThinking.values.length) {
+            return (route: ReasoningRoute.refused, field: 'thinking');
           }
           return forms.contains(MessagesThinking.adaptive)
               ? (route: ReasoningRoute.onRefused, field: 'thinking')

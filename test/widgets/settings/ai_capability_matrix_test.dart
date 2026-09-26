@@ -323,6 +323,55 @@ void main() {
     expect(value.text, l10n.aiCellAlwaysReasons);
   });
 
+  test('a Messages switch whose server does not know thinking runs at its '
+      'default', () {
+    // The field refused by name is not a model that cannot stop: nothing
+    // is sent either way, and what the model does is its own default —
+    // not off, as on a Messages route with no switch.
+    final m = AiModelEntry.create(
+      upstream: 'MiniMax-M3',
+      route: AiProviderType.anthropic,
+    );
+    final minimax =
+        AiChannel.create(
+              platform: PlatformProfiles.miniMax,
+              name: 'mm',
+              apiKey: 'k-unknown-field',
+            )
+            .copyWith(
+              routes: [const AiRoute(protocol: AiProviderType.anthropic)],
+            )
+            .withModel(m);
+    final config = minimax.configFor(m);
+    final provider = AiService.providerFor(config);
+    addTearDown(provider.forgetLearned);
+    const written = {'thinking', 'thinking:adaptive', 'thinking:enabled'};
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.anthropic.id,
+        base: '${config.endpoint}/v1',
+        model: 'MiniMax-M3',
+        apiKey: 'k-unknown-field',
+      ),
+      (b) => b.copyWith(rejectedFields: written),
+    );
+    expect(
+      provider.learned.rejectedFields,
+      written,
+      reason: 'the test wrote the route the matrix reads',
+    );
+
+    final value = capabilityCell(
+      l10n,
+      minimax,
+      m,
+      AiProviderType.anthropic,
+      Capability.thinkingOff,
+    );
+    expect(value.state, CapabilityState.unavailable);
+    expect(value.text, l10n.aiCellModelDefault);
+  });
+
   test('a Messages switch that refused adaptive still sends off', () {
     // On is no longer asked; off is still `disabled`, so the cell is the
     // switch, not the model's default.

@@ -24,8 +24,14 @@ void main() {
   test('a refused switch is worded once, for the matrix and the page', () {
     final l10n = AppLocalizationsEn();
     for (final protocol in AiProviderType.values) {
+      final config = AiConfig(
+        provider: protocol,
+        endpoint: 'https://relay.example.com',
+        apiKey: 'k',
+        model: 'm',
+      );
       String? text(ReasoningRoute route) =>
-          reasoningRefusalText(l10n, route, protocol);
+          reasoningRefusalText(l10n, route, config);
       expect(text(ReasoningRoute.offRefused), l10n.aiCellAlwaysReasons);
       expect(text(ReasoningRoute.offToDefault), l10n.aiCellModelDefault);
       // Messages without thinking does not reason.
@@ -35,6 +41,7 @@ void main() {
             ? l10n.aiCellDefaultOff
             : l10n.aiCellModelDefault,
       );
+      expect(messagesDefaultOff(config), protocol == AiProviderType.anthropic);
       // A switch that works, and the ladder, are each page's own words.
       for (final route in [
         ReasoningRoute.platformField,
@@ -45,6 +52,19 @@ void main() {
         expect(text(route), isNull, reason: '$route');
       }
     }
+    // A Messages switch route's platform may think by default: with the
+    // field refused, the model runs at its own default there.
+    final switchRoute = AiConfig(
+      provider: AiProviderType.anthropic,
+      endpoint: 'https://api.minimaxi.com/anthropic',
+      apiKey: 'k',
+      model: 'MiniMax-M3',
+    );
+    expect(messagesDefaultOff(switchRoute), isFalse);
+    expect(
+      reasoningRefusalText(l10n, ReasoningRoute.refused, switchRoute),
+      l10n.aiCellModelDefault,
+    );
   });
 
   test('a toggle is live on a working switch, or where a preset says', () {

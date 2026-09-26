@@ -315,12 +315,10 @@ CapabilityCell capabilityCell(
         case ReasoningRoute.offToDefault:
         case ReasoningRoute.refused:
           return (
-            state:
-                route == ReasoningRoute.refused &&
-                    protocol == AiProviderType.anthropic
+            state: route == ReasoningRoute.refused && messagesDefaultOff(config)
                 ? works
                 : unavailable,
-            text: reasoningRefusalText(l10n, route, protocol)!,
+            text: reasoningRefusalText(l10n, route, config)!,
           );
         case ReasoningRoute.ladder:
           // Only ladder steps count: a route key outlives its channel's

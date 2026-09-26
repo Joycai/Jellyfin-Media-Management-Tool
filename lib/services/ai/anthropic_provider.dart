@@ -197,26 +197,37 @@ class AnthropicProvider implements AiProvider {
           // The model id is not the message: a relay's `…-thinking` model
           // named in an unrelated error must not read as a refusal.
           final about = detail.replaceAll(config.model.toLowerCase(), '');
-          // A switch route whose model cannot stop reasoning: remembered as
-          // on Chat Completions, and `disabled` left off its requests.
-          // One that does not know the field at all is left the same way,
-          // or thinking off would fail every request there.
-          if (payload['thinking'] case {'type': 'disabled'}
-              when !_aboutHistory(about) &&
-                  (refusesThinkingOff(about) ||
-                      refusesThinking(about) ||
-                      (about.contains('thinking') &&
-                          about.contains('disabled')))) {
-            _learned.update(
-              key,
-              (b) => b.copyWith(
-                thinkingOffTried: {
-                  ...b.thinkingOffTried,
-                  LearnedBehaviour.dialectOff,
-                },
-              ),
-            );
-            continue;
+          if (payload['thinking'] case {
+            'type': 'disabled',
+          } when !_aboutHistory(about)) {
+            // A switch route whose model cannot stop reasoning, or whose
+            // server knows the field and not `disabled`: remembered as on
+            // Chat Completions, and `disabled` left off its requests.
+            if (refusesThinkingOff(about) ||
+                (about.contains('thinking') && about.contains('disabled'))) {
+              _learned.update(
+                key,
+                (b) => b.copyWith(
+                  thinkingOffTried: {
+                    ...b.thinkingOffTried,
+                    LearnedBehaviour.dialectOff,
+                  },
+                ),
+              );
+              continue;
+            }
+            // One that does not know the field at all: refused by name,
+            // every form with it, so neither way sends it and nothing fails
+            // over it — which says nothing about whether the model reasons.
+            if (refusesThinking(about)) {
+              _learned.update(
+                key,
+                (b) => b.copyWith(
+                  rejectedFields: {...b.rejectedFields, ..._everyThinkingForm},
+                ),
+              );
+              continue;
+            }
           }
           final thinkingRefusal = _thinkingRefusal(
             about,
@@ -306,7 +317,10 @@ class AnthropicProvider implements AiProvider {
   /// `signature` in `thinking` block"): the history is wrong, whichever form
   /// was asked for.
   ///
-  /// A route declared as a switch has one form only ([swap] false).
+  /// A route declared as a switch has one form only ([swap] false): a
+  /// refusal that names it gives it up, and off still says `disabled` — the
+  /// server knows the field; one that refuses thinking without naming the
+  /// form does not know the field, and nothing is sent either way.
   static Set<String>? _thinkingRefusal(
     String detail, {
     required MessagesThinking? sent,
@@ -324,11 +338,16 @@ class AnthropicProvider implements AiProvider {
       return {sent.refusedName};
     }
     if (!refusesThinking(detail)) return null;
-    return {
-      for (final form in MessagesThinking.values) form.refusedName,
-      'thinking',
-    };
+    if (!swap && namesForm) return {sent.refusedName};
+    return _everyThinkingForm;
   }
+
+  /// What a refusal of the `thinking` field itself records: every form, and
+  /// the field by name.
+  static final _everyThinkingForm = {
+    for (final form in MessagesThinking.values) form.refusedName,
+    'thinking',
+  };
 
   /// Whether [detail] is about the thinking blocks already in the
   /// conversation rather than about the request for thinking.
@@ -363,6 +382,13 @@ class AnthropicProvider implements AiProvider {
   /// ([PlatformProfiles.messagesFirstFormFor]).
   MessagesThinking get _firstForm =>
       PlatformProfiles.messagesFirstFormFor(config);
+
+  /// Whether this route refused the `thinking` field itself: every form,
+  /// as a server that does not know the field records. A legacy bare
+  /// record is read against the first form ([MessagesThinking.refusedIn]).
+  bool _fieldRefused(Set<String> rejected) =>
+      MessagesThinking.refusedIn(rejected, first: _firstForm).length ==
+      MessagesThinking.values.length;
 
   /// Sampling fields the adapter may leave out when a route refuses them;
   /// `thinking` has its own rules ([_thinkingRefusal]).
@@ -406,11 +432,13 @@ class AnthropicProvider implements AiProvider {
           if (_official) 'display': 'summarized',
         },
       // A route declared as a switch is told off in its own words (its
-      // platform may think by default); elsewhere off is the protocol's
-      // default and nothing is sent.
+      // platform may think by default) — unless the model refused it, or
+      // the server the field; elsewhere off is the protocol's default and
+      // nothing is sent.
       if (!config.thinkingEnabled &&
           PlatformProfiles.messagesSwitchFor(config) &&
-          !learned.thinkingOffTried.contains(LearnedBehaviour.dialectOff))
+          !learned.thinkingOffTried.contains(LearnedBehaviour.dialectOff) &&
+          !_fieldRefused(rejected))
         'thinking': const {'type': 'disabled'},
       // `thinking` is decided above, form by form.
     }..removeWhere((k, _) => k != 'thinking' && rejected.contains(k));

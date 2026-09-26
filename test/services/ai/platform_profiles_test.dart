@@ -209,6 +209,23 @@ void main() {
         read(m3, rejected: {'thinking:enabled'}).route,
         ReasoningRoute.platformField,
       );
+      // The field itself refused — a server that does not know it — is
+      // sent neither way; a model that said it cannot stop outranks it.
+      expect(
+        read(
+          m3,
+          rejected: {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+        ),
+        (route: ReasoningRoute.refused, field: 'thinking'),
+      );
+      expect(
+        read(
+          m3,
+          rejected: {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+          tried: {LearnedBehaviour.dialectOff},
+        ).route,
+        ReasoningRoute.offRefused,
+      );
 
       final claude = at(AiProviderType.anthropic, relay, 'claude-sonnet-4-5');
       expect(read(claude), (
@@ -436,6 +453,12 @@ void main() {
           // A legacy bare record is read against the form asked first:
           // adaptive here, though the model's own would be extended.
           ({'thinking'}, <String>{}, ReasoningRoute.platformField),
+          // The field itself refused: nothing either way.
+          (
+            {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+            <String>{},
+            ReasoningRoute.refused,
+          ),
         ]) {
           await check(
             m3,

@@ -545,17 +545,86 @@ void main() {
 
       test('a server that does not know thinking stops being told', () async {
         // Thinking off must not fail every request on a route whose server
-        // refuses the field outright.
+        // refuses the field outright — and that is the field refused by
+        // name, not a model that cannot stop: it says nothing about
+        // whether the model reasons.
         final (bodies, provider) = await offRefused(
           'unknown-field.minimaxi.com',
           'thinking: Extra inputs are not permitted',
         );
         expect(bodies, hasLength(2));
         expect(bodies.last.containsKey('thinking'), isFalse);
-        expect(provider.learned.thinkingOffTried, {
-          LearnedBehaviour.dialectOff,
+        expect(provider.learned.thinkingOffTried, isEmpty);
+        expect(provider.learned.rejectedFields, {
+          'thinking',
+          'thinking:adaptive',
+          'thinking:enabled',
         });
+        // On is not asked there either.
+        final on = AnthropicProvider(
+          _config(
+            'https://unknown-field.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+            thinking: true,
+          ),
+        );
+        final preview = await on.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body.containsKey('thinking'), isFalse);
       });
+
+      test(
+        'a server that knows the field and not disabled cannot stop',
+        () async {
+          // The value named back: the server takes `thinking`, only not off,
+          // so the model reasons at its default and on is still asked.
+          final (bodies, provider) = await offRefused(
+            'no-disabled.minimaxi.com',
+            "thinking.type: Input tag 'disabled' found using 'type' does not "
+                "match any of the expected tags: 'adaptive'",
+          );
+          expect(bodies, hasLength(2));
+          expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(provider.learned.thinkingOffTried, {
+            LearnedBehaviour.dialectOff,
+          });
+          expect(provider.learned.rejectedFields, isEmpty);
+        },
+      );
+
+      test(
+        'a server that does not know thinking refuses on the same way',
+        () async {
+          final (bodies, provider) = await refusing(
+            'unknown-field-on.minimaxi.com/anthropic',
+            {'adaptive'},
+            (_) => 'thinking: Extra inputs are not permitted',
+            model: 'MiniMax-M3',
+          );
+          expect(bodies, hasLength(2));
+          expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(provider.learned.thinkingOffTried, isEmpty);
+          expect(provider.learned.rejectedFields, {
+            'thinking',
+            'thinking:adaptive',
+            'thinking:enabled',
+          });
+          // Nor is off told `disabled` any more.
+          final off = AnthropicProvider(
+            _config(
+              'https://unknown-field-on.minimaxi.com/anthropic',
+              model: 'MiniMax-M3',
+            ),
+          );
+          final preview = await off.previewRequest(
+            messages: const [UserMessage('u')],
+            tools: const [],
+          );
+          expect(preview.body.containsKey('thinking'), isFalse);
+        },
+      );
 
       test('an error about the history teaches nothing about off', () async {
         final (bodies, provider) = await offRefused(
@@ -581,7 +650,20 @@ void main() {
           everyElement(isNot('enabled')),
         );
         // Its one form refused: thinking is given up, not tried another way.
-        expect(provider.learned.rejectedFields, contains('thinking'));
+        // The form is what was named, so the server knows the field, and
+        // off still says `disabled`.
+        expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+        final off = AnthropicProvider(
+          _config(
+            'https://refused.minimaxi.com/anthropic',
+            model: 'MiniMax-M3',
+          ),
+        );
+        final preview = await off.previewRequest(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        expect(preview.body['thinking'], {'type': 'disabled'});
       });
 
       test('a form named without refusing thinking is thrown', () async {
