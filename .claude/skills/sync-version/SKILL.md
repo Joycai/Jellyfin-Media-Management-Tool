@@ -124,6 +124,8 @@ Updates these hardcoded copies:
 - `scripts/inno_setup.iss` — `#define MyAppVersion "X.Y.Z"` (installer default; name only)
 - `CLAUDE.md` — the `Current app version:` doc line (full string)
 
+`scripts/check_version_sync.sh` checks all of these against `pubspec.yaml` (plus `msix_version`, which `sync_version.py` also rewrites) and CI runs it on every PR, so a missed copy fails the build rather than shipping.
+
 ## What it deliberately leaves alone
 
 Do **not** hand-edit these, and don't be surprised the script skips them — they

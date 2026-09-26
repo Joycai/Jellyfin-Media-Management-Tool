@@ -11,6 +11,12 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+### Added
+
+- Linux builds. Each release now also attaches a `.tar.gz` of the Linux app
+  bundle next to the macOS DMG and the Windows installer. It needs libmpv,
+  FFmpeg and libjpeg from the system for playback and thumbnails.
+
 ### Fixed
 
 - The window background looked mottled, like a dishcloth, on high-DPI displays
