@@ -298,7 +298,6 @@ CapabilityCell capabilityCell(
         // refused.
         case ReasoningRoute.protocolField
             when protocol == AiProviderType.anthropic:
-        case ReasoningRoute.refused when protocol == AiProviderType.anthropic:
           return (state: works, text: l10n.aiCellDefaultOff);
         // A switch sends off in its own words; a refused on changes nothing
         // there.
@@ -310,13 +309,19 @@ CapabilityCell capabilityCell(
         // unmeasured; the connection test's "still reasoned" is the judge.
         case ReasoningRoute.protocolField:
           return (state: unmeasured, text: l10n.aiCellProtocolSwitch(field!));
-        // Refused off, or refused `reasoning` altogether: nothing is sent.
+        // Nothing is sent for off. Only Messages, whose thinking is off
+        // unless asked for, still gets what off means.
+        case ReasoningRoute.offRefused:
         case ReasoningRoute.offToDefault:
         case ReasoningRoute.refused:
-          return (state: unavailable, text: l10n.aiCellModelDefault);
-        // The model refused its switch set to off (Zhipu's 5.3).
-        case ReasoningRoute.offRefused:
-          return (state: unavailable, text: l10n.aiCellAlwaysReasons);
+          return (
+            state:
+                route == ReasoningRoute.refused &&
+                    protocol == AiProviderType.anthropic
+                ? works
+                : unavailable,
+            text: reasoningRefusalText(l10n, route, protocol)!,
+          );
         case ReasoningRoute.ladder:
           // Only ladder steps count: a route key outlives its channel's
           // platform, so a switch refused under one can still be on record

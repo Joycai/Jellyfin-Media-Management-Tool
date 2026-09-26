@@ -424,21 +424,19 @@ class _AiModelPageState extends State<AiModelPage> {
           line(
             l10n.aiThinkingDialect,
             Text(switch (route) {
-              ReasoningRoute.platformField => l10n.aiDialectField(field!),
-              ReasoningRoute.protocolField => l10n.aiCellProtocolSwitch(field!),
               // A switch route that refused on still sends off with its field.
+              ReasoningRoute.platformField ||
               ReasoningRoute.onRefused => l10n.aiDialectField(field!),
-              // Once refused, what the capability matrix says of the route:
-              // a model that said it cannot stop reasoning always reasons;
-              // an off refused without a reason leaves the model's default;
-              // Messages without thinking does not reason.
-              ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
-              ReasoningRoute.offToDefault => l10n.aiCellModelDefault,
-              ReasoningRoute.refused =>
-                config.provider == AiProviderType.anthropic
-                    ? l10n.aiCellDefaultOff
-                    : l10n.aiCellModelDefault,
+              ReasoningRoute.protocolField => l10n.aiCellProtocolSwitch(field!),
               ReasoningRoute.ladder => l10n.aiRouteLadder,
+              // Once refused, what the capability matrix says of the route.
+              ReasoningRoute.offRefused ||
+              ReasoningRoute.offToDefault ||
+              ReasoningRoute.refused => reasoningRefusalText(
+                l10n,
+                route,
+                config.provider,
+              )!,
             }, style: note.copyWith(color: t.textBody)),
           ),
           line(

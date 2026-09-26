@@ -62,6 +62,17 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
   return result.truncated ? '$text\n${l10n.connectionTruncated}' : text;
 }
 
+/// Whether the request for reasoning is no longer sent on a route in
+/// [route] (`PlatformProfiles.reasoningRouteFor`): on was refused, or the
+/// field is sent neither way.
+bool reasoningRefused(ReasoningRoute route) =>
+    route == ReasoningRoute.onRefused || route == ReasoningRoute.refused;
+
+/// Whether off sends nothing on a route in [route], so a reply that still
+/// reasons is the model's own default, not a switch the user can fix.
+bool reasoningCannotStop(ReasoningRoute route) =>
+    route == ReasoningRoute.offRefused || route == ReasoningRoute.offToDefault;
+
 /// The reasoning step of a connection test, judged by the reply both ways:
 /// a switch sent is not a switch taken, and a relay can drop a request for
 /// reasoning as quietly as a request for none. A reply without reasoning
@@ -69,28 +80,23 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
 /// Gemini's dynamic thinking may skip a request as small as the test's.
 ///
 /// [refused]: the route refused the request for reasoning during the test
-/// and it is no longer sent — asked for, but not sent.
-/// Whether [rejected], a route's refused fields, holds the request for
-/// reasoning [config]'s protocol sends — on Messages, the `thinking` a
-/// refusal of the feature records beside its forms.
-bool reasoningRefused(AiConfig config, Set<String> rejected) =>
-    switch (config.provider) {
-      AiProviderType.anthropic => rejected.contains('thinking'),
-      AiProviderType.openAiResponses => rejected.contains('reasoning'),
-      AiProviderType.openAi => rejected.contains(
-        PlatformProfiles.dialectFor(config)?.field(thinking: true).key,
-      ),
-      AiProviderType.googleGenAi => false,
-    };
-
+/// and it is no longer sent — asked for, but not sent. [cannotStop]: off
+/// sends nothing on this route, so reasoning with it off is the model's
+/// default, the same thing the model page says.
 ({bool? ok, String text}) thinkingStep(
   AppLocalizations l10n, {
   required bool asked,
   required bool reasoned,
   bool refused = false,
+  bool cannotStop = false,
 }) => switch ((asked, reasoned)) {
   (true, false) when refused => (ok: false, text: l10n.aiStepThinkingRefused),
   (false, false) => (ok: true, text: l10n.aiStepThinkingOff),
+  // Off sends nothing there: nothing the user can switch, so no failure.
+  (false, true) when cannotStop => (
+    ok: null,
+    text: l10n.aiStepThinkingCannotStop,
+  ),
   (false, true) => (ok: false, text: l10n.aiStepThinkingStillOn),
   (true, true) => (ok: true, text: l10n.aiStepThinkingOn),
   (true, false) => (ok: null, text: l10n.aiStepThinkingNotOn),
@@ -316,14 +322,16 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
     final typed = config.contextWindow;
     // What the test itself learned: a route that refused the request for
     // reasoning no longer sends it.
+    final (:route, field: _) = PlatformProfiles.reasoningRouteFor(
+      config,
+      AiService.providerFor(config).learned,
+    );
     final thinking = thinkingStep(
       l10n,
       asked: config.thinkingEnabled,
       reasoned: result.reasoned,
-      refused: reasoningRefused(
-        config,
-        AiService.providerFor(config).learned.rejectedFields,
-      ),
+      refused: reasoningRefused(route),
+      cannotStop: reasoningCannotStop(route),
     );
     return [
       _Step(

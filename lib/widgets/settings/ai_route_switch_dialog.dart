@@ -51,15 +51,27 @@ class RouteSwitchDialog extends StatelessWidget {
     final afterConfig = channel.configFor(model.switchedTo(to));
     final notSet = l10n.aiNotSetNotSent;
 
-    // The platform field is named only while it still works both ways:
-    // one this route refused is not what on and off send.
+    // The platform field is named where the saved choice still sends it:
+    // both ways on a working switch, off on a switch route that refused on,
+    // on where the model said it cannot stop — except on the rare route that
+    // later refused the name too, which is named although nothing is sent.
     String thinking(RouteParams p, AiConfig config) {
       final (:route, :field) = PlatformProfiles.reasoningRouteFor(
         config,
         AiService.providerFor(config).learned,
       );
-      final state = p.thinkingEnabled ? l10n.aiOn : l10n.aiOff;
-      return route == ReasoningRoute.platformField ? '$state · $field' : state;
+      final on = p.thinkingEnabled;
+      final sent = switch (route) {
+        ReasoningRoute.platformField => true,
+        ReasoningRoute.onRefused => !on,
+        ReasoningRoute.offRefused => on,
+        ReasoningRoute.protocolField ||
+        ReasoningRoute.offToDefault ||
+        ReasoningRoute.refused ||
+        ReasoningRoute.ladder => false,
+      };
+      final state = on ? l10n.aiOn : l10n.aiOff;
+      return sent ? '$state · $field' : state;
     }
 
     String sampling(RouteParams p) {

@@ -21,6 +21,32 @@ void main() {
     expect(protocolInBuild(AiProviderType.googleGenAi), isTrue);
   });
 
+  test('a refused switch is worded once, for the matrix and the page', () {
+    final l10n = AppLocalizationsEn();
+    for (final protocol in AiProviderType.values) {
+      String? text(ReasoningRoute route) =>
+          reasoningRefusalText(l10n, route, protocol);
+      expect(text(ReasoningRoute.offRefused), l10n.aiCellAlwaysReasons);
+      expect(text(ReasoningRoute.offToDefault), l10n.aiCellModelDefault);
+      // Messages without thinking does not reason.
+      expect(
+        text(ReasoningRoute.refused),
+        protocol == AiProviderType.anthropic
+            ? l10n.aiCellDefaultOff
+            : l10n.aiCellModelDefault,
+      );
+      // A switch that works, and the ladder, are each page's own words.
+      for (final route in [
+        ReasoningRoute.platformField,
+        ReasoningRoute.protocolField,
+        ReasoningRoute.onRefused,
+        ReasoningRoute.ladder,
+      ]) {
+        expect(text(route), isNull, reason: '$route');
+      }
+    }
+  });
+
   Future<AppToggle> reasoningSwitch(
     WidgetTester tester, {
     required SamplingPreset? preset,

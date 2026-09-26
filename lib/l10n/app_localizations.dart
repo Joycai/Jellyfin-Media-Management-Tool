@@ -4928,6 +4928,12 @@ abstract class AppLocalizations {
   /// **'The route refused the request for reasoning'**
   String get aiStepThinkingRefused;
 
+  /// No description provided for @aiStepThinkingCannotStop.
+  ///
+  /// In en, this message translates to:
+  /// **'The model reasoned — this route cannot turn it off'**
+  String get aiStepThinkingCannotStop;
+
   /// No description provided for @aiStepTools.
   ///
   /// In en, this message translates to:

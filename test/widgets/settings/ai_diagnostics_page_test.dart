@@ -5,6 +5,8 @@ import 'package:jellyfin_media_management_tool/l10n/app_localizations_en.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
+import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_diagnostics_page.dart';
 
 import '../../helpers/settings.dart';
@@ -89,40 +91,105 @@ void main() {
       ok: false,
       text: l10n.aiStepThinkingRefused,
     ));
+    // Off sends nothing on this route: reasoning is the model's default,
+    // not a failure the user can switch away.
+    expect(thinkingStep(l10n, asked: false, reasoned: true, cannotStop: true), (
+      ok: null,
+      text: l10n.aiStepThinkingCannotStop,
+    ));
+    expect(
+      thinkingStep(l10n, asked: false, reasoned: false, cannotStop: true),
+      (ok: true, text: l10n.aiStepThinkingOff),
+    );
   });
 
-  test('each protocol names its own request for reasoning', () {
-    AiConfig config(AiProviderType provider, String endpoint) => AiConfig(
-      provider: provider,
-      endpoint: endpoint,
-      apiKey: 'k',
-      model: 'm',
-      thinkingEnabled: true,
+  test('the step reads the route as the model page does', () {
+    AiConfig config(AiProviderType provider, String endpoint, String model) =>
+        AiConfig(
+          provider: provider,
+          endpoint: endpoint,
+          apiKey: 'k',
+          model: model,
+          thinkingEnabled: true,
+        );
+    ReasoningRoute route(
+      AiConfig config, {
+      Set<String> rejected = const {},
+      Set<String> tried = const {},
+    }) => PlatformProfiles.reasoningRouteFor(
+      config,
+      LearnedBehaviour(rejectedFields: rejected, thinkingOffTried: tried),
+    ).route;
+
+    final messages = config(
+      AiProviderType.anthropic,
+      'https://a.example',
+      'claude-sonnet-4-5',
     );
-    final messages = config(AiProviderType.anthropic, 'https://a.example');
     // A refused form alone is not a refused request: the other is tried.
-    expect(reasoningRefused(messages, {'thinking:adaptive'}), isFalse);
     expect(
-      reasoningRefused(messages, {
-        'thinking:adaptive',
-        'thinking:enabled',
-        'thinking',
-      }),
+      reasoningRefused(route(messages, rejected: {'thinking:adaptive'})),
+      isFalse,
+    );
+    // Both forms refused by name, with no bare `thinking` beside them.
+    expect(
+      reasoningRefused(
+        route(messages, rejected: {'thinking:adaptive', 'thinking:enabled'}),
+      ),
       isTrue,
     );
-    final responses = config(AiProviderType.openAiResponses, 'https://r.io');
-    expect(reasoningRefused(responses, {'include'}), isFalse);
-    expect(reasoningRefused(responses, {'reasoning'}), isTrue);
+    // A switch route asks adaptive only.
+    final m3 = config(
+      AiProviderType.anthropic,
+      'https://api.minimaxi.com/anthropic',
+      'MiniMax-M3',
+    );
+    expect(
+      reasoningRefused(route(m3, rejected: {'thinking:adaptive'})),
+      isTrue,
+    );
+    expect(
+      reasoningCannotStop(route(m3, tried: {LearnedBehaviour.dialectOff})),
+      isTrue,
+    );
+
+    final responses = config(
+      AiProviderType.openAiResponses,
+      'https://r.io',
+      'grok-4.5',
+    );
+    expect(reasoningRefused(route(responses, rejected: {'include'})), isFalse);
+    expect(reasoningRefused(route(responses, rejected: {'reasoning'})), isTrue);
+    expect(
+      reasoningCannotStop(
+        route(responses, tried: {LearnedBehaviour.effortNone}),
+      ),
+      isTrue,
+    );
+
     // Chat Completions: the platform's switch, and nothing without one.
     final zhipu = config(
       AiProviderType.openAi,
       'https://open.bigmodel.cn/api/paas/v4',
+      'glm-5.3',
     );
-    expect(reasoningRefused(zhipu, {'thinking'}), isTrue);
-    expect(reasoningRefused(zhipu, {'top_k'}), isFalse);
-    final local = config(AiProviderType.openAi, 'http://localhost:1234');
-    expect(reasoningRefused(local, {'thinking'}), isFalse);
-    final gemini = config(AiProviderType.googleGenAi, 'https://g.example');
-    expect(reasoningRefused(gemini, {'thinkingConfig'}), isFalse);
+    expect(reasoningRefused(route(zhipu, rejected: {'thinking'})), isTrue);
+    expect(reasoningRefused(route(zhipu, rejected: {'top_k'})), isFalse);
+    expect(
+      reasoningCannotStop(route(zhipu, tried: {LearnedBehaviour.dialectOff})),
+      isTrue,
+    );
+    final local = config(AiProviderType.openAi, 'http://localhost:1234', 'm');
+    expect(reasoningRefused(route(local, rejected: {'thinking'})), isFalse);
+    expect(reasoningCannotStop(route(local)), isFalse);
+    final gemini = config(
+      AiProviderType.googleGenAi,
+      'https://g.example',
+      'gemini-3-pro',
+    );
+    expect(
+      reasoningRefused(route(gemini, rejected: {'thinkingConfig'})),
+      isFalse,
+    );
   });
 }

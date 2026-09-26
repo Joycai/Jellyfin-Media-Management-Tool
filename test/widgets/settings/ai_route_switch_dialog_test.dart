@@ -105,4 +105,68 @@ void main() {
     await pump();
     expect(find.text('off · thinking'), findsNothing);
   });
+
+  testWidgets('a switch route that refused on still names the field for off', (
+    tester,
+  ) async {
+    useTempSupportDir();
+    AiModelEntry model({required bool thinking}) =>
+        AiModelEntry.create(
+          upstream: 'MiniMax-M3',
+          route: AiProviderType.anthropic,
+        ).copyWith(
+          params: {
+            AiProviderType.anthropic: RouteParams(thinkingEnabled: thinking),
+          },
+        );
+    AiChannel channel(AiModelEntry m) =>
+        AiChannel.create(
+          platform: PlatformProfiles.miniMax,
+          name: 'mm',
+          apiKey: 'k-dialog',
+        ).copyWith(
+          routes: const [
+            AiRoute(protocol: AiProviderType.anthropic),
+            AiRoute(protocol: AiProviderType.openAi),
+          ],
+          models: [m],
+        );
+    final off = model(thinking: false);
+    final config = channel(off).configFor(off);
+    final provider = AiService.providerFor(config);
+    addTearDown(provider.forgetLearned);
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.anthropic.id,
+        base: '${config.endpoint}/v1',
+        model: 'MiniMax-M3',
+        apiKey: 'k-dialog',
+      ),
+      (b) => b.copyWith(rejectedFields: {'thinking:adaptive'}),
+    );
+    const written = {'thinking:adaptive'};
+    expect(
+      provider.learned.rejectedFields,
+      written,
+      reason: 'the test wrote the route the dialog reads',
+    );
+
+    Future<void> pump(AiModelEntry m) => pumpAiPage(
+      tester,
+      RouteSwitchDialog(
+        channel: channel(m),
+        model: m,
+        to: AiProviderType.openAi,
+      ),
+      profiles: AiProfilesService(),
+    );
+
+    // Off still goes out as `thinking: {type: "disabled"}`.
+    await pump(off);
+    expect(find.text('off · thinking'), findsOneWidget);
+    // On is no longer sent: nothing to name.
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsNothing);
+    expect(find.text('on'), findsOneWidget);
+  });
 }
