@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/ai_channel.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
+import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_model_page.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
@@ -100,6 +102,177 @@ void main() {
         .map((w) => w.data ?? '')
         .join();
     expect(preview, contains('"disabled"'));
+    await settleSaves(tester);
+  });
+
+  testWidgets('Messages switches reasoning without a preset or a platform '
+      'switch', (tester) async {
+    // No sampling preset knows Claude, and the official profile declares no
+    // switch: the protocol's own `thinking` field is the switch.
+    final model = await pump(
+      tester,
+      platform: PlatformProfiles.anthropic,
+      upstream: 'claude-sonnet-4-5',
+      route: AiProviderType.anthropic,
+    );
+
+    // Not the local-server ladder: the protocol's own field.
+    expect(find.text('thinking · protocol field'), findsOneWidget);
+    // The toggles on the page, in order: image input, video input, reasoning.
+    final reasoning = find.byType(AppToggle).at(2);
+    expect(tester.widget<AppToggle>(reasoning).onChanged, isNotNull);
+    await tester.tap(reasoning);
+    await tester.pumpAndSettle();
+
+    final entry = profiles.modelById(model.id)!;
+    expect(entry.channel.configFor(entry.model).thinkingEnabled, isTrue);
+    final preview = tester
+        .widgetList<SelectableText>(find.byType(SelectableText))
+        .map((w) => w.data ?? '')
+        .join();
+    expect(preview, contains('"thinking"'));
+    await settleSaves(tester);
+  });
+
+  testWidgets('Responses switches reasoning without a preset', (tester) async {
+    await pump(
+      tester,
+      platform: PlatformProfiles.openAi,
+      upstream: 'gpt-4.1',
+      route: AiProviderType.openAiResponses,
+    );
+
+    expect(find.text('reasoning.effort · protocol field'), findsOneWidget);
+    expect(
+      tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
+      isNotNull,
+    );
+    await settleSaves(tester);
+  });
+
+  testWidgets('without a preset or a documented field, "on" sends nothing, '
+      'so the switch stays off', (tester) async {
+    for (final (platform, route) in [
+      (PlatformProfiles.openAi, AiProviderType.openAi),
+      (PlatformProfiles.google, AiProviderType.googleGenAi),
+    ]) {
+      await pump(tester, platform: platform, upstream: 'x-1', route: route);
+
+      expect(
+        tester.widget<AppToggle>(find.byType(AppToggle).at(2)).onChanged,
+        isNull,
+        reason: '$route',
+      );
+      expect(
+        find.textContaining('local-server ladder'),
+        findsOneWidget,
+        reason: '$route',
+      );
+      await settleSaves(tester);
+    }
+  });
+
+  /// A model on a relay's [route] that has learned it refuses [refused],
+  /// with reasoning saved on — the state a refusal is learned in.
+  Future<AiModelEntry> pumpRefused(
+    WidgetTester tester, {
+    required AiProviderType route,
+    required String model,
+    required Set<String> refused,
+  }) async {
+    const endpoint = 'https://relay.example/v1';
+    final entry = AiModelEntry.create(
+      upstream: model,
+      route: route,
+    ).copyWith(params: {route: const RouteParams(thinkingEnabled: true)});
+    final channel =
+        AiChannel.create(
+              platform: PlatformProfiles.custom,
+              name: 'Relay',
+              apiKey: 'k',
+            )
+            .copyWith(
+              routes: [AiRoute(protocol: route, endpoint: endpoint)],
+            )
+            .withModel(entry);
+    final provider = AiService.providerFor(channel.configFor(entry));
+    addTearDown(provider.forgetLearned);
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: route.id,
+        base: endpoint,
+        model: model,
+        apiKey: 'k',
+      ),
+      (b) => b.copyWith(rejectedFields: refused),
+    );
+    expect(
+      provider.learned.rejectedFields,
+      refused,
+      reason: 'the test wrote the route the page reads',
+    );
+    await profiles.addChannel(channel);
+    await pumpAiPage(
+      tester,
+      AiModelPage(
+        channelId: channel.id,
+        modelId: entry.id,
+        onBack: () {},
+        onMatrix: () {},
+        onDiagnostics: () {},
+      ),
+      profiles: profiles,
+    );
+    return entry;
+  }
+
+  for (final (route, model, refused, line) in [
+    (
+      AiProviderType.openAiResponses,
+      'gpt-4.1',
+      {'reasoning'},
+      'the model’s default',
+    ),
+    (
+      AiProviderType.anthropic,
+      'claude-sonnet-4-5',
+      {'thinking:adaptive', 'thinking:enabled', 'thinking'},
+      'off by default',
+    ),
+  ]) {
+    testWidgets('a ${route.id} route that refused its reasoning field sends it '
+        'neither way, so the switch is off', (tester) async {
+      await pumpRefused(tester, route: route, model: model, refused: refused);
+
+      // What the capability matrix says too.
+      expect(find.text(line), findsOneWidget);
+      // Drawn off, not stuck on: nothing is sent either way.
+      final toggle = tester.widget<AppToggle>(find.byType(AppToggle).at(2));
+      expect(toggle.onChanged, isNull);
+      expect(toggle.value, isFalse);
+      await settleSaves(tester);
+    });
+  }
+
+  testWidgets('a preset model on a refused route still follows its saved '
+      'choice', (tester) async {
+    // Qwen3's preset switches reasoning itself and picks the sampling values
+    // from the saved choice, so the switch stays live and truthful.
+    final entry = await pumpRefused(
+      tester,
+      route: AiProviderType.anthropic,
+      model: 'qwen3-32b',
+      refused: {'thinking:adaptive', 'thinking:enabled', 'thinking'},
+    );
+
+    final reasoning = find.byType(AppToggle).at(2);
+    expect(tester.widget<AppToggle>(reasoning).value, isTrue);
+    await tester.tap(reasoning);
+    await tester.pumpAndSettle();
+
+    final saved = profiles.modelById(entry.id)!;
+    expect(saved.channel.configFor(saved.model).thinkingEnabled, isFalse);
+    expect(tester.widget<AppToggle>(reasoning).value, isFalse);
     await settleSaves(tester);
   });
 }

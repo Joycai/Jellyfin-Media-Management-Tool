@@ -266,7 +266,7 @@ class OpenAiProvider implements AiProvider {
         }
         final error = _noResponse(firstEventTimeout);
         log(error: error);
-        throw AiNetworkException(error);
+        throw AiTimeoutException(error);
       } catch (e) {
         // Closing the client to cancel surfaces as a generic ClientException;
         // report it as a cancellation, not a network failure.
@@ -668,7 +668,7 @@ class OpenAiProvider implements AiProvider {
             started ? idleTimeout : firstEventTimeout,
           );
         } on TimeoutException {
-          throw AiNetworkException(
+          throw AiTimeoutException(
             started
                 ? 'The server stopped sending for ${_duration(idleTimeout)} '
                       'partway through the reply.'

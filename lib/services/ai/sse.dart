@@ -90,7 +90,7 @@ abstract final class Sse {
             started ? idleTimeout : firstEventTimeout,
           );
         } on TimeoutException {
-          throw AiNetworkException(
+          throw AiTimeoutException(
             started
                 ? 'The server stopped sending for ${duration(idleTimeout)} '
                       'partway through the reply.'

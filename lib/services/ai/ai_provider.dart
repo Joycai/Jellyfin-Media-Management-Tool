@@ -139,6 +139,16 @@ class AiNetworkException extends AiException {
   const AiNetworkException(super.message);
 }
 
+/// An [AiNetworkException] for a generation that timed out: the client heard
+/// nothing for too long, or a gateway answered 408, 504 or Cloudflare's 524.
+///
+/// The server may still be generating — and billing — the request, so
+/// nothing sends it again: not the transport (`AiHttp.withRetry`), and not
+/// an organize batch.
+class AiTimeoutException extends AiNetworkException {
+  const AiTimeoutException(super.message);
+}
+
 /// Whether a model called a tool when asked to, and which provider, endpoint
 /// and model that was measured against.
 class ToolSupport {

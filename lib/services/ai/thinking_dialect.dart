@@ -83,4 +83,25 @@ enum MessagesThinking {
   /// What `LearnedBehaviour.rejectedFields` records when a route refuses
   /// this form: the field and the type it was refused with.
   String get refusedName => 'thinking:$type';
+
+  /// The forms a route refused, where [first] is the form it is asked in
+  /// first. A bare `thinking` with neither form beside it was written before
+  /// the forms were told apart, when `enabled` was the only one sent and
+  /// only a refusal of thinking itself was recorded. Where `enabled` is also
+  /// the first form, that is what a refusal of thinking records now: every
+  /// form. Where adaptive comes first (Claude 4.6 and later, a switch
+  /// route), adaptive was never asked, and the record is no verdict on it.
+  static Set<MessagesThinking> refusedIn(
+    Set<String> rejected, {
+    required MessagesThinking first,
+  }) {
+    final forms = {
+      for (final form in values)
+        if (rejected.contains(form.refusedName)) form,
+    };
+    if (forms.isEmpty && rejected.contains('thinking')) {
+      return first == adaptive ? {extended} : values.toSet();
+    }
+    return forms;
+  }
 }

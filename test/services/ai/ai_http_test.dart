@@ -25,6 +25,21 @@ void main() {
         );
       }
     });
+
+    test('only a timeout on the way is a timeout', () {
+      for (final status in [408, 504, 524]) {
+        final error = AiHttp.statusError(status, 'HTTP $status');
+        expect(error, isA<AiTimeoutException>(), reason: '$status');
+        expect(error.message, 'HTTP $status');
+      }
+      for (final status in [401, 402, 403, 429, 500, 502, 503, 529]) {
+        expect(
+          AiHttp.statusError(status, 'HTTP $status'),
+          isNot(isA<AiTimeoutException>()),
+          reason: '$status',
+        );
+      }
+    });
   });
 
   group('AiHttp.withRetry', () {
@@ -42,6 +57,7 @@ void main() {
       // The upstream may still be generating — and billing — the first one.
       expect(await send(504), (1, 504));
       expect(await send(408), (1, 408));
+      expect(await send(524), (1, 524));
     });
 
     test('an overloaded or rate-limited server is', () async {

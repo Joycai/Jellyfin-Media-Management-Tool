@@ -24,7 +24,7 @@ void main() {
   Future<AppToggle> reasoningSwitch(
     WidgetTester tester, {
     required SamplingPreset? preset,
-    required bool platformSwitch,
+    required bool routeSwitch,
   }) async {
     final controllers = {
       for (final field in SamplingField.values) field: TextEditingController(),
@@ -41,7 +41,7 @@ void main() {
           preset: preset,
           controllers: controllers,
           thinking: false,
-          platformSwitch: platformSwitch,
+          routeSwitch: routeSwitch,
           lastReasoned: null,
           serverKind: null,
           refused: const {'top_k'},
@@ -55,14 +55,14 @@ void main() {
     return tester.widget<AppToggle>(find.byType(AppToggle));
   }
 
-  testWidgets('an unknown model is switchable only on a platform switch', (
+  testWidgets('an unknown model is switchable only on a route switch', (
     tester,
   ) async {
     expect(
       (await reasoningSwitch(
         tester,
         preset: null,
-        platformSwitch: true,
+        routeSwitch: true,
       )).onChanged,
       isNotNull,
     );
@@ -70,7 +70,7 @@ void main() {
       (await reasoningSwitch(
         tester,
         preset: null,
-        platformSwitch: false,
+        routeSwitch: false,
       )).onChanged,
       isNull,
     );

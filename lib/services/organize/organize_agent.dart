@@ -227,7 +227,10 @@ class OrganizeAgent {
         } on Exception catch (e) {
           if (cancelToken?.isCancelled ?? false) rethrow;
           lastError = e;
-          if (attempt >= 2) {
+          // Not retried either: a generation that timed out may still be
+          // running, and billing, upstream; a rerun would start it again
+          // beside the first.
+          if (attempt >= 2 || e is AiTimeoutException) {
             state.failActive(_describe(e));
             state.finishActive();
             break;
