@@ -40,6 +40,46 @@ bool protocolInBuild(AiProviderType protocol) => switch (protocol) {
   AiProviderType.openAiResponses => true,
 };
 
+/// What the capability matrix and the model page's route line both say of a
+/// route whose reasoning switch was refused, in the same words; null for a
+/// switch that works and for the ladder, which each page words its own way.
+String? reasoningRefusalText(
+  AppLocalizations l10n,
+  ReasoningRoute route,
+  AiProviderType protocol,
+) => switch (route) {
+  // The model said it cannot stop reasoning.
+  ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
+  // Off refused without a reason: the model's default, reasoning or not.
+  ReasoningRoute.offToDefault => l10n.aiCellModelDefault,
+  // Sent neither way; Messages without thinking does not reason.
+  ReasoningRoute.refused =>
+    protocol == AiProviderType.anthropic
+        ? l10n.aiCellDefaultOff
+        : l10n.aiCellModelDefault,
+  ReasoningRoute.platformField ||
+  ReasoningRoute.protocolField ||
+  ReasoningRoute.onRefused ||
+  ReasoningRoute.ladder => null,
+};
+
+/// Whether the model page's reasoning toggle is live: a known family
+/// decides whether its reasoning can be switched at all; a model no preset
+/// knows can be switched only where its route has a working switch.
+/// Diagnostics reads it too, to tell a refusal the user can undo.
+bool reasoningSwitchable(SamplingPreset? preset, ReasoningRoute route) =>
+    preset?.thinkingIsOptional ?? route.switchable;
+
+/// Whether the model page judges a test with reasoning off at all: where
+/// the toggle is live, and where a field refused both ways draws a model no
+/// preset knows off — only the server can change its default. Where off was
+/// refused (`offRefused`, `offToDefault`) the page and Diagnostics each say
+/// the model's default instead of warning; everywhere else here a test that
+/// still reasoned is a warning on the page and a failed step in Diagnostics.
+bool reasoningWarns(SamplingPreset? preset, ReasoningRoute route) =>
+    reasoningSwitchable(preset, route) ||
+    (preset == null && route == ReasoningRoute.refused);
+
 /// A platform's name in the UI language. Product names stay as they are.
 String platformName(AppLocalizations l10n, PlatformProfile platform) =>
     switch (platform.id) {
@@ -458,11 +498,11 @@ class AiSamplingSection extends StatelessWidget {
   final Map<SamplingField, TextEditingController> controllers;
   final bool thinking;
 
-  /// Whether the route has its own reasoning switch — a platform's field,
-  /// or the protocol's own (`PlatformProfiles.protocolSwitchFieldFor`) —
-  /// which works for any model on it, not only the families a preset knows
-  /// are hybrid.
-  final bool routeSwitch;
+  /// How the route switches reasoning after what it has refused
+  /// (`PlatformProfiles.reasoningRouteFor`). A working switch serves any
+  /// model on it, not only the families a preset knows are hybrid; a refused
+  /// one decides what a model no preset knows is drawn as.
+  final ReasoningRoute route;
 
   /// What the last test on this route showed; null when none ran.
   final bool? lastReasoned;
@@ -479,7 +519,7 @@ class AiSamplingSection extends StatelessWidget {
     required this.preset,
     required this.controllers,
     required this.thinking,
-    required this.routeSwitch,
+    required this.route,
     required this.lastReasoned,
     required this.serverKind,
     required this.refused,
@@ -511,11 +551,14 @@ class AiSamplingSection extends StatelessWidget {
     final preset = this.preset;
     // Mirrors what the provider sends: a known family decides whether its
     // reasoning can be switched at all; a model no preset knows can be
-    // switched only where its route has a switch.
-    final switchable = preset != null ? preset.thinkingIsOptional : routeSwitch;
-    final reasons = preset?.reasons(requested: thinking) ?? thinking;
+    // switched only where its route has a working switch, and is otherwise
+    // drawn as the route runs it. A preset model's toggle keeps the saved
+    // choice, which picks its sampling values whatever the route sends.
+    final switchable = reasoningSwitchable(preset, route);
+    final reasons =
+        preset?.reasons(requested: thinking) ?? route.drawnAs ?? thinking;
     final values = preset?.valuesFor(thinking: reasons);
-    final status = _thinkingStatus(l10n, reasons, switchable);
+    final status = _thinkingStatus(l10n, reasons);
     final note = AppTypeScale.caption.copyWith(color: t.textMuted);
 
     String label(SamplingField field) => switch (field) {
@@ -668,14 +711,14 @@ class AiSamplingSection extends StatelessWidget {
     );
   }
 
-  /// A line under the switch: what the family allows, or — when reasoning
-  /// can be switched off — whether the last test showed it actually was.
+  /// A line under the switch: what the family allows, or — where the page
+  /// judges a test ([reasoningWarns]) — whether the last test showed
+  /// reasoning off, the model's default where off was refused.
   /// That second case is the one worth a line, because servers ignore the
   /// fields that turn it off without saying so.
   ({String text, bool warning})? _thinkingStatus(
     AppLocalizations l10n,
     bool reasons,
-    bool switchable,
   ) {
     switch (preset?.thinkingControl) {
       case ThinkingControl.alwaysOn:
@@ -685,11 +728,22 @@ class AiSamplingSection extends StatelessWidget {
       default:
         break;
     }
+    // The model said it cannot stop: a test that still reasoned says nothing
+    // new, and "turn it off on the server" would be the wrong advice.
+    if (route == ReasoningRoute.offRefused) {
+      return (text: l10n.thinkingAlwaysOn, warning: false);
+    }
     final reasoned = lastReasoned;
-    if (reasoned == null || reasons || !switchable) return null;
-    return reasoned
-        ? (text: l10n.thinkingStillOn, warning: true)
-        : (text: l10n.thinkingVerifiedOff, warning: false);
+    // Only where a switch, or the server, can do something about it.
+    if (reasoned == null || reasons || !reasoningWarns(preset, route)) {
+      return null;
+    }
+    if (!reasoned) return (text: l10n.thinkingVerifiedOff, warning: false);
+    // Off was refused and nothing was sent for it, so the reasoning was the
+    // model's own default: there is no switch left to turn off.
+    return route == ReasoningRoute.offToDefault
+        ? (text: l10n.thinkingAlwaysOn, warning: false)
+        : (text: l10n.thinkingStillOn, warning: true);
   }
 }
 

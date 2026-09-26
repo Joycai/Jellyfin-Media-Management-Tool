@@ -13,6 +13,7 @@ import '../../services/ai/ai_provider.dart';
 import '../../services/ai/ai_service.dart';
 import '../../services/ai/api_log.dart';
 import '../../services/ai/connection_check.dart';
+import '../../services/ai/learned_behaviour.dart';
 import '../../services/ai/platform_profiles.dart';
 import '../../services/settings_service.dart';
 import '../../theme/design_tokens.dart';
@@ -62,6 +63,22 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
   return result.truncated ? '$text\n${l10n.connectionTruncated}' : text;
 }
 
+/// Whether the request for reasoning is no longer sent on a route in
+/// [route] (`PlatformProfiles.reasoningRouteFor`): on was refused, or the
+/// field is sent neither way. Not the rare route that cannot stop and later
+/// refused on too (`offRefused` does not say): there a reply without
+/// reasoning reads as not shown, as the route-switch dialog names the field.
+bool reasoningRefused(ReasoningRoute route) =>
+    route == ReasoningRoute.onRefused || route == ReasoningRoute.refused;
+
+/// Whether off was refused on a route in [route] and so sends nothing,
+/// making a reply that still reasons the model's own default, not a switch
+/// the user can fix. Not a field refused both ways (`refused`): the model
+/// page warns there, the default being one the server can still change;
+/// nor Messages' own field, where off is the protocol's default.
+bool reasoningCannotStop(ReasoningRoute route) =>
+    route == ReasoningRoute.offRefused || route == ReasoningRoute.offToDefault;
+
 /// The reasoning step of a connection test, judged by the reply both ways:
 /// a switch sent is not a switch taken, and a relay can drop a request for
 /// reasoning as quietly as a request for none. A reply without reasoning
@@ -69,32 +86,77 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
 /// Gemini's dynamic thinking may skip a request as small as the test's.
 ///
 /// [refused]: the route refused the request for reasoning during the test
-/// and it is no longer sent — asked for, but not sent.
-/// Whether [rejected], a route's refused fields, holds the request for
-/// reasoning [config]'s protocol sends — on Messages, the `thinking` a
-/// refusal of the feature records beside its forms.
-bool reasoningRefused(AiConfig config, Set<String> rejected) =>
-    switch (config.provider) {
-      AiProviderType.anthropic => rejected.contains('thinking'),
-      AiProviderType.openAiResponses => rejected.contains('reasoning'),
-      AiProviderType.openAi => rejected.contains(
-        PlatformProfiles.dialectFor(config)?.field(thinking: true).key,
-      ),
-      AiProviderType.googleGenAi => false,
-    };
-
+/// and it is no longer sent — asked for, but not sent; a failure the user
+/// can clear by turning reasoning off, unless the toggle is [locked].
+/// [cannotStop]: nothing the user can switch turns reasoning off here, so
+/// reasoning with it off is the model's default, not a failure.
+/// [alwaysReasons]: the model page says this model reasons whatever is
+/// sent, so a reply that shows none is not proof that it stopped.
 ({bool? ok, String text}) thinkingStep(
   AppLocalizations l10n, {
   required bool asked,
   required bool reasoned,
   bool refused = false,
+  bool locked = false,
+  bool cannotStop = false,
+  bool alwaysReasons = false,
 }) => switch ((asked, reasoned)) {
-  (true, false) when refused => (ok: false, text: l10n.aiStepThinkingRefused),
+  (true, false) when refused => (
+    ok: locked ? null : false,
+    text: l10n.aiStepThinkingRefused,
+  ),
+  (false, false) when alwaysReasons => (
+    ok: null,
+    text: l10n.aiStepThinkingNotShown,
+  ),
   (false, false) => (ok: true, text: l10n.aiStepThinkingOff),
+  (false, true) when cannotStop => (
+    ok: null,
+    text: l10n.aiStepThinkingCannotStop,
+  ),
   (false, true) => (ok: false, text: l10n.aiStepThinkingStillOn),
   (true, true) => (ok: true, text: l10n.aiStepThinkingOn),
   (true, false) => (ok: null, text: l10n.aiStepThinkingNotOn),
 };
+
+/// The reasoning step of a connection test on [config]'s route, after what
+/// the test [learned]. It is judged against the saved choice the test sent,
+/// save where the field is sent neither way for a model no preset knows —
+/// the saved choice asks nothing there and the model page draws it off. It
+/// fails only what the user can act on: a reply that still reasons where
+/// the model page warns too, and a refused request where the toggle can
+/// turn reasoning off.
+({bool? ok, String text}) reasoningStepFor(
+  AppLocalizations l10n,
+  AiConfig config,
+  LearnedBehaviour learned, {
+  required bool reasoned,
+}) {
+  final (:route, field: _) = PlatformProfiles.reasoningRouteFor(
+    config,
+    learned,
+  );
+  final preset = SamplingPresets.forModel(config.model);
+  // The model page says it can only run with reasoning on.
+  final alwaysReasons =
+      route == ReasoningRoute.offRefused ||
+      (preset?.reasons(requested: false) ?? false);
+  return thinkingStep(
+    l10n,
+    // A model no preset knows is drawn off where the field is sent neither
+    // way; the saved choice asks nothing there.
+    asked: preset == null && route == ReasoningRoute.refused
+        ? false
+        : config.thinkingEnabled,
+    reasoned: reasoned,
+    refused: reasoningRefused(route),
+    locked: !reasoningSwitchable(preset, route),
+    // Off refused, or reasoning the model page does not warn about (a family
+    // that always reasons among it).
+    cannotStop: reasoningCannotStop(route) || !reasoningWarns(preset, route),
+    alwaysReasons: alwaysReasons,
+  );
+}
 
 /// Diagnostics (Diagnostics artboard): test one route step by step, and read
 /// today's API log.
@@ -316,14 +378,11 @@ class _AiDiagnosticsPageState extends State<AiDiagnosticsPage> {
     final typed = config.contextWindow;
     // What the test itself learned: a route that refused the request for
     // reasoning no longer sends it.
-    final thinking = thinkingStep(
+    final thinking = reasoningStepFor(
       l10n,
-      asked: config.thinkingEnabled,
+      config,
+      AiService.providerFor(config).learned,
       reasoned: result.reasoned,
-      refused: reasoningRefused(
-        config,
-        AiService.providerFor(config).learned.rejectedFields,
-      ),
     );
     return [
       _Step(

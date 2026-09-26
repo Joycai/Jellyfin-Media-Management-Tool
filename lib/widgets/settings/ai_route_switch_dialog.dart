@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/ai_channel.dart';
 import '../../services/ai/ai_provider.dart';
+import '../../services/ai/ai_service.dart';
 import '../../services/ai/platform_profiles.dart';
 import '../../theme/design_tokens.dart';
 import '../glass/glass_dialog.dart';
@@ -50,10 +51,28 @@ class RouteSwitchDialog extends StatelessWidget {
     final afterConfig = channel.configFor(model.switchedTo(to));
     final notSet = l10n.aiNotSetNotSent;
 
+    // The platform field is named where the saved choice still sends it:
+    // both ways on a working switch, off on a switch route that refused on,
+    // on where the model said it cannot stop — except on the rare route that
+    // later refused on too (the name, or a switch route's `adaptive`), which
+    // is named although nothing is sent.
     String thinking(RouteParams p, AiConfig config) {
-      final field = PlatformProfiles.switchFieldFor(config);
-      final state = p.thinkingEnabled ? l10n.aiOn : l10n.aiOff;
-      return field == null ? state : '$state · $field';
+      final (:route, :field) = PlatformProfiles.reasoningRouteFor(
+        config,
+        AiService.providerFor(config).learned,
+      );
+      final on = p.thinkingEnabled;
+      final sent = switch (route) {
+        ReasoningRoute.platformField => true,
+        ReasoningRoute.onRefused => !on,
+        ReasoningRoute.offRefused => on,
+        ReasoningRoute.protocolField ||
+        ReasoningRoute.offToDefault ||
+        ReasoningRoute.refused ||
+        ReasoningRoute.ladder => false,
+      };
+      final state = on ? l10n.aiOn : l10n.aiOff;
+      return sent ? '$state · $field' : state;
     }
 
     String sampling(RouteParams p) {

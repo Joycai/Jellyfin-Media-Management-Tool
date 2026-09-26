@@ -14,10 +14,72 @@
 library;
 
 import 'ai_provider.dart';
+import 'learned_behaviour.dart';
 import 'thinking_dialect.dart';
 
 /// Where a platform runs.
 enum PlatformKind { vendor, relay, local, custom }
+
+/// How a route switches reasoning now, after what it has refused — what the
+/// adapters send, read by the settings screens so that none of them works it
+/// out on its own ([PlatformProfiles.reasoningRouteFor]).
+enum ReasoningRoute {
+  /// A platform's field, sent both ways: a Chat Completions dialect, or a
+  /// Messages route declared as a switch.
+  platformField,
+
+  /// The protocol's own field: Messages' `thinking`, sent only for on, and
+  /// Responses' `reasoning.effort`.
+  protocolField,
+
+  /// On was refused and is no longer sent, but off still is (a Messages
+  /// switch route that refused `adaptive` still says `disabled`): the toggle
+  /// can still turn reasoning off, and on leaves the model at its default.
+  onRefused,
+
+  /// The model said it cannot stop reasoning (Zhipu's 5.3 generation, a
+  /// switch route that refused `disabled`), so off sends nothing and the
+  /// model reasons at its default. On is still sent, unless on was later
+  /// refused too (the field by name, or `adaptive` on a switch route); the
+  /// model reasons either way.
+  offRefused,
+
+  /// Off was refused without saying why, so off sends nothing and the
+  /// model runs at its default — which may or may not reason: Responses
+  /// refuses `effort: none` alike from a model that always reasons (Grok,
+  /// o3) and from one that cannot reason at all (GPT-4.1). On is still
+  /// sent; only a test shows what off does.
+  offToDefault,
+
+  /// Sent neither way: the field refused by name, or on a Messages route
+  /// every form of thinking — where off is the protocol's default anyway.
+  refused,
+
+  /// No switch at all: the local-server ladder, judged by the reply.
+  ladder;
+
+  /// Whether a model no preset knows gets a live toggle here: where turning
+  /// it can change whether the model reasons. Not where the model said it
+  /// cannot stop (on is still sent, but it reasons either way), and not the
+  /// ladder, which has nothing to send for on.
+  bool get switchable =>
+      this == platformField ||
+      this == protocolField ||
+      this == onRefused ||
+      this == offToDefault;
+
+  /// What a toggle for a model no preset knows is drawn as, whatever was
+  /// saved; null where it shows the saved choice.
+  bool? get drawnAs => switch (this) {
+    offRefused => true,
+    refused => false,
+    platformField ||
+    protocolField ||
+    onRefused ||
+    offToDefault ||
+    ladder => null,
+  };
+}
 
 /// One protocol on one platform.
 class RouteSpec {
@@ -389,34 +451,71 @@ abstract final class PlatformProfiles {
       config.provider == AiProviderType.anthropic &&
       (of(config).routes[config.provider]?.messagesThinkingSwitch ?? false);
 
-  /// The field [config]'s route turns reasoning on and off with, or null
-  /// when its platform documents no switch.
-  static String? switchFieldFor(AiConfig config) =>
-      dialectFor(config)?.field(thinking: false).key ??
-      (messagesSwitchFor(config) ? 'thinking' : null);
+  /// The form [config]'s Messages route asks thinking in before any
+  /// refusal: adaptive on a switch route, the one form it takes, otherwise
+  /// the model's own. The adapter and [reasoningRouteFor] both read it.
+  static MessagesThinking messagesFirstFormFor(AiConfig config) =>
+      messagesSwitchFor(config)
+      ? MessagesThinking.adaptive
+      : MessagesThinking.forModel(config.model);
 
-  /// The field [config]'s protocol itself switches reasoning with, where no
-  /// platform field ([switchFieldFor]) does: Messages sends `thinking` only
-  /// when asked for it, Responses sends `reasoning.effort` either way.
-  /// Chat Completions and Gemini have none — nothing to send for "on", only
-  /// a ladder for "off".
+  /// How [config]'s route switches reasoning after what it [learned], and
+  /// the field it does it with. Mirrors each adapter's own reading of the
+  /// same memory; `platform_profiles_test` holds the two side by side.
   ///
-  /// Null too once the route has [refused] it (`rejectedFields`), since the
-  /// adapter then sends it neither way: Responses' whole `reasoning`, or
-  /// every Messages form the route would try.
-  static String? protocolSwitchFieldFor(
-    AiConfig config, {
-    Set<String> refused = const {},
-  }) => switch (config.provider) {
-    AiProviderType.anthropic
-        when MessagesThinking.refusedIn(
-              refused,
-              first: MessagesThinking.forModel(config.model),
-            ).length <
-            MessagesThinking.values.length =>
-      'thinking',
-    AiProviderType.openAiResponses when !refused.contains('reasoning') =>
-      'reasoning.effort',
-    _ => null,
-  };
+  /// Where a refused off says the model reasons (Chat Completions, a
+  /// Messages switch route) it is checked before a field refused by name,
+  /// which alone says only that nothing is sent. On Responses it says
+  /// nothing of the kind, and a field refused by name as well means
+  /// nothing goes out either way.
+  static ({ReasoningRoute route, String? field}) reasoningRouteFor(
+    AiConfig config,
+    LearnedBehaviour learned,
+  ) {
+    final tried = learned.thinkingOffTried;
+    final refused = learned.rejectedFields;
+    switch (config.provider) {
+      case AiProviderType.openAi:
+        final field = dialectFor(config)?.field(thinking: false).key;
+        if (field == null) return (route: ReasoningRoute.ladder, field: null);
+        if (tried.contains(LearnedBehaviour.dialectOff)) {
+          return (route: ReasoningRoute.offRefused, field: field);
+        }
+        if (refused.contains(field)) {
+          return (route: ReasoningRoute.refused, field: field);
+        }
+        return (route: ReasoningRoute.platformField, field: field);
+      case AiProviderType.googleGenAi:
+        return (route: ReasoningRoute.ladder, field: null);
+      case AiProviderType.anthropic:
+        final forms = MessagesThinking.refusedIn(
+          refused,
+          first: messagesFirstFormFor(config),
+        );
+        // A switch route asks adaptive only, and says off as `disabled`.
+        if (messagesSwitchFor(config)) {
+          if (tried.contains(LearnedBehaviour.dialectOff)) {
+            return (route: ReasoningRoute.offRefused, field: 'thinking');
+          }
+          return forms.contains(MessagesThinking.adaptive)
+              ? (route: ReasoningRoute.onRefused, field: 'thinking')
+              : (route: ReasoningRoute.platformField, field: 'thinking');
+        }
+        // Elsewhere off is the protocol's default: nothing to refuse.
+        return forms.length < MessagesThinking.values.length
+            ? (route: ReasoningRoute.protocolField, field: 'thinking')
+            : (route: ReasoningRoute.refused, field: 'thinking');
+      case AiProviderType.openAiResponses:
+        if (refused.contains('reasoning')) {
+          return (route: ReasoningRoute.refused, field: 'reasoning.effort');
+        }
+        if (tried.contains(LearnedBehaviour.effortNone)) {
+          return (
+            route: ReasoningRoute.offToDefault,
+            field: 'reasoning.effort',
+          );
+        }
+        return (route: ReasoningRoute.protocolField, field: 'reasoning.effort');
+    }
+  }
 }
