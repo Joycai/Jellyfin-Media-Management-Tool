@@ -569,6 +569,48 @@ void main() {
       );
     });
 
+    test('a relay that refuses thinking under the name it translated it to '
+        'gives it up', () async {
+      // The relay turned `thinking` into its upstream's field and the
+      // upstream refused that name. What the relay sends is not the
+      // adapter's to change, so the route is remembered as one that
+      // cannot carry a request for thinking — every form and the field —
+      // and the next request goes without it, with the family's sampling
+      // values, whatever its locked toggle says. Before this, the error
+      // named nothing the adapter learned from and every request failed.
+      for (final (i, message) in [
+        'Unrecognized request argument supplied: reasoning_effort',
+        'reasoning_effort\n  Extra inputs are not permitted '
+            "[type=extra_forbidden, input_value='medium', input_type=str]",
+        "Unknown parameter: 'reasoning_effort'.",
+        "Unsupported parameter: 'reasoning_effort' is not supported with "
+            'this model.',
+        'Unrecognized request argument supplied: chat_template_kwargs',
+        'Invalid JSON payload received. Unknown name "thinkingConfig" at '
+            "'generation_config': Cannot find field.",
+        "'reasoning' is not a valid parameter",
+        "Invalid value for 'reasoning_effort': expected one of low, "
+            'medium, high',
+      ].indexed) {
+        final (bodies, provider) = await refusing(
+          'translated-$i.example',
+          {'adaptive', 'enabled'},
+          (_) => message,
+          model: 'deepseek-r1-distill-qwen-14b',
+        );
+        expect(bodies, hasLength(2), reason: message);
+        expect(bodies.first['thinking'], containsPair('type', 'enabled'));
+        expect(bodies.last.containsKey('thinking'), isFalse, reason: message);
+        expect(bodies.last['temperature'], 0.6, reason: message);
+        expect(provider.learned.rejectedFields, {
+          'thinking',
+          'thinking:adaptive',
+          'thinking:enabled',
+        }, reason: message);
+        expect(provider.learned.thinkingOffTried, isEmpty);
+      }
+    });
+
     test(
       'the other form refused without refusing thinking is thrown',
       () async {
@@ -766,6 +808,28 @@ void main() {
         );
         expect(preview.body.containsKey('thinking'), isFalse);
       });
+
+      test(
+        'off refused under a translated name is the field, not the model',
+        () async {
+          // `disabled` translated by a relay and refused under the
+          // upstream's name says nothing about whether the model can stop:
+          // the field is given up, both ways, as an unknown field is.
+          final (bodies, provider) = await offRefused(
+            'translated-off.minimaxi.com',
+            'Unrecognized request argument supplied: reasoning_effort',
+          );
+          expect(bodies, hasLength(2));
+          expect(bodies.first['thinking'], {'type': 'disabled'});
+          expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(provider.learned.thinkingOffTried, isEmpty);
+          expect(provider.learned.rejectedFields, {
+            'thinking',
+            'thinking:adaptive',
+            'thinking:enabled',
+          });
+        },
+      );
 
       test('a field refused in Pydantic words is the field, whatever it '
           'echoes', () async {
@@ -1130,6 +1194,31 @@ void main() {
         'naming a relay model whose id says thinking',
         'claude-3-7-sonnet-20250219-thinking',
         'model claude-3-7-sonnet-20250219-thinking is not supported',
+      ),
+      // Another protocol's name for the field is read only in the words of
+      // a refusal: `reasoning` is an ordinary word, and a name mentioned
+      // with nothing refused is about something else.
+      (
+        'saying reasoning in prose',
+        'deepseek-r1-distill-qwen-14b',
+        'the model was reasoning about the request and found it invalid',
+      ),
+      (
+        'mentioning a translated name with nothing refused',
+        'deepseek-r1-distill-qwen-14b',
+        'reasoning_effort was set to medium; the upstream timed out',
+      ),
+      (
+        'about reasoning_content, which is not the field',
+        'deepseek-r1-distill-qwen-14b',
+        "'reasoning_content' must be a string when present",
+      ),
+      // A family that never reasons sends no `thinking`, so a translated
+      // name refused is about something else the relay sent.
+      (
+        'refusing a translated name when no thinking was sent',
+        'qwen3-30b-a3b-instruct-2507',
+        'Unrecognized request argument supplied: reasoning_effort',
       ),
     ].indexed) {
       test('an error $name is thrown, not learned', () async {
@@ -1723,6 +1812,41 @@ void main() {
       }
     }
 
+    // Another protocol's name for the field, refused — a relay translated
+    // `thinking` into its upstream's field — is the field unknown, in the
+    // words of a refusal, of an unknown field, of a mandatory one, or with
+    // the name quoted; whichever way was asked, since what the relay sent
+    // for it is not ours to read.
+    for (final detail in [
+      'unrecognized request argument supplied: reasoning_effort',
+      'reasoning_effort\n  extra inputs are not permitted '
+          "[type=extra_forbidden, input_value='medium', input_type=str]",
+      "unknown parameter: 'reasoning_effort'.",
+      "unsupported parameter: 'reasoning_effort' is not supported with "
+          'this model.',
+      'unrecognized request argument supplied: chat_template_kwargs',
+      'invalid json payload received. unknown name "thinkingconfig" at '
+          "'generation_config': cannot find field.",
+      "'reasoning' is not a valid parameter",
+      'reasoning is mandatory for this model',
+      "invalid value for 'reasoning_effort': expected one of low, medium",
+      'unrecognized request argument supplied: enable_thinking',
+    ]) {
+      for (final sent in ['adaptive', 'enabled', 'disabled']) {
+        expect(
+          read(detail, sent: sent),
+          ThinkingRefusal.fieldUnknown,
+          reason: '$detail / $sent',
+        );
+      }
+    }
+    // A translated name that says `thinking` is read as the words say —
+    // the feature refused — which records the same.
+    expect(
+      read("unsupported parameter: 'enable_thinking' is not supported"),
+      ThinkingRefusal.featureRefused,
+    );
+
     // A sub-field named says the server knows the field: the value, even
     // in unknown-field words.
     expect(
@@ -1804,6 +1928,12 @@ void main() {
       'unrecognized model: -thinking',
       'model -thinking is unavailable',
       'top_k: Extra inputs are not permitted',
+      // Another protocol's name mentioned with nothing refused, or an
+      // ordinary word that is a prefix of one.
+      'the model was reasoning about the request and found it invalid',
+      'reasoning_effort was set to medium; the upstream timed out',
+      "'reasoning_content' must be a string when present",
+      'reasoning_content is empty',
     ]) {
       for (final sent in ['adaptive', 'enabled', 'disabled']) {
         expect(

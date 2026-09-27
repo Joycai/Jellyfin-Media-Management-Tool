@@ -330,17 +330,25 @@ class AnthropicProvider implements AiProvider {
     if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
       return false;
     }
-    return RegExp(
-      'not support|unsupported|extra inputs|extra_forbidden|not permitted|'
-      'not allowed|unknown (field|parameter)|$_unrecognizedField|'
-      '["\'`]thinking["\'`]',
-    ).hasMatch(detail);
+    return RegExp('$_refusalWords|["\'`]thinking["\'`]').hasMatch(detail);
   }
 
   /// OpenAI's "Unrecognized request argument supplied: thinking" — and not
   /// "unrecognized model: …-thinking", which is about the model.
   static const _unrecognizedField =
       'unrecognized (request )?(argument|field|parameter|key)';
+
+  /// The words of a field the server does not know: Pydantic's
+  /// (`extra_forbidden`), OpenAI's, Google's ("Unknown name") and a plain
+  /// "unknown field".
+  static const _unknownFieldWords =
+      'extra inputs|extra_forbidden|unknown (field|parameter|name)|'
+      '$_unrecognizedField';
+
+  /// The words of a refusal — of a value or a feature, and those of a
+  /// field unknown, which are a kind of refusal.
+  static const _refusalWords =
+      'not support|unsupported|not permitted|not allowed|$_unknownFieldWords';
 
   /// Whether [detail] refuses `thinking` in the words of a field the server
   /// does not know — Pydantic's "Extra inputs are not permitted"
@@ -350,10 +358,25 @@ class AnthropicProvider implements AiProvider {
   static bool refusesThinkingField(String detail) =>
       detail.contains('thinking') &&
       !_subField.hasMatch(detail) &&
-      RegExp(
-        'extra inputs|extra_forbidden|unknown (field|parameter)|'
-        '$_unrecognizedField',
-      ).hasMatch(detail);
+      RegExp(_unknownFieldWords).hasMatch(detail);
+
+  /// Whether [detail], which does not say `thinking`, refuses the field
+  /// under the name a relay's translation layer gave it — its upstream's
+  /// `reasoning_effort`, `chat_template_kwargs`, `thinkingConfig`, a quoted
+  /// `reasoning` — in the words of a refusal, of an unknown field, of a
+  /// model whose reasoning is mandatory, or with the name quoted (an
+  /// "Invalid value for 'reasoning_effort'" is the relay's value, not
+  /// ours). What the relay sends instead is not this adapter's to know or
+  /// change, so the one thing to learn is that the route cannot carry a
+  /// request for thinking: the field unknown, every form given up. A name
+  /// merely mentioned, with nothing refused, is about something else.
+  static bool refusesThinkingTranslated(String detail) {
+    final name = translatedFieldNamed(detail, own: 'thinking');
+    return name != null &&
+        RegExp(
+          '$_refusalWords|mandatory|["\'`]${RegExp.escape(name)}["\'`]',
+        ).hasMatch(detail);
+  }
 
   /// A sub-field of `thinking` named — the ones a request carries, so that
   /// "thinking.Please", a docs URL ending in `thinking.html` or a relay's
@@ -365,7 +388,10 @@ class AnthropicProvider implements AiProvider {
   /// directions map to what they remember. Words for a field the server
   /// does not know are read before the value is looked for, since Pydantic
   /// echoes the refused input (`input_value={'type': 'disabled'}`) beside
-  /// them. A budget error is about the numbers, never the form, and an
+  /// them. One that does not say `thinking` at all can still refuse it
+  /// under another protocol's name for the field, a relay's translation
+  /// ([refusesThinkingTranslated]): the field unknown, nothing finer. A
+  /// budget error is about the numbers, never the form, and an
   /// error about the thinking blocks in the conversation ("`thinking` or
   /// `redacted_thinking` blocks … cannot be modified", "messages.3.content.0:
   /// Invalid `signature` in `thinking` block") says the history is wrong,
@@ -381,7 +407,13 @@ class AnthropicProvider implements AiProvider {
     if (sentType == 'disabled' && refusesThinkingOff(detail)) {
       return ThinkingRefusal.cannotStop;
     }
-    if (!detail.contains('thinking')) return ThinkingRefusal.unrelated;
+    // Said of another protocol's field: a relay translated `thinking` and
+    // was refused under that name. Only the field can be read from it.
+    if (!detail.contains('thinking')) {
+      return refusesThinkingTranslated(detail)
+          ? ThinkingRefusal.fieldUnknown
+          : ThinkingRefusal.unrelated;
+    }
     if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
       return ThinkingRefusal.unrelated;
     }
