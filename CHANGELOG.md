@@ -21,9 +21,11 @@ reconstructed at release time.
 
 - The reasoning switch means the same thing on every protocol. A model family
   that always reasons (DeepSeek-R1, QwQ, the Thinking-2507 models) or never
-  does (the Instruct models, Gemma 3, Llama 3) is now asked for the mode it
-  runs in on Messages, Responses and Gemini routes too, as it already was on
-  Chat Completions and as the model page has always shown; gpt-oss switched
+  does (Qwen3's Instruct models, Gemma 3, Llama 3) is now asked for the mode
+  it runs in on Messages, Responses and Gemini routes too, as it already was
+  on Chat Completions and as the model page has always shown; on a Messages
+  route that also means a family that always reasons goes without its
+  sampling values, as any model does there while it reasons. gpt-oss switched
   off is asked for its least reasoning on Responses rather than none. The
   route-switch dialog and Diagnostics read that same choice.
 

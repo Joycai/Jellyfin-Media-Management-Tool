@@ -52,8 +52,10 @@ class RouteSwitchDialog extends StatelessWidget {
     final notSet = l10n.aiNotSetNotSent;
 
     // The choice shown is the one the route's request carries — the saved
-    // one resolved through the family's preset, as the model page draws it
-    // — and the platform field is named where that choice still sends it:
+    // one resolved through the family's preset (for a model no preset knows,
+    // the saved one, where the model page may draw the route's default
+    // instead) — and the platform field is named where that choice still
+    // sends it:
     // both ways on a working switch, off on a switch route that refused on,
     // on where the model said it cannot stop — except on the rare route that
     // later refused on too (the name, or a switch route's `adaptive`), which
@@ -99,7 +101,8 @@ class RouteSwitchDialog extends StatelessWidget {
       (
         l10n.aiParamThinking,
         thinking(nowConfig),
-        after == null ? null : thinking(afterConfig),
+        // The new route's request carries a choice even before one is saved.
+        thinking(afterConfig),
         false,
       ),
       (

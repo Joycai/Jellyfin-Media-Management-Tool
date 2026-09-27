@@ -233,9 +233,10 @@ void main() {
       profiles: AiProfilesService(),
     );
 
+    // Named neither way; the new route's column carries a choice too.
     await pump(off);
     expect(find.text('off · thinking'), findsNothing);
-    expect(find.text('off'), findsOneWidget);
+    expect(find.text('off'), findsNWidgets(2));
     await pump(model(thinking: true));
     expect(find.text('on · thinking'), findsNothing);
     expect(find.text('on'), findsOneWidget);
@@ -279,14 +280,64 @@ void main() {
       profiles: AiProfilesService(),
     );
 
+    // Both columns: the current route's request and the new route's, which
+    // carries a choice before anything is saved on it.
     await pump(model('qwen3-30b-a3b-thinking-2507', thinking: false));
-    expect(find.text('on'), findsOneWidget);
+    expect(find.text('on'), findsNWidgets(2));
     expect(find.text('off'), findsNothing);
     await pump(model('qwen3-30b-a3b-instruct-2507', thinking: true));
-    expect(find.text('off'), findsOneWidget);
+    expect(find.text('off'), findsNWidgets(2));
     expect(find.text('on'), findsNothing);
-    // A hybrid family follows the saved choice.
-    await pump(model('qwen3-32b', thinking: false));
+    // A hybrid family follows the saved choice — off on the new route, where
+    // nothing is saved.
+    await pump(model('qwen3-32b', thinking: true));
+    expect(find.text('on'), findsOneWidget);
+    expect(find.text('off'), findsOneWidget);
+  });
+
+  testWidgets('a platform field is named with the choice the request carries', (
+    tester,
+  ) async {
+    // DashScope's `enable_thinking` goes out both ways with the resolved
+    // choice; the new route's request carries one before anything is saved
+    // on it.
+    useTempSupportDir();
+    AiModelEntry model(String upstream, {required bool thinking}) =>
+        AiModelEntry.create(
+          upstream: upstream,
+          route: AiProviderType.openAi,
+        ).copyWith(
+          params: {
+            AiProviderType.openAi: RouteParams(thinkingEnabled: thinking),
+          },
+        );
+    Future<void> pump(AiModelEntry m) => pumpAiPage(
+      tester,
+      RouteSwitchDialog(
+        channel:
+            AiChannel.create(
+              platform: PlatformProfiles.dashScope,
+              name: 'd',
+              apiKey: 'k-dialog-dashscope',
+            ).copyWith(
+              routes: const [
+                AiRoute(protocol: AiProviderType.openAi),
+                AiRoute(protocol: AiProviderType.anthropic),
+              ],
+              models: [m],
+            ),
+        model: m,
+        to: AiProviderType.anthropic,
+      ),
+      profiles: AiProfilesService(),
+    );
+
+    await pump(model('qwen3-30b-a3b-thinking-2507', thinking: false));
+    expect(find.text('on · enable_thinking'), findsOneWidget);
+    // The Messages route it would switch to asks on too, with nothing saved.
+    expect(find.text('on'), findsOneWidget);
+    await pump(model('qwen3-30b-a3b-instruct-2507', thinking: true));
+    expect(find.text('off · enable_thinking'), findsOneWidget);
     expect(find.text('off'), findsOneWidget);
   });
 }

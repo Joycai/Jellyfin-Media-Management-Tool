@@ -179,6 +179,19 @@ void main() {
         expected,
       );
     }
+    // Asked on and refused, a reply without reasoning is the refusal: said,
+    // not failed, since the toggle is locked.
+    expect(
+      step(
+        responses,
+        'https://r.io',
+        'qwen3-30b-a3b-thinking-2507',
+        saved: false,
+        reasoned: false,
+        rejected: {'reasoning'},
+      ),
+      (ok: null, text: l10n.aiStepThinkingRefused),
+    );
     // A preset family's toggle stays live, so the user can turn it off.
     expect(
       step(
