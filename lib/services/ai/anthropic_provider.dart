@@ -225,9 +225,27 @@ class AnthropicProvider implements AiProvider {
           // The model id is not the message: a relay's `…-thinking` model
           // named in an unrelated error must not read as a refusal.
           final about = detail.replaceAll(config.model.toLowerCase(), '');
+          final refusedOptional = _optional
+              .where(
+                (f) =>
+                    payload.containsKey(f) &&
+                    !rejected.contains(f) &&
+                    detail.contains(f),
+              )
+              .firstOrNull;
+          // A sampling field this request sent, refused in words that only
+          // mention reasoning in passing ("'top_p' is not supported with
+          // reasoning models"), is that field's refusal: the request is
+          // read for thinking then only where the words say `thinking`.
+          // (A request that asks for thinking sends no sampling values, so
+          // this is a switch route told off, with its values beside it.)
+          final readForThinking =
+              refusedOptional == null || about.contains('thinking');
           // A switch route told off: what the refusal says decides what is
           // remembered, in the one reading both directions share.
-          if (payload['thinking'] case {'type': 'disabled'}) {
+          if (payload['thinking'] case {
+            'type': 'disabled',
+          } when readForThinking) {
             switch (readThinkingRefusal(about, sentType: 'disabled')) {
               // The model cannot stop, or the server knows the field and
               // not `disabled`: remembered as on Chat Completions, and
@@ -265,12 +283,17 @@ class AnthropicProvider implements AiProvider {
                 break;
             }
           }
-          final thinkingRefusal = _thinkingRefusal(
-            about,
-            sent: _sentForm(payload),
-            refused: MessagesThinking.refusedIn(rejected, first: _firstForm),
-            swap: !PlatformProfiles.messagesSwitchFor(config),
-          );
+          final thinkingRefusal = readForThinking
+              ? _thinkingRefusal(
+                  about,
+                  sent: _sentForm(payload),
+                  refused: MessagesThinking.refusedIn(
+                    rejected,
+                    first: _firstForm,
+                  ),
+                  swap: !PlatformProfiles.messagesSwitchFor(config),
+                )
+              : null;
           if (thinkingRefusal != null) {
             _learned.update(
               key,
@@ -280,18 +303,12 @@ class AnthropicProvider implements AiProvider {
             );
             continue;
           }
-          final refused = _optional
-              .where(
-                (f) =>
-                    payload.containsKey(f) &&
-                    !rejected.contains(f) &&
-                    detail.contains(f),
-              )
-              .firstOrNull;
-          if (refused != null) {
+          if (refusedOptional != null) {
             _learned.update(
               key,
-              (b) => b.copyWith(rejectedFields: {...b.rejectedFields, refused}),
+              (b) => b.copyWith(
+                rejectedFields: {...b.rejectedFields, refusedOptional},
+              ),
             );
             continue;
           }
@@ -330,17 +347,25 @@ class AnthropicProvider implements AiProvider {
     if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
       return false;
     }
-    return RegExp(
-      'not support|unsupported|extra inputs|extra_forbidden|not permitted|'
-      'not allowed|unknown (field|parameter)|$_unrecognizedField|'
-      '["\'`]thinking["\'`]',
-    ).hasMatch(detail);
+    return RegExp('$_refusalWords|["\'`]thinking["\'`]').hasMatch(detail);
   }
 
   /// OpenAI's "Unrecognized request argument supplied: thinking" — and not
   /// "unrecognized model: …-thinking", which is about the model.
   static const _unrecognizedField =
       'unrecognized (request )?(argument|field|parameter|key)';
+
+  /// The words of a field the server does not know: Pydantic's
+  /// (`extra_forbidden`), OpenAI's, Google's ("Unknown name") and a plain
+  /// "unknown field".
+  static const _unknownFieldWords =
+      'extra inputs|extra_forbidden|unknown (field|parameter|name)|'
+      '$_unrecognizedField';
+
+  /// The words of a refusal — of a value or a feature, and those of a
+  /// field unknown, which are a kind of refusal.
+  static const _refusalWords =
+      'not support|unsupported|not permitted|not allowed|$_unknownFieldWords';
 
   /// Whether [detail] refuses `thinking` in the words of a field the server
   /// does not know — Pydantic's "Extra inputs are not permitted"
@@ -350,10 +375,64 @@ class AnthropicProvider implements AiProvider {
   static bool refusesThinkingField(String detail) =>
       detail.contains('thinking') &&
       !_subField.hasMatch(detail) &&
-      RegExp(
-        'extra inputs|extra_forbidden|unknown (field|parameter)|'
-        '$_unrecognizedField',
-      ).hasMatch(detail);
+      RegExp(_unknownFieldWords).hasMatch(detail);
+
+  /// Whether [detail], which does not say `thinking`, refuses the field
+  /// under the name a relay's translation layer gave it — its upstream's
+  /// `reasoning_effort`, `chat_template_kwargs`, `thinkingConfig`, a quoted
+  /// `reasoning` — in the words of a refusal or of an unknown field, or
+  /// with the name quoted (an "Invalid value for 'reasoning_effort'" is
+  /// the relay's value, not ours). What the relay sends instead is not
+  /// this adapter's to know or change, so the one thing to learn is that
+  /// the route cannot carry a request for thinking: the field unknown,
+  /// every form given up. A name merely mentioned, with nothing refused, is
+  /// about something else, and so is one named in another sentence than
+  /// the refusal ("unsupported parameter: top_k. Supported parameters:
+  /// reasoning_effort, …") or inside the input Pydantic echoes — the
+  /// relay's whole translated body, when the error is about something
+  /// else in it.
+  static bool refusesThinkingTranslated(String detail) {
+    final text = detail.replaceAll(_echoedInput, '');
+    return text
+        .split(_sentenceEnd)
+        .any(
+          (sentence) =>
+              translatedFieldNamed(sentence, own: 'thinking') != null &&
+              (RegExp(_refusalWords).hasMatch(sentence) ||
+                  _quotedTranslated.hasMatch(sentence)),
+        );
+  }
+
+  /// Pydantic's echo of the refused input, `input_value=…, input_type=…`.
+  /// It ends at `input_type`, never at a `]` — the echoed body has lists
+  /// in it (`'messages': [{…}]`).
+  static final _echoedInput = RegExp(
+    r'input_value=.*?(?=, input_type=|$)',
+    dotAll: true,
+  );
+
+  /// Another protocol's name for the field, quoted or dotted
+  /// (`'reasoning_effort'`, `'reasoning.effort'`).
+  static final _quotedTranslated = () {
+    final names = reasoningFieldNames
+        .where((name) => name != 'thinking')
+        .map(RegExp.escape)
+        .join('|');
+    return RegExp('["\'`]($names)["\'`.]');
+  }();
+
+  /// A sentence end: a full stop or semicolon followed by space. Not a
+  /// newline — Pydantic puts the field on its own line above the words.
+  static final _sentenceEnd = RegExp(r'[.;]\s+');
+
+  /// Whether [detail], answering a request to turn thinking off, says the
+  /// model's reasoning is mandatory in another protocol's name for the
+  /// field — the model cannot stop, as [refusesThinkingOff] reads the words
+  /// that name no field. `mandatory` counts only beside a name: on its own
+  /// it turns up in unrelated errors ("messages is mandatory").
+  static bool _mandatoryTranslated(String detail) =>
+      detail.contains('mandatory') &&
+      translatedFieldNamed(detail, own: 'thinking') != null;
 
   /// A sub-field of `thinking` named — the ones a request carries, so that
   /// "thinking.Please", a docs URL ending in `thinking.html` or a relay's
@@ -365,7 +444,12 @@ class AnthropicProvider implements AiProvider {
   /// directions map to what they remember. Words for a field the server
   /// does not know are read before the value is looked for, since Pydantic
   /// echoes the refused input (`input_value={'type': 'disabled'}`) beside
-  /// them. A budget error is about the numbers, never the form, and an
+  /// them. One that does not say `thinking` at all can still refuse it
+  /// under another protocol's name for the field, a relay's translation
+  /// ([refusesThinkingTranslated]): the field unknown, nothing finer —
+  /// except "mandatory" beside such a name in answer to off, which is the
+  /// model that cannot stop. A
+  /// budget error is about the numbers, never the form, and an
   /// error about the thinking blocks in the conversation ("`thinking` or
   /// `redacted_thinking` blocks … cannot be modified", "messages.3.content.0:
   /// Invalid `signature` in `thinking` block") says the history is wrong,
@@ -378,10 +462,17 @@ class AnthropicProvider implements AiProvider {
     // Said without naming the field ("始终思考"): read before the field is
     // looked for. It answers off alone: asked on, the same words beside a
     // form or the field are read as those.
-    if (sentType == 'disabled' && refusesThinkingOff(detail)) {
+    if (sentType == 'disabled' &&
+        (refusesThinkingOff(detail) || _mandatoryTranslated(detail))) {
       return ThinkingRefusal.cannotStop;
     }
-    if (!detail.contains('thinking')) return ThinkingRefusal.unrelated;
+    // Said of another protocol's field: a relay translated `thinking` and
+    // was refused under that name. Only the field can be read from it.
+    if (!detail.contains('thinking')) {
+      return refusesThinkingTranslated(detail)
+          ? ThinkingRefusal.fieldUnknown
+          : ThinkingRefusal.unrelated;
+    }
     if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
       return ThinkingRefusal.unrelated;
     }

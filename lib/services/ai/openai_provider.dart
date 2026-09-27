@@ -334,7 +334,7 @@ class OpenAiProvider implements AiProvider {
                 .where((field) => AiHttp.paramNames(param, field))
                 .firstOrNull ??
             optional.keys
-                .where((field) => _namesField(detail, field))
+                .where((field) => namesField(detail, field))
                 .firstOrNull;
         if (refused != null) {
           final isThinkingOffField =
@@ -578,30 +578,6 @@ class OpenAiProvider implements AiProvider {
     _ThinkingOff.effortNone,
     if (control == ThinkingControl.softSwitch) _ThinkingOff.softSwitch,
   ];
-
-  /// Whether a rejection names [field]. A plain substring test for the
-  /// sampling fields, whose names do not occur in prose; `thinking` does
-  /// ("… in thinking mode", a docs link to `thinking_mode`), and reading such
-  /// an error as a refusal would drop the platform's reasoning switch for the
-  /// session — silently back to paid reasoning. So `thinking`, and
-  /// OpenRouter's `reasoning` (a prefix of `reasoning_content`), count only
-  /// when quoted or addressed as a parameter.
-  ///
-  /// A model whose reasoning cannot be switched off answers the platform's
-  /// switch with "reasoning is mandatory / cannot be disabled"; that too is
-  /// a refusal of the field, or every request to it would fail.
-  static bool _namesField(String detail, String field) =>
-      field == 'thinking' || field == 'reasoning'
-      ? RegExp(
-              '["\'`]$field["\'`.]|$field\\.(type|enabled)|'
-              '$field (field|parameter)',
-            ).hasMatch(detail) ||
-            (detail.contains(field) &&
-                RegExp(
-                  'mandatory|cannot be (disabled|turned off)|'
-                  'not supported|unsupported',
-                ).hasMatch(detail))
-      : detail.contains(field);
 
   static bool _namesResponseFormat(String detail) =>
       detail.contains('response_format') ||
