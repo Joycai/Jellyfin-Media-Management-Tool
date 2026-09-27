@@ -812,5 +812,124 @@ void main() {
           .then((_) {}, onError: (Object _) {});
       expect(looked, OrganizeState.maxFrameLookups);
     });
+
+    test('a lookup that timed out is the last one of the run', () async {
+      // The vision model may still be working on the first request; a
+      // second would wait behind it for as long again.
+      final two = _files([
+        ['Downloads', 'VID_1.mp4'],
+        ['Other', 'VID_2.mp4'],
+      ]);
+      for (final (error, lookups) in [
+        (const AiTimeoutException('No response from the server'), 1),
+        (const AiNetworkException('Network error.'), 2),
+      ]) {
+        var looked = 0;
+        final provider = ScriptedChatProvider([
+          (_) => toolTurn([
+            ('identify_from_frames', {'group': 'g1'}),
+          ]),
+          (_) => toolTurn([
+            ('identify_from_frames', {'group': 'g2'}),
+          ]),
+          (_) => toolTurn([
+            (
+              'submit_group',
+              {
+                'group': 'g1',
+                'mediaType': 'movie',
+                'title': 'A',
+                'confidence': 1,
+              },
+            ),
+            (
+              'submit_group',
+              {
+                'group': 'g2',
+                'mediaType': 'movie',
+                'title': 'B',
+                'confidence': 1,
+              },
+            ),
+          ]),
+        ]);
+        final run = await OrganizeAgent(provider).run(
+          folderName: 'Downloads',
+          files: two,
+          lookAtFrames: (_) async {
+            looked++;
+            throw error;
+          },
+        );
+        expect(looked, lookups, reason: '$error');
+        if (error is AiTimeoutException) {
+          expect(_lastResult(provider, 1), contains('did not answer in time'));
+          expect(_lastResult(provider, 2), contains('used up'));
+        } else {
+          expect(_lastResult(provider, 2), contains('could not be read'));
+        }
+        // Nothing was read either way, so nothing is flagged.
+        expect(run.plan.actions.every((a) => a.confidence >= 0.6), isTrue);
+      }
+    });
+
+    test('a later batch is not offered lookups that are used up', () async {
+      final two = _files([
+        ['Downloads', 'VID_1.mp4'],
+        ['Other', 'VID_2.mp4'],
+      ]);
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        _submit({'group': 'g1', 'mediaType': 'movie', 'title': 'A'}),
+        _submit({'group': 'g2', 'mediaType': 'movie', 'title': 'B'}),
+      ]);
+      await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: two,
+        batchSize: 1,
+        lookAtFrames: (_) async =>
+            throw const AiTimeoutException('No response from the server'),
+      );
+      // The first batch had the tool; the second, a fresh session, does not.
+      expect(provider.offeredTools.first, contains('identify_from_frames'));
+      expect(
+        provider.offeredTools.last,
+        isNot(contains('identify_from_frames')),
+      );
+      final prompt = (provider.seen.last[1] as UserMessage).content;
+      expect(prompt, isNot(contains('identify_from_frames')));
+    });
+
+    test('a later batch is told how many lookups are left', () async {
+      final two = _files([
+        ['Downloads', 'VID_1.mp4'],
+        ['Other', 'VID_2.mp4'],
+      ]);
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        _submit({'group': 'g1', 'mediaType': 'movie', 'title': 'A'}),
+        _submit({'group': 'g2', 'mediaType': 'movie', 'title': 'B'}),
+      ]);
+      await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: two,
+        batchSize: 1,
+        lookAtFrames: (_) async => 'Title card: "A"',
+      );
+      String prompt(int call) =>
+          (provider.seen[call][1] as UserMessage).content;
+      expect(
+        prompt(0),
+        contains('${OrganizeState.maxFrameLookups} lookup(s) remain'),
+      );
+      expect(
+        prompt(2),
+        contains('${OrganizeState.maxFrameLookups - 1} lookup(s) remain'),
+      );
+    });
   });
 }

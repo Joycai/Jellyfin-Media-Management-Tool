@@ -10,6 +10,8 @@ import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/openai_responses_provider.dart';
 
+import '../../helpers/http.dart';
+
 AiConfig _config(
   String host, {
   String model = 'gpt-5.4',
@@ -756,13 +758,16 @@ void main() {
       ('gateway', () async => http.Response('upstream timed out', 504)),
     ]) {
       var calls = 0;
-      final provider = OpenAiResponsesProvider(
-        _config('$name.example'),
-        firstEventTimeout: const Duration(milliseconds: 30),
-        client: MockClient((_) {
+      final client = RecordingClient(
+        MockClient((_) {
           calls++;
           return answer();
         }),
+      );
+      final provider = OpenAiResponsesProvider(
+        _config('$name.example'),
+        firstEventTimeout: const Duration(milliseconds: 30),
+        client: client,
       );
       await expectLater(
         provider.chat(messages: const [UserMessage('u')], tools: const []),
@@ -770,6 +775,7 @@ void main() {
         reason: name,
       );
       expect(calls, 1, reason: name);
+      if (name == 'slow') await expectLater(abortOf(client.last), completes);
     }
   });
 

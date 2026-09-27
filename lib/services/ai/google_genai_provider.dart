@@ -198,13 +198,13 @@ class GoogleGenAiProvider implements AiProvider {
       http.StreamedResponse res;
       try {
         res = await AiHttp.withRetry(
-          () => client
-              .send(
-                http.Request('POST', _generateUri())
-                  ..headers.addAll(_headers)
-                  ..body = body,
-              )
-              .timeout(firstEventTimeout),
+          () => AiHttp.post(
+            client,
+            _generateUri(),
+            headers: _headers,
+            body: body,
+            timeout: firstEventTimeout,
+          ),
           cancelToken: cancelToken,
           retryTimeouts: false,
         );

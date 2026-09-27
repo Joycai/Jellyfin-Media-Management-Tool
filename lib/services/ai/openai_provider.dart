@@ -246,13 +246,13 @@ class OpenAiProvider implements AiProvider {
       http.StreamedResponse res;
       try {
         res = await AiHttp.withRetry(
-          () => client
-              .send(
-                http.Request('POST', _chatUri)
-                  ..headers.addAll(_headers)
-                  ..body = body,
-              )
-              .timeout(firstEventTimeout),
+          () => AiHttp.post(
+            client,
+            _chatUri,
+            headers: _headers,
+            body: body,
+            timeout: firstEventTimeout,
+          ),
           cancelToken: cancelToken,
           retryTimeouts: false,
         );

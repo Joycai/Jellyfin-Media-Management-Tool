@@ -13,12 +13,35 @@
 /// which is exactly how every endpoint behaved before profiles existed.
 library;
 
+import 'dart:io';
+
 import 'ai_provider.dart';
 import 'learned_behaviour.dart';
 import 'thinking_dialect.dart';
 
 /// Where a platform runs.
 enum PlatformKind { vendor, relay, local, custom }
+
+/// Whose server a route talks to, for advice about its settings
+/// ([PlatformProfiles.serverOwner]).
+enum ServerOwner {
+  /// The user's: an address on this computer or a private network, on a
+  /// channel not declared a vendor's or a relay's. Its model settings are
+  /// theirs to change.
+  own,
+
+  /// Someone else's: a vendor's platform, or a relay's, on a public name.
+  other,
+
+  /// Not known: a public name on a channel that is not a vendor's or a
+  /// relay's (a VPS of their own, a cloud with no profile, a relay typed in
+  /// without its profile, a local platform's profile pointed at a hosted
+  /// service), or a private address on one that is (a proxy on their
+  /// network in front of a cloud, or their own server under a vendor's
+  /// profile). The address does not say, or says otherwise than the
+  /// declaration, and nothing is asked to guess.
+  unknown,
+}
 
 /// How a route switches reasoning now, after what it has refused — what the
 /// adapters send, read by the settings screens so that none of them works it
@@ -441,6 +464,76 @@ abstract final class PlatformProfiles {
   static PlatformProfile of(AiConfig config) => config.platform != null
       ? byId(config.platform)
       : (forHost(config.endpoint) ?? custom);
+
+  /// Whose server [config] talks to — so that advice about its model
+  /// settings is given where the user can act on it, and only there. Read
+  /// by the model page where the last test showed reasoning that was asked
+  /// off. Two things speak, and neither guesses: the address, which says
+  /// "the user's own" when it is on this computer or a private network
+  /// ([privateHost]) and nothing on a public name; and the declaration,
+  /// which says "someone else's" for a vendor's platform or a relay's and
+  /// nothing otherwise (a local platform's profile names software, not
+  /// whose machine runs it). One voice decides; none, or two that disagree,
+  /// is [ServerOwner.unknown].
+  static ServerOwner serverOwner(AiConfig config) {
+    final kind = of(config).kind;
+    final hosted = kind == PlatformKind.vendor || kind == PlatformKind.relay;
+    final private = privateHost(config.endpoint);
+    if (private && !hosted) return ServerOwner.own;
+    if (!private && hosted) return ServerOwner.other;
+    return ServerOwner.unknown;
+  }
+
+  /// Whether [endpoint] names this computer or a private network, by the
+  /// names and address blocks reserved for that: `localhost` and
+  /// `.localhost` (RFC 6761), `.local` (RFC 6762), `.home.arpa` (RFC 8375),
+  /// `.internal` (ICANN); the unspecified address a server was started on
+  /// (`0.0.0.0`, `::`), loopback, link-local, private (RFC 1918), shared
+  /// (RFC 6598, `100.64/10`) and unique-local (RFC 4193) addresses, an IPv4
+  /// address carried in IPv6 read as that address. No other name is read
+  /// — `.lan`, a tailnet's `.ts.net`, a public name — since none of them
+  /// says whose the server is.
+  static bool privateHost(String endpoint) {
+    final host = Uri.tryParse(endpoint.trim())?.host.toLowerCase() ?? '';
+    if (host.isEmpty) return false;
+    if (host == 'localhost' ||
+        _privateNames.any((suffix) => host.endsWith(suffix))) {
+      return true;
+    }
+    final address = InternetAddress.tryParse(host);
+    if (address == null) return false;
+    var bytes = address.rawAddress;
+    if (bytes.length == 16) {
+      // An IPv4 address carried in IPv6 (`::ffff:a.b.c.d`) is that address.
+      final mapped =
+          bytes.take(10).every((b) => b == 0) &&
+          bytes[10] == 0xff &&
+          bytes[11] == 0xff;
+      if (mapped) {
+        bytes = bytes.sublist(12);
+      } else {
+        // Unspecified, loopback, link-local (fe80::/10) or fc00::/7.
+        return bytes.every((b) => b == 0) ||
+            address.isLoopback ||
+            (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80) ||
+            (bytes[0] & 0xfe) == 0xfc;
+      }
+    }
+    return bytes.every((b) => b == 0) ||
+        bytes[0] == 10 ||
+        bytes[0] == 127 ||
+        (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127) ||
+        (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+        (bytes[0] == 192 && bytes[1] == 168) ||
+        (bytes[0] == 169 && bytes[1] == 254);
+  }
+
+  static const _privateNames = [
+    '.localhost',
+    '.local',
+    '.internal',
+    '.home.arpa',
+  ];
 
   /// How [config]'s route switches reasoning, or null for the ladder.
   static ThinkingDialect? dialectFor(AiConfig config) =>

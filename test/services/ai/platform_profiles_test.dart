@@ -83,6 +83,127 @@ void main() {
     expect(PlatformProfiles.byId('nope'), PlatformProfiles.custom);
   });
 
+  test('whose server a route talks to is declared or in the address', () {
+    // A local platform's profile names software, not whose machine: at its
+    // own address the user's, at a public name (Ollama's hosted API) unknown.
+    for (final id in ['lmstudio', 'ollama', 'llamacpp']) {
+      expect(
+        PlatformProfiles.serverOwner(
+          _at('http://localhost:1234', platform: id),
+        ),
+        ServerOwner.own,
+        reason: id,
+      );
+      expect(
+        PlatformProfiles.serverOwner(_at('https://ollama.com', platform: id)),
+        ServerOwner.unknown,
+        reason: id,
+      );
+    }
+    // This computer or a private network, by the names and address blocks
+    // reserved for it — whatever answers there. A vendor's or a relay's
+    // profile at such an address disagrees with it (a proxy in front of a
+    // cloud, or the user's own server under that profile): unknown.
+    const private = [
+      'http://localhost:8080',
+      'http://box.localhost:8080',
+      'http://mac.local:8080/v1',
+      'http://llm.internal:8080',
+      'http://box.home.arpa:8080',
+      'http://127.0.0.1:8000',
+      'http://127.5.5.5:8000',
+      'http://0.0.0.0:8080',
+      'http://[::1]:8080/v1',
+      'http://[::]:8080',
+      'http://[::ffff:192.168.1.1]:1234',
+      'http://[::ffff:127.0.0.1]:1234',
+      'http://[::ffff:169.254.1.1]:1234',
+      'http://[::ffff:0.0.0.0]:1234',
+      'http://192.168.1.5:1234',
+      'http://10.0.0.7:11434',
+      'http://100.64.0.1:11434',
+      'http://100.127.255.254:11434',
+      'http://172.16.2.2:1234',
+      'http://172.31.2.2:1234',
+      'http://[fd00::5]:1234',
+      'http://[fc00::1]:1234',
+      'http://[fe80::1]:1234',
+      'http://[febf::1]:1234',
+      'http://169.254.1.1:1234',
+    ];
+    for (final endpoint in private) {
+      expect(PlatformProfiles.privateHost(endpoint), isTrue, reason: endpoint);
+      expect(PlatformProfiles.of(_at(endpoint)).kind, PlatformKind.custom);
+      expect(PlatformProfiles.serverOwner(_at(endpoint)), ServerOwner.own);
+      for (final id in ['custom', 'lmstudio']) {
+        expect(
+          PlatformProfiles.serverOwner(_at(endpoint, platform: id)),
+          ServerOwner.own,
+          reason: '$endpoint $id',
+        );
+      }
+      for (final id in ['relay', 'deepseek', 'openai']) {
+        expect(
+          PlatformProfiles.serverOwner(_at(endpoint, platform: id)),
+          ServerOwner.unknown,
+          reason: '$endpoint $id',
+        );
+      }
+    }
+    // A public name says nothing — not a house's `.lan`, not a tailnet's
+    // name — so a custom channel there is not known either way.
+    const public = [
+      'https://llm.example.com',
+      'https://llm.example.lan.com',
+      'http://nas.lan:8080',
+      'http://studio.tail1234.ts.net:1234',
+      'http://203.0.113.5:1234',
+      'http://[::ffff:203.0.113.5]:1234',
+      'http://192.169.0.1:1234',
+      'http://192.0.2.1:1234',
+      'http://169.253.0.1:1234',
+      'http://169.60.0.1:1234',
+      'http://172.15.0.1:1234',
+      'http://172.32.0.1:1234',
+      'http://100.63.0.1:1234',
+      'http://100.128.0.1:1234',
+      'http://[2001:db8::1]:1234',
+      'http://[fe00::1]:1234',
+      'http://[fec0::1]:1234',
+      'http://[fe00::ffff:127.0.0.1]:1234',
+    ];
+    for (final endpoint in public) {
+      expect(PlatformProfiles.privateHost(endpoint), isFalse, reason: endpoint);
+      expect(
+        PlatformProfiles.serverOwner(_at(endpoint)),
+        ServerOwner.unknown,
+        reason: endpoint,
+      );
+      expect(
+        PlatformProfiles.serverOwner(_at(endpoint, platform: 'custom')),
+        ServerOwner.unknown,
+        reason: endpoint,
+      );
+      // A vendor's, or a relay's, is someone else's.
+      expect(
+        PlatformProfiles.serverOwner(_at(endpoint, platform: 'relay')),
+        ServerOwner.other,
+        reason: endpoint,
+      );
+      expect(
+        PlatformProfiles.serverOwner(_at(endpoint, platform: 'openai')),
+        ServerOwner.other,
+        reason: endpoint,
+      );
+    }
+    for (final endpoint in [
+      'https://api.deepseek.com',
+      'https://open.bigmodel.cn/api/paas/v4',
+    ]) {
+      expect(PlatformProfiles.serverOwner(_at(endpoint)), ServerOwner.other);
+    }
+  });
+
   test('only MiniMax declares a Messages thinking switch', () {
     // MiniMax-M3's /anthropic takes `adaptive | disabled` only (KB 03 §3).
     for (final profile in PlatformProfiles.all) {

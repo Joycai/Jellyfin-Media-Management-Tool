@@ -545,6 +545,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '上次测试：模型仍在思考。请在服务端的模型设置中关闭思考（LM Studio 中为 Enable Thinking）。';
 
   @override
+  String get thinkingStillOnRemote =>
+      '上次测试：模型仍在思考。这条线路上关闭不起作用，模型按自己的默认推理。可换一个不推理的模型，或接受现状。';
+
+  @override
+  String get thinkingStillOnUnknown =>
+      '上次测试：模型仍在思考。若这是你自己的服务器，请在它的模型设置中关闭思考（LM Studio 中为 Enable Thinking）；若是托管线路，关闭不起作用，模型按自己的默认推理。';
+
+  @override
   String get presetNeedsSystemPrompt =>
       '该模型的模型卡要求使用专用的 system prompt，缺少时效果可能变差。';
 
