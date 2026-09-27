@@ -94,11 +94,12 @@ void main() {
     });
 
     test('a family that can only be lowered is asked for the least', () {
-      // gpt-oss: off means the least reasoning, not none. Only that family,
-      // and only when off was asked.
+      // gpt-oss: the least reasoning, not none. Only that family, and
+      // whatever was saved — its toggle is locked, so the saved choice is
+      // not one the user made.
       expect(_resolve('gpt-oss-20b').leastEffort, isTrue);
       expect(_resolve('gpt-oss-20b').thinking, isTrue);
-      expect(_resolve('gpt-oss-20b', thinking: true).leastEffort, isFalse);
+      expect(_resolve('gpt-oss-20b', thinking: true).leastEffort, isTrue);
       expect(_resolve('deepseek-r1-distill-qwen-14b').leastEffort, isFalse);
       expect(_resolve('qwen3-8b').leastEffort, isFalse);
       expect(_resolve('spark-x2.5-4b').leastEffort, isFalse);

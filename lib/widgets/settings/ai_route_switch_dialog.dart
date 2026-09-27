@@ -16,6 +16,9 @@ import 'ai_settings_widgets.dart';
 /// The point of the table is the right-hand column: values the new route had
 /// before come back, and everything else reads "not set · not sent" rather
 /// than being quietly copied from a protocol where it meant something else.
+/// The thinking row is the exception: a request asks for reasoning one way
+/// or the other before anything is saved, so it shows what the new route's
+/// request would carry.
 Future<bool> confirmRouteSwitch(
   BuildContext context, {
   required AiChannel channel,

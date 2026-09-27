@@ -476,7 +476,7 @@ void main() {
           'none',
         );
         expect(await effort('gpt-oss-20b'), 'low');
-        expect(await effort('gpt-oss-20b', saved: true), 'medium');
+        expect(await effort('gpt-oss-20b', saved: true), 'low');
         // A hybrid family follows the saved choice.
         expect(await effort('qwen3-32b'), 'none');
         expect(await effort('qwen3-32b', saved: true), 'medium');

@@ -535,7 +535,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get thinkingAlwaysOn => '此模型只能以思考模式运行。';
 
   @override
-  String get thinkingEffortOnly => '此模型无法关闭思考；关闭时以低强度运行。';
+  String get thinkingEffortOnly => '此模型无法关闭思考；在线路接受强度档位时按最低强度请求。';
 
   @override
   String get thinkingVerifiedOff => '上次测试：思考已关闭。';
@@ -2540,7 +2540,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiSwitchBody =>
-      '当前线路的参数会停放在它名下，切回来原样恢复。新线路上次配置过的值载入如下；从没配过的项一律「未设置 · 不发」，不复制。';
+      '当前线路的参数会停放在它名下，切回来原样恢复。新线路上次配置过的值载入如下；从没配过的项一律「未设置 · 不发」，不复制。思考一行显示新线路的请求会带的值。';
 
   @override
   String get aiSwitchParam => '参数';

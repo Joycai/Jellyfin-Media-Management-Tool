@@ -752,11 +752,11 @@ void main() {
                     control == ThinkingControl.templateSwitch),
             reason: 'local $why',
           );
-          // A family that can only be lowered, asked off, gets the least;
-          // Gemma 4 reasons only behind its prompt token.
+          // A family that can only be lowered gets the least, whatever was
+          // saved; Gemma 4 reasons only behind its prompt token.
           expect(
             localBody['reasoning_effort'] == 'low',
-            control == ThinkingControl.effortOnly && !saved,
+            control == ThinkingControl.effortOnly,
             reason: 'local $why',
           );
           if (control == ThinkingControl.promptToken) {
@@ -790,8 +790,8 @@ void main() {
             reason: 'switch $why',
           );
 
-          // Responses: an effort both ways; a family that cannot stop, asked
-          // off, gets the least.
+          // Responses: an effort both ways; a family that cannot stop gets
+          // the least.
           final responses = at(
             AiProviderType.openAiResponses,
             relay,
@@ -803,7 +803,7 @@ void main() {
           expect(effort != 'none', asked, reason: 'responses $why');
           expect(
             effort == 'low',
-            control == ThinkingControl.effortOnly && !saved,
+            control == ThinkingControl.effortOnly,
             reason: 'responses $why',
           );
 

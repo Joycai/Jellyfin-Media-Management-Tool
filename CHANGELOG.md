@@ -25,8 +25,9 @@ reconstructed at release time.
   it runs in on Messages, Responses and Gemini routes too, as it already was
   on Chat Completions and as the model page has always shown; on a Messages
   route that also means a family that always reasons goes without its
-  sampling values, as any model does there while it reasons. gpt-oss switched
-  off is asked for its least reasoning on Responses rather than none. The
+  sampling values, as any model does there while it reasons. gpt-oss, whose
+  switch is locked, is asked for its least reasoning on Responses rather than
+  none, and on Chat Completions whatever an old saved choice said. The
   route-switch dialog and Diagnostics read that same choice.
 
 ### Fixed

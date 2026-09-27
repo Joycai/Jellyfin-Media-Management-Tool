@@ -190,9 +190,11 @@ class AiConfig {
   final double? presencePenalty;
   final double? repeatPenalty;
 
-  /// Whether reasoning should run. Off by default: on a small local model it
+  /// The saved reasoning choice. Off by default: on a small local model it
   /// multiplies the time a task takes, and it is where the looping comes
-  /// from. A family that can only reason ignores it.
+  /// from. What a request asks for is [sampling]`.thinking` — this choice
+  /// resolved through the family's preset, a family that always or never
+  /// reasons ignoring it — and no adapter reads this field itself.
   final bool thinkingEnabled;
 
   /// Tokens the model is served with, or null when unknown.

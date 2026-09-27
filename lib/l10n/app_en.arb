@@ -158,7 +158,7 @@
   "thinkingMode": "Thinking mode",
   "thinkingModeHint": "Off by default: reasoning makes small local models far slower and prone to going in circles.",
   "thinkingAlwaysOn": "This model can only run with reasoning on.",
-  "thinkingEffortOnly": "This model's reasoning cannot be turned off; with thinking off it runs at low effort.",
+  "thinkingEffortOnly": "This model's reasoning cannot be turned off; it is asked for the least where the route takes an effort level.",
   "thinkingVerifiedOff": "Last test: reasoning was off.",
   "thinkingStillOn": "Last test: the model still reasoned. Turn thinking off in the server's own model settings (in LM Studio: Enable Thinking).",
   "thinkingStillOnRemote": "Last test: the model still reasoned. Turning it off has no effect on this route, so the model reasons at its own default. Use a model that does not reason, or accept it.",
@@ -896,7 +896,7 @@
       }
     }
   },
-  "aiSwitchBody": "The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied.",
+  "aiSwitchBody": "The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied. The thinking row shows what the new route’s request will carry.",
   "aiSwitchParam": "Parameter",
   "aiSwitchNow": "Now · {protocol}",
   "@aiSwitchNow": {

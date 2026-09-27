@@ -543,7 +543,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thinkingEffortOnly =>
-      'This model\'s reasoning cannot be turned off; with thinking off it runs at low effort.';
+      'This model\'s reasoning cannot be turned off; it is asked for the least where the route takes an effort level.';
 
   @override
   String get thinkingVerifiedOff => 'Last test: reasoning was off.';
@@ -2639,7 +2639,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiSwitchBody =>
-      'The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied.';
+      'The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied. The thinking row shows what the new route’s request will carry.';
 
   @override
   String get aiSwitchParam => 'Parameter';
