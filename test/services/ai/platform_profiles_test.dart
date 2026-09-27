@@ -680,40 +680,59 @@ void main() {
     });
 
     // What each body says about reasoning is what the adapter sends before
-    // any refusal; `thinkingAskedFor` must read the same.
-    test('thinkingAskedFor is what the adapter sends', () async {
+    // any refusal; every adapter reads `AiConfig.sampling.thinking`.
+    test('every protocol asks for reasoning as the family runs', () async {
+      // The saved choice is read once, above the adapters
+      // (`AiConfig.sampling.thinking`): a family that always or never
+      // reasons is sent as it runs, the other families and a model no
+      // preset knows as saved. Each protocol's body is held to that value.
       Future<Map<String, dynamic>> body(AiConfig config) async =>
           (await AiService.providerFor(config).previewRequest(
-            messages: const [UserMessage('u')],
+            messages: const [SystemMessage('s'), UserMessage('u')],
             tools: const [],
           ))!.body;
       // One family of each kind, and a model no preset knows.
       const models = {
         'mystery-model': null,
         'qwen3-30b-a3b-instruct-2507': ThinkingControl.none,
+        'qwen3.5-9b': ThinkingControl.templateSwitch,
         'qwen3-32b': ThinkingControl.softSwitch,
+        'gemma4-26b': ThinkingControl.promptToken,
         'qwen3-30b-a3b-thinking-2507': ThinkingControl.alwaysOn,
         'gpt-oss-20b': ThinkingControl.effortOnly,
       };
       for (final MapEntry(key: model, value: control) in models.entries) {
         expect(SamplingPresets.forModel(model)?.thinkingControl, control);
         for (final saved in [true, false]) {
-          // Chat Completions resolves the saved choice through the preset:
-          // the platform's field carries the mode the family runs in.
-          final chat = at(AiProviderType.openAi, zhipu, model, thinking: saved);
-          final chatAsked =
-              ((await body(chat))['thinking'] as Map)['type'] == 'enabled';
-          expect(
-            PlatformProfiles.thinkingAskedFor(chat),
-            chatAsked,
-            reason: 'chat $model saved $saved',
-          );
-          expect(chatAsked, switch (control) {
+          final asked = at(
+            AiProviderType.openAi,
+            zhipu,
+            model,
+            thinking: saved,
+          ).sampling.thinking;
+          expect(asked, switch (control) {
             ThinkingControl.none => false,
             ThinkingControl.alwaysOn || ThinkingControl.effortOnly => true,
             _ => saved,
-          }, reason: 'chat $model saved $saved');
-          // Whichever field the platform takes.
+          }, reason: '$model saved $saved');
+          final why = '$model saved $saved';
+
+          // Chat Completions: the platform's field carries it, whichever
+          // field the platform takes.
+          final chat = at(AiProviderType.openAi, zhipu, model, thinking: saved);
+          final chatBody = await body(chat);
+          expect(
+            (chatBody['thinking'] as Map)['type'] == 'enabled',
+            asked,
+            reason: 'chat $why',
+          );
+          // The platform's switch is the whole request for reasoning there:
+          // no effort level beside it, the least included.
+          expect(
+            chatBody.containsKey('reasoning_effort'),
+            isFalse,
+            reason: 'chat $why',
+          );
           final dashScope = at(
             AiProviderType.openAi,
             'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -721,26 +740,41 @@ void main() {
             thinking: saved,
           );
           expect(
-            PlatformProfiles.thinkingAskedFor(dashScope),
             (await body(dashScope))['enable_thinking'],
-            reason: 'dashscope $model saved $saved',
+            asked,
+            reason: 'dashscope $why',
           );
-          // The ladder resolves the same, though it has nothing to send for
-          // on: it asks off only where the family can be switched.
+          // The ladder has nothing to send for on: it asks off only where
+          // the family can be switched.
           final local = at(
             AiProviderType.openAi,
             'http://localhost:1234',
             model,
             thinking: saved,
           );
-          expect(PlatformProfiles.thinkingAskedFor(local), chatAsked);
+          final localBody = await body(local);
           expect(
-            (await body(local)).containsKey('chat_template_kwargs'),
-            control == ThinkingControl.softSwitch && !saved,
-            reason: 'local $model saved $saved',
+            localBody.containsKey('chat_template_kwargs'),
+            !asked &&
+                (control == ThinkingControl.softSwitch ||
+                    control == ThinkingControl.templateSwitch),
+            reason: 'local $why',
           );
+          // A family that can only be lowered gets the least, whatever was
+          // saved; Gemma 4 reasons only behind its prompt token.
+          expect(
+            localBody['reasoning_effort'] == 'low',
+            control == ThinkingControl.effortOnly,
+            reason: 'local $why',
+          );
+          if (control == ThinkingControl.promptToken) {
+            final system =
+                ((localBody['messages'] as List).first as Map)['content']
+                    as String;
+            expect(system.startsWith('<|think|>'), asked, reason: 'local $why');
+          }
 
-          // The other protocols send the saved choice as it is.
+          // Messages: `thinking` only when on; a switch route says off too.
           final messages = at(
             AiProviderType.anthropic,
             relay,
@@ -748,21 +782,40 @@ void main() {
             thinking: saved,
           );
           expect(
-            PlatformProfiles.thinkingAskedFor(messages),
             (await body(messages)).containsKey('thinking'),
-            reason: 'messages $model saved $saved',
+            asked,
+            reason: 'messages $why',
           );
+          final switchRoute = at(
+            AiProviderType.anthropic,
+            miniMax,
+            model,
+            thinking: saved,
+          );
+          expect(
+            ((await body(switchRoute))['thinking'] as Map)['type'],
+            asked ? 'adaptive' : 'disabled',
+            reason: 'switch $why',
+          );
+
+          // Responses: an effort both ways; a family that cannot stop gets
+          // the least.
           final responses = at(
             AiProviderType.openAiResponses,
             relay,
             model,
             thinking: saved,
           );
+          final effort =
+              ((await body(responses))['reasoning'] as Map)['effort'];
+          expect(effort != 'none', asked, reason: 'responses $why');
           expect(
-            PlatformProfiles.thinkingAskedFor(responses),
-            ((await body(responses))['reasoning'] as Map)['effort'] != 'none',
-            reason: 'responses $model saved $saved',
+            effort == 'low',
+            control == ThinkingControl.effortOnly,
+            reason: 'responses $why',
           );
+
+          // Gemini: off is asked through thinkingConfig, on is the default.
           final gemini = at(
             AiProviderType.googleGenAi,
             'https://g.example',
@@ -770,15 +823,12 @@ void main() {
             thinking: saved,
           );
           expect(
-            PlatformProfiles.thinkingAskedFor(gemini),
             !((await body(gemini))['generationConfig'] as Map).containsKey(
               'thinkingConfig',
             ),
-            reason: 'gemini $model saved $saved',
+            asked,
+            reason: 'gemini $why',
           );
-          for (final other in [messages, responses, gemini]) {
-            expect(PlatformProfiles.thinkingAskedFor(other), saved);
-          }
         }
       }
     });

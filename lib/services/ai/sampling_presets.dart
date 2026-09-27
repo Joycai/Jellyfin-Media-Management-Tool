@@ -393,13 +393,23 @@ class ResolvedSampling {
   /// The matched family, or null for a model no preset covers.
   final SamplingPreset? preset;
 
-  /// Whether this request expects reasoning to run.
+  /// Whether this request expects reasoning to run. The one reading of the
+  /// saved choice: every protocol asks for what it says, and the model page
+  /// draws it.
   final bool thinking;
+
+  /// The family cannot stop reasoning, so the request asks for the least of
+  /// it (gpt-oss's `reasoning_effort: low`) where the protocol has a word
+  /// for that — whatever was saved: such a family's toggle is locked, so
+  /// the saved choice is not one the user made, and what the model page
+  /// draws must be what goes out.
+  final bool leastEffort;
   final SamplingValues values;
 
   const ResolvedSampling({
     required this.preset,
     required this.thinking,
+    required this.leastEffort,
     required this.values,
   });
 
@@ -423,6 +433,7 @@ class ResolvedSampling {
     return ResolvedSampling(
       preset: preset,
       thinking: thinking,
+      leastEffort: preset?.thinkingControl == ThinkingControl.effortOnly,
       values: SamplingValues(
         temperature: overrides.temperature ?? base.temperature,
         topP: overrides.topP ?? base.topP,

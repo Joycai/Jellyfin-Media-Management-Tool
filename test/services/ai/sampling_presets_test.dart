@@ -88,8 +88,21 @@ void main() {
       final s = _resolve('deepseek-r1-distill-qwen-14b');
 
       expect(s.thinking, isTrue);
+      expect(s.leastEffort, isFalse);
       expect(s.values.temperature, 0.6);
       expect(s.values.topP, 0.95);
+    });
+
+    test('a family that can only be lowered is asked for the least', () {
+      // gpt-oss: the least reasoning, not none. Only that family, and
+      // whatever was saved — its toggle is locked, so the saved choice is
+      // not one the user made.
+      expect(_resolve('gpt-oss-20b').leastEffort, isTrue);
+      expect(_resolve('gpt-oss-20b').thinking, isTrue);
+      expect(_resolve('gpt-oss-20b', thinking: true).leastEffort, isTrue);
+      expect(_resolve('deepseek-r1-distill-qwen-14b').leastEffort, isFalse);
+      expect(_resolve('qwen3-8b').leastEffort, isFalse);
+      expect(_resolve('spark-x2.5-4b').leastEffort, isFalse);
     });
 
     test('a family with one value set uses it in both modes', () {

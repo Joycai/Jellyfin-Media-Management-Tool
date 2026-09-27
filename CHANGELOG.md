@@ -17,6 +17,21 @@ reconstructed at release time.
   bundle next to the macOS DMG and the Windows installer. It needs libmpv,
   FFmpeg and libjpeg from the system for playback and thumbnails.
 
+### Changed
+
+- The reasoning switch means the same thing on every protocol. A model family
+  that always reasons (DeepSeek-R1, QwQ, the Thinking-2507 models) or never
+  does (Qwen3's Instruct models, Gemma 3, Llama 3) is now asked for the mode
+  it runs in on Messages, Responses and Gemini routes too, as it already was
+  on Chat Completions and as the model page has always shown; on a Messages
+  route that also means a family that always reasons goes without its
+  sampling values, as any model does there while it reasons. gpt-oss, whose
+  switch is locked, is asked for its least reasoning whatever an old saved
+  choice said — on Responses, where it was asked for none or medium, and on
+  Chat Completions without a platform switch, where an old "on" left it at
+  the server's default. The
+  route-switch dialog and Diagnostics read that same choice.
+
 ### Fixed
 
 - Frame recognition no longer waits on a stuck vision service five times

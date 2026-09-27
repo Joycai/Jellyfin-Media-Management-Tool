@@ -460,6 +460,62 @@ void main() {
     });
 
     test(
+      'a family is asked for the mode it runs in, not the saved one',
+      () async {
+        // The saved choice is resolved above the adapter: a family that always
+        // reasons is asked on, one that never reasons is asked off, and one
+        // that can only be lowered gets the least.
+        Future<Object?> effort(String model, {bool saved = false}) async =>
+            ((await sent(
+                  _config('family.example', model: model, thinking: saved),
+                ))['reasoning']
+                as Map?)?['effort'];
+        expect(await effort('qwen3-30b-a3b-thinking-2507'), 'medium');
+        expect(
+          await effort('qwen3-30b-a3b-instruct-2507', saved: true),
+          'none',
+        );
+        expect(await effort('gpt-oss-20b'), 'low');
+        expect(await effort('gpt-oss-20b', saved: true), 'low');
+        // A hybrid family follows the saved choice.
+        expect(await effort('qwen3-32b'), 'none');
+        expect(await effort('qwen3-32b', saved: true), 'medium');
+      },
+    );
+
+    test('a family asked on has its refusal read as one of on', () async {
+      // Saved off, sent on: `reasoning` refused here is the field refused,
+      // not `none` refused — the route sends nothing either way, rather
+      // than asking on again.
+      final bodies = <Map<String, dynamic>>[];
+      final provider = OpenAiResponsesProvider(
+        _config('family-refused.example', model: 'qwen3-30b-a3b-thinking-2507'),
+        client: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          bodies.add(body);
+          if (bodies.length > 8) throw StateError('runaway retries');
+          return body.containsKey('reasoning')
+              ? http.Response(
+                  jsonEncode({
+                    'error': {
+                      'message':
+                          "Unsupported parameter: 'reasoning' is not "
+                          'supported with this model.',
+                    },
+                  }),
+                  400,
+                )
+              : _stream([_completed()]);
+        }),
+      );
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies, hasLength(2));
+      expect(bodies.first['reasoning'], {'effort': 'medium'});
+      expect(provider.learned.rejectedFields, contains('reasoning'));
+      expect(provider.learned.thinkingOffTried, isEmpty);
+    });
+
+    test(
       'a refused none goes back to the default, and on still asks',
       () async {
         final bodies = <Map<String, dynamic>>[];

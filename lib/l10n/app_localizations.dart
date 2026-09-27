@@ -1055,7 +1055,7 @@ abstract class AppLocalizations {
   /// No description provided for @thinkingEffortOnly.
   ///
   /// In en, this message translates to:
-  /// **'This model\'s reasoning cannot be turned off; with thinking off it runs at low effort.'**
+  /// **'This model\'s reasoning cannot be turned off; it is asked for the least on Chat Completions without a platform switch, and on Responses.'**
   String get thinkingEffortOnly;
 
   /// No description provided for @thinkingVerifiedOff.
@@ -4619,7 +4619,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiSwitchBody.
   ///
   /// In en, this message translates to:
-  /// **'The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied.'**
+  /// **'The current route’s parameters stay parked under it and come back unchanged if you switch back. Values the new route had before are loaded; anything never set there is “not set · not sent” — never copied. The thinking row shows what the new route’s request will carry.'**
   String get aiSwitchBody;
 
   /// No description provided for @aiSwitchParam.

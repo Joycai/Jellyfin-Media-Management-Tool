@@ -16,6 +16,9 @@ import 'ai_settings_widgets.dart';
 /// The point of the table is the right-hand column: values the new route had
 /// before come back, and everything else reads "not set · not sent" rather
 /// than being quietly copied from a protocol where it meant something else.
+/// The thinking row is the exception: a request asks for reasoning one way
+/// or the other before anything is saved, so it shows what the new route's
+/// request would carry.
 Future<bool> confirmRouteSwitch(
   BuildContext context, {
   required AiChannel channel,
@@ -51,17 +54,21 @@ class RouteSwitchDialog extends StatelessWidget {
     final afterConfig = channel.configFor(model.switchedTo(to));
     final notSet = l10n.aiNotSetNotSent;
 
-    // The platform field is named where the saved choice still sends it:
+    // The choice shown is the one the route's request carries — the saved
+    // one resolved through the family's preset (for a model no preset knows,
+    // the saved one, where the model page may draw the route's default
+    // instead) — and the platform field is named where that choice still
+    // sends it:
     // both ways on a working switch, off on a switch route that refused on,
     // on where the model said it cannot stop — except on the rare route that
     // later refused on too (the name, or a switch route's `adaptive`), which
     // is named although nothing is sent.
-    String thinking(RouteParams p, AiConfig config) {
+    String thinking(AiConfig config) {
       final (:route, :field) = PlatformProfiles.reasoningRouteFor(
         config,
         AiService.providerFor(config).learned,
       );
-      final on = p.thinkingEnabled;
+      final on = config.sampling.thinking;
       final sent = switch (route) {
         ReasoningRoute.platformField => true,
         ReasoningRoute.onRefused => !on,
@@ -96,8 +103,9 @@ class RouteSwitchDialog extends StatelessWidget {
     final rows = <(String, String, String?, bool)>[
       (
         l10n.aiParamThinking,
-        thinking(now, nowConfig),
-        after == null ? null : thinking(after, afterConfig),
+        thinking(nowConfig),
+        // The new route's request carries a choice even before one is saved.
+        thinking(afterConfig),
         false,
       ),
       (

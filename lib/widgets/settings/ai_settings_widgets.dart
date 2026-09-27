@@ -568,8 +568,9 @@ class AiSamplingSection extends StatelessWidget {
     // Mirrors what the provider sends: a known family decides whether its
     // reasoning can be switched at all; a model no preset knows can be
     // switched only where its route has a working switch, and is otherwise
-    // drawn as the route runs it. A preset model's toggle keeps the saved
-    // choice, which picks its sampling values whatever the route sends.
+    // drawn as the route runs it. A preset family is drawn as it runs — a
+    // hybrid family on the saved choice, one that always or never reasons
+    // locked — and the mode drawn picks its sampling values.
     final switchable = reasoningSwitchable(preset, route);
     final reasons =
         preset?.reasons(requested: thinking) ?? route.drawnAs ?? thinking;
