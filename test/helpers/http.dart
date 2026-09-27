@@ -40,6 +40,8 @@ class MuteClient extends http.BaseClient {
 }
 
 /// The abort trigger of [request] — the last one a [RecordingClient] saw —
-/// which fails the test when the adapter did not build an abortable one.
-Future<void> abortOf(http.BaseRequest? request) =>
-    (request! as http.Abortable).abortTrigger!;
+/// which fails the test when the adapter did not build an abortable one,
+/// and within a second when the trigger never fires.
+Future<void> abortOf(http.BaseRequest? request) => (request! as http.Abortable)
+    .abortTrigger!
+    .timeout(const Duration(seconds: 1));
