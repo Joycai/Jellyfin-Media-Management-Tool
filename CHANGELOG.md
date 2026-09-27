@@ -26,9 +26,10 @@ reconstructed at release time.
   on Chat Completions and as the model page has always shown; on a Messages
   route that also means a family that always reasons goes without its
   sampling values, as any model does there while it reasons. gpt-oss, whose
-  switch is locked, is asked for its least reasoning on Responses and on
-  Chat Completions whatever an old saved choice said, rather than none or
-  the server's own default. The
+  switch is locked, is asked for its least reasoning whatever an old saved
+  choice said — on Responses, where it was asked for none or medium, and on
+  Chat Completions without a platform switch, where an old "on" left it at
+  the server's default. The
   route-switch dialog and Diagnostics read that same choice.
 
 ### Fixed

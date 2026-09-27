@@ -720,9 +720,17 @@ void main() {
           // Chat Completions: the platform's field carries it, whichever
           // field the platform takes.
           final chat = at(AiProviderType.openAi, zhipu, model, thinking: saved);
+          final chatBody = await body(chat);
           expect(
-            ((await body(chat))['thinking'] as Map)['type'] == 'enabled',
+            (chatBody['thinking'] as Map)['type'] == 'enabled',
             asked,
+            reason: 'chat $why',
+          );
+          // The platform's switch is the whole request for reasoning there:
+          // no effort level beside it, the least included.
+          expect(
+            chatBody.containsKey('reasoning_effort'),
+            isFalse,
             reason: 'chat $why',
           );
           final dashScope = at(
