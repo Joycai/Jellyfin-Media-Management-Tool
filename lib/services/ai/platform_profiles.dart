@@ -13,6 +13,8 @@
 /// which is exactly how every endpoint behaved before profiles existed.
 library;
 
+import 'dart:io';
+
 import 'ai_provider.dart';
 import 'learned_behaviour.dart';
 import 'thinking_dialect.dart';
@@ -443,14 +445,42 @@ abstract final class PlatformProfiles {
       : (forHost(config.endpoint) ?? custom);
 
   /// Whether the server behind [config] is the user's own — a local
-  /// platform's channel, or software the connection test recognised
-  /// ([server], for a local server typed in as an address) — so that advice
+  /// platform's channel, an endpoint on this computer or a private network
+  /// ([privateHost]), or software the connection test recognised ([server],
+  /// for a local server reached through a public name) — so that advice
   /// about its model settings is advice the user can act on. Read by the
   /// settings screens where the last test showed reasoning that was asked
   /// off, which only shows after a test, when [server] is known.
   static bool selfHosted(AiConfig config, {ServerKind? server}) =>
       of(config).kind == PlatformKind.local ||
+      privateHost(config.endpoint) ||
       (server != null && server != ServerKind.unknown);
+
+  /// Whether [endpoint] names this computer or a private network:
+  /// `localhost`, an mDNS `.local` name, or a loopback, link-local or
+  /// private address, whichever software answers there.
+  static bool privateHost(String endpoint) {
+    final host = Uri.tryParse(endpoint.trim())?.host.toLowerCase() ?? '';
+    if (host.isEmpty) return false;
+    if (host == 'localhost' ||
+        host.endsWith('.localhost') ||
+        host.endsWith('.local')) {
+      return true;
+    }
+    final address = InternetAddress.tryParse(host);
+    if (address == null) return false;
+    if (address.isLoopback || address.isLinkLocal) return true;
+    final bytes = address.rawAddress;
+    return switch (address.type) {
+      InternetAddressType.IPv4 =>
+        bytes[0] == 10 ||
+            (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+            (bytes[0] == 192 && bytes[1] == 168),
+      // fc00::/7, unique local.
+      InternetAddressType.IPv6 => (bytes[0] & 0xfe) == 0xfc,
+      _ => false,
+    };
+  }
 
   /// How [config]'s route switches reasoning, or null for the ladder.
   static ThinkingDialect? dialectFor(AiConfig config) =>

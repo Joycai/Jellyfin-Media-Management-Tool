@@ -5,6 +5,7 @@ import 'package:jellyfin_media_management_tool/models/ai_channel.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
+import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_capability_matrix.dart';
@@ -12,6 +13,17 @@ import 'package:jellyfin_media_management_tool/widgets/settings/ai_model_page.da
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
 
 import '../../helpers/settings.dart';
+
+/// An [AiService] whose connection test is a canned result.
+class _CannedTest extends AiService {
+  final AiConnectionCheckResult result;
+
+  _CannedTest(this.result);
+
+  @override
+  Future<AiConnectionCheckResult> testConnection(AiConfig config) async =>
+      result;
+}
 
 void main() {
   late AiProfilesService profiles;
@@ -187,11 +199,13 @@ void main() {
     PlatformProfile? platform,
     String endpoint = 'https://relay.example/v1',
     String? base,
+    bool thinking = true,
+    AiService? ai,
   }) async {
     final entry = AiModelEntry.create(
       upstream: model,
       route: route,
-    ).copyWith(params: {route: const RouteParams(thinkingEnabled: true)});
+    ).copyWith(params: {route: RouteParams(thinkingEnabled: thinking)});
     final channel =
         AiChannel.create(
               platform: platform ?? PlatformProfiles.custom,
@@ -231,9 +245,58 @@ void main() {
         onDiagnostics: () {},
       ),
       profiles: profiles,
+      ai: ai,
     );
     return (entry: entry, channel: channel);
   }
+
+  testWidgets('a test that still reasoned is answered by whose server it is', (
+    tester,
+  ) async {
+    // A public name on a custom channel: only the test's own reading of the
+    // software says whether the server is the user's own.
+    final l10n = AppLocalizationsEn();
+    Future<void> check(ServerKind server, String line, String other) async {
+      final ai = _CannedTest(
+        AiConnectionCheckResult(
+          reply: 'ok',
+          latency: Duration.zero,
+          promptTokens: 1,
+          completionTokens: 1,
+          truncated: false,
+          reasoned: true,
+          supportsTools: ToolProbe.inconclusive,
+          serverKind: server,
+          limits: ModelLimits.unknown,
+        ),
+      );
+      await pumpRefused(
+        tester,
+        route: AiProviderType.openAi,
+        model: 'qwen3-32b',
+        endpoint: 'https://llm.example.com/v1',
+        thinking: false,
+        ai: ai,
+      );
+      expect(find.text(line), findsNothing);
+      await tester.tap(find.text(l10n.aiTestRoute));
+      await tester.pumpAndSettle();
+      expect(find.text(line), findsOneWidget, reason: '$server');
+      expect(find.text(other), findsNothing, reason: '$server');
+      await settleSaves(tester);
+    }
+
+    await check(
+      ServerKind.lmStudio,
+      l10n.thinkingStillOn,
+      l10n.thinkingStillOnRemote,
+    );
+    await check(
+      ServerKind.unknown,
+      l10n.thinkingStillOnRemote,
+      l10n.thinkingStillOn,
+    );
+  });
 
   for (final (route, model, refused, line) in [
     (

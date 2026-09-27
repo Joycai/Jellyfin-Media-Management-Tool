@@ -546,7 +546,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get thinkingStillOnRemote =>
-      '上次测试：模型仍在思考。这条线路忽略了关闭请求，模型按自己的默认推理。可保持开启，或换一个不推理的模型。';
+      '上次测试：模型仍在思考。这条线路上关闭不起作用，模型按自己的默认推理。可换一个不推理的模型，或接受现状。';
 
   @override
   String get presetNeedsSystemPrompt =>

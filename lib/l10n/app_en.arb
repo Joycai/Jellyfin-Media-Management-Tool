@@ -161,7 +161,7 @@
   "thinkingEffortOnly": "This model's reasoning cannot be turned off; with thinking off it runs at low effort.",
   "thinkingVerifiedOff": "Last test: reasoning was off.",
   "thinkingStillOn": "Last test: the model still reasoned. Turn thinking off in the server's own model settings (in LM Studio: Enable Thinking).",
-  "thinkingStillOnRemote": "Last test: the model still reasoned. This route ignored the request to turn it off, so the model reasons at its own default here. Leave the switch on, or use a model that does not reason.",
+  "thinkingStillOnRemote": "Last test: the model still reasoned. Turning it off has no effect on this route, so the model reasons at its own default. Use a model that does not reason, or accept it.",
   "presetNeedsSystemPrompt": "This model's card requires its own system prompt; results may suffer without it.",
   "ollamaIgnoresSampling": "Ollama's OpenAI-compatible API ignores Top K, Min P and Repeat penalty; set them in the Modelfile instead.",
   "tokensThisSession": "Tokens this session",

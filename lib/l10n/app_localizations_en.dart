@@ -554,7 +554,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thinkingStillOnRemote =>
-      'Last test: the model still reasoned. This route ignored the request to turn it off, so the model reasons at its own default here. Leave the switch on, or use a model that does not reason.';
+      'Last test: the model still reasoned. Turning it off has no effect on this route, so the model reasons at its own default. Use a model that does not reason, or accept it.';
 
   @override
   String get presetNeedsSystemPrompt =>

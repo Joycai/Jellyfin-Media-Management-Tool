@@ -80,7 +80,8 @@ bool reasoningSwitchable(SamplingPreset? preset, ReasoningRoute route) =>
 
 /// Whether the model page judges a test with reasoning off at all: where
 /// the toggle is live, and where a field refused both ways draws a model no
-/// preset knows off — only the server can change its default. Where off was
+/// preset knows off — its default, which the user's own server can change
+/// and no other (`PlatformProfiles.selfHosted` picks the words). Where off was
 /// refused (`offRefused`, `offToDefault`) the page and Diagnostics each say
 /// the model's default instead of warning; everywhere else here a test that
 /// still reasoned is a warning on the page and a failed step in Diagnostics.
@@ -730,8 +731,9 @@ class AiSamplingSection extends StatelessWidget {
   /// reasoning off, the model's default where off was refused.
   /// That second case is the one worth a line, because servers ignore the
   /// fields that turn it off without saying so. What to do about it depends
-  /// on whose server it is: the user's own has model settings to change; a
-  /// vendor's or a relay's has nothing left but the switch itself.
+  /// on whose server it is: the user's own has model settings to change; on
+  /// a vendor's or a relay's, turning it off has no effect — the field was
+  /// ignored, or, refused, is no longer sent — and the toggle may be locked.
   ({String text, bool warning})? _thinkingStatus(
     AppLocalizations l10n,
     bool reasons,

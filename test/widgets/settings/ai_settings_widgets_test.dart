@@ -230,16 +230,27 @@ void main() {
     // are the only switch left.
     // Saved either way: the refusal is usually learned while on, and the
     // saved choice sends nothing there.
+    // Elsewhere nothing is sent and the toggle is locked, so the line must
+    // not point at either.
     for (final saved in [false, true]) {
-      await reasoningSwitch(
-        tester,
-        preset: null,
-        route: ReasoningRoute.refused,
-        thinking: saved,
-        lastReasoned: true,
-      );
-      expect(find.text(l10n.thinkingStillOn), findsOneWidget, reason: '$saved');
+      for (final own in [true, false]) {
+        await reasoningSwitch(
+          tester,
+          preset: null,
+          route: ReasoningRoute.refused,
+          thinking: saved,
+          lastReasoned: true,
+          selfHosted: own,
+        );
+        expect(
+          find.text(own ? l10n.thinkingStillOn : l10n.thinkingStillOnRemote),
+          findsOneWidget,
+          reason: '$saved $own',
+        );
+      }
     }
+    expect(l10n.thinkingStillOnRemote, isNot(contains('switch')));
+    expect(l10n.thinkingStillOnRemote, isNot(contains('request')));
 
     // A preset family with no reasoning mode decides for itself, on a
     // refused field as on a working one.

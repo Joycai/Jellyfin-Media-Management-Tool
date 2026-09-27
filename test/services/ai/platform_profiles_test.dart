@@ -94,22 +94,52 @@ void main() {
         reason: id,
       );
     }
-    // A local server typed in as an address is no platform, and is known
-    // only once the connection test recognised the software.
-    final typed = _at('http://192.168.1.5:1234');
-    expect(PlatformProfiles.of(typed).kind, PlatformKind.custom);
-    expect(PlatformProfiles.selfHosted(typed), isFalse);
-    expect(
-      PlatformProfiles.selfHosted(typed, server: ServerKind.unknown),
-      isFalse,
-    );
-    for (final server in ServerKind.values) {
-      if (server == ServerKind.unknown) continue;
+    // A local server typed in as an address is no platform; this computer
+    // or a private network says whose it is, whatever answers there.
+    for (final endpoint in [
+      'http://localhost:8080',
+      'http://mac.local:8080/v1',
+      'http://127.0.0.1:8000',
+      'http://[::1]:8080/v1',
+      'http://192.168.1.5:1234',
+      'http://10.0.0.7:11434',
+      'http://172.16.2.2:1234',
+      'http://172.31.2.2:1234',
+      'http://[fd00::5]:1234',
+      'http://169.254.1.1:1234',
+    ]) {
+      final typed = _at(endpoint);
+      expect(PlatformProfiles.of(typed).kind, PlatformKind.custom);
+      expect(PlatformProfiles.selfHosted(typed), isTrue, reason: endpoint);
       expect(
-        PlatformProfiles.selfHosted(typed, server: server),
+        PlatformProfiles.selfHosted(typed, server: ServerKind.unknown),
         isTrue,
-        reason: '$server',
+        reason: endpoint,
       );
+    }
+    // One reached through a public name is known only once the connection
+    // test recognised the software.
+    for (final endpoint in [
+      'https://llm.example.com',
+      'http://203.0.113.5:1234',
+      'http://172.32.0.1:1234',
+      'http://[2001:db8::1]:1234',
+    ]) {
+      final typed = _at(endpoint);
+      expect(PlatformProfiles.selfHosted(typed), isFalse, reason: endpoint);
+      expect(
+        PlatformProfiles.selfHosted(typed, server: ServerKind.unknown),
+        isFalse,
+        reason: endpoint,
+      );
+      for (final server in ServerKind.values) {
+        if (server == ServerKind.unknown) continue;
+        expect(
+          PlatformProfiles.selfHosted(typed, server: server),
+          isTrue,
+          reason: '$endpoint $server',
+        );
+      }
     }
     // A vendor's, however the test went.
     for (final endpoint in [
