@@ -98,14 +98,26 @@ void main() {
     // or a private network says whose it is, whatever answers there.
     for (final endpoint in [
       'http://localhost:8080',
+      'http://box.localhost:8080',
       'http://mac.local:8080/v1',
+      'http://nas.lan:8080',
+      'http://llm.internal:8080',
+      'http://box.home.arpa:8080',
       'http://127.0.0.1:8000',
+      'http://127.5.5.5:8000',
+      'http://0.0.0.0:8080',
       'http://[::1]:8080/v1',
+      'http://[::]:8080',
+      'http://[::ffff:192.168.1.1]:1234',
       'http://192.168.1.5:1234',
       'http://10.0.0.7:11434',
+      'http://100.64.0.1:11434',
+      'http://100.127.255.254:11434',
       'http://172.16.2.2:1234',
       'http://172.31.2.2:1234',
       'http://[fd00::5]:1234',
+      'http://[fc00::1]:1234',
+      'http://[fe80::1]:1234',
       'http://169.254.1.1:1234',
     ]) {
       final typed = _at(endpoint);
@@ -121,9 +133,15 @@ void main() {
     // test recognised the software.
     for (final endpoint in [
       'https://llm.example.com',
+      'https://llm.example.lan.com',
       'http://203.0.113.5:1234',
+      'http://[::ffff:203.0.113.5]:1234',
+      'http://172.15.0.1:1234',
       'http://172.32.0.1:1234',
+      'http://100.63.0.1:1234',
+      'http://100.128.0.1:1234',
       'http://[2001:db8::1]:1234',
+      'http://[fe00::1]:1234',
     ]) {
       final typed = _at(endpoint);
       expect(PlatformProfiles.selfHosted(typed), isFalse, reason: endpoint);
@@ -141,17 +159,28 @@ void main() {
         );
       }
     }
-    // A vendor's, however the test went.
-    for (final endpoint in [
-      'https://api.deepseek.com',
-      'https://open.bigmodel.cn/api/paas/v4',
+    // A vendor's or a relay's, however the test went: a vendor's platform
+    // is never the user's own, and a relay's probe cannot see behind it.
+    for (final config in [
+      _at('https://api.deepseek.com'),
+      _at('https://open.bigmodel.cn/api/paas/v4'),
+      _at('https://relay.example', platform: 'relay'),
     ]) {
-      expect(PlatformProfiles.selfHosted(_at(endpoint)), isFalse);
-      expect(
-        PlatformProfiles.selfHosted(_at(endpoint), server: ServerKind.unknown),
-        isFalse,
-      );
+      for (final server in [null, ...ServerKind.values]) {
+        expect(
+          PlatformProfiles.selfHosted(config, server: server),
+          isFalse,
+          reason: '${config.endpoint} $server',
+        );
+      }
     }
+    // A relay on a private address is a machine the user runs.
+    expect(
+      PlatformProfiles.selfHosted(
+        _at('http://192.168.1.10:3000', platform: 'relay'),
+      ),
+      isTrue,
+    );
   });
 
   test('only MiniMax declares a Messages thinking switch', () {

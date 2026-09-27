@@ -731,9 +731,9 @@ class AiSamplingSection extends StatelessWidget {
   /// reasoning off, the model's default where off was refused.
   /// That second case is the one worth a line, because servers ignore the
   /// fields that turn it off without saying so. What to do about it depends
-  /// on whose server it is: the user's own has model settings to change; on
-  /// a vendor's or a relay's, turning it off has no effect — the field was
-  /// ignored, or, refused, is no longer sent — and the toggle may be locked.
+  /// on whose server it is: the user's own has model settings to change;
+  /// anywhere else, turning it off has no effect, whatever the route sent
+  /// for off, and the toggle may be locked.
   ({String text, bool warning})? _thinkingStatus(
     AppLocalizations l10n,
     bool reasons,

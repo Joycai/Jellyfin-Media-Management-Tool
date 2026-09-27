@@ -160,9 +160,10 @@ class OrganizeAgent {
         // Offered while lookups are left: a later batch is a fresh session,
         // and one told the tool is available would spend a round finding out
         // that a timeout, or five lookups, used them up.
-        final framesLeft =
-            lookAtFrames != null &&
-            state.frameLookups < OrganizeState.maxFrameLookups;
+        final lookupsLeft = lookAtFrames == null
+            ? 0
+            : OrganizeState.maxFrameLookups - state.frameLookups;
+        final framesLeft = lookupsLeft > 0;
         try {
           final run = await AgentRuntime.run<OrganizeState>(
             provider: provider,
@@ -181,7 +182,7 @@ class OrganizeAgent {
                       : null,
                   decided: state.decidedTable(),
                   firstPage: state.groupsPage(1),
-                  frames: framesLeft,
+                  framesLeft: lookupsLeft,
                 ),
               ),
             ],
@@ -331,7 +332,7 @@ How to decide:
     GroupMediaType? typeHint,
     (int, int)? batch,
     String decided = '',
-    bool frames = false,
+    int framesLeft = 0,
   }) {
     final title = titleHint?.trim() ?? '';
     return [
@@ -350,13 +351,13 @@ How to decide:
       if (title.isNotEmpty)
         'The user gives the title "$title". Use it exactly as written for the '
             'groups it names — normally all of them.',
-      if (frames)
+      if (framesLeft > 0)
         'identify_from_frames is available: for a group whose names, folder '
             'and NFO say nothing about what it is, it reports the on-screen '
             'text of a few frames of its video. A title it quotes from the '
             'screen may be used. Use it only when the names do not tell; '
             'every group decided after it is flagged for the user to review, '
-            'and only ${OrganizeState.maxFrameLookups} lookups are allowed.',
+            'and $framesLeft lookup(s) remain in this run.',
       if (decided.isNotEmpty) ...['', decided],
       '',
       firstPage,
@@ -1128,9 +1129,10 @@ class _IdentifyFromFramesTool extends AgentTool<OrganizeState> {
     } on AiCancelled {
       rethrow;
     } on AiTimeoutException catch (e) {
-      // The vision model may still be working on this request, and another
-      // would queue behind it for as long again: the rest of the run
-      // decides from names. Told as an answer, like any other failure.
+      // A vision service silent that long is likely to be so again, and a
+      // cloud one may still be generating, and billing, this request: the
+      // rest of the run decides from names. Told as an answer, like any
+      // other failure.
       context.frameLookups = OrganizeState.maxFrameLookups;
       return 'The vision model did not answer in time (${_describe(e)}). '
           'Frame recognition is off for the rest of this run. Decide from '

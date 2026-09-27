@@ -901,5 +901,35 @@ void main() {
       final prompt = (provider.seen.last[1] as UserMessage).content;
       expect(prompt, isNot(contains('identify_from_frames')));
     });
+
+    test('a later batch is told how many lookups are left', () async {
+      final two = _files([
+        ['Downloads', 'VID_1.mp4'],
+        ['Other', 'VID_2.mp4'],
+      ]);
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        _submit({'group': 'g1', 'mediaType': 'movie', 'title': 'A'}),
+        _submit({'group': 'g2', 'mediaType': 'movie', 'title': 'B'}),
+      ]);
+      await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: two,
+        batchSize: 1,
+        lookAtFrames: (_) async => 'Title card: "A"',
+      );
+      String prompt(int call) =>
+          (provider.seen[call][1] as UserMessage).content;
+      expect(
+        prompt(0),
+        contains('${OrganizeState.maxFrameLookups} lookup(s) remain'),
+      );
+      expect(
+        prompt(2),
+        contains('${OrganizeState.maxFrameLookups - 1} lookup(s) remain'),
+      );
+    });
   });
 }

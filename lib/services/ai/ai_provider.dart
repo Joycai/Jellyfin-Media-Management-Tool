@@ -143,8 +143,9 @@ class AiNetworkException extends AiException {
 /// nothing for too long, or a gateway answered 408, 504 or Cloudflare's 524.
 ///
 /// The server may still be generating — and billing — the request, so
-/// nothing sends it again: not the transport (`AiHttp.withRetry`), and not
-/// an organize batch.
+/// nothing sends it again: not the transport (`AiHttp.withRetry`), not an
+/// organize batch, and not a second frame lookup in the run
+/// (`identify_from_frames`).
 class AiTimeoutException extends AiNetworkException {
   const AiTimeoutException(super.message);
 }

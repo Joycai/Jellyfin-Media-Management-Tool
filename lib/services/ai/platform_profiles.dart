@@ -446,41 +446,67 @@ abstract final class PlatformProfiles {
 
   /// Whether the server behind [config] is the user's own — a local
   /// platform's channel, an endpoint on this computer or a private network
-  /// ([privateHost]), or software the connection test recognised ([server],
-  /// for a local server reached through a public name) — so that advice
+  /// ([privateHost], a relay there included: the user runs that machine),
+  /// or, on a custom channel reached through a public name, software the
+  /// connection test recognised ([server]; a vendor's platform is never the
+  /// user's own, and a relay's probe cannot see behind it) — so that advice
   /// about its model settings is advice the user can act on. Read by the
   /// settings screens where the last test showed reasoning that was asked
   /// off, which only shows after a test, when [server] is known.
-  static bool selfHosted(AiConfig config, {ServerKind? server}) =>
-      of(config).kind == PlatformKind.local ||
-      privateHost(config.endpoint) ||
-      (server != null && server != ServerKind.unknown);
+  static bool selfHosted(AiConfig config, {ServerKind? server}) {
+    final kind = of(config).kind;
+    return kind == PlatformKind.local ||
+        privateHost(config.endpoint) ||
+        (kind == PlatformKind.custom &&
+            server != null &&
+            server != ServerKind.unknown);
+  }
 
   /// Whether [endpoint] names this computer or a private network:
-  /// `localhost`, an mDNS `.local` name, or a loopback, link-local or
-  /// private address, whichever software answers there.
+  /// `localhost`, a `.local`, `.lan`, `.internal` or `.home.arpa` name, the
+  /// unspecified address a server was started on (`0.0.0.0`, `::`), or a
+  /// loopback, link-local, private or shared (`100.64/10`, a tailnet)
+  /// address — whichever software answers there.
   static bool privateHost(String endpoint) {
     final host = Uri.tryParse(endpoint.trim())?.host.toLowerCase() ?? '';
     if (host.isEmpty) return false;
     if (host == 'localhost' ||
-        host.endsWith('.localhost') ||
-        host.endsWith('.local')) {
+        _privateNames.any((suffix) => host.endsWith(suffix))) {
       return true;
     }
     final address = InternetAddress.tryParse(host);
     if (address == null) return false;
     if (address.isLoopback || address.isLinkLocal) return true;
-    final bytes = address.rawAddress;
-    return switch (address.type) {
-      InternetAddressType.IPv4 =>
+    var bytes = address.rawAddress;
+    if (bytes.length == 16) {
+      // An IPv4 address carried in IPv6 (`::ffff:a.b.c.d`) is that address.
+      final mapped =
+          bytes.take(10).every((b) => b == 0) &&
+          bytes[10] == 0xff &&
+          bytes[11] == 0xff;
+      if (mapped) {
+        bytes = bytes.sublist(12);
+      } else {
+        // Unspecified, or fc00::/7 (unique local).
+        return bytes.every((b) => b == 0) || (bytes[0] & 0xfe) == 0xfc;
+      }
+    }
+    return bytes.every((b) => b == 0) ||
         bytes[0] == 10 ||
-            (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
-            (bytes[0] == 192 && bytes[1] == 168),
-      // fc00::/7, unique local.
-      InternetAddressType.IPv6 => (bytes[0] & 0xfe) == 0xfc,
-      _ => false,
-    };
+        bytes[0] == 127 ||
+        (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127) ||
+        (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+        (bytes[0] == 192 && bytes[1] == 168) ||
+        (bytes[0] == 169 && bytes[1] == 254);
   }
+
+  static const _privateNames = [
+    '.localhost',
+    '.local',
+    '.lan',
+    '.internal',
+    '.home.arpa',
+  ];
 
   /// How [config]'s route switches reasoning, or null for the ladder.
   static ThinkingDialect? dialectFor(AiConfig config) =>

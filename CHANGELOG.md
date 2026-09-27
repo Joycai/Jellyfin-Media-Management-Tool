@@ -19,6 +19,15 @@ reconstructed at release time.
 
 ### Fixed
 
+- Frame recognition no longer waits on a stuck vision service five times
+  over: a lookup that times out is the last one of that run, later batches
+  are not offered it, and a request whose reply never starts is closed rather
+  than left open behind the next one.
+- The line under the reasoning switch no longer tells users of a cloud route
+  to turn thinking off in the server's own settings. That advice is kept for
+  the user's own server — a local platform, a private address, or software
+  the connection test recognised; elsewhere it says turning it off has no
+  effect on that route.
 - The window background looked mottled, like a dishcloth, on high-DPI displays
   — most visible in the middle pane before a folder is open. The backdrop is
   rendered once at a reduced size and stretched back over the window, and the
