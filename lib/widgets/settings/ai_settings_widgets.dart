@@ -516,6 +516,11 @@ class AiSamplingSection extends StatelessWidget {
   final bool? lastReasoned;
   final ServerKind? serverKind;
 
+  /// The server is the user's own (`PlatformProfiles.selfHosted`): a test
+  /// that still reasoned is then answered with its settings, elsewhere with
+  /// what the route can do.
+  final bool selfHosted;
+
   /// Wire names this route refused; their fields are drawn struck through.
   final Set<String> refused;
   final VoidCallback onChanged;
@@ -530,6 +535,7 @@ class AiSamplingSection extends StatelessWidget {
     required this.route,
     required this.lastReasoned,
     required this.serverKind,
+    required this.selfHosted,
     required this.refused,
     required this.onChanged,
     required this.onThinkingChanged,
@@ -723,7 +729,9 @@ class AiSamplingSection extends StatelessWidget {
   /// judges a test ([reasoningWarns]) — whether the last test showed
   /// reasoning off, the model's default where off was refused.
   /// That second case is the one worth a line, because servers ignore the
-  /// fields that turn it off without saying so.
+  /// fields that turn it off without saying so. What to do about it depends
+  /// on whose server it is: the user's own has model settings to change; a
+  /// vendor's or a relay's has nothing left but the switch itself.
   ({String text, bool warning})? _thinkingStatus(
     AppLocalizations l10n,
     bool reasons,
@@ -749,9 +757,13 @@ class AiSamplingSection extends StatelessWidget {
     if (!reasoned) return (text: l10n.thinkingVerifiedOff, warning: false);
     // Off was refused and nothing was sent for it, so the reasoning was the
     // model's own default: there is no switch left to turn off.
-    return route == ReasoningRoute.offToDefault
-        ? (text: l10n.thinkingAlwaysOn, warning: false)
-        : (text: l10n.thinkingStillOn, warning: true);
+    if (route == ReasoningRoute.offToDefault) {
+      return (text: l10n.thinkingAlwaysOn, warning: false);
+    }
+    return (
+      text: selfHosted ? l10n.thinkingStillOn : l10n.thinkingStillOnRemote,
+      warning: true,
+    );
   }
 }
 

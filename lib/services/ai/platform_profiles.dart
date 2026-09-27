@@ -442,6 +442,16 @@ abstract final class PlatformProfiles {
       ? byId(config.platform)
       : (forHost(config.endpoint) ?? custom);
 
+  /// Whether the server behind [config] is the user's own — a local
+  /// platform's channel, or software the connection test recognised
+  /// ([server], for a local server typed in as an address) — so that advice
+  /// about its model settings is advice the user can act on. Read by the
+  /// settings screens where the last test showed reasoning that was asked
+  /// off, which only shows after a test, when [server] is known.
+  static bool selfHosted(AiConfig config, {ServerKind? server}) =>
+      of(config).kind == PlatformKind.local ||
+      (server != null && server != ServerKind.unknown);
+
   /// How [config]'s route switches reasoning, or null for the ladder.
   static ThinkingDialect? dialectFor(AiConfig config) =>
       of(config).routes[config.provider]?.thinkingDialect;

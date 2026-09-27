@@ -87,6 +87,7 @@ void main() {
     required ReasoningRoute route,
     bool thinking = false,
     bool? lastReasoned,
+    bool selfHosted = true,
   }) async {
     final controllers = {
       for (final field in SamplingField.values) field: TextEditingController(),
@@ -106,6 +107,7 @@ void main() {
           route: route,
           lastReasoned: lastReasoned,
           serverKind: null,
+          selfHosted: selfHosted,
           refused: const {'top_k'},
           onChanged: () {},
           onThinkingChanged: (_) {},
@@ -177,25 +179,43 @@ void main() {
     expect(find.text(l10n.thinkingAlwaysOn), findsOneWidget);
     expect(find.text(l10n.thinkingStillOn), findsNothing);
 
-    // A working switch that still reasoned is the server's doing.
-    await reasoningSwitch(
-      tester,
-      preset: null,
-      route: ReasoningRoute.platformField,
-      lastReasoned: true,
-    );
-    expect(find.text(l10n.thinkingStillOn), findsOneWidget);
+    // A working switch that still reasoned is the server's doing: on the
+    // user's own server, its model settings; elsewhere the switch is all
+    // there is, and "turn it off on the server" is advice no one can take.
+    for (final own in [true, false]) {
+      await reasoningSwitch(
+        tester,
+        preset: null,
+        route: ReasoningRoute.platformField,
+        lastReasoned: true,
+        selfHosted: own,
+      );
+      expect(
+        find.text(own ? l10n.thinkingStillOn : l10n.thinkingStillOnRemote),
+        findsOneWidget,
+        reason: '$own',
+      );
+      expect(
+        find.text(own ? l10n.thinkingStillOnRemote : l10n.thinkingStillOn),
+        findsNothing,
+        reason: '$own',
+      );
+    }
 
     // Off refused without a reason: reasoning there is the model's default,
     // and a test is what shows it.
-    await reasoningSwitch(
-      tester,
-      preset: null,
-      route: ReasoningRoute.offToDefault,
-      lastReasoned: true,
-    );
-    expect(find.text(l10n.thinkingAlwaysOn), findsOneWidget);
-    expect(find.text(l10n.thinkingStillOn), findsNothing);
+    for (final own in [true, false]) {
+      await reasoningSwitch(
+        tester,
+        preset: null,
+        route: ReasoningRoute.offToDefault,
+        lastReasoned: true,
+        selfHosted: own,
+      );
+      expect(find.text(l10n.thinkingAlwaysOn), findsOneWidget, reason: '$own');
+      expect(find.text(l10n.thinkingStillOn), findsNothing, reason: '$own');
+      expect(find.text(l10n.thinkingStillOnRemote), findsNothing);
+    }
     await reasoningSwitch(
       tester,
       preset: null,

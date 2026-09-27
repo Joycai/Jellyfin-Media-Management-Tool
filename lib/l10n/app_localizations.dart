@@ -1070,6 +1070,12 @@ abstract class AppLocalizations {
   /// **'Last test: the model still reasoned. Turn thinking off in the server\'s own model settings (in LM Studio: Enable Thinking).'**
   String get thinkingStillOn;
 
+  /// No description provided for @thinkingStillOnRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Last test: the model still reasoned. This route ignored the request to turn it off, so the model reasons at its own default here. Leave the switch on, or use a model that does not reason.'**
+  String get thinkingStillOnRemote;
+
   /// No description provided for @presetNeedsSystemPrompt.
   ///
   /// In en, this message translates to:

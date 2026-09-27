@@ -83,6 +83,47 @@ void main() {
     expect(PlatformProfiles.byId('nope'), PlatformProfiles.custom);
   });
 
+  test('the server is the user\'s own by platform, or once recognised', () {
+    // A channel made from a local platform's profile.
+    for (final id in ['lmstudio', 'ollama', 'llamacpp']) {
+      final config = _at('http://localhost:1234', platform: id);
+      expect(PlatformProfiles.selfHosted(config), isTrue, reason: id);
+      expect(
+        PlatformProfiles.selfHosted(config, server: ServerKind.unknown),
+        isTrue,
+        reason: id,
+      );
+    }
+    // A local server typed in as an address is no platform, and is known
+    // only once the connection test recognised the software.
+    final typed = _at('http://192.168.1.5:1234');
+    expect(PlatformProfiles.of(typed).kind, PlatformKind.custom);
+    expect(PlatformProfiles.selfHosted(typed), isFalse);
+    expect(
+      PlatformProfiles.selfHosted(typed, server: ServerKind.unknown),
+      isFalse,
+    );
+    for (final server in ServerKind.values) {
+      if (server == ServerKind.unknown) continue;
+      expect(
+        PlatformProfiles.selfHosted(typed, server: server),
+        isTrue,
+        reason: '$server',
+      );
+    }
+    // A vendor's, however the test went.
+    for (final endpoint in [
+      'https://api.deepseek.com',
+      'https://open.bigmodel.cn/api/paas/v4',
+    ]) {
+      expect(PlatformProfiles.selfHosted(_at(endpoint)), isFalse);
+      expect(
+        PlatformProfiles.selfHosted(_at(endpoint), server: ServerKind.unknown),
+        isFalse,
+      );
+    }
+  });
+
   test('only MiniMax declares a Messages thinking switch', () {
     // MiniMax-M3's /anthropic takes `adaptive | disabled` only (KB 03 §3).
     for (final profile in PlatformProfiles.all) {

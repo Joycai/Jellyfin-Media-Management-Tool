@@ -553,6 +553,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Last test: the model still reasoned. Turn thinking off in the server\'s own model settings (in LM Studio: Enable Thinking).';
 
   @override
+  String get thinkingStillOnRemote =>
+      'Last test: the model still reasoned. This route ignored the request to turn it off, so the model reasons at its own default here. Leave the switch on, or use a model that does not reason.';
+
+  @override
   String get presetNeedsSystemPrompt =>
       'This model\'s card requires its own system prompt; results may suffer without it.';
 
