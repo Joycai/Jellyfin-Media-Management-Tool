@@ -225,9 +225,27 @@ class AnthropicProvider implements AiProvider {
           // The model id is not the message: a relay's `…-thinking` model
           // named in an unrelated error must not read as a refusal.
           final about = detail.replaceAll(config.model.toLowerCase(), '');
+          final refusedOptional = _optional
+              .where(
+                (f) =>
+                    payload.containsKey(f) &&
+                    !rejected.contains(f) &&
+                    detail.contains(f),
+              )
+              .firstOrNull;
+          // A sampling field this request sent, refused in words that only
+          // mention reasoning in passing ("'top_p' is not supported with
+          // reasoning models"), is that field's refusal: the request is
+          // read for thinking then only where the words say `thinking`.
+          // (A request that asks for thinking sends no sampling values, so
+          // this is a switch route told off, with its values beside it.)
+          final readForThinking =
+              refusedOptional == null || about.contains('thinking');
           // A switch route told off: what the refusal says decides what is
           // remembered, in the one reading both directions share.
-          if (payload['thinking'] case {'type': 'disabled'}) {
+          if (payload['thinking'] case {
+            'type': 'disabled',
+          } when readForThinking) {
             switch (readThinkingRefusal(about, sentType: 'disabled')) {
               // The model cannot stop, or the server knows the field and
               // not `disabled`: remembered as on Chat Completions, and
@@ -265,12 +283,17 @@ class AnthropicProvider implements AiProvider {
                 break;
             }
           }
-          final thinkingRefusal = _thinkingRefusal(
-            about,
-            sent: _sentForm(payload),
-            refused: MessagesThinking.refusedIn(rejected, first: _firstForm),
-            swap: !PlatformProfiles.messagesSwitchFor(config),
-          );
+          final thinkingRefusal = readForThinking
+              ? _thinkingRefusal(
+                  about,
+                  sent: _sentForm(payload),
+                  refused: MessagesThinking.refusedIn(
+                    rejected,
+                    first: _firstForm,
+                  ),
+                  swap: !PlatformProfiles.messagesSwitchFor(config),
+                )
+              : null;
           if (thinkingRefusal != null) {
             _learned.update(
               key,
@@ -280,18 +303,12 @@ class AnthropicProvider implements AiProvider {
             );
             continue;
           }
-          final refused = _optional
-              .where(
-                (f) =>
-                    payload.containsKey(f) &&
-                    !rejected.contains(f) &&
-                    detail.contains(f),
-              )
-              .firstOrNull;
-          if (refused != null) {
+          if (refusedOptional != null) {
             _learned.update(
               key,
-              (b) => b.copyWith(rejectedFields: {...b.rejectedFields, refused}),
+              (b) => b.copyWith(
+                rejectedFields: {...b.rejectedFields, refusedOptional},
+              ),
             );
             continue;
           }
@@ -387,8 +404,10 @@ class AnthropicProvider implements AiProvider {
   }
 
   /// Pydantic's echo of the refused input, `input_value=…, input_type=…`.
+  /// It ends at `input_type`, never at a `]` — the echoed body has lists
+  /// in it (`'messages': [{…}]`).
   static final _echoedInput = RegExp(
-    r'input_value=.*?(?=, input_type=|\]|$)',
+    r'input_value=.*?(?=, input_type=|$)',
     dotAll: true,
   );
 

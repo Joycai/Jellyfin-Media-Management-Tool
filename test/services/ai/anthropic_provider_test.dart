@@ -18,6 +18,9 @@ AiConfig _config(
   String model = 'claude-sonnet-5',
   bool thinking = false,
   int? maxOutput,
+  double? temperature,
+  double? topP,
+  int? topK,
 }) => AiConfig(
   provider: AiProviderType.anthropic,
   endpoint: endpoint,
@@ -25,6 +28,9 @@ AiConfig _config(
   model: model,
   thinkingEnabled: thinking,
   maxOutputTokens: maxOutput,
+  temperature: temperature,
+  topP: topP,
+  topK: topK,
 );
 
 String _sse(List<Map<String, Object?>> events) => [
@@ -835,6 +841,72 @@ void main() {
       );
 
       test(
+        'a sampling value refused beside a word of reasoning is the value',
+        () async {
+          // Off goes out with the sampling values; the upstream refuses one
+          // of them in words that mention reasoning in passing. That is the
+          // value's refusal, not thinking's: the value is dropped, and off
+          // is still said.
+          for (final (i, message) in [
+            "'top_p' is not supported with reasoning models.",
+            'top_k is not supported when reasoning is enabled',
+            'temperature is not supported when reasoning_effort is set',
+          ].indexed) {
+            final bodies = <Map<String, dynamic>>[];
+            final provider = AnthropicProvider(
+              _config(
+                'https://sampling-refused-$i.minimaxi.com/anthropic',
+                model: 'MiniMax-M3',
+                temperature: 0.7,
+                topP: 0.9,
+                topK: 40,
+              ),
+              client: MockClient((request) async {
+                final body = jsonDecode(request.body) as Map<String, dynamic>;
+                bodies.add(body);
+                if (bodies.length > 8) throw StateError('runaway retries');
+                final field = RegExp(
+                  'top_p|top_k|temperature',
+                ).firstMatch(message)![0]!;
+                return body.containsKey(field)
+                    ? http.Response(
+                        jsonEncode({
+                          'type': 'error',
+                          'error': {
+                            'type': 'invalid_request_error',
+                            'message': message,
+                          },
+                        }),
+                        400,
+                      )
+                    : _stream(
+                        _reply([
+                          {'type': 'text', 'text': 'ok'},
+                        ]),
+                      );
+              }),
+            );
+            await provider.chat(
+              messages: const [UserMessage('u')],
+              tools: const [],
+            );
+            expect(bodies, hasLength(2), reason: message);
+            expect(bodies.last['thinking'], {'type': 'disabled'});
+            expect(provider.learned.thinkingOffTried, isEmpty);
+            expect(
+              provider.learned.rejectedFields,
+              hasLength(1),
+              reason: message,
+            );
+            expect(
+              provider.learned.rejectedFields.single,
+              isIn(['top_p', 'top_k', 'temperature']),
+            );
+          }
+        },
+      );
+
+      test(
         'off answered "mandatory" beside a translated name cannot stop',
         () async {
           final (bodies, provider) = await offRefused(
@@ -1248,8 +1320,8 @@ void main() {
         'deepseek-r1-distill-qwen-14b',
         "Value error, 'auto' tool choice is not supported "
             "[type=value_error, input_value={'model': 'x', "
-            "'reasoning_effort': 'high', 'tool_choice': 'auto'}, "
-            'input_type=dict]',
+            "'messages': [{'role': 'user'}], 'reasoning_effort': 'high', "
+            "'tool_choice': 'auto'}, input_type=dict]",
       ),
       // A family that never reasons sends no `thinking`, so a translated
       // name refused is about something else the relay sent.
@@ -2000,7 +2072,10 @@ void main() {
       'unsupported parameter: top_k. supported parameters: '
           'reasoning_effort, max_tokens',
       "value error, 'auto' tool choice is not supported [type=value_error, "
-          "input_value={'model': 'x', 'reasoning_effort': 'high'}, "
+          "input_value={'model': 'x', 'messages': [{'role': 'user'}], "
+          "'reasoning_effort': 'high'}, input_type=dict]",
+      "value error, 'auto' tool choice is not supported [type=value_error, "
+          "input_value={'stop': ']', 'reasoning_effort': 'high'}, "
           'input_type=dict]',
     ]) {
       for (final sent in ['adaptive', 'enabled', 'disabled']) {
