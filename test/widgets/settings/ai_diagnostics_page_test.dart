@@ -147,8 +147,9 @@ void main() {
         expected,
       );
     }
-    // A family with no reasoning mode is locked too, with its saved "on"
-    // still sent until refused: said, not failed.
+    // A family with no reasoning mode is locked too, and its saved "on" is
+    // never sent: the request asks off, whatever was saved, and a reply
+    // that shows none is off.
     expect(
       step(
         responses,
@@ -158,14 +159,14 @@ void main() {
         reasoned: false,
         rejected: {'reasoning'},
       ),
-      (ok: null, text: l10n.aiStepThinkingRefused),
+      (ok: true, text: l10n.aiStepThinkingOff),
     );
-    // A family that always reasons, asked off on a route that sends it: the
-    // model page says it cannot stop, and so does this step — and a reply
-    // that shows none is not taken as off.
+    // A family that always reasons is asked on whatever was saved, on every
+    // protocol (the request carries `AiConfig.sampling.thinking`): a reply
+    // that reasons is the step passed, one that shows none is undecided.
     for (final (reasoned, expected) in [
-      (true, (ok: null, text: l10n.aiStepThinkingCannotStop)),
-      (false, (ok: null, text: l10n.aiStepThinkingNotShown)),
+      (true, (ok: true, text: l10n.aiStepThinkingOn)),
+      (false, (ok: null, text: l10n.aiStepThinkingNotOn)),
     ]) {
       expect(
         step(

@@ -240,4 +240,53 @@ void main() {
     expect(find.text('on · thinking'), findsNothing);
     expect(find.text('on'), findsOneWidget);
   });
+
+  testWidgets('a preset family shows the choice its request carries', (
+    tester,
+  ) async {
+    // The saved choice resolved through the family's preset, as the model
+    // page draws it and every adapter sends it: a family that always
+    // reasons is on however it was saved, one that never reasons is off.
+    useTempSupportDir();
+    AiModelEntry model(String upstream, {required bool thinking}) =>
+        AiModelEntry.create(
+          upstream: upstream,
+          route: AiProviderType.anthropic,
+        ).copyWith(
+          params: {
+            AiProviderType.anthropic: RouteParams(thinkingEnabled: thinking),
+          },
+        );
+    Future<void> pump(AiModelEntry m) => pumpAiPage(
+      tester,
+      RouteSwitchDialog(
+        channel:
+            AiChannel.create(
+              platform: PlatformProfiles.relay,
+              name: 'r',
+              baseUrl: 'https://relay.example.com',
+              apiKey: 'k-dialog-family',
+            ).copyWith(
+              routes: const [
+                AiRoute(protocol: AiProviderType.anthropic),
+                AiRoute(protocol: AiProviderType.openAi),
+              ],
+              models: [m],
+            ),
+        model: m,
+        to: AiProviderType.openAi,
+      ),
+      profiles: AiProfilesService(),
+    );
+
+    await pump(model('qwen3-30b-a3b-thinking-2507', thinking: false));
+    expect(find.text('on'), findsOneWidget);
+    expect(find.text('off'), findsNothing);
+    await pump(model('qwen3-30b-a3b-instruct-2507', thinking: true));
+    expect(find.text('off'), findsOneWidget);
+    expect(find.text('on'), findsNothing);
+    // A hybrid family follows the saved choice.
+    await pump(model('qwen3-32b', thinking: false));
+    expect(find.text('off'), findsOneWidget);
+  });
 }

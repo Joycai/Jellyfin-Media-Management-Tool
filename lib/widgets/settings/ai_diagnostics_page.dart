@@ -123,12 +123,12 @@ bool reasoningCannotStop(ReasoningRoute route) =>
 
 /// The reasoning step of a connection test on [config]'s route, after what
 /// the test [learned]. It is judged against the choice the test sent
-/// ([PlatformProfiles.thinkingAskedFor]: the saved one, resolved through
-/// the family's preset on Chat Completions), save where the field is sent
-/// neither way for a model no preset knows — the saved choice asks nothing
-/// there and the model page draws it off. It fails only what the user can
-/// act on: a reply that still reasons where the model page warns too, and
-/// a refused request where the toggle can turn reasoning off.
+/// ([ResolvedSampling.thinking]: the saved one resolved through the
+/// family's preset, which every adapter asks for), save where the field is
+/// sent neither way for a model no preset knows — the saved choice asks
+/// nothing there and the model page draws it off. It fails only what the
+/// user can act on: a reply that still reasons where the model page warns
+/// too, and a refused request where the toggle can turn reasoning off.
 ({bool? ok, String text}) reasoningStepFor(
   AppLocalizations l10n,
   AiConfig config,
@@ -150,7 +150,7 @@ bool reasoningCannotStop(ReasoningRoute route) =>
     // way; the saved choice asks nothing there.
     asked: preset == null && route == ReasoningRoute.refused
         ? false
-        : PlatformProfiles.thinkingAskedFor(config),
+        : config.sampling.thinking,
     reasoned: reasoned,
     refused: reasoningRefused(route),
     locked: !reasoningSwitchable(preset, route),
