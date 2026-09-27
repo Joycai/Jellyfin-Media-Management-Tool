@@ -812,5 +812,65 @@ void main() {
           .then((_) {}, onError: (Object _) {});
       expect(looked, OrganizeState.maxFrameLookups);
     });
+
+    test('a lookup that timed out is the last one of the run', () async {
+      // The vision model may still be working on the first request; a
+      // second would wait behind it for as long again.
+      final two = _files([
+        ['Downloads', 'VID_1.mp4'],
+        ['Other', 'VID_2.mp4'],
+      ]);
+      for (final (error, lookups) in [
+        (const AiTimeoutException('No response from the server'), 1),
+        (const AiNetworkException('Network error.'), 2),
+      ]) {
+        var looked = 0;
+        final provider = ScriptedChatProvider([
+          (_) => toolTurn([
+            ('identify_from_frames', {'group': 'g1'}),
+          ]),
+          (_) => toolTurn([
+            ('identify_from_frames', {'group': 'g2'}),
+          ]),
+          (_) => toolTurn([
+            (
+              'submit_group',
+              {
+                'group': 'g1',
+                'mediaType': 'movie',
+                'title': 'A',
+                'confidence': 1,
+              },
+            ),
+            (
+              'submit_group',
+              {
+                'group': 'g2',
+                'mediaType': 'movie',
+                'title': 'B',
+                'confidence': 1,
+              },
+            ),
+          ]),
+        ]);
+        final run = await OrganizeAgent(provider).run(
+          folderName: 'Downloads',
+          files: two,
+          lookAtFrames: (_) async {
+            looked++;
+            throw error;
+          },
+        );
+        expect(looked, lookups, reason: '$error');
+        if (error is AiTimeoutException) {
+          expect(_lastResult(provider, 1), contains('did not answer in time'));
+          expect(_lastResult(provider, 2), contains('used up'));
+        } else {
+          expect(_lastResult(provider, 2), contains('could not be read'));
+        }
+        // Nothing was read either way, so nothing is flagged.
+        expect(run.plan.actions.every((a) => a.confidence >= 0.6), isTrue);
+      }
+    });
   });
 }

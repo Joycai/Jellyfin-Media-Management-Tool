@@ -1121,6 +1121,14 @@ class _IdentifyFromFramesTool extends AgentTool<OrganizeState> {
       seen = await look(video.relativePath);
     } on AiCancelled {
       rethrow;
+    } on AiTimeoutException catch (e) {
+      // The vision model may still be working on this request, and another
+      // would queue behind it for as long again: the rest of the run
+      // decides from names. Told as an answer, like any other failure.
+      context.frameLookups = OrganizeState.maxFrameLookups;
+      return 'The vision model did not answer in time (${_describe(e)}). '
+          'Frame recognition is off for the rest of this run. Decide from '
+          'the names, or call mark_unsure.';
     } on Exception catch (e) {
       // The vision model's failure is not the organize model's: reported as
       // an answer, it never counts toward ending the run as erratic. Nothing
