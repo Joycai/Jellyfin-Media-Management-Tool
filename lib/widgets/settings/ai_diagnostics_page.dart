@@ -75,7 +75,8 @@ bool reasoningRefused(ReasoningRoute route) =>
 /// making a reply that still reasons the model's own default, not a switch
 /// the user can fix. Not a field refused both ways (`refused`): the model
 /// page warns there, the default being one the user's own server can still
-/// change (elsewhere the page says turning it off has no effect);
+/// change (on someone else's the page says turning it off has no effect;
+/// where the address does not say, both);
 /// nor Messages' own field, where off is the protocol's default.
 bool reasoningCannotStop(ReasoningRoute route) =>
     route == ReasoningRoute.offRefused || route == ReasoningRoute.offToDefault;

@@ -25,16 +25,21 @@ enum PlatformKind { vendor, relay, local, custom }
 /// Whose server a route talks to, for advice about its settings
 /// ([PlatformProfiles.serverOwner]).
 enum ServerOwner {
-  /// The user's: a local platform's channel, or an address on this computer
-  /// or a private network. Its model settings are theirs to change.
+  /// The user's: an address on this computer or a private network, on a
+  /// channel not declared a vendor's or a relay's. Its model settings are
+  /// theirs to change.
   own,
 
-  /// A vendor's, or a relay's on a public name: nothing there is theirs.
+  /// Someone else's: a vendor's platform, or a relay's, on a public name.
   other,
 
-  /// A custom channel on a public name: a VPS of their own, a cloud with no
-  /// profile, a relay typed in without its profile — the address does not
-  /// say, and nothing else is asked to guess.
+  /// Not known: a public name on a channel that is not a vendor's or a
+  /// relay's (a VPS of their own, a cloud with no profile, a relay typed in
+  /// without its profile, a local platform's profile pointed at a hosted
+  /// service), or a private address on one that is (a proxy on their
+  /// network in front of a cloud, or their own server under a vendor's
+  /// profile). The address does not say, or says otherwise than the
+  /// declaration, and nothing is asked to guess.
   unknown,
 }
 
@@ -463,19 +468,20 @@ abstract final class PlatformProfiles {
   /// Whose server [config] talks to — so that advice about its model
   /// settings is given where the user can act on it, and only there. Read
   /// by the model page where the last test showed reasoning that was asked
-  /// off. Decided by what is declared and what an address means, never by
-  /// guessing at a public name: a local platform's channel or a private
-  /// address ([privateHost]) is the user's own, a relay there included (they
-  /// run that machine); a vendor's platform or a relay's on a public name is
-  /// someone else's; a custom channel on a public name is not known.
+  /// off. Two things speak, and neither guesses: the address, which says
+  /// "the user's own" when it is on this computer or a private network
+  /// ([privateHost]) and nothing on a public name; and the declaration,
+  /// which says "someone else's" for a vendor's platform or a relay's and
+  /// nothing otherwise (a local platform's profile names software, not
+  /// whose machine runs it). One voice decides; none, or two that disagree,
+  /// is [ServerOwner.unknown].
   static ServerOwner serverOwner(AiConfig config) {
     final kind = of(config).kind;
-    if (kind == PlatformKind.local || privateHost(config.endpoint)) {
-      return ServerOwner.own;
-    }
-    return kind == PlatformKind.custom
-        ? ServerOwner.unknown
-        : ServerOwner.other;
+    final hosted = kind == PlatformKind.vendor || kind == PlatformKind.relay;
+    final private = privateHost(config.endpoint);
+    if (private && !hosted) return ServerOwner.own;
+    if (!private && hosted) return ServerOwner.other;
+    return ServerOwner.unknown;
   }
 
   /// Whether [endpoint] names this computer or a private network, by the

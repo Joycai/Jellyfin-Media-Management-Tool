@@ -84,18 +84,26 @@ void main() {
   });
 
   test('whose server a route talks to is declared or in the address', () {
-    // A channel made from a local platform's profile, wherever it points.
+    // A local platform's profile names software, not whose machine: at its
+    // own address the user's, at a public name (Ollama's hosted API) unknown.
     for (final id in ['lmstudio', 'ollama', 'llamacpp']) {
-      for (final endpoint in ['http://localhost:1234', 'https://llm.example']) {
-        expect(
-          PlatformProfiles.serverOwner(_at(endpoint, platform: id)),
-          ServerOwner.own,
-          reason: '$id $endpoint',
-        );
-      }
+      expect(
+        PlatformProfiles.serverOwner(
+          _at('http://localhost:1234', platform: id),
+        ),
+        ServerOwner.own,
+        reason: id,
+      );
+      expect(
+        PlatformProfiles.serverOwner(_at('https://ollama.com', platform: id)),
+        ServerOwner.unknown,
+        reason: id,
+      );
     }
     // This computer or a private network, by the names and address blocks
-    // reserved for it — whatever answers there, a relay included.
+    // reserved for it — whatever answers there. A vendor's or a relay's
+    // profile at such an address disagrees with it (a proxy in front of a
+    // cloud, or the user's own server under that profile): unknown.
     const private = [
       'http://localhost:8080',
       'http://box.localhost:8080',
@@ -127,11 +135,20 @@ void main() {
       expect(PlatformProfiles.privateHost(endpoint), isTrue, reason: endpoint);
       expect(PlatformProfiles.of(_at(endpoint)).kind, PlatformKind.custom);
       expect(PlatformProfiles.serverOwner(_at(endpoint)), ServerOwner.own);
-      expect(
-        PlatformProfiles.serverOwner(_at(endpoint, platform: 'relay')),
-        ServerOwner.own,
-        reason: endpoint,
-      );
+      for (final id in ['custom', 'lmstudio']) {
+        expect(
+          PlatformProfiles.serverOwner(_at(endpoint, platform: id)),
+          ServerOwner.own,
+          reason: '$endpoint $id',
+        );
+      }
+      for (final id in ['relay', 'deepseek', 'openai']) {
+        expect(
+          PlatformProfiles.serverOwner(_at(endpoint, platform: id)),
+          ServerOwner.unknown,
+          reason: '$endpoint $id',
+        );
+      }
     }
     // A public name says nothing — not a house's `.lan`, not a tailnet's
     // name — so a custom channel there is not known either way.
@@ -142,6 +159,10 @@ void main() {
       'http://studio.tail1234.ts.net:1234',
       'http://203.0.113.5:1234',
       'http://[::ffff:203.0.113.5]:1234',
+      'http://192.169.0.1:1234',
+      'http://192.0.2.1:1234',
+      'http://169.253.0.1:1234',
+      'http://169.60.0.1:1234',
       'http://172.15.0.1:1234',
       'http://172.32.0.1:1234',
       'http://100.63.0.1:1234',
