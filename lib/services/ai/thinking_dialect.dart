@@ -31,14 +31,15 @@ bool refusesThinkingOff(String detail) => RegExp(
 ///
 /// A model whose reasoning cannot be switched off answers the platform's
 /// switch with "reasoning is mandatory / cannot be disabled"; that too
-/// names the field, or every request to it would fail.
+/// names the field, or every request to it would fail — the whole word,
+/// though: `reasoning_content` refused in the history is not the field.
 bool namesField(String detail, String field) =>
     field == 'thinking' || field == 'reasoning'
     ? RegExp(
             '["\'`]$field["\'`.]|$field\\.(type|enabled)|'
             '$field (field|parameter)',
           ).hasMatch(detail) ||
-          (detail.contains(field) &&
+          (RegExp('(?<![a-z_])$field(?![a-z_])').hasMatch(detail) &&
               RegExp(
                 'mandatory|cannot be (disabled|turned off)|'
                 'not supported|unsupported',
@@ -48,8 +49,8 @@ bool namesField(String detail, String field) =>
 /// The request fields that ask for reasoning on the protocols this app
 /// speaks, in lower case as a server spells them back: every platform
 /// dialect's, the local-server ladder's two, Responses' `reasoning` (the
-/// OpenRouter dialect's name) and Gemini's `thinkingConfig` with its
-/// sub-fields. A relay's translation layer may turn one protocol's field
+/// OpenRouter dialect's name), xAI's `reasoningEffort` and Gemini's
+/// `thinkingConfig` with its sub-fields. A relay's translation layer may turn one protocol's field
 /// into any of them before its upstream refuses it under that name, so an
 /// adapter reads a refusal that names none of its own against this set
 /// ([translatedFieldNamed]). Data: a name is added here and nowhere else.
@@ -57,6 +58,7 @@ final Set<String> reasoningFieldNames = {
   for (final dialect in ThinkingDialect.values)
     dialect.field(thinking: true).key,
   'reasoning_effort',
+  'reasoningeffort',
   'chat_template_kwargs',
   'thinkingconfig',
   'thinking_config',

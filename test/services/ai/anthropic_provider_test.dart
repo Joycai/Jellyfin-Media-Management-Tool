@@ -374,10 +374,11 @@ void main() {
       Set<String> refuse,
       String Function(String type) message, {
       String model = 'claude-opus-4-6',
+      bool thinking = true,
     }) async {
       final bodies = <Map<String, dynamic>>[];
       final provider = AnthropicProvider(
-        _config('https://$host', model: model, thinking: true),
+        _config('https://$host', model: model, thinking: thinking),
         client: MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           bodies.add(body);
@@ -597,6 +598,8 @@ void main() {
           {'adaptive', 'enabled'},
           (_) => message,
           model: 'deepseek-r1-distill-qwen-14b',
+          // Saved either way: the family's toggle is locked on.
+          thinking: i.isEven,
         );
         expect(bodies, hasLength(2), reason: message);
         expect(bodies.first['thinking'], containsPair('type', 'enabled'));
@@ -828,6 +831,22 @@ void main() {
             'thinking:adaptive',
             'thinking:enabled',
           });
+        },
+      );
+
+      test(
+        'off answered "mandatory" beside a translated name cannot stop',
+        () async {
+          final (bodies, provider) = await offRefused(
+            'mandatory-translated.minimaxi.com',
+            'reasoning is mandatory for this model',
+          );
+          expect(bodies, hasLength(2));
+          expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(provider.learned.thinkingOffTried, {
+            LearnedBehaviour.dialectOff,
+          });
+          expect(provider.learned.rejectedFields, isEmpty);
         },
       );
 
@@ -1212,6 +1231,25 @@ void main() {
         'about reasoning_content, which is not the field',
         'deepseek-r1-distill-qwen-14b',
         "'reasoning_content' must be a string when present",
+      ),
+      (
+        'refusing reasoning_content in the history',
+        'deepseek-r1-distill-qwen-14b',
+        'reasoning_content is not supported in input messages',
+      ),
+      (
+        'listing a translated name among the parameters supported',
+        'deepseek-r1-distill-qwen-14b',
+        'Unsupported parameter: top_k. Supported parameters: '
+            'reasoning_effort, max_tokens',
+      ),
+      (
+        'echoing the translated body beside another refusal',
+        'deepseek-r1-distill-qwen-14b',
+        "Value error, 'auto' tool choice is not supported "
+            "[type=value_error, input_value={'model': 'x', "
+            "'reasoning_effort': 'high', 'tool_choice': 'auto'}, "
+            'input_type=dict]',
       ),
       // A family that never reasons sends no `thinking`, so a translated
       // name refused is about something else the relay sent.
@@ -1787,6 +1825,24 @@ void main() {
       read('this model always thinks', sent: 'disabled'),
       ThinkingRefusal.cannotStop,
     );
+    // "mandatory" counts beside another protocol's name for the field —
+    // a relay's translation — and, like the words above, answers off alone.
+    expect(
+      read('reasoning is mandatory for this model', sent: 'disabled'),
+      ThinkingRefusal.cannotStop,
+    );
+    expect(
+      read('reasoning_effort: a value is mandatory', sent: 'disabled'),
+      ThinkingRefusal.cannotStop,
+    );
+    expect(
+      read('messages is mandatory', sent: 'disabled'),
+      ThinkingRefusal.unrelated,
+    );
+    expect(
+      read('reasoning is mandatory for this model'),
+      ThinkingRefusal.unrelated,
+    );
     expect(
       read('thinking.type 参数非法：该模型始终思考，不支持关闭思考', sent: 'adaptive'),
       ThinkingRefusal.valueNamed,
@@ -1828,8 +1884,11 @@ void main() {
       'invalid json payload received. unknown name "thinkingconfig" at '
           "'generation_config': cannot find field.",
       "'reasoning' is not a valid parameter",
-      'reasoning is mandatory for this model',
       "invalid value for 'reasoning_effort': expected one of low, medium",
+      "invalid value for 'reasoning.effort': expected one of low, medium",
+      'invalid json payload received. unknown name "thinking_config" at '
+          "'generation_config': cannot find field.",
+      'argument not supported on this model: reasoningeffort',
       'unrecognized request argument supplied: enable_thinking',
     ]) {
       for (final sent in ['adaptive', 'enabled', 'disabled']) {
@@ -1934,6 +1993,15 @@ void main() {
       'reasoning_effort was set to medium; the upstream timed out',
       "'reasoning_content' must be a string when present",
       'reasoning_content is empty',
+      // Refused in the history, not a name for the field.
+      'reasoning_content is not supported in input messages',
+      // Named in another sentence than the refusal, or in the input
+      // Pydantic echoes: the relay's whole translated body.
+      'unsupported parameter: top_k. supported parameters: '
+          'reasoning_effort, max_tokens',
+      "value error, 'auto' tool choice is not supported [type=value_error, "
+          "input_value={'model': 'x', 'reasoning_effort': 'high'}, "
+          'input_type=dict]',
     ]) {
       for (final sent in ['adaptive', 'enabled', 'disabled']) {
         expect(

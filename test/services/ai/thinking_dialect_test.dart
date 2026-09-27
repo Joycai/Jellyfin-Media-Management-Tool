@@ -31,6 +31,10 @@ void main() {
       "'reasoning_content' must be a string",
       'the model was reasoning about the request',
       'messages is mandatory',
+      // The whole word: a refusal of `reasoning_content` in the history
+      // is not one of the field.
+      'reasoning_content is not supported in input messages',
+      'reasoning_tokens is unsupported',
     ]) {
       expect(namesField(detail, 'reasoning'), isFalse, reason: detail);
     }
@@ -62,6 +66,7 @@ void main() {
       reasoningFieldNames,
       containsAll([
         'reasoning_effort',
+        'reasoningeffort',
         'chat_template_kwargs',
         'thinkingconfig',
       ]),
