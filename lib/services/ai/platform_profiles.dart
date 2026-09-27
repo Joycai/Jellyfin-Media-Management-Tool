@@ -22,6 +22,22 @@ import 'thinking_dialect.dart';
 /// Where a platform runs.
 enum PlatformKind { vendor, relay, local, custom }
 
+/// Whose server a route talks to, for advice about its settings
+/// ([PlatformProfiles.serverOwner]).
+enum ServerOwner {
+  /// The user's: a local platform's channel, or an address on this computer
+  /// or a private network. Its model settings are theirs to change.
+  own,
+
+  /// A vendor's, or a relay's on a public name: nothing there is theirs.
+  other,
+
+  /// A custom channel on a public name: a VPS of their own, a cloud with no
+  /// profile, a relay typed in without its profile — the address does not
+  /// say, and nothing else is asked to guess.
+  unknown,
+}
+
 /// How a route switches reasoning now, after what it has refused — what the
 /// adapters send, read by the settings screens so that none of them works it
 /// out on its own ([PlatformProfiles.reasoningRouteFor]).
@@ -444,29 +460,33 @@ abstract final class PlatformProfiles {
       ? byId(config.platform)
       : (forHost(config.endpoint) ?? custom);
 
-  /// Whether the server behind [config] is the user's own — a local
-  /// platform's channel, an endpoint on this computer or a private network
-  /// ([privateHost], a relay there included: the user runs that machine),
-  /// or, on a custom channel reached through a public name, software the
-  /// connection test recognised ([server]; a vendor's platform is never the
-  /// user's own, and a relay's probe cannot see behind it) — so that advice
-  /// about its model settings is advice the user can act on. Read by the
-  /// settings screens where the last test showed reasoning that was asked
-  /// off, which only shows after a test, when [server] is known.
-  static bool selfHosted(AiConfig config, {ServerKind? server}) {
+  /// Whose server [config] talks to — so that advice about its model
+  /// settings is given where the user can act on it, and only there. Read
+  /// by the model page where the last test showed reasoning that was asked
+  /// off. Decided by what is declared and what an address means, never by
+  /// guessing at a public name: a local platform's channel or a private
+  /// address ([privateHost]) is the user's own, a relay there included (they
+  /// run that machine); a vendor's platform or a relay's on a public name is
+  /// someone else's; a custom channel on a public name is not known.
+  static ServerOwner serverOwner(AiConfig config) {
     final kind = of(config).kind;
-    return kind == PlatformKind.local ||
-        privateHost(config.endpoint) ||
-        (kind == PlatformKind.custom &&
-            server != null &&
-            server != ServerKind.unknown);
+    if (kind == PlatformKind.local || privateHost(config.endpoint)) {
+      return ServerOwner.own;
+    }
+    return kind == PlatformKind.custom
+        ? ServerOwner.unknown
+        : ServerOwner.other;
   }
 
-  /// Whether [endpoint] names this computer or a private network:
-  /// `localhost`, a `.local`, `.lan`, `.internal` or `.home.arpa` name, the
-  /// unspecified address a server was started on (`0.0.0.0`, `::`), or a
-  /// loopback, link-local, private or shared (`100.64/10`, a tailnet)
-  /// address — whichever software answers there.
+  /// Whether [endpoint] names this computer or a private network, by the
+  /// names and address blocks reserved for that: `localhost` and
+  /// `.localhost` (RFC 6761), `.local` (RFC 6762), `.home.arpa` (RFC 8375),
+  /// `.internal` (ICANN); the unspecified address a server was started on
+  /// (`0.0.0.0`, `::`), loopback, link-local, private (RFC 1918), shared
+  /// (RFC 6598, `100.64/10`) and unique-local (RFC 4193) addresses, an IPv4
+  /// address carried in IPv6 read as that address. No other name is read
+  /// — `.lan`, a tailnet's `.ts.net`, a public name — since none of them
+  /// says whose the server is.
   static bool privateHost(String endpoint) {
     final host = Uri.tryParse(endpoint.trim())?.host.toLowerCase() ?? '';
     if (host.isEmpty) return false;
@@ -476,7 +496,6 @@ abstract final class PlatformProfiles {
     }
     final address = InternetAddress.tryParse(host);
     if (address == null) return false;
-    if (address.isLoopback || address.isLinkLocal) return true;
     var bytes = address.rawAddress;
     if (bytes.length == 16) {
       // An IPv4 address carried in IPv6 (`::ffff:a.b.c.d`) is that address.
@@ -487,8 +506,11 @@ abstract final class PlatformProfiles {
       if (mapped) {
         bytes = bytes.sublist(12);
       } else {
-        // Unspecified, or fc00::/7 (unique local).
-        return bytes.every((b) => b == 0) || (bytes[0] & 0xfe) == 0xfc;
+        // Unspecified, loopback, link-local (fe80::/10) or fc00::/7.
+        return bytes.every((b) => b == 0) ||
+            address.isLoopback ||
+            (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80) ||
+            (bytes[0] & 0xfe) == 0xfc;
       }
     }
     return bytes.every((b) => b == 0) ||
@@ -503,7 +525,6 @@ abstract final class PlatformProfiles {
   static const _privateNames = [
     '.localhost',
     '.local',
-    '.lan',
     '.internal',
     '.home.arpa',
   ];

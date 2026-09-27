@@ -83,24 +83,23 @@ void main() {
     expect(PlatformProfiles.byId('nope'), PlatformProfiles.custom);
   });
 
-  test('the server is the user\'s own by platform, or once recognised', () {
-    // A channel made from a local platform's profile.
+  test('whose server a route talks to is declared or in the address', () {
+    // A channel made from a local platform's profile, wherever it points.
     for (final id in ['lmstudio', 'ollama', 'llamacpp']) {
-      final config = _at('http://localhost:1234', platform: id);
-      expect(PlatformProfiles.selfHosted(config), isTrue, reason: id);
-      expect(
-        PlatformProfiles.selfHosted(config, server: ServerKind.unknown),
-        isTrue,
-        reason: id,
-      );
+      for (final endpoint in ['http://localhost:1234', 'https://llm.example']) {
+        expect(
+          PlatformProfiles.serverOwner(_at(endpoint, platform: id)),
+          ServerOwner.own,
+          reason: '$id $endpoint',
+        );
+      }
     }
-    // A local server typed in as an address is no platform; this computer
-    // or a private network says whose it is, whatever answers there.
-    for (final endpoint in [
+    // This computer or a private network, by the names and address blocks
+    // reserved for it — whatever answers there, a relay included.
+    const private = [
       'http://localhost:8080',
       'http://box.localhost:8080',
       'http://mac.local:8080/v1',
-      'http://nas.lan:8080',
       'http://llm.internal:8080',
       'http://box.home.arpa:8080',
       'http://127.0.0.1:8000',
@@ -109,6 +108,9 @@ void main() {
       'http://[::1]:8080/v1',
       'http://[::]:8080',
       'http://[::ffff:192.168.1.1]:1234',
+      'http://[::ffff:127.0.0.1]:1234',
+      'http://[::ffff:169.254.1.1]:1234',
+      'http://[::ffff:0.0.0.0]:1234',
       'http://192.168.1.5:1234',
       'http://10.0.0.7:11434',
       'http://100.64.0.1:11434',
@@ -118,22 +120,26 @@ void main() {
       'http://[fd00::5]:1234',
       'http://[fc00::1]:1234',
       'http://[fe80::1]:1234',
+      'http://[febf::1]:1234',
       'http://169.254.1.1:1234',
-    ]) {
-      final typed = _at(endpoint);
-      expect(PlatformProfiles.of(typed).kind, PlatformKind.custom);
-      expect(PlatformProfiles.selfHosted(typed), isTrue, reason: endpoint);
+    ];
+    for (final endpoint in private) {
+      expect(PlatformProfiles.privateHost(endpoint), isTrue, reason: endpoint);
+      expect(PlatformProfiles.of(_at(endpoint)).kind, PlatformKind.custom);
+      expect(PlatformProfiles.serverOwner(_at(endpoint)), ServerOwner.own);
       expect(
-        PlatformProfiles.selfHosted(typed, server: ServerKind.unknown),
-        isTrue,
+        PlatformProfiles.serverOwner(_at(endpoint, platform: 'relay')),
+        ServerOwner.own,
         reason: endpoint,
       );
     }
-    // One reached through a public name is known only once the connection
-    // test recognised the software.
-    for (final endpoint in [
+    // A public name says nothing — not a house's `.lan`, not a tailnet's
+    // name — so a custom channel there is not known either way.
+    const public = [
       'https://llm.example.com',
       'https://llm.example.lan.com',
+      'http://nas.lan:8080',
+      'http://studio.tail1234.ts.net:1234',
       'http://203.0.113.5:1234',
       'http://[::ffff:203.0.113.5]:1234',
       'http://172.15.0.1:1234',
@@ -142,45 +148,39 @@ void main() {
       'http://100.128.0.1:1234',
       'http://[2001:db8::1]:1234',
       'http://[fe00::1]:1234',
-    ]) {
-      final typed = _at(endpoint);
-      expect(PlatformProfiles.selfHosted(typed), isFalse, reason: endpoint);
+      'http://[fec0::1]:1234',
+      'http://[fe00::ffff:127.0.0.1]:1234',
+    ];
+    for (final endpoint in public) {
+      expect(PlatformProfiles.privateHost(endpoint), isFalse, reason: endpoint);
       expect(
-        PlatformProfiles.selfHosted(typed, server: ServerKind.unknown),
-        isFalse,
+        PlatformProfiles.serverOwner(_at(endpoint)),
+        ServerOwner.unknown,
         reason: endpoint,
       );
-      for (final server in ServerKind.values) {
-        if (server == ServerKind.unknown) continue;
-        expect(
-          PlatformProfiles.selfHosted(typed, server: server),
-          isTrue,
-          reason: '$endpoint $server',
-        );
-      }
+      expect(
+        PlatformProfiles.serverOwner(_at(endpoint, platform: 'custom')),
+        ServerOwner.unknown,
+        reason: endpoint,
+      );
+      // A vendor's, or a relay's, is someone else's.
+      expect(
+        PlatformProfiles.serverOwner(_at(endpoint, platform: 'relay')),
+        ServerOwner.other,
+        reason: endpoint,
+      );
+      expect(
+        PlatformProfiles.serverOwner(_at(endpoint, platform: 'openai')),
+        ServerOwner.other,
+        reason: endpoint,
+      );
     }
-    // A vendor's or a relay's, however the test went: a vendor's platform
-    // is never the user's own, and a relay's probe cannot see behind it.
-    for (final config in [
-      _at('https://api.deepseek.com'),
-      _at('https://open.bigmodel.cn/api/paas/v4'),
-      _at('https://relay.example', platform: 'relay'),
+    for (final endpoint in [
+      'https://api.deepseek.com',
+      'https://open.bigmodel.cn/api/paas/v4',
     ]) {
-      for (final server in [null, ...ServerKind.values]) {
-        expect(
-          PlatformProfiles.selfHosted(config, server: server),
-          isFalse,
-          reason: '${config.endpoint} $server',
-        );
-      }
+      expect(PlatformProfiles.serverOwner(_at(endpoint)), ServerOwner.other);
     }
-    // A relay on a private address is a machine the user runs.
-    expect(
-      PlatformProfiles.selfHosted(
-        _at('http://192.168.1.10:3000', platform: 'relay'),
-      ),
-      isTrue,
-    );
   });
 
   test('only MiniMax declares a Messages thinking switch', () {

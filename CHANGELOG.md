@@ -25,9 +25,9 @@ reconstructed at release time.
   than left open behind the next one.
 - The line under the reasoning switch no longer tells users of a cloud route
   to turn thinking off in the server's own settings. That advice is kept for
-  the user's own server — a local platform, a private address, or software
-  the connection test recognised; elsewhere it says turning it off has no
-  effect on that route.
+  the user's own server — a local platform, or an address on this computer or
+  a private network; a vendor's or a relay's route is told turning it off has
+  no effect there, and a custom channel on a public name is told both.
 - The window background looked mottled, like a dishcloth, on high-DPI displays
   — most visible in the middle pane before a folder is open. The backdrop is
   rendered once at a reduced size and stretched back over the window, and the

@@ -81,7 +81,7 @@ bool reasoningSwitchable(SamplingPreset? preset, ReasoningRoute route) =>
 /// Whether the model page judges a test with reasoning off at all: where
 /// the toggle is live, and where a field refused both ways draws a model no
 /// preset knows off — its default, which the user's own server can change
-/// and no other (`PlatformProfiles.selfHosted` picks the words). Where off was
+/// and no other (`PlatformProfiles.serverOwner` picks the words). Where off was
 /// refused (`offRefused`, `offToDefault`) the page and Diagnostics each say
 /// the model's default instead of warning; everywhere else here a test that
 /// still reasoned is a warning on the page and a failed step in Diagnostics.
@@ -517,10 +517,11 @@ class AiSamplingSection extends StatelessWidget {
   final bool? lastReasoned;
   final ServerKind? serverKind;
 
-  /// The server is the user's own (`PlatformProfiles.selfHosted`): a test
-  /// that still reasoned is then answered with its settings, elsewhere with
-  /// what the route can do.
-  final bool selfHosted;
+  /// Whose server the route talks to (`PlatformProfiles.serverOwner`): a
+  /// test that still reasoned is answered with the server's settings on the
+  /// user's own, with what the route can do on someone else's, and with
+  /// both where the address does not say.
+  final ServerOwner owner;
 
   /// Wire names this route refused; their fields are drawn struck through.
   final Set<String> refused;
@@ -536,7 +537,7 @@ class AiSamplingSection extends StatelessWidget {
     required this.route,
     required this.lastReasoned,
     required this.serverKind,
-    required this.selfHosted,
+    required this.owner,
     required this.refused,
     required this.onChanged,
     required this.onThinkingChanged,
@@ -732,8 +733,9 @@ class AiSamplingSection extends StatelessWidget {
   /// That second case is the one worth a line, because servers ignore the
   /// fields that turn it off without saying so. What to do about it depends
   /// on whose server it is: the user's own has model settings to change;
-  /// anywhere else, turning it off has no effect, whatever the route sent
-  /// for off, and the toggle may be locked.
+  /// someone else's, turning it off has no effect, whatever the route sent
+  /// for off, and the toggle may be locked; where the address does not
+  /// say, both are said.
   ({String text, bool warning})? _thinkingStatus(
     AppLocalizations l10n,
     bool reasons,
@@ -763,7 +765,11 @@ class AiSamplingSection extends StatelessWidget {
       return (text: l10n.thinkingAlwaysOn, warning: false);
     }
     return (
-      text: selfHosted ? l10n.thinkingStillOn : l10n.thinkingStillOnRemote,
+      text: switch (owner) {
+        ServerOwner.own => l10n.thinkingStillOn,
+        ServerOwner.other => l10n.thinkingStillOnRemote,
+        ServerOwner.unknown => l10n.thinkingStillOnUnknown,
+      },
       warning: true,
     );
   }

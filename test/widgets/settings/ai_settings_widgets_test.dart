@@ -87,7 +87,7 @@ void main() {
     required ReasoningRoute route,
     bool thinking = false,
     bool? lastReasoned,
-    bool selfHosted = true,
+    ServerOwner owner = ServerOwner.own,
   }) async {
     final controllers = {
       for (final field in SamplingField.values) field: TextEditingController(),
@@ -107,7 +107,7 @@ void main() {
           route: route,
           lastReasoned: lastReasoned,
           serverKind: null,
-          selfHosted: selfHosted,
+          owner: owner,
           refused: const {'top_k'},
           onChanged: () {},
           onThinkingChanged: (_) {},
@@ -180,41 +180,48 @@ void main() {
     expect(find.text(l10n.thinkingStillOn), findsNothing);
 
     // A working switch that still reasoned is the server's doing: on the
-    // user's own server, its model settings; elsewhere the switch is all
-    // there is, and "turn it off on the server" is advice no one can take.
-    for (final own in [true, false]) {
+    // user's own server, its model settings; on someone else's, "turn it off
+    // on the server" is advice no one can take; where the address does not
+    // say, both.
+    String stillOn(ServerOwner owner) => switch (owner) {
+      ServerOwner.own => l10n.thinkingStillOn,
+      ServerOwner.other => l10n.thinkingStillOnRemote,
+      ServerOwner.unknown => l10n.thinkingStillOnUnknown,
+    };
+    for (final owner in ServerOwner.values) {
       await reasoningSwitch(
         tester,
         preset: null,
         route: ReasoningRoute.platformField,
         lastReasoned: true,
-        selfHosted: own,
+        owner: owner,
       );
+      expect(find.text(stillOn(owner)), findsOneWidget, reason: '$owner');
+      // And only that one of the three.
       expect(
-        find.text(own ? l10n.thinkingStillOn : l10n.thinkingStillOnRemote),
+        find.textContaining('the model still reasoned'),
         findsOneWidget,
-        reason: '$own',
-      );
-      expect(
-        find.text(own ? l10n.thinkingStillOnRemote : l10n.thinkingStillOn),
-        findsNothing,
-        reason: '$own',
+        reason: '$owner',
       );
     }
 
     // Off refused without a reason: reasoning there is the model's default,
     // and a test is what shows it.
-    for (final own in [true, false]) {
+    for (final owner in ServerOwner.values) {
       await reasoningSwitch(
         tester,
         preset: null,
         route: ReasoningRoute.offToDefault,
         lastReasoned: true,
-        selfHosted: own,
+        owner: owner,
       );
-      expect(find.text(l10n.thinkingAlwaysOn), findsOneWidget, reason: '$own');
-      expect(find.text(l10n.thinkingStillOn), findsNothing, reason: '$own');
-      expect(find.text(l10n.thinkingStillOnRemote), findsNothing);
+      expect(
+        find.text(l10n.thinkingAlwaysOn),
+        findsOneWidget,
+        reason: '$owner',
+      );
+      expect(find.text(l10n.thinkingStillOn), findsNothing, reason: '$owner');
+      expect(find.textContaining('the model still reasoned'), findsNothing);
     }
     await reasoningSwitch(
       tester,
@@ -233,24 +240,30 @@ void main() {
     // Elsewhere nothing is sent and the toggle is locked, so the line must
     // not point at either.
     for (final saved in [false, true]) {
-      for (final own in [true, false]) {
+      for (final owner in ServerOwner.values) {
         await reasoningSwitch(
           tester,
           preset: null,
           route: ReasoningRoute.refused,
           thinking: saved,
           lastReasoned: true,
-          selfHosted: own,
+          owner: owner,
         );
         expect(
-          find.text(own ? l10n.thinkingStillOn : l10n.thinkingStillOnRemote),
+          find.text(stillOn(owner)),
           findsOneWidget,
-          reason: '$saved $own',
+          reason: '$saved $owner',
         );
       }
     }
-    expect(l10n.thinkingStillOnRemote, isNot(contains('switch')));
-    expect(l10n.thinkingStillOnRemote, isNot(contains('request')));
+    for (final text in [
+      l10n.thinkingStillOnRemote,
+      l10n.thinkingStillOnUnknown,
+    ]) {
+      expect(text, isNot(contains('switch')));
+      expect(text, isNot(contains('request')));
+    }
+    expect(l10n.thinkingStillOnUnknown, contains('If this is your own server'));
 
     // A preset family with no reasoning mode decides for itself, on a
     // refused field as on a working one.

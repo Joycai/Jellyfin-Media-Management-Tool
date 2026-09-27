@@ -253,12 +253,10 @@ void main() {
   testWidgets('a test that still reasoned is answered by whose server it is', (
     tester,
   ) async {
-    // A public name on a custom channel: only the test's own reading of the
-    // software says whether the server is the user's own.
     final l10n = AppLocalizationsEn();
-    Future<void> check(ServerKind server, String line, String other) async {
+    Future<void> check(String endpoint, String line) async {
       final ai = _CannedTest(
-        AiConnectionCheckResult(
+        const AiConnectionCheckResult(
           reply: 'ok',
           latency: Duration.zero,
           promptTokens: 1,
@@ -266,36 +264,33 @@ void main() {
           truncated: false,
           reasoned: true,
           supportsTools: ToolProbe.inconclusive,
-          serverKind: server,
+          serverKind: ServerKind.unknown,
           limits: ModelLimits.unknown,
         ),
       );
+      // A fresh page: the same widget type in the same slot would keep the
+      // previous check's result.
+      await tester.pumpWidget(const SizedBox());
       await pumpRefused(
         tester,
         route: AiProviderType.openAi,
         model: 'qwen3-32b',
-        endpoint: 'https://llm.example.com/v1',
+        endpoint: endpoint,
         thinking: false,
         ai: ai,
       );
-      expect(find.text(line), findsNothing);
+      expect(find.textContaining('the model still reasoned'), findsNothing);
       await tester.tap(find.text(l10n.aiTestRoute));
       await tester.pumpAndSettle();
-      expect(find.text(line), findsOneWidget, reason: '$server');
-      expect(find.text(other), findsNothing, reason: '$server');
+      expect(find.text(line), findsOneWidget, reason: endpoint);
+      expect(find.textContaining('the model still reasoned'), findsOneWidget);
       await settleSaves(tester);
     }
 
-    await check(
-      ServerKind.lmStudio,
-      l10n.thinkingStillOn,
-      l10n.thinkingStillOnRemote,
-    );
-    await check(
-      ServerKind.unknown,
-      l10n.thinkingStillOnRemote,
-      l10n.thinkingStillOn,
-    );
+    // A custom channel: a private address is the user's own server, a
+    // public name does not say.
+    await check('http://192.168.1.5:1234/v1', l10n.thinkingStillOn);
+    await check('https://llm.example.com/v1', l10n.thinkingStillOnUnknown);
   });
 
   for (final (route, model, refused, line) in [

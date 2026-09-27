@@ -477,10 +477,7 @@ class _AiModelPageState extends State<AiModelPage> {
             route: route,
             lastReasoned: _lastCheck?.reasoned,
             serverKind: _lastCheck?.serverKind,
-            selfHosted: PlatformProfiles.selfHosted(
-              config,
-              server: _lastCheck?.serverKind,
-            ),
+            owner: PlatformProfiles.serverOwner(config),
             refused: learned.rejectedFields,
             onChanged: _saveRoute,
             onThinkingChanged: (v) {
