@@ -11,6 +11,8 @@ import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/connection_check.dart';
 import 'package:jellyfin_media_management_tool/services/ai/google_genai_provider.dart';
 
+import '../../helpers/http.dart';
+
 // Each test uses its own host: the provider remembers per endpoint + model
 // which way of asking for no reasoning this server took.
 AiConfig _config(
@@ -507,25 +509,29 @@ void main() {
       expect(described, isNot(contains('uri')));
     });
 
-    test('a generation timeout is not retried', () async {
+    test('a generation timeout is not retried, and is aborted', () async {
       var calls = 0;
-      final provider = GoogleGenAiProvider(
-        _config('slow'),
-        firstEventTimeout: const Duration(milliseconds: 30),
-        client: MockClient((_) async {
+      final client = RecordingClient(
+        MockClient((_) async {
           calls++;
           await Future<void>.delayed(const Duration(milliseconds: 200));
           return _text('too late');
         }),
+      );
+      final provider = GoogleGenAiProvider(
+        _config('slow'),
+        firstEventTimeout: const Duration(milliseconds: 30),
+        client: client,
       );
 
       await expectLater(
         provider.complete(systemPrompt: 's', userPrompt: 'u'),
         throwsA(isA<AiTimeoutException>()),
       );
-      // Future.timeout does not close the socket, so a retry would start a
-      // second generation beside the one the server is still running.
+      // A retry would start a second generation beside the one the server
+      // may still be running; the first is aborted instead.
       expect(calls, 1);
+      await expectLater(abortOf(client.last), completes);
     });
   });
 

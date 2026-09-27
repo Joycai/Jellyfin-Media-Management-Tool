@@ -82,6 +82,40 @@ class AiHttp {
     throw StateError('AiHttp.withRetry: unreachable');
   }
 
+  /// POSTs [body] to [uri] on [client] and waits [timeout] for the response
+  /// headers.
+  ///
+  /// Past it the request is aborted — the connection closed, so a server
+  /// that had not started can drop it and one that had can notice — and a
+  /// [TimeoutException] is thrown, as `Future.timeout` alone would. Without
+  /// the abort the request stayed on the client until that was closed: on
+  /// the cancel token's, at the end of the whole run, and on the shared
+  /// [AiHttp.client] never — and a local server that takes one request at a
+  /// time queued the next one behind the one given up on. The aborted
+  /// request's own failure, arriving after the timeout, is discarded.
+  static Future<http.StreamedResponse> post(
+    http.Client client,
+    Uri uri, {
+    required Map<String, String> headers,
+    required String body,
+    required Duration timeout,
+  }) {
+    final abort = Completer<void>();
+    final request =
+        http.AbortableRequest('POST', uri, abortTrigger: abort.future)
+          ..headers.addAll(headers)
+          ..body = body;
+    return client
+        .send(request)
+        .timeout(
+          timeout,
+          onTimeout: () {
+            abort.complete();
+            throw TimeoutException('No response headers', timeout);
+          },
+        );
+  }
+
   /// A one-line, UI-safe description of a transport failure.
   ///
   /// Never the exception's own text. `package:http` puts the request URL in

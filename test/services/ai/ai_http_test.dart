@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_http.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
+
+import '../../helpers/http.dart';
 
 void main() {
   group('AiHttp.statusError', () {
@@ -64,6 +68,52 @@ void main() {
       for (final status in [429, 502, 503, 529]) {
         expect(await send(status), (3, status), reason: '$status');
       }
+    });
+  });
+
+  group('AiHttp.post', () {
+    final uri = Uri.parse('http://localhost:11434/v1/chat/completions');
+
+    test('a request whose headers never come is aborted', () async {
+      final client = MuteClient();
+      await expectLater(
+        AiHttp.post(
+          client,
+          uri,
+          headers: const {'x': 'y'},
+          body: '{}',
+          timeout: const Duration(milliseconds: 30),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+      // The abort lands after the timeout; the request's own failure then
+      // goes nowhere — an unhandled one would fail this test.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(client.aborted, isTrue);
+      expect(client.last, isA<http.Abortable>());
+      expect(client.last!.headers['x'], 'y');
+    });
+
+    test('a request that was answered is not', () async {
+      final client = RecordingClient(
+        MockClient((_) async => http.Response('{}', 200)),
+      );
+      final res = await AiHttp.post(
+        client,
+        uri,
+        headers: const {},
+        body: '{}',
+        timeout: const Duration(seconds: 5),
+      );
+      expect(res.statusCode, 200);
+      var aborted = false;
+      unawaited(
+        (client.last as http.Abortable).abortTrigger!.whenComplete(
+          () => aborted = true,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(aborted, isFalse);
     });
   });
 

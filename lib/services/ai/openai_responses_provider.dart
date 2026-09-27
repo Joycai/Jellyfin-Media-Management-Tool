@@ -165,13 +165,13 @@ class OpenAiResponsesProvider implements AiProvider {
       http.StreamedResponse res;
       try {
         res = await AiHttp.withRetry(
-          () => client
-              .send(
-                http.Request('POST', _responsesUri)
-                  ..headers.addAll(_headers())
-                  ..body = jsonEncode(payload),
-              )
-              .timeout(firstEventTimeout),
+          () => AiHttp.post(
+            client,
+            _responsesUri,
+            headers: _headers(),
+            body: jsonEncode(payload),
+            timeout: firstEventTimeout,
+          ),
           cancelToken: cancelToken,
           retryTimeouts: false,
         );
