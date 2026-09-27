@@ -121,7 +121,53 @@ void main() {
       expect((bodies.last['generationConfig'] as Map)['thinkingConfig'], {
         'thinkingLevel': 'low',
       });
+      // The preview picks the way a request would, after what was learned.
+      final preview = await provider.previewRequest(
+        messages: const [UserMessage('u')],
+        tools: const [],
+      );
+      expect((preview.body['generationConfig'] as Map)['thinkingConfig'], {
+        'thinkingLevel': 'low',
+      });
     });
+
+    test(
+      'a family is asked for the mode it runs in, not the saved one',
+      () async {
+        // The saved choice is resolved above the adapter: a family that always
+        // reasons, saved off, is left at its default; one that never reasons,
+        // saved on, is asked off.
+        Future<Map<String, dynamic>> family(
+          String model, {
+          required bool saved,
+        }) async {
+          late http.BaseRequest seen;
+          await GoogleGenAiProvider(
+            _config('family', model: model, thinking: saved),
+            client: MockClient((request) async {
+              seen = request;
+              return _text('hi');
+            }),
+          ).complete(systemPrompt: 's', userPrompt: 'u');
+          return _generationConfig(seen);
+        }
+
+        expect(
+          (await family(
+            'qwen3-30b-a3b-thinking-2507',
+            saved: false,
+          )).containsKey('thinkingConfig'),
+          isFalse,
+        );
+        expect(
+          (await family(
+            'qwen3-30b-a3b-instruct-2507',
+            saved: true,
+          ))['thinkingConfig'],
+          {'thinkingBudget': 0},
+        );
+      },
+    );
 
     test(
       'a reply that still reasoned moves the next request on, and says so',

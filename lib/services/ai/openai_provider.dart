@@ -418,10 +418,7 @@ class OpenAiProvider implements AiProvider {
       'presence_penalty': ?values.presencePenalty,
       'repeat_penalty': ?values.repeatPenalty,
       // gpt-oss cannot stop reasoning; asked for none, it gets the least.
-      if (control == ThinkingControl.effortOnly &&
-          !config.thinkingEnabled &&
-          dialect == null)
-        'reasoning_effort': 'low',
+      if (sampling.leastEffort && dialect == null) 'reasoning_effort': 'low',
       if (dialectField != null) dialectField.key: dialectField.value,
       if (off == _ThinkingOff.templateKwargs)
         'chat_template_kwargs': const {'enable_thinking': false},
@@ -433,7 +430,7 @@ class OpenAiProvider implements AiProvider {
     String editSystem(String prompt) => switch ((off, control)) {
       (_ThinkingOff.softSwitch, _) => '$prompt\n\n/no_think',
       // Gemma 4 reasons only when the system prompt opens with this token.
-      (_, ThinkingControl.promptToken) when config.thinkingEnabled =>
+      (_, ThinkingControl.promptToken) when sampling.thinking =>
         '<|think|>\n$prompt',
       _ => prompt,
     };

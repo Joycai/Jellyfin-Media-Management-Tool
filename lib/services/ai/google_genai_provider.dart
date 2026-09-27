@@ -84,6 +84,15 @@ class GoogleGenAiProvider implements AiProvider {
   @override
   LearnedBehaviour get learned => _learned.of(_cacheKey);
 
+  /// The way this request asks for no reasoning: none when the request
+  /// expects reasoning to run, otherwise the first the route has not seen
+  /// fail. Read the same for a sent request and its preview.
+  _ThinkingOff? _offWay(LearnedBehaviour learned) => config.sampling.thinking
+      ? null
+      : _ThinkingOff.values
+            .where((w) => !learned.thinkingOffTried.contains(w.name))
+            .firstOrNull;
+
   /// Normalized base URL with a `/v1*` segment, e.g.
   /// `https://generativelanguage.googleapis.com/v1beta`.
   ///
@@ -155,11 +164,7 @@ class GoogleGenAiProvider implements AiProvider {
     while (true) {
       final key = _cacheKey;
       final tried = _learned.of(key).thinkingOffTried;
-      final off = config.thinkingEnabled
-          ? null
-          : _ThinkingOff.values
-                .where((w) => !tried.contains(w.name))
-                .firstOrNull;
+      final off = _offWay(_learned.of(key));
       void offFailed() => _learned.update(
         key,
         (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
@@ -338,10 +343,7 @@ class GoogleGenAiProvider implements AiProvider {
     required List<ChatMessage> messages,
     required List<ToolDefinition> tools,
   }) async {
-    final tried = _learned.of(_cacheKey).thinkingOffTried;
-    final off = config.thinkingEnabled
-        ? null
-        : _ThinkingOff.values.where((w) => !tried.contains(w.name)).firstOrNull;
+    final off = _offWay(_learned.of(_cacheKey));
     final key = config.apiKey.trim();
     return RequestPreview(
       url: _generateUri(),

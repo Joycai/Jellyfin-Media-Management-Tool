@@ -277,6 +277,68 @@ void main() {
       expect(body.containsKey('temperature'), isFalse);
     });
 
+    test(
+      'a family is asked for the mode it runs in, not the saved one',
+      () async {
+        // The saved choice is resolved above the adapter. A family that never
+        // reasons, saved on, is not asked; one that always reasons, saved off,
+        // is — and on a switch route is not told off.
+        Future<Map<String, dynamic>> family(
+          String endpoint,
+          String model, {
+          required bool saved,
+        }) async {
+          late Map<String, dynamic> body;
+          await AnthropicProvider(
+            _config(endpoint, model: model, thinking: saved, maxOutput: 16000),
+            client: MockClient((request) async {
+              body = jsonDecode(request.body);
+              return _stream(
+                _reply([
+                  {'type': 'text', 'text': 'ok'},
+                ]),
+              );
+            }),
+          ).chat(messages: const [UserMessage('u')], tools: const []);
+          return body;
+        }
+
+        const relay = 'https://family.example';
+        final never = await family(
+          relay,
+          'qwen3-30b-a3b-instruct-2507',
+          saved: true,
+        );
+        expect(never.containsKey('thinking'), isFalse);
+        expect(never.containsKey('temperature'), isTrue);
+        final always = await family(
+          relay,
+          'qwen3-30b-a3b-thinking-2507',
+          saved: false,
+        );
+        expect(always['thinking'], {'type': 'enabled', 'budget_tokens': 8000});
+        expect(always.containsKey('temperature'), isFalse);
+
+        const switchRoute = 'https://api.minimaxi.com/anthropic';
+        expect(
+          (await family(
+            switchRoute,
+            'qwen3-30b-a3b-instruct-2507',
+            saved: true,
+          ))['thinking'],
+          {'type': 'disabled'},
+        );
+        expect(
+          (await family(
+            switchRoute,
+            'qwen3-30b-a3b-thinking-2507',
+            saved: false,
+          ))['thinking'],
+          {'type': 'adaptive'},
+        );
+      },
+    );
+
     test('the form follows the Claude generation', () {
       const expected = {
         'claude-sonnet-4-5': MessagesThinking.extended,

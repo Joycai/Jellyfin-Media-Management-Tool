@@ -228,7 +228,7 @@ class OpenAiResponsesProvider implements AiProvider {
           // `reasoning` refused while asking for none says nothing about
           // asking for some: the route goes back to the model's default
           // when off, and still asks when on.
-          if (refused == 'reasoning' && !config.thinkingEnabled) {
+          if (refused == 'reasoning' && !config.sampling.thinking) {
             _learned.update(
               key,
               (b) => b.copyWith(
@@ -298,7 +298,8 @@ class OpenAiResponsesProvider implements AiProvider {
     required Set<String> rejected,
     required bool offRefused,
   }) {
-    final values = config.sampling.values;
+    final sampling = config.sampling;
+    final values = sampling.values;
     final instructions = messages
         .whereType<SystemMessage>()
         .map((m) => m.content)
@@ -310,9 +311,10 @@ class OpenAiResponsesProvider implements AiProvider {
       // on GPT-5.5/5.6 and high on Grok, paid for either way (KB 03 §7.1). A
       // route that refuses `none` is remembered and left at its default; a
       // relay that quietly rewrites it shows up as reasoning in the
-      // connection test.
-      if (config.thinkingEnabled)
-        'reasoning': const {'effort': 'medium'}
+      // connection test. A family that cannot stop, asked off, gets the
+      // least it takes.
+      if (sampling.thinking)
+        'reasoning': {'effort': sampling.leastEffort ? 'low' : 'medium'}
       else if (!offRefused)
         'reasoning': const {'effort': 'none'},
       'include': const ['reasoning.encrypted_content'],

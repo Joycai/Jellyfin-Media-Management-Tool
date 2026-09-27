@@ -464,7 +464,7 @@ class AnthropicProvider implements AiProvider {
   ///
   /// A route declared as a switch asks adaptive only, the one form it takes.
   MessagesThinking? _form(Set<String> rejected) {
-    if (!config.thinkingEnabled) return null;
+    if (!config.sampling.thinking) return null;
     final first = _firstForm;
     final refused = MessagesThinking.refusedIn(rejected, first: first);
     final forms = PlatformProfiles.messagesSwitchFor(config)
@@ -530,7 +530,7 @@ class AnthropicProvider implements AiProvider {
       // platform may think by default) — unless the model refused it, or
       // the server the field; elsewhere off is the protocol's default and
       // nothing is sent.
-      if (!config.thinkingEnabled &&
+      if (!config.sampling.thinking &&
           PlatformProfiles.messagesSwitchFor(config) &&
           !learned.thinkingOffTried.contains(LearnedBehaviour.dialectOff) &&
           !_fieldRefused(rejected))
