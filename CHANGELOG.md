@@ -34,6 +34,13 @@ reconstructed at release time.
 
 ### Fixed
 
+- A Messages route behind a relay that translates the request for thinking
+  into its upstream's field and refuses it under that name
+  (`reasoning_effort`, `chat_template_kwargs`, Gemini's `thinkingConfig`) no
+  longer fails every request. The refusal is read as the `thinking` field
+  itself refused: it is left off that route's requests both ways and the
+  model runs at its default. A model family whose reasoning cannot be turned
+  off was stuck there before, since its switch is locked.
 - Frame recognition no longer waits on a stuck vision service five times
   over: a lookup that times out is the last one of that run, later batches
   are not offered it, and a request whose reply never starts is closed rather
