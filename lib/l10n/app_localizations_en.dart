@@ -543,7 +543,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thinkingEffortOnly =>
-      'This model\'s reasoning cannot be turned off; it is asked for the least where the route takes an effort level.';
+      'This model\'s reasoning cannot be turned off; it is asked for the least on Chat Completions without a platform switch, and on Responses.';
 
   @override
   String get thinkingVerifiedOff => 'Last test: reasoning was off.';

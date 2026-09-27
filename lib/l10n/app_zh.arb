@@ -158,7 +158,7 @@
   "thinkingMode": "思考模式",
   "thinkingModeHint": "默认关闭：思考会让本地小模型明显变慢，并容易绕圈子。",
   "thinkingAlwaysOn": "此模型只能以思考模式运行。",
-  "thinkingEffortOnly": "此模型无法关闭思考；在线路接受强度档位时按最低强度请求。",
+  "thinkingEffortOnly": "此模型无法关闭思考；在不带平台开关的 Chat Completions 和 Responses 线路上按最低强度请求。",
   "thinkingVerifiedOff": "上次测试：思考已关闭。",
   "thinkingStillOn": "上次测试：模型仍在思考。请在服务端的模型设置中关闭思考（LM Studio 中为 Enable Thinking）。",
   "thinkingStillOnRemote": "上次测试：模型仍在思考。这条线路上关闭不起作用，模型按自己的默认推理。可换一个不推理的模型，或接受现状。",

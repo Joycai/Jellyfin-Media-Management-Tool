@@ -417,7 +417,7 @@ class OpenAiProvider implements AiProvider {
       'min_p': ?values.minP,
       'presence_penalty': ?values.presencePenalty,
       'repeat_penalty': ?values.repeatPenalty,
-      // gpt-oss cannot stop reasoning; asked for none, it gets the least.
+      // gpt-oss cannot stop reasoning; it gets the least, whatever was saved.
       if (sampling.leastEffort && dialect == null) 'reasoning_effort': 'low',
       if (dialectField != null) dialectField.key: dialectField.value,
       if (off == _ThinkingOff.templateKwargs)

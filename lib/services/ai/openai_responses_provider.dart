@@ -311,8 +311,8 @@ class OpenAiResponsesProvider implements AiProvider {
       // on GPT-5.5/5.6 and high on Grok, paid for either way (KB 03 §7.1). A
       // route that refuses `none` is remembered and left at its default; a
       // relay that quietly rewrites it shows up as reasoning in the
-      // connection test. A family that cannot stop, asked off, gets the
-      // least it takes.
+      // connection test. A family that cannot stop gets the least it takes,
+      // whatever was saved.
       if (sampling.thinking)
         'reasoning': {'effort': sampling.leastEffort ? 'low' : 'medium'}
       else if (!offRefused)

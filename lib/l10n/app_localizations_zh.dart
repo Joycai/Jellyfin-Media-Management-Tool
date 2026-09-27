@@ -535,7 +535,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get thinkingAlwaysOn => '此模型只能以思考模式运行。';
 
   @override
-  String get thinkingEffortOnly => '此模型无法关闭思考；在线路接受强度档位时按最低强度请求。';
+  String get thinkingEffortOnly =>
+      '此模型无法关闭思考；在不带平台开关的 Chat Completions 和 Responses 线路上按最低强度请求。';
 
   @override
   String get thinkingVerifiedOff => '上次测试：思考已关闭。';

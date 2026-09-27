@@ -1055,7 +1055,7 @@ abstract class AppLocalizations {
   /// No description provided for @thinkingEffortOnly.
   ///
   /// In en, this message translates to:
-  /// **'This model\'s reasoning cannot be turned off; it is asked for the least where the route takes an effort level.'**
+  /// **'This model\'s reasoning cannot be turned off; it is asked for the least on Chat Completions without a platform switch, and on Responses.'**
   String get thinkingEffortOnly;
 
   /// No description provided for @thinkingVerifiedOff.
