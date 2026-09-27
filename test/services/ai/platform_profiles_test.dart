@@ -688,7 +688,7 @@ void main() {
       // preset knows as saved. Each protocol's body is held to that value.
       Future<Map<String, dynamic>> body(AiConfig config) async =>
           (await AiService.providerFor(config).previewRequest(
-            messages: const [UserMessage('u')],
+            messages: const [SystemMessage('s'), UserMessage('u')],
             tools: const [],
           ))!.body;
       // One family of each kind, and a model no preset knows.
@@ -744,13 +744,27 @@ void main() {
             model,
             thinking: saved,
           );
+          final localBody = await body(local);
           expect(
-            (await body(local)).containsKey('chat_template_kwargs'),
+            localBody.containsKey('chat_template_kwargs'),
             !asked &&
                 (control == ThinkingControl.softSwitch ||
                     control == ThinkingControl.templateSwitch),
             reason: 'local $why',
           );
+          // A family that can only be lowered, asked off, gets the least;
+          // Gemma 4 reasons only behind its prompt token.
+          expect(
+            localBody['reasoning_effort'] == 'low',
+            control == ThinkingControl.effortOnly && !saved,
+            reason: 'local $why',
+          );
+          if (control == ThinkingControl.promptToken) {
+            final system =
+                ((localBody['messages'] as List).first as Map)['content']
+                    as String;
+            expect(system.startsWith('<|think|>'), asked, reason: 'local $why');
+          }
 
           // Messages: `thinking` only when on; a switch route says off too.
           final messages = at(
