@@ -157,6 +157,12 @@ class OrganizeAgent {
           for (final g in state.active)
             if (!g.resolved) g,
         ];
+        // Offered while lookups are left: a later batch is a fresh session,
+        // and one told the tool is available would spend a round finding out
+        // that a timeout, or five lookups, used them up.
+        final framesLeft =
+            lookAtFrames != null &&
+            state.frameLookups < OrganizeState.maxFrameLookups;
         try {
           final run = await AgentRuntime.run<OrganizeState>(
             provider: provider,
@@ -175,7 +181,7 @@ class OrganizeAgent {
                       : null,
                   decided: state.decidedTable(),
                   firstPage: state.groupsPage(1),
-                  frames: lookAtFrames != null,
+                  frames: framesLeft,
                 ),
               ),
             ],
@@ -184,7 +190,7 @@ class OrganizeAgent {
               const _ListGroupFilesTool(),
               const _ReadExistingNfoTool(),
               const _FindDecidedTool(),
-              if (lookAtFrames != null) const _IdentifyFromFramesTool(),
+              if (framesLeft) const _IdentifyFromFramesTool(),
               const _SubmitGroupTool(),
               const _SplitGroupTool(),
               const _MarkUnsureTool(),

@@ -872,5 +872,34 @@ void main() {
         expect(run.plan.actions.every((a) => a.confidence >= 0.6), isTrue);
       }
     });
+
+    test('a later batch is not offered lookups that are used up', () async {
+      final two = _files([
+        ['Downloads', 'VID_1.mp4'],
+        ['Other', 'VID_2.mp4'],
+      ]);
+      final provider = ScriptedChatProvider([
+        (_) => toolTurn([
+          ('identify_from_frames', {'group': 'g1'}),
+        ]),
+        _submit({'group': 'g1', 'mediaType': 'movie', 'title': 'A'}),
+        _submit({'group': 'g2', 'mediaType': 'movie', 'title': 'B'}),
+      ]);
+      await OrganizeAgent(provider).run(
+        folderName: 'Downloads',
+        files: two,
+        batchSize: 1,
+        lookAtFrames: (_) async =>
+            throw const AiTimeoutException('No response from the server'),
+      );
+      // The first batch had the tool; the second, a fresh session, does not.
+      expect(provider.offeredTools.first, contains('identify_from_frames'));
+      expect(
+        provider.offeredTools.last,
+        isNot(contains('identify_from_frames')),
+      );
+      final prompt = (provider.seen.last[1] as UserMessage).content;
+      expect(prompt, isNot(contains('identify_from_frames')));
+    });
   });
 }
