@@ -85,11 +85,15 @@ void main() {
     await pump();
     expect(find.text('off · thinking'), findsNWidgets(2));
 
-    // glm-5.3 always reasons: off sends nothing on the route that learned
-    // it, so no field is named there; the Messages route has not learned
-    // it yet.
+    // A model that refused off and the least: off sends nothing on the
+    // route that learned it, so no field is named there; the Messages route
+    // has not learned it yet.
     final provider = AiService.providerFor(channel.configFor(model));
     addTearDown(provider.forgetLearned);
+    const written = {
+      LearnedBehaviour.dialectOff,
+      LearnedBehaviour.leastEffortOff,
+    };
     LearnedStore.instance.update(
       LearnedStore.routeKey(
         protocol: AiProviderType.openAi.id,
@@ -97,9 +101,8 @@ void main() {
         model: 'glm-5.3',
         apiKey: 'k',
       ),
-      (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.dialectOff}),
+      (b) => b.copyWith(thinkingOffTried: written),
     );
-    const written = {LearnedBehaviour.dialectOff};
     expect(
       provider.learned.thinkingOffTried,
       written,

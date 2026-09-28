@@ -90,6 +90,13 @@ enum MessagesOff {
       };
 }
 
+/// One way a Chat Completions route says off: the field it adds to the
+/// request, and the name `LearnedBehaviour.thinkingOffTried` keeps it under
+/// once refused. A route's ways, in the order tried, are
+/// [PlatformProfiles.chatOffRungsFor]; the next one is
+/// [PlatformProfiles.chatOffFor].
+typedef ChatOff = ({String marker, MapEntry<String, Object> field});
+
 /// How a route switches reasoning now, after what it has refused — what the
 /// adapters send, read by the settings screens so that none of them works it
 /// out on its own ([PlatformProfiles.reasoningRouteFor]).
@@ -107,19 +114,21 @@ enum ReasoningRoute {
   /// can still turn reasoning off, and on leaves the model at its default.
   onRefused,
 
-  /// The model said it cannot stop reasoning (Zhipu's 5.3 generation on
-  /// Chat Completions; on a Messages switch route, once the least was
-  /// refused too), so off sends nothing and the model reasons at its
+  /// The model said it cannot stop reasoning (on Chat Completions, or a
+  /// Messages switch route, once the least was refused too where the route
+  /// asks it), so off sends nothing and the model reasons at its
   /// default. On is still sent, unless on was later refused too (the field
   /// by name, or `adaptive` on a switch route); the model reasons either way.
   offRefused,
 
-  /// The model said it cannot stop reasoning on a Messages switch route (it
-  /// refused `disabled`), so off asks for the least of it
-  /// (`output_config.effort: low`, [MessagesOff.leastEffort]) — which may
-  /// stop it or only lower it. On is still sent unless it was refused too
-  /// (`adaptive`, or the field by name); off differs either way, so the
-  /// toggle stays live, and this outranks a refused on.
+  /// The model said it cannot stop reasoning (it refused the switch set to
+  /// off), so off asks for the least of it — which may stop it or only lower
+  /// it: on a Messages switch route `output_config.effort: low`
+  /// ([MessagesOff.leastEffort]), on a Chat Completions route that declares
+  /// it `reasoning_effort: low` ([PlatformProfiles.chatLeast]). On is still
+  /// sent unless it was refused too (`adaptive`, or the field by name); off
+  /// differs either way, so the toggle stays live, and this outranks a
+  /// refused on.
   offLeast,
 
   /// Off was refused without saying why, so off sends nothing and the
@@ -186,6 +195,13 @@ class RouteSpec {
   /// would be the wrong bytes on Messages.
   final bool messagesThinkingSwitch;
 
+  /// A Chat Completions route whose model may say it cannot stop reasoning
+  /// (refuse [thinkingDialect]'s switch set to off): off then asks for the
+  /// least of it, `reasoning_effort: "low"` ([PlatformProfiles.chatLeast]),
+  /// before it sends nothing. Declared where measured: the value means
+  /// other things elsewhere (DeepSeek folds `low` into `high`).
+  final bool chatLeastEffort;
+
   /// The platform's own documentation, or a measurement, behind this row.
   final String source;
 
@@ -193,6 +209,7 @@ class RouteSpec {
     this.defaultPath = '',
     this.thinkingDialect,
     this.messagesThinkingSwitch = false,
+    this.chatLeastEffort = false,
     required this.source,
   });
 }
@@ -344,7 +361,14 @@ abstract final class PlatformProfiles {
       AiProviderType.openAi: RouteSpec(
         defaultPath: '/api/paas/v4',
         thinkingDialect: ThinkingDialect.thinkingType,
-        source: '【实测 2026-09-19】glm-4.6 · thinking.type',
+        // The 5.3 generation refuses `disabled` with code 1210 and takes
+        // `reasoning_effort: low`: with tools, glm-5.3 then reasoned 0–130
+        // tokens a request where it reasoned 230–1500 at its default, and
+        // made the same calls.
+        chatLeastEffort: true,
+        source:
+            '【实测 2026-09-19】glm-4.6 · thinking.type; '
+            '【实测 2026-09-28】5.3 refuses disabled (1210), takes low',
       ),
       AiProviderType.anthropic: RouteSpec(
         defaultPath: '/api/anthropic',
@@ -621,6 +645,45 @@ abstract final class PlatformProfiles {
   static ThinkingDialect? dialectFor(AiConfig config) =>
       of(config).routes[config.provider]?.thinkingDialect;
 
+  /// The least reasoning on Chat Completions: the last way of saying off on
+  /// a route that declares [RouteSpec.chatLeastEffort].
+  static const ChatOff chatLeast = (
+    marker: LearnedBehaviour.leastEffortOff,
+    field: MapEntry('reasoning_effort', 'low'),
+  );
+
+  /// The ways [config]'s Chat Completions route says off, in the order
+  /// tried: the platform's switch set to off, then — where the route
+  /// declares it — [chatLeast]. None without a platform switch (the
+  /// local-server ladder applies there).
+  static List<ChatOff> chatOffRungsFor(AiConfig config) {
+    final route = of(config).routes[config.provider];
+    final dialect = route?.thinkingDialect;
+    if (route == null || dialect == null) return const [];
+    return [
+      (
+        marker: LearnedBehaviour.dialectOff,
+        field: dialect.field(thinking: false),
+      ),
+      if (route.chatLeastEffort) chatLeast,
+    ];
+  }
+
+  /// How [config]'s Chat Completions route says off after what it
+  /// [learned]: the first of [chatOffRungsFor] not yet refused, or null
+  /// where off sends nothing — every way refused, or the next one's field
+  /// refused by name (never sent again; the switch refused so, a server that
+  /// does not know the field, has said nothing of a model that cannot stop).
+  /// The adapter's body, its reading of a refusal, its preview and
+  /// [reasoningRouteFor] all read it, so none of them can disagree.
+  static ChatOff? chatOffFor(AiConfig config, LearnedBehaviour learned) {
+    for (final rung in chatOffRungsFor(config)) {
+      if (learned.thinkingOffTried.contains(rung.marker)) continue;
+      return learned.rejectedFields.contains(rung.field.key) ? null : rung;
+    }
+    return null;
+  }
+
   /// Whether [config]'s route is a Messages route that takes thinking as a
   /// switch — see [RouteSpec.messagesThinkingSwitch].
   static bool messagesSwitchFor(AiConfig config) =>
@@ -701,6 +764,10 @@ abstract final class PlatformProfiles {
       case AiProviderType.openAi:
         final field = dialectFor(config)?.field(thinking: false).key;
         if (field == null) return (route: ReasoningRoute.ladder, field: null);
+        final off = chatOffFor(config, learned);
+        if (off?.marker == LearnedBehaviour.leastEffortOff) {
+          return (route: ReasoningRoute.offLeast, field: off!.field.key);
+        }
         if (tried.contains(LearnedBehaviour.dialectOff)) {
           return (route: ReasoningRoute.offRefused, field: field);
         }

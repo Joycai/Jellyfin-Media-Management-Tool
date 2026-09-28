@@ -28,9 +28,13 @@ void main() {
     expect(value.text, contains('thinking'));
   });
 
-  test('a model that refused the switch off always reasons', () {
+  test('a model that refused the switch off and the least always reasons', () {
     final provider = AiService.providerFor(channel.configFor(model));
     addTearDown(provider.forgetLearned);
+    const written = {
+      LearnedBehaviour.dialectOff,
+      LearnedBehaviour.leastEffortOff,
+    };
     LearnedStore.instance.update(
       LearnedStore.routeKey(
         protocol: AiProviderType.openAi.id,
@@ -38,9 +42,8 @@ void main() {
         model: 'glm-4.6',
         apiKey: 'k',
       ),
-      (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.dialectOff}),
+      (b) => b.copyWith(thinkingOffTried: written),
     );
-    const written = {LearnedBehaviour.dialectOff};
     expect(
       provider.learned.thinkingOffTried,
       written,

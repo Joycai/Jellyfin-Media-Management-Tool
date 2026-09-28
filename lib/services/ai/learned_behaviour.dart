@@ -42,9 +42,12 @@ class LearnedBehaviour {
   /// it, so a channel whose platform changed keeps what the old one learned.
   static const dialectOff = 'dialect';
 
-  /// In [thinkingOffTried] on a Messages switch route: after [dialectOff],
-  /// the least reasoning (`output_config: {effort: "low"}`) was refused too,
-  /// so off sends nothing (`MessagesOff` is the order the two are tried in).
+  /// In [thinkingOffTried]: after [dialectOff], the least reasoning was
+  /// refused too, so off sends nothing — on a Messages switch route
+  /// `output_config: {effort: "low"}` (`MessagesOff` is the order the two are
+  /// tried in), on a Chat Completions route that declares it
+  /// `reasoning_effort: "low"` (`PlatformProfiles.chatOffRungsFor`). A route
+  /// key carries its protocol, so the two never share a set.
   static const leastEffortOff = 'leastEffort';
 
   /// In [thinkingOffTried] on a Responses route: `reasoning.effort: "none"`

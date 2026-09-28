@@ -249,9 +249,10 @@ void main() {
       }
     }
 
-    // Off sent, and refused by a model that cannot stop: reasoning is its
-    // default, and a reply that shows none is no proof that it stopped —
-    // the model page says it can only run with reasoning on.
+    // Off sent, and refused by a model that cannot stop, on a route that
+    // asks no least: reasoning is its default, and a reply that shows none
+    // is no proof that it stopped — the model page says it can only run
+    // with reasoning on.
     for (final (reasoned, expected) in [
       (true, (ok: null, text: l10n.aiStepThinkingCannotStop)),
       (false, (ok: null, text: l10n.aiStepThinkingNotShown)),
@@ -259,8 +260,8 @@ void main() {
       expect(
         step(
           AiProviderType.openAi,
-          'https://open.bigmodel.cn/api/paas/v4',
-          'glm-5.3',
+          'https://ark.cn-beijing.volces.com/api/v3',
+          'doubao-seed-9',
           saved: false,
           reasoned: reasoned,
           tried: {LearnedBehaviour.dialectOff},
@@ -268,44 +269,49 @@ void main() {
         expected,
       );
     }
-    // A Messages switch route whose model cannot stop: off asked for the
-    // least, so a reply that reasons says so and one that shows none is
-    // off. Once the least was refused too, off sends nothing, as above.
-    const zhipuMessages = 'https://open.bigmodel.cn/api/anthropic';
-    for (final (tried, reasoned, expected) in [
-      (
-        {LearnedBehaviour.dialectOff},
-        true,
-        (ok: null, text: l10n.aiStepThinkingLeast),
-      ),
-      (
-        {LearnedBehaviour.dialectOff},
-        false,
-        (ok: true, text: l10n.aiStepThinkingOff),
-      ),
-      (
-        {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
-        true,
-        (ok: null, text: l10n.aiStepThinkingCannotStop),
-      ),
-      (
-        {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
-        false,
-        (ok: null, text: l10n.aiStepThinkingNotShown),
-      ),
+    // A Messages switch route, or Zhipu's Chat Completions route, whose
+    // model cannot stop: off asked for the least, so a reply that reasons
+    // says so and one that shows none is off. Once the least was refused
+    // too, off sends nothing, as above.
+    for (final (provider, endpoint) in const [
+      (AiProviderType.anthropic, 'https://open.bigmodel.cn/api/anthropic'),
+      (AiProviderType.openAi, 'https://open.bigmodel.cn/api/paas/v4'),
     ]) {
-      expect(
-        step(
-          AiProviderType.anthropic,
-          zhipuMessages,
-          'glm-5.3',
-          saved: false,
-          reasoned: reasoned,
-          tried: tried,
+      for (final (tried, reasoned, expected) in [
+        (
+          {LearnedBehaviour.dialectOff},
+          true,
+          (ok: null, text: l10n.aiStepThinkingLeast),
         ),
-        expected,
-        reason: '$tried $reasoned',
-      );
+        (
+          {LearnedBehaviour.dialectOff},
+          false,
+          (ok: true, text: l10n.aiStepThinkingOff),
+        ),
+        (
+          {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+          true,
+          (ok: null, text: l10n.aiStepThinkingCannotStop),
+        ),
+        (
+          {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+          false,
+          (ok: null, text: l10n.aiStepThinkingNotShown),
+        ),
+      ]) {
+        expect(
+          step(
+            provider,
+            endpoint,
+            'glm-5.3',
+            saved: false,
+            reasoned: reasoned,
+            tried: tried,
+          ),
+          expected,
+          reason: '$provider $tried $reasoned',
+        );
+      }
     }
     // Responses refused `none` without saying why: the model may not reason
     // at all, so none shown is off.
@@ -513,8 +519,19 @@ void main() {
     expect(reasoningRefused(route(zhipu, rejected: {'thinking'})), isTrue);
     expect(reasoningCannotStop(route(zhipu, rejected: {'thinking'})), isFalse);
     expect(reasoningRefused(route(zhipu, rejected: {'top_k'})), isFalse);
+    // Zhipu asks for the least once the switch was refused; the model is
+    // one that cannot stop once that was refused too.
     expect(
       reasoningCannotStop(route(zhipu, tried: {LearnedBehaviour.dialectOff})),
+      isFalse,
+    );
+    expect(
+      reasoningCannotStop(
+        route(
+          zhipu,
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ),
+      ),
       isTrue,
     );
     final local = config(AiProviderType.openAi, 'http://localhost:1234', 'm');

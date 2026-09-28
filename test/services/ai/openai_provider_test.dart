@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,17 @@ const _utf8Json = {'content-type': 'application/json; charset=utf-8'};
 
 Map<String, dynamic> _body(http.BaseRequest request) =>
     jsonDecode((request as http.Request).body) as Map<String, dynamic>;
+
+/// Zhipu's 5.3 generation refusing a way of turning reasoning off, in the
+/// words measured on 2026-09-28 (the switch and a `reasoning_effort` it will
+/// not take alike).
+http.Response _alwaysReasons() => http.Response(
+  jsonEncode({
+    'error': {'code': '1210', 'message': '该模型始终思考，不支持关闭思考；请使用 low、high 或 max。'},
+  }),
+  400,
+  headers: _utf8Json,
+);
 
 void main() {
   test('a keyless profile sends no Authorization header', () async {
@@ -1043,73 +1055,280 @@ void main() {
       expect(bodies.last.containsKey('reasoning'), isFalse);
     });
 
-    test('a model that always reasons is not asked off again', () async {
-      // Zhipu's 5.3 generation: the refusal does not name `thinking`
-      // (KB 03 §3.1, measured 2026-09-19).
+    test(
+      'a model that always reasons is asked for the least instead',
+      () async {
+        // Zhipu's 5.3 generation: the refusal does not name `thinking`
+        // (KB 03 §3.1, measured 2026-09-19); `reasoning_effort: low` then
+        // takes (measured 2026-09-28).
+        final bodies = <Map<String, dynamic>>[];
+        final client = MockClient((request) async {
+          final body = _body(request);
+          bodies.add(body);
+          // A retry that never drops the switch would otherwise spin forever:
+          // a mock reply never yields to the timer that times the test out.
+          if (bodies.length > 8) throw StateError('the retries never stopped');
+          return (body['thinking'] as Map?)?['type'] == 'disabled'
+              ? _alwaysReasons()
+              : _reply('ok');
+        });
+        AiConfig config({bool thinking = false}) => AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+          apiKey: 'k-always-reasons',
+          model: 'glm-5.3',
+          platform: 'zhipu',
+          thinkingEnabled: thinking,
+        );
+
+        final reply = await OpenAiProvider(
+          config(),
+          client: client,
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+        expect(reply.text, 'ok');
+        expect(bodies, hasLength(2));
+        expect(bodies.first['thinking'], {'type': 'disabled'});
+        expect(bodies.first.containsKey('reasoning_effort'), isFalse);
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(bodies.last['reasoning_effort'], 'low');
+        final learned = OpenAiProvider(config(), client: client).learned;
+        expect(learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
+        expect(learned.rejectedFields, isEmpty);
+
+        // Remembered: the next request asks for the least straight away.
+        await OpenAiProvider(
+          config(),
+          client: client,
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies, hasLength(3));
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(bodies.last['reasoning_effort'], 'low');
+        // The settings preview shows the request a task now sends.
+        final preview = await OpenAiProvider(
+          config(),
+          client: client,
+        ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+        expect(preview.body.containsKey('thinking'), isFalse);
+        expect(preview.body['reasoning_effort'], 'low');
+
+        // Asking it on is a different request, and is still sent — without the
+        // least.
+        await OpenAiProvider(
+          config(thinking: true),
+          client: client,
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies.last['thinking'], {'type': 'enabled'});
+        expect(bodies.last.containsKey('reasoning_effort'), isFalse);
+        final onPreview = await OpenAiProvider(
+          config(thinking: true),
+          client: client,
+        ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+        expect(onPreview.body['thinking'], {'type': 'enabled'});
+        expect(onPreview.body.containsKey('reasoning_effort'), isFalse);
+      },
+    );
+
+    test('the least refused too, off sends nothing — once each', () async {
+      // Zhipu answers a `reasoning_effort` it will not take in the same
+      // words as the switch; the way the request carried is what is learned.
       final bodies = <Map<String, dynamic>>[];
       final client = MockClient((request) async {
         final body = _body(request);
         bodies.add(body);
-        // A retry that never drops the switch would otherwise spin forever:
-        // a mock reply never yields to the timer that times the test out.
         if (bodies.length > 8) throw StateError('the retries never stopped');
-        return (body['thinking'] as Map?)?['type'] == 'disabled'
-            ? http.Response(
-                jsonEncode({
-                  'error': {'code': '1210', 'message': '该模型始终思考，不支持关闭思考'},
-                }),
-                400,
-                headers: _utf8Json,
-              )
+        return body.containsKey('thinking') ||
+                body.containsKey('reasoning_effort')
+            ? _alwaysReasons()
             : _reply('ok');
       });
-      AiConfig config({bool thinking = false}) => AiConfig(
+      const config = AiConfig(
         provider: AiProviderType.openAi,
         endpoint: 'https://open.bigmodel.cn/api/paas/v4',
-        apiKey: 'k-always-reasons',
-        model: 'glm-5.3',
+        apiKey: 'k-least-refused',
+        model: 'glm-9',
         platform: 'zhipu',
-        thinkingEnabled: thinking,
       );
 
       final reply = await OpenAiProvider(
-        config(),
+        config,
         client: client,
       ).chat(messages: const [UserMessage('u')], tools: const []);
       expect(reply.text, 'ok');
-      expect(bodies, hasLength(2));
-      expect(bodies.first['thinking'], {'type': 'disabled'});
-      expect(bodies.last.containsKey('thinking'), isFalse);
-      final learned = OpenAiProvider(config(), client: client).learned;
-      expect(learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
+      expect(bodies, hasLength(3));
+      expect(bodies[0]['thinking'], {'type': 'disabled'});
+      expect(bodies[1]['reasoning_effort'], 'low');
+      expect(bodies[1].containsKey('thinking'), isFalse);
+      expect(bodies[2].containsKey('thinking'), isFalse);
+      expect(bodies[2].containsKey('reasoning_effort'), isFalse);
+      final learned = OpenAiProvider(config, client: client).learned;
+      expect(learned.thinkingOffTried, {
+        LearnedBehaviour.dialectOff,
+        LearnedBehaviour.leastEffortOff,
+      });
       expect(learned.rejectedFields, isEmpty);
 
-      // Remembered: the next request goes out without the switch.
       await OpenAiProvider(
-        config(),
+        config,
         client: client,
       ).chat(messages: const [UserMessage('u')], tools: const []);
-      expect(bodies, hasLength(3));
-      expect(bodies.last.containsKey('thinking'), isFalse);
-      // The settings preview shows the request a task now sends.
+      expect(bodies, hasLength(4));
+      expect(bodies.last.containsKey('reasoning_effort'), isFalse);
       final preview = await OpenAiProvider(
-        config(),
+        config,
         client: client,
       ).previewRequest(messages: const [UserMessage('u')], tools: const []);
       expect(preview.body.containsKey('thinking'), isFalse);
+      expect(preview.body.containsKey('reasoning_effort'), isFalse);
+    });
 
-      // Asking it on is a different request, and is still sent.
+    test('the least refused by name is not sent again', () async {
+      final bodies = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        final body = _body(request);
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('the retries never stopped');
+        if (body.containsKey('thinking')) return _alwaysReasons();
+        return body.containsKey('reasoning_effort')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message': 'Unsupported parameter',
+                    'param': 'reasoning_effort',
+                  },
+                }),
+                400,
+              )
+            : _reply('ok');
+      });
+      const config = AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+        apiKey: 'k-least-named',
+        model: 'glm-9',
+        platform: 'zhipu',
+      );
+
       await OpenAiProvider(
-        config(thinking: true),
+        config,
         client: client,
       ).chat(messages: const [UserMessage('u')], tools: const []);
-      expect(bodies.last['thinking'], {'type': 'enabled'});
-      final onPreview = await OpenAiProvider(
-        config(thinking: true),
-        client: client,
-      ).previewRequest(messages: const [UserMessage('u')], tools: const []);
-      expect(onPreview.body['thinking'], {'type': 'enabled'});
+      expect(bodies, hasLength(3));
+      expect(bodies.last.containsKey('reasoning_effort'), isFalse);
+      expect(bodies.last.containsKey('thinking'), isFalse);
+      final learned = OpenAiProvider(config, client: client).learned;
+      expect(learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
+      expect(learned.rejectedFields, {'reasoning_effort'});
     });
+
+    test('a route that does not declare the least sends nothing', () async {
+      // Volcengine speaks the same dialect; `low` there is not measured.
+      final bodies = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        final body = _body(request);
+        bodies.add(body);
+        if (bodies.length > 8) throw StateError('the retries never stopped');
+        return body.containsKey('thinking') ? _alwaysReasons() : _reply('ok');
+      });
+      const config = AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: 'https://ark.cn-beijing.volces.com/api/v3',
+        apiKey: 'k-no-least',
+        model: 'doubao-seed-9',
+        platform: 'volcengine',
+      );
+
+      await OpenAiProvider(
+        config,
+        client: client,
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      expect(bodies, hasLength(2));
+      expect(bodies.first['thinking'], {'type': 'disabled'});
+      expect(bodies.last.containsKey('thinking'), isFalse);
+      expect(bodies.last.containsKey('reasoning_effort'), isFalse);
+      expect(OpenAiProvider(config, client: client).learned.thinkingOffTried, {
+        LearnedBehaviour.dialectOff,
+      });
+    });
+
+    test(
+      'off always stops asking, and the preview is the next request',
+      () async {
+        // Property: whatever each way of saying off meets — taken, refused in
+        // Zhipu's words, refused by name, or an unrelated 400 — a request is
+        // never sent twice alike, the retries end within the ways plus one,
+        // and the preview shows exactly the next request.
+        final random = Random(20260928);
+        const answers = ['ok', 'words', 'named', 'unrelated'];
+        for (var run = 0; run < 150; run++) {
+          final answer = {
+            for (final kind in const ['disabled', 'least', 'nothing'])
+              kind: answers[random.nextInt(answers.length)],
+          };
+          final bodies = <Map<String, dynamic>>[];
+          final client = MockClient((request) async {
+            final body = _body(request);
+            bodies.add(body);
+            if (bodies.length > 8) {
+              throw StateError('the retries never stopped');
+            }
+            final (kind, field) = body.containsKey('thinking')
+                ? ('disabled', 'thinking')
+                : body.containsKey('reasoning_effort')
+                ? ('least', 'reasoning_effort')
+                : ('nothing', 'messages');
+            return switch (answer[kind]) {
+              'ok' => _reply('ok'),
+              'words' => _alwaysReasons(),
+              'named' => http.Response(
+                jsonEncode({
+                  'error': {'message': 'Unsupported parameter', 'param': field},
+                }),
+                400,
+              ),
+              _ => http.Response(
+                jsonEncode({
+                  'error': {'code': '1214', 'message': 'messages 参数非法'},
+                }),
+                400,
+                headers: _utf8Json,
+              ),
+            };
+          });
+          final config = AiConfig(
+            provider: AiProviderType.openAi,
+            endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+            apiKey: 'k-property-$run',
+            model: 'glm-9',
+            platform: 'zhipu',
+          );
+
+          for (var round = 0; round < 2; round++) {
+            final before = bodies.length;
+            final preview = await OpenAiProvider(config, client: client)
+                .previewRequest(
+                  messages: const [UserMessage('u')],
+                  tools: const [],
+                );
+            try {
+              await OpenAiProvider(
+                config,
+                client: client,
+              ).chat(messages: const [UserMessage('u')], tools: const []);
+            } on AiException {
+              // An unrelated refusal, or one left with nothing to drop.
+            }
+            final sent = bodies.sublist(before);
+            final reason = 'run $run round $round $answer';
+            expect(sent, isNotEmpty, reason: reason);
+            expect(sent.length, lessThanOrEqualTo(3), reason: reason);
+            expect(sent.first, preview.body, reason: reason);
+            for (var i = 1; i < sent.length; i++) {
+              expect(sent[i], isNot(sent[i - 1]), reason: reason);
+            }
+          }
+        }
+      },
+    );
 
     test('a refusal while asking reasoning on teaches nothing', () async {
       // Only a refused *off* is learned; learning it here would retry the

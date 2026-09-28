@@ -385,14 +385,14 @@ void main() {
   for (final (what, platform, route, endpoint, base, model, refused, tried, on)
       in [
         (
-          'a Zhipu model that refused its switch set to off',
+          'a Zhipu model that refused its switch set to off and the least',
           PlatformProfiles.zhipu,
           AiProviderType.openAi,
           zhipu,
           zhipu,
           'glm-5.3',
           <String>{},
-          {LearnedBehaviour.dialectOff},
+          {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
           true,
         ),
         (
