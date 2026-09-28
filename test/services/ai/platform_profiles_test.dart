@@ -263,6 +263,97 @@ void main() {
     },
   );
 
+  group('messagesOffFor: the rungs of off, in order', () {
+    MessagesOff? off(
+      String endpoint, {
+      Set<String> rejected = const {},
+      Set<String> tried = const {},
+      String model = 'glm-5.3',
+    }) => PlatformProfiles.messagesOffFor(
+      AiConfig(
+        provider: AiProviderType.anthropic,
+        endpoint: endpoint,
+        apiKey: 'k',
+        model: model,
+      ),
+      LearnedBehaviour(rejectedFields: rejected, thinkingOffTried: tried),
+    );
+    const zhipu = 'https://open.bigmodel.cn/api/anthropic';
+    const every = {'thinking', 'thinking:adaptive', 'thinking:enabled'};
+
+    test('a switch route says disabled, then the least, then nothing', () {
+      expect(off(zhipu), MessagesOff.disabled);
+      expect(
+        off(zhipu, tried: {LearnedBehaviour.dialectOff}),
+        MessagesOff.leastEffort,
+      );
+      expect(
+        off(
+          zhipu,
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ),
+        isNull,
+      );
+      // Each rung refused alone is that rung's marker, not a position.
+      expect(
+        off(zhipu, tried: {LearnedBehaviour.leastEffortOff}),
+        MessagesOff.disabled,
+      );
+    });
+
+    test('a server that does not know thinking is not asked the least', () {
+      expect(off(zhipu, rejected: every), isNull);
+      // A model that said it cannot stop said the server knows the field.
+      expect(
+        off(zhipu, rejected: every, tried: {LearnedBehaviour.dialectOff}),
+        MessagesOff.leastEffort,
+      );
+      // On refused is not off refused.
+      expect(off(zhipu, rejected: {'thinking:adaptive'}), MessagesOff.disabled);
+    });
+
+    test('anywhere else off is the protocol default: nothing', () {
+      for (final endpoint in [
+        'https://api.anthropic.com',
+        'https://relay.example.com',
+      ]) {
+        expect(off(endpoint, model: 'claude-sonnet-5'), isNull);
+        expect(
+          off(
+            endpoint,
+            model: 'claude-sonnet-5',
+            tried: {LearnedBehaviour.dialectOff},
+          ),
+          isNull,
+          reason: endpoint,
+        );
+      }
+    });
+
+    test('each rung says itself, and is read back from a body', () {
+      for (final rung in MessagesOff.values) {
+        expect(MessagesOff.sentIn(rung.body), rung);
+      }
+      expect(MessagesOff.leastEffort.body, {
+        'output_config': {'effort': 'low'},
+      });
+      expect(MessagesOff.sentIn(const {}), isNull);
+      expect(
+        MessagesOff.sentIn(const {
+          'thinking': {'type': 'adaptive'},
+        }),
+        isNull,
+      );
+      // Another effort is not the least.
+      expect(
+        MessagesOff.sentIn(const {
+          'output_config': {'effort': 'high'},
+        }),
+        isNull,
+      );
+    });
+  });
+
   group('reasoningRouteFor', () {
     AiConfig at(
       AiProviderType provider,

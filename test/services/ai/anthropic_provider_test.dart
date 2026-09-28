@@ -729,7 +729,8 @@ void main() {
       });
 
       test(
-        'a model that cannot stop reasoning is not told off again',
+        'a model that cannot stop reasoning is not told off again, but asked '
+        'for the least',
         () async {
           final bodies = <Map<String, dynamic>>[];
           AnthropicProvider provider() => AnthropicProvider(
@@ -768,15 +769,19 @@ void main() {
           await first.chat(messages: const [UserMessage('u')], tools: const []);
           expect(bodies, hasLength(2));
           expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(bodies.last['output_config'], {'effort': 'low'});
           expect(first.learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
           expect(first.learned.rejectedFields, isEmpty);
 
+          // A fresh provider starts from what was learned.
           await provider().chat(
             messages: const [UserMessage('u')],
             tools: const [],
           );
           expect(bodies, hasLength(3));
           expect(bodies.last.containsKey('thinking'), isFalse);
+          expect(bodies.last['output_config'], {'effort': 'low'});
+          addTearDown(first.forgetLearned);
         },
       );
 
@@ -857,18 +862,122 @@ void main() {
           );
           expect(bodies, hasLength(2), reason: model);
           expect(bodies.first['thinking'], {'type': 'disabled'});
+          expect(bodies.first.containsKey('output_config'), isFalse);
           expect(bodies.last.containsKey('thinking'), isFalse, reason: model);
+          expect(bodies.last['output_config'], {
+            'effort': 'low',
+          }, reason: model);
           expect(provider.learned.thinkingOffTried, {
             LearnedBehaviour.dialectOff,
           }, reason: model);
           expect(provider.learned.rejectedFields, isEmpty, reason: model);
-          // The next request does not ask again.
+          // The next request does not say `disabled` again: it asks for the
+          // least.
           final preview = await AnthropicProvider(
             _config(endpoint, model: model),
           ).previewRequest(messages: const [UserMessage('u')], tools: const []);
           expect(preview.body.containsKey('thinking'), isFalse, reason: model);
+          expect(preview.body['output_config'], {
+            'effort': 'low',
+          }, reason: model);
           addTearDown(provider.forgetLearned);
         }
+      });
+
+      /// A switch route with thinking off whose server answers `disabled`
+      /// with Zhipu's 1210 and the least reasoning with [leastMessage]; the
+      /// bodies sent and what it learned.
+      Future<(List<Map<String, dynamic>>, AnthropicProvider)> leastRefused(
+        String leastMessage,
+      ) async {
+        final bodies = <Map<String, dynamic>>[];
+        http.Response refuse(String message) => http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
+              'type': 'error',
+              'error': {'type': 'invalid_request_error', 'message': message},
+            }),
+          ),
+          400,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+        );
+        final provider = AnthropicProvider(
+          _config('https://open.bigmodel.cn/api/anthropic', model: 'glm-5.3'),
+          client: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bodies.add(body);
+            if (bodies.length > 8) throw StateError('runaway retries');
+            if (body.containsKey('thinking')) {
+              return refuse('[1210][该模型始终思考，不支持关闭思考；请使用 low、high 或 max。][id]');
+            }
+            if (body.containsKey('output_config')) return refuse(leastMessage);
+            return _stream(
+              _reply([
+                {'type': 'text', 'text': 'ok'},
+              ]),
+            );
+          }),
+        );
+        addTearDown(provider.forgetLearned);
+        await provider.chat(
+          messages: const [UserMessage('u')],
+          tools: const [],
+        );
+        return (bodies, provider);
+      }
+
+      test('the least refused too, off sends nothing — once each', () async {
+        for (final message in [
+          // Zhipu's 5.3 answers every effort but low, high and max so.
+          '[1210][该模型始终思考，不支持关闭思考；请使用 high 或 max。][id]',
+          // Zhipu's own name for the field, translated.
+          '[1210][reasoning_effort 参数值非法，可选值为：high、max][id]',
+          // DashScope's words for a value it does not take.
+          "Invalid value 'low' for output_config.effort. Supported values "
+              'are: medium, high.',
+          // A relay that does not know the field (Pydantic).
+          '1 validation error for Request\noutput_config\n  Extra inputs are '
+              "not permitted [type=extra_forbidden, input_value={'effort': "
+              "'low'}, input_type=dict]",
+          'Unknown parameter: output_config.effort',
+        ]) {
+          final (bodies, provider) = await leastRefused(message);
+          expect(bodies, hasLength(3), reason: message);
+          expect(bodies[0]['thinking'], {'type': 'disabled'});
+          expect(bodies[1].containsKey('thinking'), isFalse);
+          expect(bodies[1]['output_config'], {'effort': 'low'});
+          expect(bodies[2].containsKey('thinking'), isFalse, reason: message);
+          expect(
+            bodies[2].containsKey('output_config'),
+            isFalse,
+            reason: message,
+          );
+          expect(provider.learned.thinkingOffTried, {
+            LearnedBehaviour.dialectOff,
+            LearnedBehaviour.leastEffortOff,
+          }, reason: message);
+          expect(provider.learned.rejectedFields, isEmpty, reason: message);
+          provider.forgetLearned();
+        }
+      });
+
+      test('the least is asked for off only: on is adaptive, alone', () async {
+        final (_, provider) = await offRefused(
+          '',
+          '[1210][该模型始终思考，不支持关闭思考；请使用 low、high 或 max。][id]',
+          endpoint: 'https://open.bigmodel.cn/api/anthropic',
+          model: 'glm-5.3',
+        );
+        addTearDown(provider.forgetLearned);
+        final on = await AnthropicProvider(
+          _config(
+            'https://open.bigmodel.cn/api/anthropic',
+            model: 'glm-5.3',
+            thinking: true,
+          ),
+        ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+        expect(on.body['thinking'], {'type': 'adaptive'});
+        expect(on.body.containsKey('output_config'), isFalse);
       });
 
       test('a server that does not know thinking stops being told', () async {

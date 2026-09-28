@@ -248,13 +248,6 @@ class AnthropicProvider implements AiProvider {
   MessagesThinking get _firstForm =>
       PlatformProfiles.messagesFirstFormFor(config);
 
-  /// Whether this route refused the `thinking` field itself: every form,
-  /// as a server that does not know the field records. A legacy bare
-  /// record is read against the first form ([MessagesThinking.refusedIn]).
-  bool _fieldRefused(Set<String> rejected) =>
-      MessagesThinking.refusedIn(rejected, first: _firstForm).length ==
-      MessagesThinking.values.length;
-
   /// The request body — the one place it is built.
   Map<String, Object?> _payload(
     List<ChatMessage> messages,
@@ -293,14 +286,12 @@ class AnthropicProvider implements AiProvider {
           if (_official) 'display': 'summarized',
         },
       // A route declared as a switch is told off in its own words (its
-      // platform may think by default) — unless the model refused it, or
-      // the server the field; elsewhere off is the protocol's default and
-      // nothing is sent.
-      if (!config.sampling.thinking &&
-          PlatformProfiles.messagesSwitchFor(config) &&
-          !learned.thinkingOffTried.contains(LearnedBehaviour.dialectOff) &&
-          !_fieldRefused(rejected))
-        'thinking': const {'type': 'disabled'},
+      // platform may think by default): `disabled`, and for a model that
+      // said it cannot stop, the least reasoning — each until refused
+      // ([PlatformProfiles.messagesOffFor]); elsewhere off is the
+      // protocol's default and nothing is sent.
+      if (!config.sampling.thinking)
+        ...?PlatformProfiles.messagesOffFor(config, learned)?.body,
       // `thinking` is decided above, form by form.
     }..removeWhere((k, _) => k != 'thinking' && rejected.contains(k));
     return {

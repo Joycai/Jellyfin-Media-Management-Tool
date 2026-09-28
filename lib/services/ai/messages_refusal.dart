@@ -2,7 +2,7 @@
 ///
 /// `AnthropicProvider.chat` sends a request, and when the server refuses it
 /// asks [MessagesRefusal.read] what to remember — a sampling field to drop,
-/// a form of thinking to give up, the switch set to off refused — records
+/// a form of thinking to give up, a way of saying off refused — records
 /// that and sends again, or throws when nothing was learned. Every reading
 /// of the error text lives here, and the learned state is written by one
 /// method, [RefusalLesson.apply].
@@ -97,28 +97,30 @@ final class ThinkingFormsRefused extends RefusalLesson {
   String toString() => 'ThinkingFormsRefused(${forms.toList()..sort()})';
 }
 
-/// The switch set to off refused — the model cannot stop, or the server
-/// knows the field and not `disabled`: remembered as on Chat Completions,
-/// and `disabled` left off later requests.
+/// A rung of off refused ([MessagesOff]): `disabled`, because the model
+/// cannot stop or the server knows the field and not that value —
+/// remembered as on Chat Completions — or then the least reasoning. The
+/// rung is left off later requests and the next one tried. Always the rung
+/// the request carried, so its marker was not yet recorded and the lesson
+/// changes what the route knows: the resend is never the same request.
 final class OffRefused extends RefusalLesson {
-  const OffRefused();
+  final MessagesOff rung;
+
+  const OffRefused(this.rung);
 
   @override
   LearnedBehaviour apply(LearnedBehaviour learned) => learned.copyWith(
-    thinkingOffTried: {
-      ...learned.thinkingOffTried,
-      LearnedBehaviour.dialectOff,
-    },
+    thinkingOffTried: {...learned.thinkingOffTried, rung.triedMarker},
   );
 
   @override
-  bool operator ==(Object other) => other is OffRefused;
+  bool operator ==(Object other) => other is OffRefused && other.rung == rung;
 
   @override
-  int get hashCode => (OffRefused).hashCode;
+  int get hashCode => Object.hash(OffRefused, rung);
 
   @override
-  String toString() => 'OffRefused()';
+  String toString() => 'OffRefused(${rung.name})';
 }
 
 /// The readings of a Messages 400, and the one arbitration between them.
@@ -141,7 +143,11 @@ abstract final class MessagesRefusal {
   /// thinking, it is read for what it says of the form asked
   /// (the reading [readThinkingRefusal] holds) and mapped by the direction
   /// asked; where that records nothing, a sampling value named in it still
-  /// is. The first sentence with a lesson decides. So "reasoning_effort is
+  /// is. Off said as the least reasoning (`output_config.effort`, the
+  /// second rung of [MessagesOff]) makes `output_config` and `effort` names
+  /// of thinking as well, and a sentence about thinking that refuses
+  /// anything refuses that rung ([refusesLeastEffort]). The first sentence
+  /// with a lesson decides. So "reasoning_effort is
   /// not supported; use temperature instead" gives thinking up and keeps
   /// `temperature`, while "temperature is not supported with thinking"
   /// drops `temperature` and keeps asking. The rule is the order of the
@@ -165,6 +171,9 @@ abstract final class MessagesRefusal {
       {'type': final String type} => type,
       _ => null,
     };
+    // Off said as the least reasoning: `output_config` and its `effort` are
+    // names of the request for thinking too.
+    final leastSent = MessagesOff.sentIn(payload) == MessagesOff.leastEffort;
     final sentOptional = optionalFields
         .where((f) => payload.containsKey(f) && !rejected.contains(f))
         .toList();
@@ -172,9 +181,12 @@ abstract final class MessagesRefusal {
     // the request for thinking, whichever sentence says it.
     final history = _aboutHistory(about);
     for (final sentence in _sentences(about)) {
-      final subject = _subjectOf(sentence, sentOptional);
+      final subject = _subjectOf(sentence, sentOptional, effort: leastSent);
       if (subject == null) continue;
       if (subject != _thinking) return OptionalRefused(subject);
+      if (!history && leastSent && refusesLeastEffort(sentence)) {
+        return const OffRefused(MessagesOff.leastEffort);
+      }
       if (!history && sentType != null) {
         final lesson = _lessonFor(
           _readSentence(sentence, sentType: sentType),
@@ -201,9 +213,15 @@ abstract final class MessagesRefusal {
   static const _thinking = 'thinking';
 
   /// The field [sentence] names first — [_thinking], under its own name,
-  /// another protocol's, or the words of a model that cannot stop, where
-  /// they stand; or one of [sentOptional] — or null when it names none.
-  static String? _subjectOf(String sentence, List<String> sentOptional) {
+  /// another protocol's, the words of a model that cannot stop, or where the
+  /// request said off as the least reasoning ([effort]) `output_config` or
+  /// its `effort`, where they stand; or one of [sentOptional] — or null
+  /// when it names none.
+  static String? _subjectOf(
+    String sentence,
+    List<String> sentOptional, {
+    bool effort = false,
+  }) {
     int? at(String name) {
       final index = sentence.indexOf(name);
       return index < 0 ? null : index;
@@ -233,11 +251,33 @@ abstract final class MessagesRefusal {
         );
       }
     }
+    if (effort) {
+      consider(_thinking, _effortNames.firstMatch(sentence)?.start);
+    }
     for (final field in sentOptional) {
       consider(field, at(field));
     }
     return subject;
   }
+
+  /// `output_config`, or `effort` as a word of its own (not the end of
+  /// `reasoning_effort`, which is another protocol's name for thinking and
+  /// counts as that).
+  static final _effortNames = RegExp(r'output_config|(?<![a-z_])effort\b');
+
+  /// Whether [sentence], about the request for thinking and answering off
+  /// said as the least reasoning (`output_config: {effort: "low"}`, with no
+  /// `thinking`), refuses it: the words of a model that cannot stop
+  /// (Zhipu's 5.3 answers every effort but `low`, `high` and `max` with its
+  /// "始终思考"), or those of a refusal, an unknown field or an invalid value
+  /// (DashScope's "Invalid value … for output_config.effort", Pydantic's
+  /// "Extra inputs are not permitted"; Zhipu's own, under the name it
+  /// translates the field to, "reasoning_effort 参数值非法"). Only `low` was
+  /// sent, so whatever such a sentence refuses, it refuses that rung.
+  static bool refusesLeastEffort(String sentence) =>
+      refusesThinkingOff(sentence) ||
+      _cannotStopTranslated(sentence) ||
+      RegExp('$_refusalWords|invalid|非法').hasMatch(sentence);
 
   /// The one of [fields] that [sentence] names first, or null.
   static String? _first(String sentence, List<String> fields) {
@@ -281,7 +321,7 @@ abstract final class MessagesRefusal {
       return switch (reading) {
         ThinkingRefusal.cannotStop ||
         ThinkingRefusal.valueRefused ||
-        ThinkingRefusal.valueNamed => const OffRefused(),
+        ThinkingRefusal.valueNamed => const OffRefused(MessagesOff.disabled),
         ThinkingRefusal.fieldUnknown || ThinkingRefusal.featureRefused =>
           ThinkingFormsRefused(everyThinkingForm),
         ThinkingRefusal.unrelated => null,

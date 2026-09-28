@@ -43,6 +43,47 @@ enum ServerOwner {
   unknown,
 }
 
+/// How a Messages switch route says off, in the order tried: each once per
+/// model, the next once the one before was refused, and nothing once both
+/// were ([PlatformProfiles.messagesOffFor]). What was refused is kept in
+/// `LearnedBehaviour.thinkingOffTried`, under the rung's [triedMarker].
+enum MessagesOff {
+  /// `thinking: {type: "disabled"}`, the platform's switch.
+  disabled(LearnedBehaviour.dialectOff),
+
+  /// `output_config: {effort: "low"}`, the least reasoning, for a model that
+  /// said it cannot stop. Not the same as off: 【实测 2026-09-28】with tools,
+  /// Zhipu's glm-5.3 then returns no thinking block (64 output tokens, 1449
+  /// without it), glm-5.3-flash and MiniMax-M2.5 through DashScope still
+  /// think a little. `low` is the one value both platforms take — Zhipu's
+  /// 5.3 refuses `medium`, `minimal` and `none` with the same "始终思考" — and
+  /// it cannot go beside `disabled` (the pair draws that refusal too).
+  leastEffort(LearnedBehaviour.leastEffortOff);
+
+  /// What `thinkingOffTried` records once this rung was refused.
+  final String triedMarker;
+
+  const MessagesOff(this.triedMarker);
+
+  /// The fields this rung adds to the request body.
+  Map<String, Object> get body => switch (this) {
+    disabled => const {
+      'thinking': {'type': 'disabled'},
+    },
+    leastEffort => const {
+      'output_config': {'effort': 'low'},
+    },
+  };
+
+  /// The rung [payload] said off with, if it did.
+  static MessagesOff? sentIn(Map<String, Object?> payload) =>
+      switch ((payload['thinking'], payload['output_config'])) {
+        ({'type': 'disabled'}, _) => disabled,
+        (null, {'effort': 'low'}) => leastEffort,
+        _ => null,
+      };
+}
+
 /// How a route switches reasoning now, after what it has refused — what the
 /// adapters send, read by the settings screens so that none of them works it
 /// out on its own ([PlatformProfiles.reasoningRouteFor]).
@@ -567,6 +608,32 @@ abstract final class PlatformProfiles {
   static bool messagesSwitchFor(AiConfig config) =>
       config.provider == AiProviderType.anthropic &&
       (of(config).routes[config.provider]?.messagesThinkingSwitch ?? false);
+
+  /// How [config]'s Messages route says off after what it [learned], or
+  /// null where off sends nothing: not a switch route (off is the protocol's
+  /// default there), the `thinking` field refused by name before off was (a
+  /// server that does not know the field has said nothing of a model that
+  /// cannot stop), or every rung refused. The adapter's body and
+  /// [reasoningRouteFor] both read it, so the two cannot disagree.
+  static MessagesOff? messagesOffFor(
+    AiConfig config,
+    LearnedBehaviour learned,
+  ) {
+    if (!messagesSwitchFor(config)) return null;
+    final tried = learned.thinkingOffTried;
+    final fieldRefused =
+        MessagesThinking.refusedIn(
+          learned.rejectedFields,
+          first: messagesFirstFormFor(config),
+        ).length ==
+        MessagesThinking.values.length;
+    if (fieldRefused && !tried.contains(LearnedBehaviour.dialectOff)) {
+      return null;
+    }
+    return MessagesOff.values
+        .where((rung) => !tried.contains(rung.triedMarker))
+        .firstOrNull;
+  }
 
   /// The form [config]'s Messages route asks thinking in before any
   /// refusal: adaptive on a switch route, the one form it takes, otherwise
