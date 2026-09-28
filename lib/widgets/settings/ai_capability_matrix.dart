@@ -344,9 +344,7 @@ CapabilityCell capabilityCell(
           // can still be on record here.
           final tried = learned?.thinkingOffTried ?? const <String>{};
           final steps = tried.where(
-            (w) =>
-                w != LearnedBehaviour.dialectOff &&
-                w != LearnedBehaviour.leastEffortOff,
+            (w) => !LearnedBehaviour.platformOffMarkers.contains(w),
           );
           return steps.length >= 2
               ? (state: unavailable, text: l10n.aiCellLadderExhausted)

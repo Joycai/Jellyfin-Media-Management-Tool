@@ -50,6 +50,14 @@ class LearnedBehaviour {
   /// key carries its protocol, so the two never share a set.
   static const leastEffortOff = 'leastEffort';
 
+  /// The markers a platform's ways of saying off write in
+  /// [thinkingOffTried] (`MessagesOff`, `PlatformProfiles.chatOffRungsFor`),
+  /// as opposed to the local-server ladder's steps. A route key outlives its
+  /// channel's platform, so both can be on record; whatever counts the
+  /// ladder's steps leaves these out. `platform_profiles_test` holds every
+  /// rung's marker to this set.
+  static const platformOffMarkers = {dialectOff, leastEffortOff};
+
   /// In [thinkingOffTried] on a Responses route: `reasoning.effort: "none"`
   /// was refused. The Chat Completions ladder has a way of the same name,
   /// but a route key carries its protocol, so the two never share a set.

@@ -151,17 +151,17 @@ void main() {
     final off = model(thinking: false);
     final provider = AiService.providerFor(channel(off).configFor(off));
     addTearDown(provider.forgetLearned);
-    void learn(Set<String> rejected) => LearnedStore.instance.update(
+    void learn(
+      Set<String> rejected, {
+      Set<String> tried = const {LearnedBehaviour.dialectOff},
+    }) => LearnedStore.instance.update(
       LearnedStore.routeKey(
         protocol: AiProviderType.openAi.id,
         base: 'https://open.bigmodel.cn/api/paas/v4',
         model: 'glm-5.3',
         apiKey: 'k-dialog-cc-least',
       ),
-      (b) => b.copyWith(
-        thinkingOffTried: {LearnedBehaviour.dialectOff},
-        rejectedFields: rejected,
-      ),
+      (b) => b.copyWith(thinkingOffTried: tried, rejectedFields: rejected),
     );
     learn(const {});
     const written = {LearnedBehaviour.dialectOff};
@@ -196,6 +196,16 @@ void main() {
     expect(find.text('on'), findsOneWidget);
     await pump(off);
     expect(find.text('off · reasoning_effort'), findsOneWidget);
+
+    // Nor once the least was refused too: the model reasons, and on is not
+    // named where it is not sent.
+    learn(const {'thinking'}, tried: LearnedBehaviour.platformOffMarkers);
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsNothing);
+    expect(find.text('on'), findsOneWidget);
+    learn(const {}, tried: LearnedBehaviour.platformOffMarkers);
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsOneWidget);
   });
 
   testWidgets('a switch route that refused on still names the field for off', (

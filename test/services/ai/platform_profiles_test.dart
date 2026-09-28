@@ -462,6 +462,28 @@ void main() {
       expect(onField(AiProviderType.openAiResponses, 'https://r.io'), isNull);
     });
 
+    test('every rung writes a marker the ladder count leaves out', () {
+      final markers = {
+        for (final rung in MessagesOff.values) rung.triedMarker,
+        for (final platform in PlatformProfiles.all)
+          for (final protocol in platform.routes.keys)
+            for (final rung in PlatformProfiles.chatOffRungsFor(
+              AiConfig(
+                provider: protocol,
+                endpoint: platform.defaultBaseUrl.isEmpty
+                    ? 'http://localhost:1234'
+                    : platform.defaultBaseUrl,
+                apiKey: 'k',
+                model: 'm',
+                platform: platform.id,
+              ),
+            ))
+              rung.marker,
+      };
+      expect(markers, isNotEmpty);
+      expect(LearnedBehaviour.platformOffMarkers.containsAll(markers), isTrue);
+    });
+
     test('only a route that declares the least has it', () {
       expect(off(volcengine)?.marker, LearnedBehaviour.dialectOff);
       expect(off(volcengine, tried: {LearnedBehaviour.dialectOff}), isNull);
@@ -827,6 +849,16 @@ void main() {
               expect(whenOn, isNotNull, reason: 'on is still sent');
             }
             expect(whenOff, isNull);
+            // The route-switch dialog names on only where it is still sent.
+            final onField = PlatformProfiles.reasoningOnFieldFor(
+              config,
+              learned,
+            );
+            if (onField == null) {
+              expect(whenOn, isNull, reason: 'on named nowhere, sent nowhere');
+            } else {
+              expect(bodyOn[onField], isNotNull, reason: 'on named, and sent');
+            }
             expect(bodyOff['output_config'], isNull, reason: 'nor the least');
             expect(
               bodyOff['reasoning_effort'],
