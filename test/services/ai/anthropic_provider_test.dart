@@ -9,6 +9,7 @@ import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/anthropic_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/api_log.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
+import 'package:jellyfin_media_management_tool/services/ai/messages_refusal.dart';
 import 'package:jellyfin_media_management_tool/services/ai/thinking_dialect.dart';
 
 import '../../helpers/http.dart';
@@ -1859,19 +1860,19 @@ void main() {
 
   test('a refusal of thinking is told apart from the budget rule', () {
     expect(
-      AnthropicProvider.refusesThinking(
+      MessagesRefusal.refusesThinking(
         'http 400: thinking: extra inputs are not permitted',
       ),
       isTrue,
     );
     expect(
-      AnthropicProvider.refusesThinking(
+      MessagesRefusal.refusesThinking(
         'http 400: this model does not support thinking',
       ),
       isTrue,
     );
     expect(
-      AnthropicProvider.refusesThinking(
+      MessagesRefusal.refusesThinking(
         'http 400: max_tokens must be greater than thinking.budget_tokens',
       ),
       isFalse,
@@ -1880,7 +1881,7 @@ void main() {
 
   test('a 400 about thinking is read the same way, whichever way was asked', () {
     ThinkingRefusal read(String detail, {String sent = 'adaptive'}) =>
-        AnthropicProvider.readThinkingRefusal(
+        MessagesRefusal.readThinkingRefusal(
           detail.toLowerCase(),
           sentType: sent,
         );
@@ -2094,8 +2095,8 @@ void main() {
       'unrecognized request argument supplied: thinking',
       'thinking [type=extra_forbidden]',
     ]) {
-      expect(AnthropicProvider.refusesThinkingField(detail), isTrue);
-      expect(AnthropicProvider.refusesThinking(detail), isTrue, reason: detail);
+      expect(MessagesRefusal.refusesThinkingField(detail), isTrue);
+      expect(MessagesRefusal.refusesThinking(detail), isTrue, reason: detail);
     }
   });
 

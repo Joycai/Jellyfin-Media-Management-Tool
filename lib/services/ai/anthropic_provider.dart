@@ -10,37 +10,10 @@ import 'ai_http.dart';
 import 'ai_provider.dart';
 import 'api_log.dart';
 import 'learned_behaviour.dart';
+import 'messages_refusal.dart';
 import 'platform_profiles.dart';
 import 'sse.dart';
 import 'thinking_dialect.dart';
-
-/// What a 400 says about a request for thinking, read the same way whether
-/// on or off was asked ([AnthropicProvider.readThinkingRefusal]).
-enum ThinkingRefusal {
-  /// The model cannot stop reasoning ("该模型始终思考，不支持关闭思考"). Read
-  /// only when off was asked: it answers that question alone.
-  cannotStop,
-
-  /// The server does not know the `thinking` field.
-  fieldUnknown,
-
-  /// The server knows the field — the value sent or a sub-field is named
-  /// — and refuses in so many words ("unsupported value 'adaptive'",
-  /// "thinking.budget_tokens: Extra inputs are not permitted").
-  valueRefused,
-
-  /// The value sent, or a sub-field, is named without thinking being
-  /// refused ("Input tag 'adaptive' … does not match … 'enabled'").
-  valueNamed,
-
-  /// Thinking itself refused, in words that name no field or value ("this
-  /// model does not support thinking").
-  featureRefused,
-
-  /// Not about the request for thinking: the history, the budget, or
-  /// something else.
-  unrelated,
-}
 
 /// Talks to the Anthropic Messages API (`/v1/messages`), and to the
 /// Anthropic-shaped routes other platforms mirror (DeepSeek, DashScope,
@@ -152,7 +125,6 @@ class AnthropicProvider implements AiProvider {
     final key = _cacheKey;
     while (true) {
       final learned = _learned.of(key);
-      final rejected = learned.rejectedFields;
       final payload = _payload(messages, tools, learned: learned);
       final started = DateTime.now();
       void log({
@@ -218,98 +190,18 @@ class AnthropicProvider implements AiProvider {
           error = 'HTTP ${res.statusCode}';
         }
         log(status: res.statusCode, error: error);
-        // An optional field this route refuses by name is dropped and
-        // remembered — `top_k` on a mirror, `temperature` beside `top_p`.
+        // What the refusal teaches — a sampling field to drop, a form of
+        // thinking to give up, off refused — is read in one place and
+        // recorded once; the request then goes again without it.
         if (res.statusCode == 400 || res.statusCode == 422) {
-          final detail = error.toLowerCase();
-          // The model id is not the message: a relay's `…-thinking` model
-          // named in an unrelated error must not read as a refusal.
-          final about = detail.replaceAll(config.model.toLowerCase(), '');
-          final refusedOptional = _optional
-              .where(
-                (f) =>
-                    payload.containsKey(f) &&
-                    !rejected.contains(f) &&
-                    detail.contains(f),
-              )
-              .firstOrNull;
-          // A sampling field this request sent, refused in words that only
-          // mention reasoning in passing ("'top_p' is not supported with
-          // reasoning models"), is that field's refusal: the request is
-          // read for thinking then only where the words say `thinking`.
-          // (A request that asks for thinking sends no sampling values, so
-          // this is a switch route told off, with its values beside it.)
-          final readForThinking =
-              refusedOptional == null || about.contains('thinking');
-          // A switch route told off: what the refusal says decides what is
-          // remembered, in the one reading both directions share.
-          if (payload['thinking'] case {
-            'type': 'disabled',
-          } when readForThinking) {
-            switch (readThinkingRefusal(about, sentType: 'disabled')) {
-              // The model cannot stop, or the server knows the field and
-              // not `disabled`: remembered as on Chat Completions, and
-              // `disabled` left off its requests.
-              case ThinkingRefusal.cannotStop:
-              case ThinkingRefusal.valueRefused:
-              case ThinkingRefusal.valueNamed:
-                _learned.update(
-                  key,
-                  (b) => b.copyWith(
-                    thinkingOffTried: {
-                      ...b.thinkingOffTried,
-                      LearnedBehaviour.dialectOff,
-                    },
-                  ),
-                );
-                continue;
-              // The server does not know the field, or refuses thinking
-              // itself: refused by name, every form with it, so neither way
-              // sends it and nothing fails over it — which says nothing
-              // about whether the model reasons.
-              case ThinkingRefusal.fieldUnknown:
-              case ThinkingRefusal.featureRefused:
-                _learned.update(
-                  key,
-                  (b) => b.copyWith(
-                    rejectedFields: {
-                      ...b.rejectedFields,
-                      ..._everyThinkingForm,
-                    },
-                  ),
-                );
-                continue;
-              case ThinkingRefusal.unrelated:
-                break;
-            }
-          }
-          final thinkingRefusal = readForThinking
-              ? _thinkingRefusal(
-                  about,
-                  sent: _sentForm(payload),
-                  refused: MessagesThinking.refusedIn(
-                    rejected,
-                    first: _firstForm,
-                  ),
-                  swap: !PlatformProfiles.messagesSwitchFor(config),
-                )
-              : null;
-          if (thinkingRefusal != null) {
-            _learned.update(
-              key,
-              (b) => b.copyWith(
-                rejectedFields: {...b.rejectedFields, ...thinkingRefusal},
-              ),
-            );
-            continue;
-          }
-          if (refusedOptional != null) {
-            _learned.update(
-              key,
-              (b) => b.copyWith(
-                rejectedFields: {...b.rejectedFields, refusedOptional},
-              ),
-            );
+          final lesson = MessagesRefusal.read(
+            error,
+            payload: payload,
+            learned: learned,
+            config: config,
+          );
+          if (lesson != null) {
+            _learned.update(key, lesson.apply);
             continue;
           }
         }
@@ -337,219 +229,6 @@ class AnthropicProvider implements AiProvider {
     }
   }
 
-  /// Whether a rejection refuses extended thinking itself — "does not
-  /// support thinking", "thinking: Extra inputs are not permitted" — rather
-  /// than only mentioning it. The budget error ("max_tokens must be greater
-  /// than thinking.budget_tokens") is about the numbers, not the feature,
-  /// and dropping thinking over it would switch reasoning off unasked.
-  static bool refusesThinking(String detail) {
-    if (!detail.contains('thinking')) return false;
-    if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
-      return false;
-    }
-    return RegExp('$_refusalWords|["\'`]thinking["\'`]').hasMatch(detail);
-  }
-
-  /// OpenAI's "Unrecognized request argument supplied: thinking" — and not
-  /// "unrecognized model: …-thinking", which is about the model.
-  static const _unrecognizedField =
-      'unrecognized (request )?(argument|field|parameter|key)';
-
-  /// The words of a field the server does not know: Pydantic's
-  /// (`extra_forbidden`), OpenAI's, Google's ("Unknown name") and a plain
-  /// "unknown field".
-  static const _unknownFieldWords =
-      'extra inputs|extra_forbidden|unknown (field|parameter|name)|'
-      '$_unrecognizedField';
-
-  /// The words of a refusal — of a value or a feature, and those of a
-  /// field unknown, which are a kind of refusal.
-  static const _refusalWords =
-      'not support|unsupported|not permitted|not allowed|$_unknownFieldWords';
-
-  /// Whether [detail] refuses `thinking` in the words of a field the server
-  /// does not know — Pydantic's "Extra inputs are not permitted"
-  /// (`extra_forbidden`), "unknown field" — as against a value it will not
-  /// take. A sub-field named (`thinking.type`, `thinking.budget_tokens`)
-  /// says the server knows the field, whatever the words: it is the value.
-  static bool refusesThinkingField(String detail) =>
-      detail.contains('thinking') &&
-      !_subField.hasMatch(detail) &&
-      RegExp(_unknownFieldWords).hasMatch(detail);
-
-  /// Whether [detail], which does not say `thinking`, refuses the field
-  /// under the name a relay's translation layer gave it — its upstream's
-  /// `reasoning_effort`, `chat_template_kwargs`, `thinkingConfig`, a quoted
-  /// `reasoning` — in the words of a refusal or of an unknown field, or
-  /// with the name quoted (an "Invalid value for 'reasoning_effort'" is
-  /// the relay's value, not ours). What the relay sends instead is not
-  /// this adapter's to know or change, so the one thing to learn is that
-  /// the route cannot carry a request for thinking: the field unknown,
-  /// every form given up. A name merely mentioned, with nothing refused, is
-  /// about something else, and so is one named in another sentence than
-  /// the refusal ("unsupported parameter: top_k. Supported parameters:
-  /// reasoning_effort, …") or inside the input Pydantic echoes — the
-  /// relay's whole translated body, when the error is about something
-  /// else in it.
-  static bool refusesThinkingTranslated(String detail) {
-    final text = detail.replaceAll(_echoedInput, '');
-    return text
-        .split(_sentenceEnd)
-        .any(
-          (sentence) =>
-              translatedFieldNamed(sentence, own: 'thinking') != null &&
-              (RegExp(_refusalWords).hasMatch(sentence) ||
-                  _quotedTranslated.hasMatch(sentence)),
-        );
-  }
-
-  /// Pydantic's echo of the refused input, `input_value=…, input_type=…`.
-  /// It ends at `input_type`, never at a `]` — the echoed body has lists
-  /// in it (`'messages': [{…}]`).
-  static final _echoedInput = RegExp(
-    r'input_value=.*?(?=, input_type=|$)',
-    dotAll: true,
-  );
-
-  /// Another protocol's name for the field, quoted or dotted
-  /// (`'reasoning_effort'`, `'reasoning.effort'`).
-  static final _quotedTranslated = () {
-    final names = reasoningFieldNames
-        .where((name) => name != 'thinking')
-        .map(RegExp.escape)
-        .join('|');
-    return RegExp('["\'`]($names)["\'`.]');
-  }();
-
-  /// A sentence end: a full stop or semicolon followed by space. Not a
-  /// newline — Pydantic puts the field on its own line above the words.
-  static final _sentenceEnd = RegExp(r'[.;]\s+');
-
-  /// Whether [detail], answering a request to turn thinking off, says the
-  /// model's reasoning is mandatory in another protocol's name for the
-  /// field — the model cannot stop, as [refusesThinkingOff] reads the words
-  /// that name no field. `mandatory` counts only beside a name: on its own
-  /// it turns up in unrelated errors ("messages is mandatory").
-  static bool _mandatoryTranslated(String detail) =>
-      detail.contains('mandatory') &&
-      translatedFieldNamed(detail, own: 'thinking') != null;
-
-  /// A sub-field of `thinking` named — the ones a request carries, so that
-  /// "thinking.Please", a docs URL ending in `thinking.html` or a relay's
-  /// `…-thinking.v2` alias do not read as one.
-  static final _subField = RegExp(r'thinking\.(type|budget_tokens|display)\b');
-
-  /// What a 400 [detail] says about the request for thinking that sent
-  /// [sentType] (`adaptive`, `enabled` or `disabled`): the one reading both
-  /// directions map to what they remember. Words for a field the server
-  /// does not know are read before the value is looked for, since Pydantic
-  /// echoes the refused input (`input_value={'type': 'disabled'}`) beside
-  /// them. One that does not say `thinking` at all can still refuse it
-  /// under another protocol's name for the field, a relay's translation
-  /// ([refusesThinkingTranslated]): the field unknown, nothing finer —
-  /// except "mandatory" beside such a name in answer to off, which is the
-  /// model that cannot stop. A
-  /// budget error is about the numbers, never the form, and an
-  /// error about the thinking blocks in the conversation ("`thinking` or
-  /// `redacted_thinking` blocks … cannot be modified", "messages.3.content.0:
-  /// Invalid `signature` in `thinking` block") says the history is wrong,
-  /// whichever form was asked for: both are unrelated.
-  static ThinkingRefusal readThinkingRefusal(
-    String detail, {
-    required String sentType,
-  }) {
-    if (_aboutHistory(detail)) return ThinkingRefusal.unrelated;
-    // Said without naming the field ("始终思考"): read before the field is
-    // looked for. It answers off alone: asked on, the same words beside a
-    // form or the field are read as those.
-    if (sentType == 'disabled' &&
-        (refusesThinkingOff(detail) || _mandatoryTranslated(detail))) {
-      return ThinkingRefusal.cannotStop;
-    }
-    // Said of another protocol's field: a relay translated `thinking` and
-    // was refused under that name. Only the field can be read from it.
-    if (!detail.contains('thinking')) {
-      return refusesThinkingTranslated(detail)
-          ? ThinkingRefusal.fieldUnknown
-          : ThinkingRefusal.unrelated;
-    }
-    if (detail.contains('budget_tokens') && detail.contains('max_tokens')) {
-      return ThinkingRefusal.unrelated;
-    }
-    if (refusesThinkingField(detail)) return ThinkingRefusal.fieldUnknown;
-    // The value sent, or a sub-field, named: the server knows the field.
-    // A sub-field other than the type named on its own, with no refusal
-    // beside it — a budget out of range — is about the numbers.
-    final namesValue =
-        detail.contains(sentType) || detail.contains('thinking.type');
-    if (namesValue || _subField.hasMatch(detail)) {
-      if (refusesThinking(detail)) return ThinkingRefusal.valueRefused;
-      return namesValue
-          ? ThinkingRefusal.valueNamed
-          : ThinkingRefusal.unrelated;
-    }
-    if (refusesThinking(detail)) return ThinkingRefusal.featureRefused;
-    return ThinkingRefusal.unrelated;
-  }
-
-  /// What to remember when a request that asked for thinking in [sent] is
-  /// refused with [detail], or null when nothing is: the on direction's
-  /// mapping of [readThinkingRefusal].
-  ///
-  /// A field the server does not know, or thinking itself refused, gives
-  /// thinking up, every form at once. A refusal that names the form
-  /// ("thinking.type: Input tag 'adaptive' … does not match … 'disabled',
-  /// 'enabled'", an older Claude; "…enabled is not supported", a newer one)
-  /// swaps it for the other: dropping thinking over it would switch
-  /// reasoning off for a month without a word. With no other form left to
-  /// swap to, only a refusal of the feature may switch reasoning off: one
-  /// that refuses the form in so many words gives up every form on a route
-  /// that swaps, and just that form on a route declared as a switch
-  /// ([swap] false — its one form, and off still says `disabled`, since the
-  /// server knows the field); one that merely names it is thrown as it is.
-  static Set<String>? _thinkingRefusal(
-    String detail, {
-    required MessagesThinking? sent,
-    required Set<MessagesThinking> refused,
-    required bool swap,
-  }) {
-    if (sent == null) return null;
-    return switch (readThinkingRefusal(detail, sentType: sent.type)) {
-      ThinkingRefusal.fieldUnknown ||
-      ThinkingRefusal.featureRefused => _everyThinkingForm,
-      ThinkingRefusal.valueRefused || ThinkingRefusal.valueNamed
-          when swap && !refused.contains(sent.other) =>
-        {sent.refusedName},
-      ThinkingRefusal.valueRefused =>
-        swap ? _everyThinkingForm : {sent.refusedName},
-      ThinkingRefusal.valueNamed ||
-      ThinkingRefusal.cannotStop ||
-      ThinkingRefusal.unrelated => null,
-    };
-  }
-
-  /// What a refusal of the `thinking` field itself records: every form, and
-  /// the field by name.
-  static final _everyThinkingForm = {
-    for (final form in MessagesThinking.values) form.refusedName,
-    'thinking',
-  };
-
-  /// Whether [detail] is about the thinking blocks already in the
-  /// conversation rather than about the request for thinking.
-  static bool _aboutHistory(String detail) =>
-      RegExp(r'redacted_thinking|signature|messages\.\d').hasMatch(detail);
-
-  /// The form [payload] asked for thinking in, if it did.
-  static MessagesThinking? _sentForm(Map<String, Object?> payload) =>
-      switch (payload['thinking']) {
-        {'type': final String type} =>
-          MessagesThinking.values
-              .where((form) => form.type == type)
-              .firstOrNull,
-        _ => null,
-      };
-
   /// The form this route asks for thinking in: the model's own first, the
   /// other once that was refused, none once both were.
   ///
@@ -575,10 +254,6 @@ class AnthropicProvider implements AiProvider {
   bool _fieldRefused(Set<String> rejected) =>
       MessagesThinking.refusedIn(rejected, first: _firstForm).length ==
       MessagesThinking.values.length;
-
-  /// Sampling fields the adapter may leave out when a route refuses them;
-  /// `thinking` has its own rules ([_thinkingRefusal]).
-  static const _optional = ['temperature', 'top_p', 'top_k'];
 
   /// The request body — the one place it is built.
   Map<String, Object?> _payload(
