@@ -42,6 +42,11 @@ class LearnedBehaviour {
   /// it, so a channel whose platform changed keeps what the old one learned.
   static const dialectOff = 'dialect';
 
+  /// In [thinkingOffTried] on a Messages switch route: after [dialectOff],
+  /// the least reasoning (`output_config: {effort: "low"}`) was refused too,
+  /// so off sends nothing (`MessagesOff` is the order the two are tried in).
+  static const leastEffortOff = 'leastEffort';
+
   /// In [thinkingOffTried] on a Responses route: `reasoning.effort: "none"`
   /// was refused. The Chat Completions ladder has a way of the same name,
   /// but a route key carries its protocol, so the two never share a set.

@@ -69,6 +69,10 @@ String? reasoningRefusalText(
   return switch (route) {
     // The model said it cannot stop reasoning.
     ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
+    // …and off asks for the least of it.
+    ReasoningRoute.offLeast => l10n.aiCellLeastEffort(
+      MessagesOff.leastEffort.field,
+    ),
     // Off refused without a reason: the model's default, reasoning or not.
     ReasoningRoute.offToDefault => l10n.aiCellModelDefault,
     // Sent neither way; Messages without thinking does not reason, except on
@@ -96,8 +100,9 @@ bool reasoningSwitchable(SamplingPreset? preset, ReasoningRoute route) =>
 /// preset knows off — its default, which the user's own server can change
 /// and no other (`PlatformProfiles.serverOwner` picks the words). Where off was
 /// refused (`offRefused`, `offToDefault`) the page and Diagnostics each say
-/// the model's default instead of warning; everywhere else here a test that
-/// still reasoned is a warning on the page and a failed step in Diagnostics.
+/// the model's default instead of warning, and where off asks for the least
+/// (`offLeast`) they say that; everywhere else here a test that still
+/// reasoned is a warning on the page and a failed step in Diagnostics.
 bool reasoningWarns(SamplingPreset? preset, ReasoningRoute route) =>
     reasoningSwitchable(preset, route) ||
     (preset == null && route == ReasoningRoute.refused);
@@ -763,9 +768,16 @@ class AiSamplingSection extends StatelessWidget {
         break;
     }
     // The model said it cannot stop: a test that still reasoned says nothing
-    // new, and "turn it off on the server" would be the wrong advice.
+    // new, and "turn it off on the server" would be the wrong advice. Where
+    // off asks for the least, that is what off means here.
     if (route == ReasoningRoute.offRefused) {
       return (text: l10n.thinkingAlwaysOn, warning: false);
+    }
+    if (route == ReasoningRoute.offLeast) {
+      return (
+        text: l10n.thinkingLeastEffort(MessagesOff.leastEffort.field),
+        warning: false,
+      );
     }
     final reasoned = lastReasoned;
     // Only where a switch, or the server, can do something about it.

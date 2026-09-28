@@ -330,7 +330,9 @@ void main() {
     expect(value.text, l10n.aiCellModelDefault);
   });
 
-  test('a Messages switch the model refused off always reasons', () {
+  // A Messages switch whose model said it cannot stop: off asks for the
+  // least, and once that was refused too, the model always reasons.
+  CapabilityCell messagesSwitchAfter(Set<String> tried, String key) {
     final m = AiModelEntry.create(
       upstream: 'MiniMax-M3',
       route: AiProviderType.anthropic,
@@ -339,7 +341,7 @@ void main() {
         AiChannel.create(
               platform: PlatformProfiles.miniMax,
               name: 'mm',
-              apiKey: 'k-always',
+              apiKey: key,
             )
             .copyWith(
               routes: [const AiRoute(protocol: AiProviderType.anthropic)],
@@ -354,24 +356,36 @@ void main() {
         protocol: AiProviderType.anthropic.id,
         base: '${config.endpoint}/v1',
         model: 'MiniMax-M3',
-        apiKey: 'k-always',
+        apiKey: key,
       ),
-      (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.dialectOff}),
+      (b) => b.copyWith(thinkingOffTried: tried),
     );
-    const written = {LearnedBehaviour.dialectOff};
     expect(
       provider.learned.thinkingOffTried,
-      written,
+      tried,
       reason: 'the test wrote the route the matrix reads',
     );
-
-    final value = capabilityCell(
+    return capabilityCell(
       l10n,
       minimax,
       m,
       AiProviderType.anthropic,
       Capability.thinkingOff,
     );
+  }
+
+  test('a Messages switch the model refused off asks for the least', () {
+    final value = messagesSwitchAfter({LearnedBehaviour.dialectOff}, 'k-least');
+    // The least may stop it or only lower it: not measured either way.
+    expect(value.state, CapabilityState.unmeasured);
+    expect(value.text, l10n.aiCellLeastEffort('output_config.effort'));
+  });
+
+  test('a Messages switch that refused the least too always reasons', () {
+    final value = messagesSwitchAfter({
+      LearnedBehaviour.dialectOff,
+      LearnedBehaviour.leastEffortOff,
+    }, 'k-always');
     expect(value.state, CapabilityState.unavailable);
     expect(value.text, l10n.aiCellAlwaysReasons);
   });

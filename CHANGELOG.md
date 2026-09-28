@@ -11,13 +11,21 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-09-28
+
 ### Fixed
 
 - Turning reasoning off on DeepSeek's, Alibaba Cloud Model Studio's and Zhipu's
   Anthropic-compatible routes now really turns it off: those servers think
   unless told not to, and the app used to send nothing for off there. A
   model that cannot stop (GLM-5.3; MiniMax-M2.5 and GLM through Model
-  Studio) is remembered as such after one request and shown as always
+  Studio) is remembered as such after one request, and from then on is
+  asked for the least reasoning when reasoning is off
+  (`output_config.effort: low`). GLM-5.3 on Zhipu then stops reasoning in
+  tests; GLM-5.3-Flash, and MiniMax-M2.5 through Model Studio, still reason
+  a little. The model page, the capability matrix, the route-switch dialog
+  and Diagnostics say so, and the reasoning toggle stays usable. A model
+  that refuses the least as well runs at its default and is shown as always
   reasoning.
 - The connection test no longer reports reasoning that would not turn off
   for a server that returns an empty thinking block when reasoning is not
@@ -199,6 +207,7 @@ Changes before this point were not tracked in this file; the git log and the
 page have them.
 
 [Unreleased]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/compare/main...HEAD
+[1.3.2]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.3.1]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.3.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.2.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases

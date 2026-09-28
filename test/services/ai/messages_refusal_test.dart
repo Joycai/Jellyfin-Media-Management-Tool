@@ -1,25 +1,33 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
 import 'package:jellyfin_media_management_tool/services/ai/messages_refusal.dart';
+import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 
 /// What [MessagesRefusal.read] makes of [message] for a request that asked
 /// for thinking as [sent] (`adaptive`, `enabled`, `disabled`, or null for
 /// none) and carried the sampling fields [optional], on a route that already
 /// refused [rejected] — a relay, or MiniMax's `/anthropic` when [switchRoute].
+/// [least]: off said as the least reasoning, `output_config: {effort: low}`.
+/// The message goes in as `chat()` passes it, after the status.
 RefusalLesson? read(
   String message, {
   String? sent,
+  bool least = false,
   List<String> optional = const [],
   Set<String> rejected = const {},
   bool switchRoute = false,
   String model = 'claude-opus-4-6',
   String? endpoint,
 }) => MessagesRefusal.read(
-  message,
+  // As `chat()` passes it: `AiHttp.describeError` puts the status first.
+  'HTTP 400: $message',
   payload: {
     'model': model,
     if (sent != null) 'thinking': {'type': sent},
+    if (least) 'output_config': {'effort': 'low'},
     for (final field in optional) field: 1,
   },
   learned: LearnedBehaviour(rejectedFields: rejected),
@@ -38,7 +46,7 @@ RefusalLesson? read(
 final every = ThinkingFormsRefused(MessagesRefusal.everyThinkingForm);
 const adaptive = ThinkingFormsRefused({'thinking:adaptive'});
 const enabled = ThinkingFormsRefused({'thinking:enabled'});
-const off = OffRefused();
+const off = OffRefused(MessagesOff.disabled);
 
 void main() {
   test('a lesson is what it records', () {
@@ -55,6 +63,13 @@ void main() {
     });
     expect(off.apply(learned).thinkingOffTried, {LearnedBehaviour.dialectOff});
     expect(off.apply(learned).rejectedFields, {'top_k'});
+    expect(
+      const OffRefused(
+        MessagesOff.leastEffort,
+      ).apply(off.apply(learned)).thinkingOffTried,
+      {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+    );
+    expect(off, isNot(const OffRefused(MessagesOff.leastEffort)));
     // Value equality, for the tables below.
     expect(const OptionalRefused('top_p'), const OptionalRefused('top_p'));
     expect(
@@ -65,7 +80,7 @@ void main() {
       const ThinkingFormsRefused({'a', 'b'}),
       const ThinkingFormsRefused({'b', 'a'}),
     );
-    expect(off, const OffRefused());
+    expect(off, const OffRefused(MessagesOff.disabled));
   });
 
   group('asked on, on a route that swaps forms', () {
@@ -548,6 +563,288 @@ void main() {
           optional: sampling,
           switchRoute: true,
           model: 'MiniMax-M3',
+        ),
+        const OptionalRefused('top_p'),
+      );
+    });
+  });
+  group('off said as the least reasoning', () {
+    const zhipu = 'https://open.bigmodel.cn/api/anthropic';
+    const least = OffRefused(MessagesOff.leastEffort);
+    RefusalLesson? readLeast(
+      String message, {
+      List<String> optional = const [],
+    }) => read(
+      message,
+      least: true,
+      optional: optional,
+      endpoint: zhipu,
+      model: 'glm-5.3',
+    );
+
+    test('refused in any words is that rung refused', () {
+      for (final message in [
+        // Zhipu's 5.3 answers medium, minimal and none so (measured
+        // 2026-09-28).
+        '[1210][该模型始终思考，不支持关闭思考；请使用 low、high 或 max。][id]',
+        // Zhipu's own name for the field (measured, for a bad value).
+        '[1210][reasoning_effort 参数值非法，可选值为：none、minimal、low、medium、'
+            'high、xhigh、max][id]',
+        // DashScope's words (measured, for a bad value).
+        "Invalid value 'low' for output_config.effort. Supported values are: "
+            'medium, high, xhigh, max.',
+        // Pydantic, a relay that does not know the field.
+        '1 validation error for Request\noutput_config\n  Extra inputs are not '
+            "permitted [type=extra_forbidden, input_value={'effort': 'low'}, "
+            'input_type=dict]',
+        'Unknown parameter: output_config.effort',
+        "effort: unsupported value 'low'",
+        // Another protocol's field, as a relay translated it.
+        'Unrecognized request argument supplied: reasoning_effort',
+        // Named first, in words no table lists: the rung all the same.
+        "Unexpected keyword argument 'output_config'",
+        'output_config is not a recognized field',
+        'unknown argument: output_config',
+        '不支持的参数：output_config',
+        '参数 output_config 不存在',
+        "output_config.effort: Input should be 'medium' or 'high'",
+        // `thinking` first, read as for off: refused in its words.
+        'thinking config rejected: output_config is not allowed here',
+        'thinking cannot be disabled for this model',
+        'Thinking cannot be turned off for glm-5.3',
+        // Off named in words no list holds: read as for off, it is off.
+        'thinking must not be disabled for this model',
+        'thinking: Extra inputs are not permitted',
+        // …or naming nothing, then the least's field after it.
+        'thinking config: output_config.effort must be one of medium, high',
+        // The form of thinking named: the least is all this request said.
+        "thinking.type: Input tag 'adaptive' found using 'type' does not "
+            "match any of the expected tags: 'disabled', 'enabled'",
+        // The field written as a field.
+        "unsupported parameter 'effort'",
+        'got effort=low, expected one of medium, high',
+        "Invalid value for effort: 'low'. Supported values are: medium, high",
+        "effort 'low' is not supported",
+        "1 validation error for Request\neffort: Input should be 'medium'",
+      ]) {
+        expect(readLeast(message), least, reason: message);
+      }
+      // The price of one rule: `thinking` named first is about it, and the
+      // sampling value after it is kept, as on a `disabled` request.
+      expect(
+        readLeast('thinking mode does not support top_p', optional: ['top_p']),
+        least,
+      );
+    });
+
+    test('what is about something else is not', () {
+      // A sampling value named first is that value, as for any request.
+      expect(
+        readLeast(
+          'Temperature should be in [0.0, 2.0) with output_config set',
+          optional: ['temperature'],
+        ),
+        const OptionalRefused('temperature'),
+      );
+      // The thinking blocks in the history.
+      expect(
+        readLeast(
+          'messages.1.content.0: Invalid `signature` in `thinking` block',
+        ),
+        isNull,
+      );
+      // …even where another sentence names the effort.
+      expect(
+        readLeast(
+          'messages.1.content.0: Invalid `signature` in `thinking` block. '
+          'output_config.effort was low',
+        ),
+        isNull,
+      );
+      // `thinking` in a sentence that refuses nothing of it: the value it
+      // names…
+      expect(
+        readLeast('thinking mode: top_p must be below 1', optional: ['top_p']),
+        const OptionalRefused('top_p'),
+      );
+      // …or the next sentence's.
+      expect(
+        readLeast(
+          'thinking is on; temperature must be 1',
+          optional: ['temperature'],
+        ),
+        const OptionalRefused('temperature'),
+      );
+      // …or nothing: a docs link is no refusal.
+      expect(
+        readLeast(
+          'max_tokens is too large. See https://docs.example/thinking for '
+          'details',
+        ),
+        isNull,
+      );
+      // Named only in the input Pydantic echoes back.
+      expect(
+        readLeast(
+          '1 validation error for Request\nmessages\n  Field required '
+          "[type=missing, input_value={'output_config': {'effort': 'low'}}, "
+          'input_type=dict]',
+        ),
+        isNull,
+      );
+      // Something else.
+      expect(
+        readLeast('max_tokens: 99999 > 8192, the maximum for this model'),
+        isNull,
+      );
+      // `effort` in prose, or inside another word, is no name of it.
+      expect(readLeast('the best-efforts queue is full, retry later'), isNull);
+      expect(
+        readLeast('despite our best effort, the upstream failed; retry'),
+        isNull,
+      );
+      expect(readLeast('best effort: upstream unavailable'), isNull);
+      // Nothing about off at all.
+      expect(readLeast('messages: at least one message is required'), isNull);
+    });
+
+    test('whatever the words, only what the request sent is learned', () {
+      // Property: sentences built at random from the words these readings
+      // turn on. A least request carried the least and its sampling values,
+      // so a lesson can only be one of those — and it changes what the
+      // route knows, so `chat()` never sends the same request twice.
+      final random = Random(20260928);
+      const words = [
+        'thinking',
+        'thinking.type',
+        'output_config',
+        'output_config.effort',
+        "'effort'",
+        'effort',
+        'best effort',
+        'effort=low',
+        'reasoning_effort',
+        '始终思考',
+        'cannot be disabled',
+        '参数值非法',
+        'top_p',
+        'temperature',
+        'top_k',
+        'is not supported',
+        'unsupported',
+        'not allowed',
+        'extra inputs are not permitted',
+        'invalid value',
+        'must be',
+        'mode',
+        'see https://docs.example/thinking',
+        'messages.1.content.0',
+        'signature',
+        'redacted_thinking',
+        'budget_tokens',
+        'max_tokens',
+        'low',
+        'medium',
+        'the upstream',
+        'disabled',
+        'adaptive',
+      ];
+      const breaks = [' ', ' ', ' ', '. ', '; ', '\n', ': '];
+      String pick(List<String> from) => from[random.nextInt(from.length)];
+      for (var i = 0; i < 3000; i++) {
+        final optional = [
+          for (final field in MessagesRefusal.optionalFields)
+            if (random.nextBool()) field,
+        ];
+        final message = StringBuffer();
+        for (var n = 1 + random.nextInt(8); n > 0; n--) {
+          message
+            ..write(pick(words))
+            ..write(pick(breaks));
+        }
+        final text = '$message';
+        final lesson = readLeast(text, optional: optional);
+        if (lesson == null) continue;
+        expect(
+          lesson == least ||
+              lesson is OptionalRefused && optional.contains(lesson.field),
+          isTrue,
+          reason: '$text → $lesson',
+        );
+        final before = LearnedBehaviour(
+          thinkingOffTried: {LearnedBehaviour.dialectOff},
+        );
+        final after = lesson.apply(before);
+        expect(
+          after.thinkingOffTried.length + after.rejectedFields.length,
+          before.thinkingOffTried.length + before.rejectedFields.length + 1,
+          reason: text,
+        );
+      }
+    });
+
+    test('a sentence that names the field first is that rung refused, '
+        'whatever follows', () {
+      // Property: the least's field, written as a field, opening a sentence
+      // after words that name nothing, decides it — whatever comes after.
+      final random = Random(20260929);
+      const lead = ['', 'invalid value ', 'the upstream says ', '1210 '];
+      const field = [
+        'output_config',
+        'output_config.effort',
+        "'effort'",
+        '`effort`',
+        'effort=low',
+        'reasoning_effort',
+        '始终思考',
+      ];
+      const rest = [
+        'thinking',
+        'top_p',
+        'temperature',
+        'is not supported',
+        'mode',
+        'best effort',
+        'disabled',
+        'low',
+        'max_tokens',
+        '. top_p is refused',
+      ];
+      String pick(List<String> from) => from[random.nextInt(from.length)];
+      for (var i = 0; i < 1000; i++) {
+        final text = [
+          '${pick(lead)}${pick(field)}',
+          for (var n = random.nextInt(5); n > 0; n--) pick(rest),
+        ].join(' ');
+        expect(
+          readLeast(text, optional: ['top_p', 'temperature']),
+          least,
+          reason: text,
+        );
+      }
+    });
+
+    test('the effort is a name of thinking only where the request '
+        'carried it', () {
+      // Asked off as `disabled`, a sentence naming `output_config` is not
+      // about thinking: nothing learned from it.
+      expect(
+        read(
+          'Unknown parameter: output_config.effort',
+          sent: 'disabled',
+          endpoint: zhipu,
+          model: 'glm-5.3',
+        ),
+        isNull,
+      );
+      // Nor does `effort` go before a sampling value it precedes.
+      expect(
+        read(
+          'effort top_p 始终思考',
+          sent: 'disabled',
+          optional: ['top_p'],
+          endpoint: zhipu,
+          model: 'glm-5.3',
         ),
         const OptionalRefused('top_p'),
       );

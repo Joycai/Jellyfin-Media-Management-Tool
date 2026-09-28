@@ -263,6 +263,97 @@ void main() {
     },
   );
 
+  group('messagesOffFor: the rungs of off, in order', () {
+    MessagesOff? off(
+      String endpoint, {
+      Set<String> rejected = const {},
+      Set<String> tried = const {},
+      String model = 'glm-5.3',
+    }) => PlatformProfiles.messagesOffFor(
+      AiConfig(
+        provider: AiProviderType.anthropic,
+        endpoint: endpoint,
+        apiKey: 'k',
+        model: model,
+      ),
+      LearnedBehaviour(rejectedFields: rejected, thinkingOffTried: tried),
+    );
+    const zhipu = 'https://open.bigmodel.cn/api/anthropic';
+    const every = {'thinking', 'thinking:adaptive', 'thinking:enabled'};
+
+    test('a switch route says disabled, then the least, then nothing', () {
+      expect(off(zhipu), MessagesOff.disabled);
+      expect(
+        off(zhipu, tried: {LearnedBehaviour.dialectOff}),
+        MessagesOff.leastEffort,
+      );
+      expect(
+        off(
+          zhipu,
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ),
+        isNull,
+      );
+      // Each rung refused alone is that rung's marker, not a position.
+      expect(
+        off(zhipu, tried: {LearnedBehaviour.leastEffortOff}),
+        MessagesOff.disabled,
+      );
+    });
+
+    test('a server that does not know thinking is not asked the least', () {
+      expect(off(zhipu, rejected: every), isNull);
+      // A model that said it cannot stop said the server knows the field.
+      expect(
+        off(zhipu, rejected: every, tried: {LearnedBehaviour.dialectOff}),
+        MessagesOff.leastEffort,
+      );
+      // On refused is not off refused.
+      expect(off(zhipu, rejected: {'thinking:adaptive'}), MessagesOff.disabled);
+    });
+
+    test('anywhere else off is the protocol default: nothing', () {
+      for (final endpoint in [
+        'https://api.anthropic.com',
+        'https://relay.example.com',
+      ]) {
+        expect(off(endpoint, model: 'claude-sonnet-5'), isNull);
+        expect(
+          off(
+            endpoint,
+            model: 'claude-sonnet-5',
+            tried: {LearnedBehaviour.dialectOff},
+          ),
+          isNull,
+          reason: endpoint,
+        );
+      }
+    });
+
+    test('each rung says itself, and is read back from a body', () {
+      for (final rung in MessagesOff.values) {
+        expect(MessagesOff.sentIn(rung.body), rung);
+      }
+      expect(MessagesOff.leastEffort.body, {
+        'output_config': {'effort': 'low'},
+      });
+      expect(MessagesOff.sentIn(const {}), isNull);
+      expect(
+        MessagesOff.sentIn(const {
+          'thinking': {'type': 'adaptive'},
+        }),
+        isNull,
+      );
+      // Another effort is not the least.
+      expect(
+        MessagesOff.sentIn(const {
+          'output_config': {'effort': 'high'},
+        }),
+        isNull,
+      );
+    });
+  });
+
   group('reasoningRouteFor', () {
     AiConfig at(
       AiProviderType provider,
@@ -340,10 +431,28 @@ void main() {
         route: ReasoningRoute.platformField,
         field: 'thinking',
       ));
+      // The model cannot stop: off asks for the least of it, and once that
+      // was refused too, off sends nothing.
       expect(read(m3, tried: {LearnedBehaviour.dialectOff}), (
-        route: ReasoningRoute.offRefused,
-        field: 'thinking',
+        route: ReasoningRoute.offLeast,
+        field: 'output_config.effort',
       ));
+      expect(
+        read(
+          m3,
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ),
+        (route: ReasoningRoute.offRefused, field: 'thinking'),
+      );
+      // The least outranks a refused on: the toggle still does something.
+      expect(
+        read(
+          m3,
+          rejected: {'thinking:adaptive'},
+          tried: {LearnedBehaviour.dialectOff},
+        ).route,
+        ReasoningRoute.offLeast,
+      );
       // A switch route asks adaptive only; refused, on is not sent.
       expect(read(m3, rejected: {'thinking:adaptive'}), (
         route: ReasoningRoute.onRefused,
@@ -368,6 +477,14 @@ void main() {
           rejected: {'thinking', 'thinking:adaptive', 'thinking:enabled'},
           tried: {LearnedBehaviour.dialectOff},
         ).route,
+        ReasoningRoute.offLeast,
+      );
+      expect(
+        read(
+          m3,
+          rejected: {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ).route,
         ReasoningRoute.offRefused,
       );
 
@@ -383,8 +500,8 @@ void main() {
         field: 'thinking',
       ));
       expect(read(glm, tried: {LearnedBehaviour.dialectOff}), (
-        route: ReasoningRoute.offRefused,
-        field: 'thinking',
+        route: ReasoningRoute.offLeast,
+        field: 'output_config.effort',
       ));
 
       final claude = at(AiProviderType.anthropic, relay, 'claude-sonnet-4-5');
@@ -466,6 +583,8 @@ void main() {
           ReasoningRoute.protocolField,
           // Off is still sent, so the toggle can still turn reasoning off.
           ReasoningRoute.onRefused,
+          // On is still sent, and off asks for the least.
+          ReasoningRoute.offLeast,
           // On is still sent; what off does, only a test shows.
           ReasoningRoute.offToDefault,
         ],
@@ -476,6 +595,7 @@ void main() {
         ReasoningRoute.platformField,
         ReasoningRoute.protocolField,
         ReasoningRoute.onRefused,
+        ReasoningRoute.offLeast,
         ReasoningRoute.offToDefault,
         ReasoningRoute.ladder,
       ]) {
@@ -518,13 +638,21 @@ void main() {
           reason: 'the test wrote the route the adapter reads',
         );
 
-        Future<Object?> sent(AiProvider provider) async =>
+        Future<Map<String, Object?>> sent(AiProvider provider) async =>
             (await provider.previewRequest(
               messages: const [UserMessage('u')],
               tools: const [],
-            ))!.body[wire];
-        final whenOn = await sent(on);
-        final whenOff = await sent(off);
+            ))!.body;
+        final bodyOn = await sent(on);
+        final bodyOff = await sent(off);
+        final whenOn = bodyOn[wire];
+        final whenOff = bodyOff[wire];
+        // Off may be said in another field: the least reasoning on a
+        // Messages switch route.
+        List<Object?> reasoning(Map<String, Object?> body) => [
+          body[wire],
+          body['output_config'],
+        ];
 
         final route = PlatformProfiles.reasoningRouteFor(config, learned).route;
         expect(route, expected);
@@ -532,8 +660,8 @@ void main() {
         // off refused the two bodies differ, but the model reasons in both.
         if (route.switchable) {
           expect(
-            whenOn,
-            isNot(whenOff),
+            reasoning(bodyOn),
+            isNot(reasoning(bodyOff)),
             reason: 'a live toggle does something',
           );
         }
@@ -544,6 +672,13 @@ void main() {
               expect(whenOn, isNotNull, reason: 'on is still sent');
             }
             expect(whenOff, isNull);
+            expect(bodyOff['output_config'], isNull, reason: 'nor the least');
+          case ReasoningRoute.offLeast:
+            if (rejected.isEmpty) {
+              expect(whenOn, isNotNull, reason: 'on is still sent');
+            }
+            expect(whenOff, isNull, reason: 'not beside the least');
+            expect(bodyOff['output_config'], {'effort': 'low'});
           case ReasoningRoute.offToDefault:
             expect(whenOn, isNotNull, reason: 'on is still sent');
             expect(whenOff, isNull);
@@ -599,15 +734,24 @@ void main() {
         );
         for (final (rejected, tried, expected) in [
           (<String>{}, <String>{}, ReasoningRoute.platformField),
+          // The model cannot stop: off asks for the least, and once that
+          // was refused too, nothing.
+          (<String>{}, {LearnedBehaviour.dialectOff}, ReasoningRoute.offLeast),
           (
             <String>{},
-            {LearnedBehaviour.dialectOff},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
           ({'thinking:adaptive'}, <String>{}, ReasoningRoute.onRefused),
+          // The least outranks a refused on: the toggle still does something.
           (
             {'thinking:adaptive'},
             {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offLeast,
+          ),
+          (
+            {'thinking:adaptive'},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
           // A legacy bare record is read against the form asked first:
@@ -632,10 +776,16 @@ void main() {
             ReasoningRoute.onRefused,
           ),
           // The model said it cannot stop, and later the field was refused
-          // too: nothing is sent, and the model's word stands.
+          // too: the model's word stands, and the least is another field.
           (
             {'thinking', 'thinking:adaptive', 'thinking:enabled'},
             {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offLeast,
+          ),
+          // The least refused as well: nothing is sent.
+          (
+            {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
         ]) {
@@ -680,9 +830,10 @@ void main() {
         );
         for (final (rejected, tried, expected) in [
           (<String>{}, <String>{}, ReasoningRoute.platformField),
+          (<String>{}, {LearnedBehaviour.dialectOff}, ReasoningRoute.offLeast),
           (
             <String>{},
-            {LearnedBehaviour.dialectOff},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
           ({'thinking:adaptive'}, <String>{}, ReasoningRoute.onRefused),

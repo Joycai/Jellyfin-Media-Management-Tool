@@ -546,6 +546,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'This model\'s reasoning cannot be turned off; it is asked for the least on Chat Completions without a platform switch, and on Responses.';
 
   @override
+  String thinkingLeastEffort(String field) {
+    return 'This model cannot stop reasoning; with it off it is asked for the least ($field: low), and may still reason a little.';
+  }
+
+  @override
   String get thinkingVerifiedOff => 'Last test: reasoning was off.';
 
   @override
@@ -2828,6 +2833,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The reply shows no reasoning — though this model cannot stop it';
 
   @override
+  String get aiStepThinkingLeast =>
+      'The model reasoned — this route can only ask it for the least';
+
+  @override
   String get aiStepTools => 'Called the test tool';
 
   @override
@@ -2894,6 +2903,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiCellAlwaysReasons => 'this model always reasons';
+
+  @override
+  String aiCellLeastEffort(String field) {
+    return '$field: low · the least; this model cannot stop';
+  }
 
   @override
   String aiCellProtocolSwitch(String field) {

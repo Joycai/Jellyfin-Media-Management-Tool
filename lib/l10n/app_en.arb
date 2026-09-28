@@ -159,6 +159,14 @@
   "thinkingModeHint": "Off by default: reasoning makes small local models far slower and prone to going in circles.",
   "thinkingAlwaysOn": "This model can only run with reasoning on.",
   "thinkingEffortOnly": "This model's reasoning cannot be turned off; it is asked for the least on Chat Completions without a platform switch, and on Responses.",
+  "thinkingLeastEffort": "This model cannot stop reasoning; with it off it is asked for the least ({field}: low), and may still reason a little.",
+  "@thinkingLeastEffort": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
   "thinkingVerifiedOff": "Last test: reasoning was off.",
   "thinkingStillOn": "Last test: the model still reasoned. Turn thinking off in the server's own model settings (in LM Studio: Enable Thinking).",
   "thinkingStillOnRemote": "Last test: the model still reasoned. Turning it off has no effect on this route, so the model reasons at its own default. Use a model that does not reason, or accept it.",
@@ -1000,6 +1008,7 @@
   "aiStepThinkingRefused": "The route refused the request for reasoning",
   "aiStepThinkingCannotStop": "The model reasoned — this route cannot turn it off",
   "aiStepThinkingNotShown": "The reply shows no reasoning — though this model cannot stop it",
+  "aiStepThinkingLeast": "The model reasoned — this route can only ask it for the least",
   "aiStepTools": "Called the test tool",
   "aiStepToolsNo": "Did not call the test tool",
   "aiStepToolsUnknown": "Tool calling undecided — the request did not complete",
@@ -1037,6 +1046,14 @@
   },
   "aiCellPromptOnly": "no parameter · prompt only",
   "aiCellAlwaysReasons": "this model always reasons",
+  "aiCellLeastEffort": "{field}: low · the least; this model cannot stop",
+  "@aiCellLeastEffort": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
   "aiCellProtocolSwitch": "{field} · protocol field",
   "@aiCellProtocolSwitch": {
     "placeholders": {

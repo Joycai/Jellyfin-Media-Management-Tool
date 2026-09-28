@@ -407,14 +407,14 @@ void main() {
           false,
         ),
         (
-          'a MiniMax switch route that refused disabled',
+          'a MiniMax switch route that refused disabled and the least',
           PlatformProfiles.miniMax,
           AiProviderType.anthropic,
           miniMax,
           '$miniMax/v1',
           'MiniMax-M3',
           <String>{},
-          {LearnedBehaviour.dialectOff},
+          {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
           true,
         ),
         (
@@ -483,4 +483,45 @@ void main() {
       await settleSaves(tester);
     });
   }
+
+  testWidgets('a MiniMax switch route that refused disabled asks for the '
+      'least: the switch stays live, and says so', (tester) async {
+    final l10n = AppLocalizationsEn();
+    final (:entry, :channel) = await pumpRefused(
+      tester,
+      platform: PlatformProfiles.miniMax,
+      route: AiProviderType.anthropic,
+      endpoint: miniMax,
+      base: '$miniMax/v1',
+      model: 'MiniMax-M3',
+      tried: {LearnedBehaviour.dialectOff},
+      thinking: false,
+    );
+
+    // Off and on send different things, so the saved choice is drawn.
+    final reasoning = find.byType(AppToggle).at(2);
+    expect(tester.widget<AppToggle>(reasoning).onChanged, isNotNull);
+    expect(tester.widget<AppToggle>(reasoning).value, isFalse);
+    // The route line in the matrix's words, the status in the switch's own.
+    final cell = capabilityCell(
+      l10n,
+      channel,
+      entry,
+      AiProviderType.anthropic,
+      Capability.thinkingOff,
+    );
+    expect(cell.text, l10n.aiCellLeastEffort('output_config.effort'));
+    expect(find.text(cell.text), findsOneWidget);
+    expect(
+      find.text(l10n.thinkingLeastEffort('output_config.effort')),
+      findsOneWidget,
+    );
+    expect(find.text(l10n.thinkingAlwaysOn), findsNothing);
+
+    await tester.tap(reasoning);
+    await tester.pumpAndSettle();
+    final saved = profiles.modelById(entry.id)!;
+    expect(saved.channel.configFor(saved.model).thinkingEnabled, isTrue);
+    await settleSaves(tester);
+  });
 }

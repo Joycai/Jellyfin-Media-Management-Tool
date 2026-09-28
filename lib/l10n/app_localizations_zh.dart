@@ -539,6 +539,11 @@ class AppLocalizationsZh extends AppLocalizations {
       '此模型无法关闭思考；在不带平台开关的 Chat Completions 和 Responses 线路上按最低强度请求。';
 
   @override
+  String thinkingLeastEffort(String field) {
+    return '此模型无法关闭思考；关闭时按最低强度请求（$field: low），可能仍会想一点。';
+  }
+
+  @override
   String get thinkingVerifiedOff => '上次测试：思考已关闭。';
 
   @override
@@ -2721,6 +2726,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiStepThinkingNotShown => '回复里没有推理 —— 但这个模型关不掉推理';
 
   @override
+  String get aiStepThinkingLeast => '模型在推理 —— 这条线路只能请求最低强度';
+
+  @override
   String get aiStepTools => '调用了测试工具';
 
   @override
@@ -2783,6 +2791,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiCellAlwaysReasons => '该模型始终思考';
+
+  @override
+  String aiCellLeastEffort(String field) {
+    return '$field: low · 最低强度，该模型关不掉';
+  }
 
   @override
   String aiCellProtocolSwitch(String field) {

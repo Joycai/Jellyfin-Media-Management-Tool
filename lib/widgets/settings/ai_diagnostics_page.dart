@@ -66,8 +66,9 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
 /// Whether the request for reasoning is no longer sent on a route in
 /// [route] (`PlatformProfiles.reasoningRouteFor`): on was refused, or the
 /// field is sent neither way. Not the rare route that cannot stop and later
-/// refused on too (`offRefused` does not say): there a reply without
-/// reasoning reads as not shown, as the route-switch dialog names the field.
+/// refused on too (`offRefused` and `offLeast` do not say): a reply without
+/// reasoning there reads as asked for and not shown, undecided rather than
+/// failed.
 bool reasoningRefused(ReasoningRoute route) =>
     route == ReasoningRoute.onRefused || route == ReasoningRoute.refused;
 
@@ -78,6 +79,8 @@ bool reasoningRefused(ReasoningRoute route) =>
 /// change (on someone else's the page says turning it off has no effect;
 /// where the address does not say, both);
 /// nor Messages' own field, where off is the protocol's default.
+/// Not where off asks for the least (`offLeast`): something is sent there,
+/// and [thinkingStep] says so on its own.
 bool reasoningCannotStop(ReasoningRoute route) =>
     route == ReasoningRoute.offRefused || route == ReasoningRoute.offToDefault;
 
@@ -94,6 +97,9 @@ bool reasoningCannotStop(ReasoningRoute route) =>
 /// reasoning with it off is the model's default, not a failure.
 /// [alwaysReasons]: the model page says this model reasons whatever is
 /// sent, so a reply that shows none is not proof that it stopped.
+/// [least]: off asked for the least reasoning, the most this route can do
+/// for a model that cannot stop; a reply that still reasons says so, and
+/// one that shows none is off.
 ({bool? ok, String text}) thinkingStep(
   AppLocalizations l10n, {
   required bool asked,
@@ -102,6 +108,7 @@ bool reasoningCannotStop(ReasoningRoute route) =>
   bool locked = false,
   bool cannotStop = false,
   bool alwaysReasons = false,
+  bool least = false,
 }) => switch ((asked, reasoned)) {
   (true, false) when refused => (
     ok: locked ? null : false,
@@ -112,6 +119,7 @@ bool reasoningCannotStop(ReasoningRoute route) =>
     text: l10n.aiStepThinkingNotShown,
   ),
   (false, false) => (ok: true, text: l10n.aiStepThinkingOff),
+  (false, true) when least => (ok: null, text: l10n.aiStepThinkingLeast),
   (false, true) when cannotStop => (
     ok: null,
     text: l10n.aiStepThinkingCannotStop,
@@ -158,6 +166,7 @@ bool reasoningCannotStop(ReasoningRoute route) =>
     // with no reasoning mode among it).
     cannotStop: reasoningCannotStop(route) || !reasoningWarns(preset, route),
     alwaysReasons: alwaysReasons,
+    least: route == ReasoningRoute.offLeast,
   );
 }
 
