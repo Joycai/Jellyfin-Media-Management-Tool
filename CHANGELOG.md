@@ -11,6 +11,18 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-09-28
+
+### Changed
+
+- With reasoning off, GLM-5.3 on Zhipu's OpenAI-compatible route is now
+  asked for the least reasoning (`reasoning_effort: low`) once it has said
+  it cannot stop, instead of being left to reason at its default. In tests
+  that cut its reasoning from 230–1,500 tokens to 0–130 per request, with
+  the same tool calls. The model page, the capability matrix and the
+  route-switch dialog name the field. A model that refuses the least as well
+  runs at its default and is shown as always reasoning.
+
 ## [1.3.2] - 2026-09-28
 
 ### Fixed
