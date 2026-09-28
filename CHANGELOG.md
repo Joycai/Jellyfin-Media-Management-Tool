@@ -36,6 +36,13 @@ reconstructed at release time.
 
 ### Fixed
 
+- A Messages route told off with its sampling values beside it now learns
+  the right thing from a refusal that mentions both. "reasoning_effort is
+  not supported; use temperature instead" gives thinking up and keeps the
+  value (it used to drop the value first, for a month); "temperature is not
+  supported with thinking" drops the value and keeps saying off (it used to
+  give thinking up). A field named only inside the error's echo of the
+  request is no longer taken as refused.
 - A Messages route behind a relay that translates the request for thinking
   into its upstream's field and refuses it under that name
   (`reasoning_effort`, `chat_template_kwargs`, Gemini's `thinkingConfig`) no
