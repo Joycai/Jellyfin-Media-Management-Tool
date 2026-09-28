@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/learned_behaviour.dart';
@@ -604,11 +606,31 @@ void main() {
         '不支持的参数：output_config',
         '参数 output_config 不存在',
         "output_config.effort: Input should be 'medium' or 'high'",
-        // Named after `thinking`, with nothing else learned.
+        // `thinking` first, read as for off: refused in its words.
         'thinking config rejected: output_config is not allowed here',
+        'thinking cannot be disabled for this model',
+        'Thinking cannot be turned off for glm-5.3',
+        // Off named in words no list holds: read as for off, it is off.
+        'thinking must not be disabled for this model',
+        'thinking: Extra inputs are not permitted',
+        // …or naming nothing, then the least's field after it.
+        'thinking config: output_config.effort must be one of medium, high',
+        // The form of thinking named: the least is all this request said.
+        "thinking.type: Input tag 'adaptive' found using 'type' does not "
+            "match any of the expected tags: 'disabled', 'enabled'",
+        // The field written as a field.
+        "unsupported parameter 'effort'",
+        'got effort=low, expected one of medium, high',
+        "1 validation error for Request\neffort: Input should be 'medium'",
       ]) {
         expect(readLeast(message), least, reason: message);
       }
+      // The price of one rule: `thinking` named first is about it, and the
+      // sampling value after it is kept, as on a `disabled` request.
+      expect(
+        readLeast('thinking mode does not support top_p', optional: ['top_p']),
+        least,
+      );
     });
 
     test('what is about something else is not', () {
@@ -635,16 +657,25 @@ void main() {
         ),
         isNull,
       );
-      // `thinking` named first is read as ever: the value it names, here.
+      // `thinking` in a sentence that refuses nothing of it: the value it
+      // names…
       expect(
-        readLeast('thinking mode does not support top_p', optional: ['top_p']),
+        readLeast('thinking mode: top_p must be below 1', optional: ['top_p']),
         const OptionalRefused('top_p'),
       );
-      // The form of thinking named, which this request did not send.
+      // …or the next sentence's.
       expect(
         readLeast(
-          "thinking.type: Input tag 'adaptive' found using 'type' does not "
-          "match any of the expected tags: 'disabled', 'enabled'",
+          'thinking is on; temperature must be 1',
+          optional: ['temperature'],
+        ),
+        const OptionalRefused('temperature'),
+      );
+      // …or nothing: a docs link is no refusal.
+      expect(
+        readLeast(
+          'max_tokens is too large. See https://docs.example/thinking for '
+          'details',
         ),
         isNull,
       );
@@ -662,10 +693,131 @@ void main() {
         readLeast('max_tokens: 99999 > 8192, the maximum for this model'),
         isNull,
       );
-      // `effort` inside another word is no name of it.
+      // `effort` in prose, or inside another word, is no name of it.
       expect(readLeast('the best-efforts queue is full, retry later'), isNull);
+      expect(
+        readLeast('despite our best effort, the upstream failed; retry'),
+        isNull,
+      );
+      expect(readLeast('best effort: upstream unavailable'), isNull);
       // Nothing about off at all.
       expect(readLeast('messages: at least one message is required'), isNull);
+    });
+
+    test('whatever the words, only what the request sent is learned', () {
+      // Property: sentences built at random from the words these readings
+      // turn on. A least request carried the least and its sampling values,
+      // so a lesson can only be one of those — and it changes what the
+      // route knows, so `chat()` never sends the same request twice.
+      final random = Random(20260928);
+      const words = [
+        'thinking',
+        'thinking.type',
+        'output_config',
+        'output_config.effort',
+        "'effort'",
+        'effort',
+        'best effort',
+        'effort=low',
+        'reasoning_effort',
+        '始终思考',
+        'cannot be disabled',
+        '参数值非法',
+        'top_p',
+        'temperature',
+        'top_k',
+        'is not supported',
+        'unsupported',
+        'not allowed',
+        'extra inputs are not permitted',
+        'invalid value',
+        'must be',
+        'mode',
+        'see https://docs.example/thinking',
+        'messages.1.content.0',
+        'signature',
+        'redacted_thinking',
+        'budget_tokens',
+        'max_tokens',
+        'low',
+        'medium',
+        'the upstream',
+        'disabled',
+        'adaptive',
+      ];
+      const breaks = [' ', ' ', ' ', '. ', '; ', '\n', ': '];
+      String pick(List<String> from) => from[random.nextInt(from.length)];
+      for (var i = 0; i < 3000; i++) {
+        final optional = [
+          for (final field in MessagesRefusal.optionalFields)
+            if (random.nextBool()) field,
+        ];
+        final message = StringBuffer();
+        for (var n = 1 + random.nextInt(8); n > 0; n--) {
+          message
+            ..write(pick(words))
+            ..write(pick(breaks));
+        }
+        final text = '$message';
+        final lesson = readLeast(text, optional: optional);
+        if (lesson == null) continue;
+        expect(
+          lesson == least ||
+              lesson is OptionalRefused && optional.contains(lesson.field),
+          isTrue,
+          reason: '$text → $lesson',
+        );
+        final before = LearnedBehaviour(
+          thinkingOffTried: {LearnedBehaviour.dialectOff},
+        );
+        final after = lesson.apply(before);
+        expect(
+          after.thinkingOffTried.length + after.rejectedFields.length,
+          before.thinkingOffTried.length + before.rejectedFields.length + 1,
+          reason: text,
+        );
+      }
+    });
+
+    test('a sentence that names the field first is that rung refused, '
+        'whatever follows', () {
+      // Property: the least's field, written as a field, opening a sentence
+      // after words that name nothing, decides it — whatever comes after.
+      final random = Random(20260929);
+      const lead = ['', 'invalid value ', 'the upstream says ', '1210 '];
+      const field = [
+        'output_config',
+        'output_config.effort',
+        "'effort'",
+        '`effort`',
+        'effort=low',
+        'reasoning_effort',
+        '始终思考',
+      ];
+      const rest = [
+        'thinking',
+        'top_p',
+        'temperature',
+        'is not supported',
+        'mode',
+        'best effort',
+        'disabled',
+        'low',
+        'max_tokens',
+        '. top_p is refused',
+      ];
+      String pick(List<String> from) => from[random.nextInt(from.length)];
+      for (var i = 0; i < 1000; i++) {
+        final text = [
+          '${pick(lead)}${pick(field)}',
+          for (var n = random.nextInt(5); n > 0; n--) pick(rest),
+        ].join(' ');
+        expect(
+          readLeast(text, optional: ['top_p', 'temperature']),
+          least,
+          reason: text,
+        );
+      }
     });
 
     test('the effort is a name of thinking only where the request '

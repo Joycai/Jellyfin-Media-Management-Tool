@@ -144,19 +144,20 @@ abstract final class MessagesRefusal {
   /// (the reading [readThinkingRefusal] holds) and mapped by the direction
   /// asked; where that records nothing, a sampling value named in it still
   /// is. Off said as the least reasoning (`output_config.effort`, the
-  /// second rung of [MessagesOff]): a sentence that names it first — or
-  /// another protocol's name for thinking, or the words of a model that
-  /// cannot stop — is that rung refused, as a sampling value named first is
-  /// that value ([_effort]); and a message that names it where nothing else
-  /// was learned is too, so that an error naming it does not fail every
-  /// request with thinking off (one that names none of those, `thinking`
-  /// first included, is thrown, as for `disabled`). The first sentence with
-  /// a lesson decides. So "reasoning_effort is
-  /// not supported; use temperature instead" gives thinking up and keeps
-  /// `temperature`, while "temperature is not supported with thinking"
-  /// drops `temperature` and keeps asking. The rule is the order of the
-  /// names and nothing finer: "thinking mode does not support top_p" is
-  /// about thinking, and gives it up — the price of one rule that reads
+  /// second rung of [MessagesOff]) is read against the one thing that
+  /// request said of reasoning: a sentence that names the least's field
+  /// first — or another protocol's name for thinking, or the words of a
+  /// model that cannot stop — is that rung refused, as a sampling value
+  /// named first is that value ([_effort]); one about `thinking` is read as
+  /// for off, and whatever it refuses ("thinking cannot be disabled for
+  /// this model") is that rung too; where it refuses nothing, what else it
+  /// names still counts. The first sentence with a lesson decides. So
+  /// "reasoning_effort is not supported; use temperature instead" gives
+  /// thinking up and keeps `temperature`, while "temperature is not
+  /// supported with thinking" drops `temperature` and keeps asking. The rule
+  /// is the order of the names and nothing finer: "thinking mode does not
+  /// support top_p" is about thinking, and gives it up (or, asked off as the
+  /// least, gives the least up) — the price of one rule that reads
   /// `thinking`, a translated name and a value alike.
   static RefusalLesson? read(
     String error, {
@@ -176,46 +177,58 @@ abstract final class MessagesRefusal {
       _ => null,
     };
     // Off said as the least reasoning ([_effort]).
-    final leastSent = MessagesOff.sentIn(payload) == MessagesOff.leastEffort;
+    final least = MessagesOff.sentIn(payload) == MessagesOff.leastEffort;
     final sentOptional = optionalFields
         .where((f) => payload.containsKey(f) && !rejected.contains(f))
         .toList();
     // An error about the thinking blocks in the history says nothing about
     // the request for thinking, whichever sentence says it.
     final history = _aboutHistory(about);
+    // A field the request sent, named: the least's (never over the
+    // history), or a sampling value's.
+    RefusalLesson? namedLesson(String? subject) => switch (subject) {
+      null => null,
+      _effort => history ? null : const OffRefused(MessagesOff.leastEffort),
+      _ => OptionalRefused(subject),
+    };
     for (final sentence in _sentences(about)) {
-      final subject = _subjectOf(sentence, sentOptional, effort: leastSent);
-      if (subject == null) continue;
-      if (subject == _effort) {
-        if (history) continue;
-        return const OffRefused(MessagesOff.leastEffort);
+      final subject = _subjectOf(sentence, sentOptional, least: least);
+      if (subject != _thinking) {
+        final lesson = namedLesson(subject);
+        if (lesson != null) return lesson;
+        continue;
       }
-      if (subject != _thinking) return OptionalRefused(subject);
-      if (!history && sentType != null) {
-        final lesson = _lessonFor(
-          _readSentence(sentence, sentType: sentType),
-          sentType: sentType,
-          sent: sentForm(payload),
-          refused: MessagesThinking.refusedIn(
-            rejected,
-            first: PlatformProfiles.messagesFirstFormFor(config),
-          ),
-          swap: !PlatformProfiles.messagesSwitchFor(config),
-        );
+      if (!history) {
+        final lesson = least
+            // The least is the one thing this request said of reasoning:
+            // whatever the sentence says of thinking, read as for off, is
+            // said of it.
+            ? _readSentence(sentence, sentType: 'disabled') ==
+                      ThinkingRefusal.unrelated
+                  ? null
+                  : const OffRefused(MessagesOff.leastEffort)
+            : sentType == null
+            ? null
+            : _lessonFor(
+                _readSentence(sentence, sentType: sentType),
+                sentType: sentType,
+                sent: sentForm(payload),
+                refused: MessagesThinking.refusedIn(
+                  rejected,
+                  first: PlatformProfiles.messagesFirstFormFor(config),
+                ),
+                swap: !PlatformProfiles.messagesSwitchFor(config),
+              );
         if (lesson != null) return lesson;
       }
-      // Thinking recorded nothing: a sampling value named in the sentence
-      // still is — the first named, as above.
-      final named = _first(sentence, sentOptional);
-      if (named != null) return OptionalRefused(named);
-    }
-    // The least named where nothing else was learned — after `thinking`,
-    // say, in its sentence — is still that rung: an error that names it
-    // does not fail every request with thinking off.
-    if (leastSent &&
-        !history &&
-        _effortNames.hasMatch(about.replaceAll(_echoedInput, ''))) {
-      return const OffRefused(MessagesOff.leastEffort);
+      // Thinking recorded nothing: a field the request sent, named in the
+      // sentence, still is — the first named, as above.
+      final lesson = namedLesson(
+        least
+            ? _subjectOf(sentence, sentOptional, least: true, thinking: false)
+            : _first(sentence, sentOptional),
+      );
+      if (lesson != null) return lesson;
     }
     return null;
   }
@@ -226,24 +239,28 @@ abstract final class MessagesRefusal {
 
   /// The marker [_subjectOf] returns, where the request said off as the
   /// least reasoning (`output_config: {effort: "low"}`, no `thinking`), for
-  /// a sentence about that: one that names `output_config` or its `effort`
-  /// first, another protocol's name for thinking (the least is all that
-  /// could have been translated — Zhipu's "reasoning_effort 参数值非法"), or
-  /// the words of a model that cannot stop (Zhipu's 5.3 answers `medium`,
-  /// `minimal` and `none` with its "始终思考"). Like a sampling value named
-  /// first, it is that rung refused whatever the words: `low` is all that
-  /// was sent. `thinking` itself, named first, is read as ever.
+  /// a sentence that names what was sent: `output_config` or its `effort`
+  /// written as a field ([_effortField]), another protocol's name for
+  /// thinking (the least is all that could have been translated — Zhipu's
+  /// "reasoning_effort 参数值非法"), or the words of a model that cannot stop
+  /// (Zhipu's 5.3 answers `medium`, `minimal` and `none` with its
+  /// "始终思考"). Like a sampling value named first, it is that rung refused
+  /// whatever the words: `low` is all that was sent. `thinking` itself is a
+  /// word of prose too ("thinking mode", a docs link), and stays [_thinking]:
+  /// [read] takes it for the least by what the sentence says of it.
   static const _effort = 'output_config';
 
-  /// The field [sentence] names first — [_thinking], under its own name,
-  /// another protocol's, or the words of a model that cannot stop, where
-  /// they stand (all but `thinking` itself are [_effort] where the request
-  /// said off as the least reasoning, [effort]); or one of [sentOptional] —
-  /// or null when it names none.
+  /// The field [sentence] names first — [_thinking], under its own name
+  /// (unless not [thinking]), another protocol's, or the words of a model
+  /// that cannot stop, where they stand (all but `thinking` itself are
+  /// [_effort] where the request said off as the least reasoning, [least],
+  /// and so is the least's own field); or one of [sentOptional] — or null
+  /// when it names none.
   static String? _subjectOf(
     String sentence,
     List<String> sentOptional, {
-    bool effort = false,
+    bool least = false,
+    bool thinking = true,
   }) {
     int? at(String name) {
       final index = sentence.indexOf(name);
@@ -259,10 +276,10 @@ abstract final class MessagesRefusal {
       }
     }
 
-    final translated = effort ? _effort : _thinking;
+    final translated = least ? _effort : _thinking;
     // "The model cannot stop" names no field: the words stand for it.
     consider(translated, thinkingOffWords.firstMatch(sentence)?.start);
-    consider(_thinking, at('thinking'));
+    if (thinking) consider(_thinking, at('thinking'));
     for (final name in reasoningFieldNames) {
       if (name != 'thinking' && namesField(sentence, name)) {
         // Where the name stands as itself: `reasoning` is not the
@@ -275,17 +292,22 @@ abstract final class MessagesRefusal {
         );
       }
     }
-    if (effort) consider(_effort, _effortNames.firstMatch(sentence)?.start);
+    if (least) consider(_effort, _effortField.firstMatch(sentence)?.start);
     for (final field in sentOptional) {
       consider(field, at(field));
     }
     return subject;
   }
 
-  /// `output_config`, or `effort` as a word of its own (not the end of
+  /// The least's field as a field is written: `output_config`, a dotted
+  /// `.effort`, a quoted one, `effort=`, or `effort:` opening a line — not
+  /// the word in prose ("despite our best effort"), and not the end of
   /// `reasoning_effort`, which is another protocol's name for thinking and
-  /// counts as that).
-  static final _effortNames = RegExp(r'output_config|(?<![a-z_])effort\b');
+  /// counts as that.
+  static final _effortField = RegExp(
+    r'''output_config|\.effort\b|["'`]effort["'`]|(?<![a-z_-])effort=|^\s*effort\s*:''',
+    multiLine: true,
+  );
 
   /// The one of [fields] that [sentence] names first, or null.
   static String? _first(String sentence, List<String> fields) {
