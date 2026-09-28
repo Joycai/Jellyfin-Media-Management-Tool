@@ -2454,10 +2454,29 @@ void main() {
       },
     );
 
-    test('an empty thinking block is not', () async {
+    test('a block empty of text with a signature is reasoning too', () async {
+      // Claude 5 under the default `display` (omitted): no text, a
+      // signature (KB 03 §3, 2026-09-26).
+      expect(
+        await reasoned([
+          {'type': 'thinking', 'thinking': '', 'signature': 'sig'},
+          {'type': 'text', 'text': 'ok'},
+        ]),
+        isTrue,
+      );
+    });
+
+    test('a block with neither text nor a signature is not', () async {
       // DashScope's kimi-k2.6 sends one whichever way it was asked
       // (2026-09-28); read as reasoning, the connection test would say
       // thinking did not turn off.
+      expect(
+        await reasoned([
+          {'type': 'thinking', 'thinking': '', 'signature': ''},
+          {'type': 'text', 'text': 'ok'},
+        ]),
+        isFalse,
+      );
       expect(
         await reasoned([
           {'type': 'thinking', 'thinking': ''},
