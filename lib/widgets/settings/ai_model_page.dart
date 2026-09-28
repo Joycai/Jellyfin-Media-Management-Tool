@@ -436,6 +436,7 @@ class _AiModelPageState extends State<AiModelPage> {
                 l10n,
                 route,
                 config,
+                preset: preset,
               )!,
             }, style: note.copyWith(color: t.textBody)),
           ),

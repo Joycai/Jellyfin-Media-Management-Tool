@@ -65,6 +65,64 @@ void main() {
       reasoningRefusalText(l10n, ReasoningRoute.refused, switchRoute),
       l10n.aiCellModelDefault,
     );
+    // DeepSeek's, DashScope's and Zhipu's Messages faces are switches too.
+    for (final endpoint in [
+      'https://api.deepseek.com/anthropic',
+      'https://dashscope.aliyuncs.com/apps/anthropic',
+      'https://open.bigmodel.cn/api/anthropic',
+    ]) {
+      expect(
+        messagesDefaultOff(
+          AiConfig(
+            provider: AiProviderType.anthropic,
+            endpoint: endpoint,
+            apiKey: 'k',
+            model: 'm',
+          ),
+        ),
+        isFalse,
+        reason: endpoint,
+      );
+    }
+  });
+
+  test('a family that always reasons is never "off by default"', () {
+    // #119 known issue 6: the page draws the toggle locked on by the
+    // preset, so the route line must not say the model is off.
+    final l10n = AppLocalizationsEn();
+    final relay = AiConfig(
+      provider: AiProviderType.anthropic,
+      endpoint: 'https://relay.example.com',
+      apiKey: 'k',
+      model: 'deepseek-r1',
+    );
+    final alwaysOn = SamplingPresets.forModel('deepseek-r1');
+    expect(alwaysOn?.thinkingControl, ThinkingControl.alwaysOn);
+    for (final route in [
+      ReasoningRoute.refused,
+      ReasoningRoute.offRefused,
+      ReasoningRoute.offToDefault,
+    ]) {
+      expect(
+        reasoningRefusalText(l10n, route, relay, preset: alwaysOn),
+        l10n.aiCellAlwaysReasons,
+        reason: '$route',
+      );
+    }
+    // A hybrid family, and a model no preset knows, read the route.
+    expect(
+      reasoningRefusalText(
+        l10n,
+        ReasoningRoute.refused,
+        relay,
+        preset: SamplingPresets.forModel('qwen3-32b'),
+      ),
+      l10n.aiCellDefaultOff,
+    );
+    expect(
+      reasoningRefusalText(l10n, ReasoningRoute.refused, relay),
+      l10n.aiCellDefaultOff,
+    );
   });
 
   test('a toggle is live on a working switch, or where a preset says', () {

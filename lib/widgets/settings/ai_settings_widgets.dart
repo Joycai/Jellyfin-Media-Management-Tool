@@ -50,11 +50,20 @@ bool messagesDefaultOff(AiConfig config) =>
 /// What the capability matrix and the model page's route line both say of a
 /// route whose reasoning switch was refused, in the same words; null for a
 /// switch that works and for the ladder, which each page words its own way.
+/// A family that always reasons ([preset]) does so whatever the route sent
+/// or had refused — its toggle is drawn on and locked by the preset — so
+/// the line says that, never "off by default".
 String? reasoningRefusalText(
   AppLocalizations l10n,
   ReasoningRoute route,
-  AiConfig config,
-) => switch (route) {
+  AiConfig config, {
+  SamplingPreset? preset,
+}) => switch (route) {
+  ReasoningRoute.offRefused ||
+  ReasoningRoute.offToDefault ||
+  ReasoningRoute.refused
+      when preset?.thinkingControl == ThinkingControl.alwaysOn =>
+    l10n.aiCellAlwaysReasons,
   // The model said it cannot stop reasoning.
   ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
   // Off refused without a reason: the model's default, reasoning or not.

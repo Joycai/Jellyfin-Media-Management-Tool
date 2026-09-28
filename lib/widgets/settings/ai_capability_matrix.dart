@@ -289,6 +289,12 @@ CapabilityCell capabilityCell(
         }),
       );
     case Capability.thinkingOff:
+      // A family that always reasons is never asked off, whatever the
+      // route could send: nothing to measure.
+      final preset = SamplingPresets.forModel(model.upstream);
+      if (preset?.thinkingControl == ThinkingControl.alwaysOn) {
+        return (state: unavailable, text: l10n.aiCellAlwaysReasons);
+      }
       final (:route, :field) = PlatformProfiles.reasoningRouteFor(
         config,
         learned ?? LearnedBehaviour.empty,
@@ -319,7 +325,7 @@ CapabilityCell capabilityCell(
             state: route == ReasoningRoute.refused && messagesDefaultOff(config)
                 ? works
                 : unavailable,
-            text: reasoningRefusalText(l10n, route, config)!,
+            text: reasoningRefusalText(l10n, route, config, preset: preset)!,
           );
         case ReasoningRoute.ladder:
           // Only ladder steps count: a route key outlives its channel's

@@ -321,6 +321,23 @@ void main() {
     });
   }
 
+  testWidgets('a family that always reasons on a refused route is said to '
+      '(#119 known issue 6)', (tester) async {
+    await pumpRefused(
+      tester,
+      route: AiProviderType.anthropic,
+      model: 'deepseek-r1',
+      refused: {'thinking:adaptive', 'thinking:enabled', 'thinking'},
+    );
+    // The route line and the toggle agree: on, locked, always reasons.
+    expect(find.text('off by default'), findsNothing);
+    expect(find.text('this model always reasons'), findsOneWidget);
+    final toggle = tester.widget<AppToggle>(find.byType(AppToggle).at(2));
+    expect(toggle.onChanged, isNull);
+    expect(toggle.value, isTrue);
+    await settleSaves(tester);
+  });
+
   testWidgets('a preset model on a refused route still follows its saved '
       'choice', (tester) async {
     // Qwen3's preset switches reasoning itself and picks the sampling values
