@@ -170,9 +170,11 @@ class OpenAiProvider implements AiProvider {
   /// a server rejects by name is dropped and remembered.
   ///
   /// **Reasoning.** A cloud platform with a documented switch gets that
-  /// switch, both ways, and nothing else — see [PlatformProfiles.dialectFor]. Anywhere
-  /// else, with thinking off, a hybrid family is asked for no reasoning in the
-  /// way its server understands — see [_ThinkingOff].
+  /// switch, both ways, and no ladder — see [PlatformProfiles.dialectFor]; a
+  /// model that refuses it set to off is asked for the least where the
+  /// route declares it, then nothing ([PlatformProfiles.chatOffFor]).
+  /// Anywhere else, with thinking off, a hybrid family is asked for no
+  /// reasoning in the way its server understands — see [_ThinkingOff].
   ///
   /// **JSON mode** ([jsonMode], never together with tools).
   /// `response_format: json_object` is OpenAI's form and most servers take it,
