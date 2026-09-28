@@ -223,7 +223,14 @@ abstract final class MessagesRefusal {
     consider(_thinking, at('thinking'));
     for (final name in reasoningFieldNames) {
       if (name != 'thinking' && namesField(sentence, name)) {
-        consider(_thinking, at(name));
+        // Where the name stands as itself: `reasoning` is not the
+        // `reasoning` in an earlier `reasoning_content`.
+        consider(
+          _thinking,
+          RegExp(
+            '${RegExp.escape(name)}(?![a-z_])',
+          ).firstMatch(sentence)?.start,
+        );
       }
     }
     for (final field in sentOptional) {

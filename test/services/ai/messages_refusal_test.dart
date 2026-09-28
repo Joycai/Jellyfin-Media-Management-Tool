@@ -391,6 +391,17 @@ void main() {
         ),
         const OptionalRefused('top_k'),
       );
+      // A translated name stands where it is itself: the `reasoning` of
+      // an earlier `reasoning_content` is not it.
+      expect(
+        read(
+          "reasoning_content: top_k is not supported alongside 'reasoning.effort'",
+          sent: 'disabled',
+          optional: optional,
+          switchRoute: true,
+        ),
+        const OptionalRefused('top_k'),
+      );
       // A semicolon ends a sentence: the refusal in the next one is not
       // thinking's.
       expect(
