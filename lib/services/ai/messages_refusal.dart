@@ -148,8 +148,10 @@ abstract final class MessagesRefusal {
   /// another protocol's name for thinking, or the words of a model that
   /// cannot stop — is that rung refused, as a sampling value named first is
   /// that value ([_effort]); and a message that names it where nothing else
-  /// was learned is too, so that no wording fails every request with
-  /// thinking off. The first sentence with a lesson decides. So "reasoning_effort is
+  /// was learned is too, so that an error naming it does not fail every
+  /// request with thinking off (one that names none of those, `thinking`
+  /// first included, is thrown, as for `disabled`). The first sentence with
+  /// a lesson decides. So "reasoning_effort is
   /// not supported; use temperature instead" gives thinking up and keeps
   /// `temperature`, while "temperature is not supported with thinking"
   /// drops `temperature` and keeps asking. The rule is the order of the
@@ -209,7 +211,7 @@ abstract final class MessagesRefusal {
     }
     // The least named where nothing else was learned — after `thinking`,
     // say, in its sentence — is still that rung: an error that names it
-    // must not fail every request with thinking off.
+    // does not fail every request with thinking off.
     if (leastSent &&
         !history &&
         _effortNames.hasMatch(about.replaceAll(_echoedInput, ''))) {
