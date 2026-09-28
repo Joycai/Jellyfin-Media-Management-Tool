@@ -2009,6 +2009,23 @@ void main() {
       read('messages is mandatory', sent: 'disabled'),
       ThinkingRefusal.unrelated,
     );
+    // DashScope's Messages face, in its own name for the field
+    // (【实测 2026-09-28】); the same words about any other parameter are not
+    // the model.
+    expect(
+      read(
+        'the value of the enable_thinking parameter is restricted to true.',
+        sent: 'disabled',
+      ),
+      ThinkingRefusal.cannotStop,
+    );
+    expect(
+      read(
+        'the value of the frobnicate parameter is restricted to true.',
+        sent: 'disabled',
+      ),
+      ThinkingRefusal.unrelated,
+    );
     expect(
       read('reasoning is mandatory for this model'),
       ThinkingRefusal.unrelated,
