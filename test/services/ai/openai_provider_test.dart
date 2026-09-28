@@ -1182,42 +1182,79 @@ void main() {
     });
 
     test('the least refused by name is not sent again', () async {
+      // Named in `error.param`, or only in the message.
+      for (final (i, refusal) in [
+        {'message': 'Unsupported parameter', 'param': 'reasoning_effort'},
+        {'code': '1214', 'message': 'reasoning_effort 参数值非法'},
+      ].indexed) {
+        final bodies = <Map<String, dynamic>>[];
+        final client = MockClient((request) async {
+          final body = _body(request);
+          bodies.add(body);
+          if (bodies.length > 8) throw StateError('the retries never stopped');
+          if (body.containsKey('thinking')) return _alwaysReasons();
+          return body.containsKey('reasoning_effort')
+              ? http.Response(
+                  jsonEncode({'error': refusal}),
+                  400,
+                  headers: _utf8Json,
+                )
+              : _reply('ok');
+        });
+        final config = AiConfig(
+          provider: AiProviderType.openAi,
+          endpoint: 'https://open.bigmodel.cn/api/paas/v4',
+          apiKey: 'k-least-named-$i',
+          model: 'glm-9',
+          platform: 'zhipu',
+        );
+
+        await OpenAiProvider(
+          config,
+          client: client,
+        ).chat(messages: const [UserMessage('u')], tools: const []);
+        expect(bodies, hasLength(3), reason: '$refusal');
+        expect(bodies.last.containsKey('reasoning_effort'), isFalse);
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        final learned = OpenAiProvider(config, client: client).learned;
+        expect(learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
+        expect(learned.rejectedFields, {'reasoning_effort'});
+      }
+    });
+
+    test('forgetting starts from the switch again', () async {
+      // The connection test forgets a route, which is how a user makes the
+      // app find out again.
       final bodies = <Map<String, dynamic>>[];
       final client = MockClient((request) async {
         final body = _body(request);
         bodies.add(body);
-        if (bodies.length > 8) throw StateError('the retries never stopped');
-        if (body.containsKey('thinking')) return _alwaysReasons();
-        return body.containsKey('reasoning_effort')
-            ? http.Response(
-                jsonEncode({
-                  'error': {
-                    'message': 'Unsupported parameter',
-                    'param': 'reasoning_effort',
-                  },
-                }),
-                400,
-              )
+        if (bodies.length > 12) throw StateError('the retries never stopped');
+        return body.containsKey('thinking') ||
+                body.containsKey('reasoning_effort')
+            ? _alwaysReasons()
             : _reply('ok');
       });
       const config = AiConfig(
         provider: AiProviderType.openAi,
         endpoint: 'https://open.bigmodel.cn/api/paas/v4',
-        apiKey: 'k-least-named',
+        apiKey: 'k-least-forgotten',
         model: 'glm-9',
         platform: 'zhipu',
       );
+      final provider = OpenAiProvider(config, client: client);
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
+      expect(provider.learned.thinkingOffTried, hasLength(2));
 
-      await OpenAiProvider(
-        config,
-        client: client,
-      ).chat(messages: const [UserMessage('u')], tools: const []);
+      provider.forgetLearned();
+      expect(provider.learned.isEmpty, isTrue);
+      bodies.clear();
+      await provider.chat(messages: const [UserMessage('u')], tools: const []);
       expect(bodies, hasLength(3));
-      expect(bodies.last.containsKey('reasoning_effort'), isFalse);
-      expect(bodies.last.containsKey('thinking'), isFalse);
-      final learned = OpenAiProvider(config, client: client).learned;
-      expect(learned.thinkingOffTried, {LearnedBehaviour.dialectOff});
-      expect(learned.rejectedFields, {'reasoning_effort'});
+      expect(bodies[0]['thinking'], {'type': 'disabled'});
+      expect(bodies[1]['reasoning_effort'], 'low');
+      expect(bodies[1].containsKey('thinking'), isFalse);
+      expect(bodies[2].containsKey('reasoning_effort'), isFalse);
     });
 
     test('a route that does not declare the least sends nothing', () async {

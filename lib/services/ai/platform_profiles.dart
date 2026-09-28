@@ -362,9 +362,11 @@ abstract final class PlatformProfiles {
         defaultPath: '/api/paas/v4',
         thinkingDialect: ThinkingDialect.thinkingType,
         // The 5.3 generation refuses `disabled` with code 1210 and takes
-        // `reasoning_effort: low`: with tools, glm-5.3 then reasoned 0–130
-        // tokens a request where it reasoned 230–1500 at its default, and
-        // made the same calls.
+        // `reasoning_effort: low`: with tools, glm-5.3 then reasoned 0–131
+        // tokens a request where it reasoned 232–1476 at its default, and
+        // decided every group alike, though twice without the year the
+        // default gave. It answers a value it will not take (`medium`,
+        // `none`) in the same words (measured 2026-09-19).
         chatLeastEffort: true,
         source:
             '【实测 2026-09-19】glm-4.6 · thinking.type; '
