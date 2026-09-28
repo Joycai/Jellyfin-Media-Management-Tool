@@ -907,6 +907,103 @@ void main() {
         },
       );
 
+      test('a sentence is about the field it names first (#119 known issues '
+          '2 and 3)', () async {
+        // Off goes out with the sampling values. What is learned is what
+        // the sentence is about — the field it names first — not which
+        // reader ran first: a value named in passing is kept, and a value
+        // refused beside the word thinking is the value, not thinking.
+        Future<(List<Map<String, dynamic>>, AnthropicProvider)> refused(
+          String host,
+          String message,
+        ) async {
+          final bodies = <Map<String, dynamic>>[];
+          final provider = AnthropicProvider(
+            _config(
+              'https://$host.minimaxi.com/anthropic',
+              model: 'MiniMax-M3',
+              temperature: 0.7,
+              topP: 0.9,
+              topK: 40,
+            ),
+            client: MockClient((request) async {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              bodies.add(body);
+              if (bodies.length > 8) throw StateError('runaway retries');
+              return bodies.length == 1
+                  ? http.Response(
+                      jsonEncode({
+                        'type': 'error',
+                        'error': {
+                          'type': 'invalid_request_error',
+                          'message': message,
+                        },
+                      }),
+                      400,
+                    )
+                  : _stream(
+                      _reply([
+                        {'type': 'text', 'text': 'ok'},
+                      ]),
+                    );
+            }),
+          );
+          await provider.chat(
+            messages: const [UserMessage('u')],
+            tools: const [],
+          );
+          return (bodies, provider);
+        }
+
+        const every = {'thinking', 'thinking:adaptive', 'thinking:enabled'};
+        var (bodies, provider) = await refused(
+          'first-1',
+          'reasoning_effort is not supported; use temperature instead',
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(bodies.last['temperature'], 0.7);
+        expect(provider.learned.rejectedFields, every);
+
+        (bodies, provider) = await refused(
+          'first-2',
+          'reasoning is mandatory for this model; temperature is ignored',
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(bodies.last['temperature'], 0.7);
+        expect(provider.learned.rejectedFields, isEmpty);
+        expect(provider.learned.thinkingOffTried, {
+          LearnedBehaviour.dialectOff,
+        });
+
+        (bodies, provider) = await refused(
+          'first-3',
+          'Unsupported parameter: reasoning_effort. Supported parameters: '
+              'temperature, top_p, top_k, max_tokens',
+        );
+        expect(bodies, hasLength(2));
+        expect(bodies.last.containsKey('thinking'), isFalse);
+        expect(bodies.last['top_k'], 40);
+        expect(provider.learned.rejectedFields, every);
+
+        for (final (i, (message, field)) in [
+          ('temperature is not supported with thinking', 'temperature'),
+          ('top_p is not supported in thinking mode', 'top_p'),
+          (
+            '`temperature` may only be set to 1 when thinking is enabled',
+            'temperature',
+          ),
+        ].indexed) {
+          (bodies, provider) = await refused('first-value-$i', message);
+          expect(bodies, hasLength(2), reason: message);
+          expect(bodies.last['thinking'], {'type': 'disabled'});
+          expect(bodies.last.containsKey(field), isFalse, reason: message);
+          expect(provider.learned.rejectedFields, {field}, reason: message);
+          expect(provider.learned.thinkingOffTried, isEmpty);
+        }
+      });
+
       test(
         'off answered "mandatory" beside a translated name cannot stop',
         () async {

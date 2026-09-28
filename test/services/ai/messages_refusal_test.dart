@@ -247,14 +247,11 @@ void main() {
     });
   });
 
-  group('one sentence about thinking, another naming a value (#119 known '
-      'issues 2 and 3)', () {
-    // Recorded as the code reads them today; the next slice makes the
-    // field a sentence names first the one it refuses.
+  group('a sentence is about the field it names first (#119 known issues '
+      '2 and 3)', () {
     const optional = ['temperature', 'top_p', 'top_k'];
 
-    test('a value named in passing is taken first', () {
-      // today: OptionalRefused('temperature'); wanted: every form
+    test('thinking named first keeps a value named in passing', () {
       expect(
         read(
           'reasoning_effort is not supported; use temperature instead',
@@ -262,9 +259,8 @@ void main() {
           optional: optional,
           switchRoute: true,
         ),
-        const OptionalRefused('temperature'),
+        every,
       );
-      // today: OptionalRefused('temperature'); wanted: off refused
       expect(
         read(
           'reasoning is mandatory for this model; temperature is ignored',
@@ -272,9 +268,8 @@ void main() {
           optional: optional,
           switchRoute: true,
         ),
-        const OptionalRefused('temperature'),
+        off,
       );
-      // today: OptionalRefused('temperature'); wanted: every form
       expect(
         read(
           'Unsupported parameter: reasoning_effort. Supported parameters: '
@@ -283,15 +278,26 @@ void main() {
           optional: optional,
           switchRoute: true,
         ),
-        const OptionalRefused('temperature'),
+        every,
+      );
+      // The model that cannot stop, said in words that name no field, is
+      // about thinking whatever the sentence names after.
+      expect(
+        read(
+          '该模型始终思考，不支持关闭思考；temperature 无效',
+          sent: 'disabled',
+          optional: optional,
+          switchRoute: true,
+        ),
+        off,
       );
     });
 
-    test('a value refused beside the word thinking gives thinking up', () {
-      // today: every form; wanted: the value
-      for (final message in [
-        'temperature is not supported with thinking',
-        'top_p is not supported in thinking mode',
+    test('a value named first is the value, beside the word thinking', () {
+      for (final (message, field) in [
+        ('temperature is not supported with thinking', 'temperature'),
+        ('top_p is not supported in thinking mode', 'top_p'),
+        ('`top_k` cannot be used with thinking enabled', 'top_k'),
       ]) {
         expect(
           read(
@@ -300,10 +306,70 @@ void main() {
             optional: optional,
             switchRoute: true,
           ),
-          every,
+          OptionalRefused(field),
           reason: message,
         );
       }
+    });
+
+    test('the first sentence with a lesson decides', () {
+      expect(
+        read(
+          'top_k: Extra inputs are not permitted. thinking: Extra inputs are '
+          'not permitted',
+          sent: 'disabled',
+          optional: optional,
+          switchRoute: true,
+        ),
+        const OptionalRefused('top_k'),
+      );
+      expect(
+        read(
+          'Invalid request. thinking: Extra inputs are not permitted',
+          sent: 'disabled',
+          optional: optional,
+          switchRoute: true,
+        ),
+        every,
+      );
+    });
+
+    test('a value named where thinking says nothing is still the value', () {
+      // Asked on, thinking named but neither refused nor the form named:
+      // the old fallback, kept.
+      expect(
+        read(
+          'with thinking on, top_k must be unset',
+          sent: 'adaptive',
+          optional: ['top_k'],
+        ),
+        const OptionalRefused('top_k'),
+      );
+    });
+
+    test('the echoed input is cut before a sentence is read', () {
+      expect(
+        read(
+          "Value error, 'auto' tool choice is not supported [type=value_error, "
+          "input_value={'messages': [{'role': 'user'}], 'reasoning_effort': "
+          "'high', 'temperature': 0.7}, input_type=dict]",
+          sent: 'disabled',
+          optional: optional,
+          switchRoute: true,
+        ),
+        isNull,
+      );
+      // An echo with no `input_type` after it ends at the line's end, so
+      // the next field's line is still read.
+      expect(
+        read(
+          "thinking.type\n  Input should be 'adaptive' or 'disabled' "
+          "[type=literal_error, input_value='enabled']\nthinking.budget_tokens\n"
+          '  Extra inputs are not permitted [type=extra_forbidden]',
+          sent: 'enabled',
+        ),
+        enabled,
+      );
     });
   });
 }

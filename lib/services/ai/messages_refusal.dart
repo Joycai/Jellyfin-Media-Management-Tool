@@ -131,13 +131,20 @@ abstract final class MessagesRefusal {
   /// what the request [payload] carried, what the route already [learned],
   /// and the route's shape from [config].
   ///
-  /// A sampling field this request sent, refused in words that only mention
-  /// reasoning in passing ("'top_p' is not supported with reasoning
-  /// models"), is that field's refusal: the request is read for thinking
-  /// then only where the words say `thinking`. (A request that asks for
-  /// thinking sends no sampling values, so this is a switch route told off,
-  /// with its values beside it.) Otherwise a switch route told off is read
-  /// first, then the form asked for, then a sampling field.
+  /// The text is read once — lower case, the model id taken out, Pydantic's
+  /// echoed input cut, split into sentences — and sentence by sentence. A
+  /// sentence is about the field it names first: `thinking`, another
+  /// protocol's name for it, or a sampling value this request sent. About
+  /// a sampling value, it is that value's refusal, whatever else it
+  /// mentions ("'top_p' is not supported with reasoning models",
+  /// "`temperature` may only be set to 1 when thinking is enabled"). About
+  /// thinking, it is read for what it says of the form asked
+  /// ([readThinkingRefusal]) and mapped by the direction asked; where that
+  /// records nothing, a sampling value named in it still is. The first
+  /// sentence with a lesson decides. So "reasoning_effort is not
+  /// supported; use temperature instead" gives thinking up and keeps
+  /// `temperature`, and "temperature is not supported with thinking" drops
+  /// `temperature` and keeps asking.
   static RefusalLesson? read(
     String error, {
     required Map<String, Object?> payload,
@@ -145,55 +152,130 @@ abstract final class MessagesRefusal {
     required AiConfig config,
   }) {
     final rejected = learned.rejectedFields;
-    final detail = error.toLowerCase();
     // The model id is not the message: a relay's `…-thinking` model named
     // in an unrelated error must not read as a refusal.
-    final about = detail.replaceAll(config.model.toLowerCase(), '');
-    final refusedOptional = optionalFields
-        .where(
-          (f) =>
-              payload.containsKey(f) &&
-              !rejected.contains(f) &&
-              detail.contains(f),
-        )
-        .firstOrNull;
-    final readForThinking =
-        refusedOptional == null || about.contains('thinking');
-    if (readForThinking) {
-      // A switch route told off: what the refusal says decides what is
-      // remembered, in the one reading both directions share.
-      if (payload['thinking'] case {'type': 'disabled'}) {
-        switch (readThinkingRefusal(about, sentType: 'disabled')) {
-          // The model cannot stop, or the server knows the field and not
-          // `disabled`.
-          case ThinkingRefusal.cannotStop:
-          case ThinkingRefusal.valueRefused:
-          case ThinkingRefusal.valueNamed:
-            return const OffRefused();
-          // The server does not know the field, or refuses thinking
-          // itself: refused by name, every form with it, so neither way
-          // sends it and nothing fails over it — which says nothing about
-          // whether the model reasons.
-          case ThinkingRefusal.fieldUnknown:
-          case ThinkingRefusal.featureRefused:
-            return ThinkingFormsRefused(everyThinkingForm);
-          case ThinkingRefusal.unrelated:
-            break;
-        }
+    final about = error.toLowerCase().replaceAll(
+      config.model.toLowerCase(),
+      '',
+    );
+    final sentType = switch (payload['thinking']) {
+      {'type': final String type} => type,
+      _ => null,
+    };
+    final sentOptional = optionalFields
+        .where((f) => payload.containsKey(f) && !rejected.contains(f))
+        .toList();
+    // An error about the thinking blocks in the history says nothing about
+    // the request for thinking, whichever sentence says it.
+    final history = _aboutHistory(about);
+    for (final sentence in _sentences(about)) {
+      final subject = _subjectOf(sentence, sentOptional);
+      if (subject == null) continue;
+      if (subject != _thinking) return OptionalRefused(subject);
+      if (!history && sentType != null) {
+        final lesson = _lessonFor(
+          _readSentence(sentence, sentType: sentType),
+          sentType: sentType,
+          sent: sentForm(payload),
+          refused: MessagesThinking.refusedIn(
+            rejected,
+            first: PlatformProfiles.messagesFirstFormFor(config),
+          ),
+          swap: !PlatformProfiles.messagesSwitchFor(config),
+        );
+        if (lesson != null) return lesson;
       }
-      final forms = thinkingForms(
-        about,
-        sent: sentForm(payload),
-        refused: MessagesThinking.refusedIn(
-          rejected,
-          first: PlatformProfiles.messagesFirstFormFor(config),
-        ),
-        swap: !PlatformProfiles.messagesSwitchFor(config),
-      );
-      if (forms != null) return ThinkingFormsRefused(forms);
+      final named = sentOptional.where(sentence.contains).firstOrNull;
+      if (named != null) return OptionalRefused(named);
     }
-    if (refusedOptional != null) return OptionalRefused(refusedOptional);
     return null;
+  }
+
+  /// The marker [_subjectOf] returns for a sentence about thinking, under
+  /// its own name or another protocol's.
+  static const _thinking = 'thinking';
+
+  /// The field [sentence] names first — [_thinking], under its own name,
+  /// another protocol's, or the words of a model that cannot stop; or one
+  /// of [sentOptional] — or null when it names none.
+  static String? _subjectOf(String sentence, List<String> sentOptional) {
+    int? at(String name) {
+      final index = sentence.indexOf(name);
+      return index < 0 ? null : index;
+    }
+
+    String? subject;
+    var first = sentence.length;
+    void consider(String field, int? index) {
+      if (index != null && index < first) {
+        first = index;
+        subject = field;
+      }
+    }
+
+    // "The model cannot stop" names no field and is about thinking
+    // whatever else the sentence names.
+    if (refusesThinkingOff(sentence)) consider(_thinking, 0);
+    consider(_thinking, at('thinking'));
+    for (final name in reasoningFieldNames) {
+      if (name != 'thinking' && namesField(sentence, name)) {
+        consider(_thinking, at(name));
+      }
+    }
+    for (final field in sentOptional) {
+      consider(field, at(field));
+    }
+    return subject;
+  }
+
+  /// What [reading], of a sentence about thinking, records for the
+  /// direction asked — the one table both directions share.
+  ///
+  /// Asked off (`disabled`): the model cannot stop, or the server knows the
+  /// field and not `disabled`, is off refused; the field unknown, or the
+  /// feature, is every form. Asked on: a field the server does not know,
+  /// or thinking itself refused, gives thinking up, every form at once. A
+  /// refusal that names the form ("thinking.type: Input tag 'adaptive' …
+  /// does not match … 'disabled', 'enabled'", an older Claude; "…enabled is
+  /// not supported", a newer one) swaps it for the other: dropping thinking
+  /// over it would switch reasoning off for a month without a word. With no
+  /// other form left to swap to, only a refusal of the feature may switch
+  /// reasoning off: one that refuses the form in so many words gives up
+  /// every form on a route that swaps, and just that form on a route
+  /// declared as a switch ([swap] false — its one form, and off still says
+  /// `disabled`, since the server knows the field); one that merely names
+  /// it is thrown as it is.
+  static RefusalLesson? _lessonFor(
+    ThinkingRefusal reading, {
+    required String sentType,
+    required MessagesThinking? sent,
+    required Set<MessagesThinking> refused,
+    required bool swap,
+  }) {
+    if (sentType == 'disabled') {
+      return switch (reading) {
+        ThinkingRefusal.cannotStop ||
+        ThinkingRefusal.valueRefused ||
+        ThinkingRefusal.valueNamed => const OffRefused(),
+        ThinkingRefusal.fieldUnknown || ThinkingRefusal.featureRefused =>
+          ThinkingFormsRefused(everyThinkingForm),
+        ThinkingRefusal.unrelated => null,
+      };
+    }
+    if (sent == null) return null;
+    return switch (reading) {
+      ThinkingRefusal.fieldUnknown ||
+      ThinkingRefusal.featureRefused => ThinkingFormsRefused(everyThinkingForm),
+      ThinkingRefusal.valueRefused || ThinkingRefusal.valueNamed
+          when swap && !refused.contains(sent.other) =>
+        ThinkingFormsRefused({sent.refusedName}),
+      ThinkingRefusal.valueRefused => ThinkingFormsRefused(
+        swap ? everyThinkingForm : {sent.refusedName},
+      ),
+      ThinkingRefusal.valueNamed ||
+      ThinkingRefusal.cannotStop ||
+      ThinkingRefusal.unrelated => null,
+    };
   }
 
   /// Whether a rejection refuses extended thinking itself — "does not
@@ -236,8 +318,8 @@ abstract final class MessagesRefusal {
       !_subField.hasMatch(detail) &&
       RegExp(_unknownFieldWords).hasMatch(detail);
 
-  /// Whether [detail], which does not say `thinking`, refuses the field
-  /// under the name a relay's translation layer gave it — its upstream's
+  /// Whether [sentence], one that does not say `thinking`, refuses the
+  /// field under the name a relay's translation layer gave it — its upstream's
   /// `reasoning_effort`, `chat_template_kwargs`, `thinkingConfig`, a quoted
   /// `reasoning` — in the words of a refusal or of an unknown field, or
   /// with the name quoted (an "Invalid value for 'reasoning_effort'" is
@@ -245,30 +327,28 @@ abstract final class MessagesRefusal {
   /// this adapter's to know or change, so the one thing to learn is that
   /// the route cannot carry a request for thinking: the field unknown,
   /// every form given up. A name merely mentioned, with nothing refused, is
-  /// about something else, and so is one named in another sentence than
-  /// the refusal ("unsupported parameter: top_k. Supported parameters:
-  /// reasoning_effort, …") or inside the input Pydantic echoes — the
+  /// about something else — as is one named in another sentence than the
+  /// refusal ("unsupported parameter: top_k. Supported parameters:
+  /// reasoning_effort, …"), or inside the input Pydantic echoes (the
   /// relay's whole translated body, when the error is about something
-  /// else in it.
-  static bool refusesThinkingTranslated(String detail) {
-    final text = detail.replaceAll(_echoedInput, '');
-    return text
-        .split(_sentenceEnd)
-        .any(
-          (sentence) =>
-              translatedFieldNamed(sentence, own: 'thinking') != null &&
-              (RegExp(_refusalWords).hasMatch(sentence) ||
-                  _quotedTranslated.hasMatch(sentence)),
-        );
-  }
+  /// else in it), which [_sentences] keeps out.
+  static bool refusesThinkingTranslated(String sentence) =>
+      translatedFieldNamed(sentence, own: 'thinking') != null &&
+      (RegExp(_refusalWords).hasMatch(sentence) ||
+          _quotedTranslated.hasMatch(sentence));
 
   /// Pydantic's echo of the refused input, `input_value=…, input_type=…`.
-  /// It ends at `input_type`, never at a `]` — the echoed body has lists
-  /// in it (`'messages': [{…}]`).
+  /// It ends at `input_type`, or at a `]` that ends the line — not at one
+  /// inside the echoed body, which has lists in it (`'messages': [{…}]`).
   static final _echoedInput = RegExp(
-    r'input_value=.*?(?=, input_type=|$)',
+    r'input_value=.*?(?=, input_type=|\]\s*(\n|$)|$)',
     dotAll: true,
   );
+
+  /// [text] as the sentences read one by one: the echoed input cut out,
+  /// then split at each sentence end.
+  static Iterable<String> _sentences(String text) =>
+      text.replaceAll(_echoedInput, '').split(_sentenceEnd);
 
   /// Another protocol's name for the field, quoted or dotted
   /// (`'reasoning_effort'`, `'reasoning.effort'`).
@@ -312,12 +392,26 @@ abstract final class MessagesRefusal {
   /// ("`thinking` or `redacted_thinking` blocks … cannot be modified",
   /// "messages.3.content.0: Invalid `signature` in `thinking` block") says
   /// the history is wrong, whichever form was asked for: both are
-  /// unrelated.
+  /// unrelated. Read sentence by sentence, the echoed input cut out; the
+  /// first sentence that says something decides.
   static ThinkingRefusal readThinkingRefusal(
     String detail, {
     required String sentType,
   }) {
     if (_aboutHistory(detail)) return ThinkingRefusal.unrelated;
+    return _sentences(detail)
+        .map((sentence) => _readSentence(sentence, sentType: sentType))
+        .firstWhere(
+          (reading) => reading != ThinkingRefusal.unrelated,
+          orElse: () => ThinkingRefusal.unrelated,
+        );
+  }
+
+  /// [readThinkingRefusal] of one sentence, the history already ruled out.
+  static ThinkingRefusal _readSentence(
+    String detail, {
+    required String sentType,
+  }) {
     // Said without naming the field ("始终思考"): read before the field is
     // looked for. It answers off alone: asked on, the same words beside a
     // form or the field are read as those.
@@ -349,42 +443,6 @@ abstract final class MessagesRefusal {
     }
     if (refusesThinking(detail)) return ThinkingRefusal.featureRefused;
     return ThinkingRefusal.unrelated;
-  }
-
-  /// What to remember when a request that asked for thinking in [sent] is
-  /// refused with [detail], or null when nothing is: the on direction's
-  /// mapping of [readThinkingRefusal].
-  ///
-  /// A field the server does not know, or thinking itself refused, gives
-  /// thinking up, every form at once. A refusal that names the form
-  /// ("thinking.type: Input tag 'adaptive' … does not match … 'disabled',
-  /// 'enabled'", an older Claude; "…enabled is not supported", a newer one)
-  /// swaps it for the other: dropping thinking over it would switch
-  /// reasoning off for a month without a word. With no other form left to
-  /// swap to, only a refusal of the feature may switch reasoning off: one
-  /// that refuses the form in so many words gives up every form on a route
-  /// that swaps, and just that form on a route declared as a switch
-  /// ([swap] false — its one form, and off still says `disabled`, since the
-  /// server knows the field); one that merely names it is thrown as it is.
-  static Set<String>? thinkingForms(
-    String detail, {
-    required MessagesThinking? sent,
-    required Set<MessagesThinking> refused,
-    required bool swap,
-  }) {
-    if (sent == null) return null;
-    return switch (readThinkingRefusal(detail, sentType: sent.type)) {
-      ThinkingRefusal.fieldUnknown ||
-      ThinkingRefusal.featureRefused => everyThinkingForm,
-      ThinkingRefusal.valueRefused || ThinkingRefusal.valueNamed
-          when swap && !refused.contains(sent.other) =>
-        {sent.refusedName},
-      ThinkingRefusal.valueRefused =>
-        swap ? everyThinkingForm : {sent.refusedName},
-      ThinkingRefusal.valueNamed ||
-      ThinkingRefusal.cannotStop ||
-      ThinkingRefusal.unrelated => null,
-    };
   }
 
   /// What a refusal of the `thinking` field itself records: every form, and
