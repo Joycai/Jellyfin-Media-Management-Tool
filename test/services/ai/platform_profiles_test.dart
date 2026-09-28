@@ -209,8 +209,8 @@ void main() {
     () {
       // MiniMax-M3's /anthropic takes `adaptive | disabled` only (KB 03 §3);
       // DeepSeek, DashScope and Zhipu think unless told not to
-      // (measured 2026-09-28). No relay or mirror is a switch: off is the
-      // protocol's default there.
+      // (measured 2026-09-28). No relay or mirror is a switch: nothing is
+      // sent for off there.
       const switches = {'minimax', 'deepseek', 'dashscope', 'zhipu'};
       for (final profile in PlatformProfiles.all) {
         final spec = profile.routes[AiProviderType.anthropic];
