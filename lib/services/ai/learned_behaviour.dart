@@ -42,10 +42,21 @@ class LearnedBehaviour {
   /// it, so a channel whose platform changed keeps what the old one learned.
   static const dialectOff = 'dialect';
 
-  /// In [thinkingOffTried] on a Messages switch route: after [dialectOff],
-  /// the least reasoning (`output_config: {effort: "low"}`) was refused too,
-  /// so off sends nothing (`MessagesOff` is the order the two are tried in).
+  /// In [thinkingOffTried]: after [dialectOff], the least reasoning was
+  /// refused too, so off sends nothing — on a Messages switch route
+  /// `output_config: {effort: "low"}` (`MessagesOff` is the order the two are
+  /// tried in), on a Chat Completions route that declares it
+  /// `reasoning_effort: "low"` (`PlatformProfiles.chatOffRungsFor`). A route
+  /// key carries its protocol, so the two never share a set.
   static const leastEffortOff = 'leastEffort';
+
+  /// The markers a platform's ways of saying off write in
+  /// [thinkingOffTried] (`MessagesOff`, `PlatformProfiles.chatOffRungsFor`),
+  /// as opposed to the local-server ladder's steps. A route key outlives its
+  /// channel's platform, so both can be on record; whatever counts the
+  /// ladder's steps leaves these out. `platform_profiles_test` holds every
+  /// rung's marker to this set.
+  static const platformOffMarkers = {dialectOff, leastEffortOff};
 
   /// In [thinkingOffTried] on a Responses route: `reasoning.effort: "none"`
   /// was refused. The Chat Completions ladder has a way of the same name,

@@ -354,6 +354,150 @@ void main() {
     });
   });
 
+  group('chatOffFor: the ways of saying off, in order', () {
+    ChatOff? off(
+      String endpoint, {
+      Set<String> rejected = const {},
+      Set<String> tried = const {},
+    }) => PlatformProfiles.chatOffFor(
+      AiConfig(
+        provider: AiProviderType.openAi,
+        endpoint: endpoint,
+        apiKey: 'k',
+        model: 'glm-5.3',
+      ),
+      LearnedBehaviour(rejectedFields: rejected, thinkingOffTried: tried),
+    );
+    const zhipu = 'https://open.bigmodel.cn/api/paas/v4';
+    const volcengine = 'https://ark.cn-beijing.volces.com/api/v3';
+    const both = {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff};
+
+    test('Zhipu says the switch, then the least, then nothing', () {
+      expect(off(zhipu)?.field.key, 'thinking');
+      expect(off(zhipu)?.field.value, {'type': 'disabled'});
+      expect(off(zhipu)?.marker, LearnedBehaviour.dialectOff);
+      expect(
+        off(zhipu, tried: {LearnedBehaviour.dialectOff}),
+        PlatformProfiles.chatLeast,
+      );
+      expect(PlatformProfiles.chatLeast.field.key, 'reasoning_effort');
+      expect(PlatformProfiles.chatLeast.field.value, 'low');
+      expect(off(zhipu, tried: both), isNull);
+    });
+
+    test('a field refused by name is not said again', () {
+      // The switch unknown to the server says nothing of a model that
+      // cannot stop: no least.
+      expect(off(zhipu, rejected: {'thinking'}), isNull);
+      expect(
+        off(
+          zhipu,
+          rejected: {'thinking'},
+          tried: {LearnedBehaviour.dialectOff},
+        ),
+        PlatformProfiles.chatLeast,
+      );
+      expect(
+        off(
+          zhipu,
+          rejected: {'reasoning_effort'},
+          tried: {LearnedBehaviour.dialectOff},
+        ),
+        isNull,
+      );
+    });
+
+    test('the least is named in its protocol\'s field', () {
+      AiConfig on(AiProviderType provider, String endpoint) => AiConfig(
+        provider: provider,
+        endpoint: endpoint,
+        apiKey: 'k',
+        model: 'glm-5.3',
+      );
+      expect(
+        PlatformProfiles.leastEffortFieldFor(on(AiProviderType.openAi, zhipu)),
+        'reasoning_effort',
+      );
+      expect(
+        PlatformProfiles.leastEffortFieldFor(
+          on(
+            AiProviderType.anthropic,
+            'https://open.bigmodel.cn/api/anthropic',
+          ),
+        ),
+        'output_config.effort',
+      );
+    });
+
+    test('on is named where it still goes out', () {
+      String? onField(
+        AiProviderType provider,
+        String endpoint, {
+        Set<String> rejected = const {},
+      }) => PlatformProfiles.reasoningOnFieldFor(
+        AiConfig(
+          provider: provider,
+          endpoint: endpoint,
+          apiKey: 'k',
+          model: 'glm-5.3',
+        ),
+        LearnedBehaviour(rejectedFields: rejected),
+      );
+      expect(onField(AiProviderType.openAi, zhipu), 'thinking');
+      expect(
+        onField(AiProviderType.openAi, zhipu, rejected: {'thinking'}),
+        isNull,
+      );
+      expect(onField(AiProviderType.openAi, 'http://localhost:1234'), isNull);
+      const messages = 'https://open.bigmodel.cn/api/anthropic';
+      expect(onField(AiProviderType.anthropic, messages), 'thinking');
+      expect(
+        onField(
+          AiProviderType.anthropic,
+          messages,
+          rejected: {'thinking:adaptive'},
+        ),
+        isNull,
+      );
+      expect(onField(AiProviderType.openAiResponses, 'https://r.io'), isNull);
+    });
+
+    test('every rung writes a marker the ladder count leaves out', () {
+      final markers = {
+        for (final rung in MessagesOff.values) rung.triedMarker,
+        for (final platform in PlatformProfiles.all)
+          for (final protocol in platform.routes.keys)
+            for (final rung in PlatformProfiles.chatOffRungsFor(
+              AiConfig(
+                provider: protocol,
+                endpoint: platform.defaultBaseUrl.isEmpty
+                    ? 'http://localhost:1234'
+                    : platform.defaultBaseUrl,
+                apiKey: 'k',
+                model: 'm',
+                platform: platform.id,
+              ),
+            ))
+              rung.marker,
+      };
+      expect(markers, isNotEmpty);
+      expect(LearnedBehaviour.platformOffMarkers.containsAll(markers), isTrue);
+    });
+
+    test('only a route that declares the least has it', () {
+      expect(off(volcengine)?.marker, LearnedBehaviour.dialectOff);
+      expect(off(volcengine, tried: {LearnedBehaviour.dialectOff}), isNull);
+      expect(
+        PlatformProfiles.all
+            .where((p) => p.routes.values.any((route) => route.chatLeastEffort))
+            .map((p) => p.id),
+        ['zhipu'],
+      );
+      // No platform switch, no ways: the local-server ladder applies.
+      expect(off('http://localhost:1234'), isNull);
+    });
+  });
+
   group('reasoningRouteFor', () {
     AiConfig at(
       AiProviderType provider,
@@ -368,6 +512,7 @@ void main() {
       thinkingEnabled: thinking,
     );
     const zhipu = 'https://open.bigmodel.cn/api/paas/v4';
+    const volcengine = 'https://ark.cn-beijing.volces.com/api/v3';
     const miniMax = 'https://api.minimaxi.com/anthropic';
     const relay = 'https://relay.example.com';
 
@@ -386,10 +531,27 @@ void main() {
         route: ReasoningRoute.platformField,
         field: 'thinking',
       ));
+      // Zhipu declares the least: off asks for it once the switch was
+      // refused, and sends nothing once that was too.
       expect(read(glm, tried: {LearnedBehaviour.dialectOff}), (
-        route: ReasoningRoute.offRefused,
-        field: 'thinking',
+        route: ReasoningRoute.offLeast,
+        field: 'reasoning_effort',
       ));
+      expect(
+        read(
+          glm,
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ),
+        (route: ReasoningRoute.offRefused, field: 'thinking'),
+      );
+      expect(
+        read(
+          glm,
+          rejected: {'reasoning_effort'},
+          tried: {LearnedBehaviour.dialectOff},
+        ),
+        (route: ReasoningRoute.offRefused, field: 'thinking'),
+      );
       expect(read(glm, rejected: {'thinking'}), (
         route: ReasoningRoute.refused,
         field: 'thinking',
@@ -401,7 +563,15 @@ void main() {
           rejected: {'thinking'},
           tried: {LearnedBehaviour.dialectOff},
         ).route,
-        ReasoningRoute.offRefused,
+        ReasoningRoute.offLeast,
+      );
+      // A route that does not declare the least goes straight to nothing.
+      expect(
+        read(
+          at(AiProviderType.openAi, volcengine, 'doubao-seed-9'),
+          tried: {LearnedBehaviour.dialectOff},
+        ),
+        (route: ReasoningRoute.offRefused, field: 'thinking'),
       );
       // Another field refused leaves the switch alone.
       expect(
@@ -647,14 +817,21 @@ void main() {
         final bodyOff = await sent(off);
         final whenOn = bodyOn[wire];
         final whenOff = bodyOff[wire];
-        // Off may be said in another field: the least reasoning on a
-        // Messages switch route.
+        // Off may be said in another field: the least reasoning.
         List<Object?> reasoning(Map<String, Object?> body) => [
           body[wire],
           body['output_config'],
+          body['reasoning_effort'],
         ];
+        // A field as the settings screens name it (`output_config.effort`).
+        Object? named(Map<String, Object?> body, String field) => field
+            .split('.')
+            .fold<Object?>(body, (at, name) => at is Map ? at[name] : null);
 
-        final route = PlatformProfiles.reasoningRouteFor(config, learned).route;
+        final (:route, :field) = PlatformProfiles.reasoningRouteFor(
+          config,
+          learned,
+        );
         expect(route, expected);
         // A live toggle changes the body. The converse does not hold: with
         // off refused the two bodies differ, but the model reasons in both.
@@ -672,13 +849,39 @@ void main() {
               expect(whenOn, isNotNull, reason: 'on is still sent');
             }
             expect(whenOff, isNull);
+            // The route-switch dialog names on only where it is still sent.
+            final onField = PlatformProfiles.reasoningOnFieldFor(
+              config,
+              learned,
+            );
+            if (onField == null) {
+              expect(whenOn, isNull, reason: 'on named nowhere, sent nowhere');
+            } else {
+              expect(bodyOn[onField], isNotNull, reason: 'on named, and sent');
+            }
             expect(bodyOff['output_config'], isNull, reason: 'nor the least');
+            expect(
+              bodyOff['reasoning_effort'],
+              isNull,
+              reason: 'nor the least',
+            );
           case ReasoningRoute.offLeast:
             if (rejected.isEmpty) {
               expect(whenOn, isNotNull, reason: 'on is still sent');
             }
             expect(whenOff, isNull, reason: 'not beside the least');
-            expect(bodyOff['output_config'], {'effort': 'low'});
+            expect(named(bodyOff, field!), 'low', reason: field);
+            expect(named(bodyOn, field), isNull, reason: 'the least is off');
+            // The route-switch dialog names on where it is still sent.
+            final onField = PlatformProfiles.reasoningOnFieldFor(
+              config,
+              learned,
+            );
+            if (onField == null) {
+              expect(whenOn, isNull, reason: 'on named nowhere, sent nowhere');
+            } else {
+              expect(bodyOn[onField], isNotNull, reason: 'on named, and sent');
+            }
           case ReasoningRoute.offToDefault:
             expect(whenOn, isNotNull, reason: 'on is still sent');
             expect(whenOff, isNull);
@@ -702,15 +905,26 @@ void main() {
             at(AiProviderType.openAi, zhipu, 'glm-5.3', thinking: thinking);
         for (final (rejected, tried, expected) in [
           (<String>{}, <String>{}, ReasoningRoute.platformField),
+          ({'thinking'}, <String>{}, ReasoningRoute.refused),
+          (<String>{}, {LearnedBehaviour.dialectOff}, ReasoningRoute.offLeast),
           (
             <String>{},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+            ReasoningRoute.offRefused,
+          ),
+          (
+            {'reasoning_effort'},
             {LearnedBehaviour.dialectOff},
             ReasoningRoute.offRefused,
           ),
-          ({'thinking'}, <String>{}, ReasoningRoute.refused),
           (
             {'thinking'},
             {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offLeast,
+          ),
+          (
+            {'thinking'},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
         ]) {
@@ -723,6 +937,19 @@ void main() {
             tried: tried,
           );
         }
+        AiConfig doubao({bool thinking = false}) => at(
+          AiProviderType.openAi,
+          volcengine,
+          'doubao-seed-9',
+          thinking: thinking,
+        );
+        await check(
+          doubao,
+          base: volcengine,
+          wire: 'thinking',
+          expected: ReasoningRoute.offRefused,
+          tried: {LearnedBehaviour.dialectOff},
+        );
       });
 
       test('Messages', () async {

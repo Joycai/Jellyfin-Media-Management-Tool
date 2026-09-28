@@ -170,9 +170,11 @@ class OpenAiProvider implements AiProvider {
   /// a server rejects by name is dropped and remembered.
   ///
   /// **Reasoning.** A cloud platform with a documented switch gets that
-  /// switch, both ways, and nothing else — see [PlatformProfiles.dialectFor]. Anywhere
-  /// else, with thinking off, a hybrid family is asked for no reasoning in the
-  /// way its server understands — see [_ThinkingOff].
+  /// switch, both ways, and no ladder — see [PlatformProfiles.dialectFor]; a
+  /// model that refuses it set to off is asked for the least where the
+  /// route declares it, then nothing ([PlatformProfiles.chatOffFor]).
+  /// Anywhere else, with thinking off, a hybrid family is asked for no
+  /// reasoning in the way its server understands — see [_ThinkingOff].
   ///
   /// **JSON mode** ([jsonMode], never together with tools).
   /// `response_format: json_object` is OpenAI's form and most servers take it,
@@ -212,7 +214,12 @@ class OpenAiProvider implements AiProvider {
         (b) => b.copyWith(thinkingOffTried: {...b.thinkingOffTried, off!.name}),
       );
 
-      final dialectOffRefused = tried.contains(LearnedBehaviour.dialectOff);
+      // How the platform is told off this time: its switch, then where the
+      // route declares it the least reasoning, then nothing. A refusal of it
+      // teaches that way's marker, so the resend is never the same request.
+      final platformOff = config.sampling.thinking
+          ? null
+          : PlatformProfiles.chatOffFor(config, _learned.of(key));
       final (:optional, :payload) = _compose(
         messages: messages,
         tools: tools,
@@ -221,14 +228,8 @@ class OpenAiProvider implements AiProvider {
         mode: mode,
         maxCompletionTokens: maxCompletionTokens,
         rejected: rejected,
-        dialectOffRefused: dialectOffRefused,
+        platformOff: platformOff,
       );
-      // Whether this request carries the platform's switch set to off.
-      final dialectOffKey = config.sampling.thinking
-          ? null
-          : PlatformProfiles.dialectFor(config)?.field(thinking: false).key;
-      final sendsDialectOff =
-          dialectOffKey != null && optional.containsKey(dialectOffKey);
       final body = jsonEncode(payload);
       final started = DateTime.now();
       void log({int? status, ChatResult? result, String? error}) =>
@@ -351,15 +352,14 @@ class OpenAiProvider implements AiProvider {
           continue;
         }
         // A model that cannot stop reasoning, saying so without naming the
-        // switch (one that names it was handled above, as a refused field).
+        // field (a switch named was handled above, as a refused field).
         // Remembered apart from refused fields: asking it *on* is still sent.
-        if (sendsDialectOff && refusesThinkingOff(detail)) {
+        // Zhipu answers the switch and the least in the same words, so it is
+        // the way this request carried that was refused.
+        if (platformOff != null && refusesThinkingOff(detail)) {
           learn(
             (b) => b.copyWith(
-              thinkingOffTried: {
-                ...b.thinkingOffTried,
-                LearnedBehaviour.dialectOff,
-              },
+              thinkingOffTried: {...b.thinkingOffTried, platformOff.marker},
             ),
           );
           continue;
@@ -398,17 +398,17 @@ class OpenAiProvider implements AiProvider {
     required _JsonMode mode,
     required bool maxCompletionTokens,
     required Set<String> rejected,
-    required bool dialectOffRefused,
+    required ChatOff? platformOff,
   }) {
     final sampling = config.sampling;
     final values = sampling.values;
     final control = sampling.preset?.thinkingControl ?? ThinkingControl.none;
     final dialect = PlatformProfiles.dialectFor(config);
-    // A model that refused the switch set to off is not asked again; on is
-    // still sent.
-    final dialectField = !sampling.thinking && dialectOffRefused
-        ? null
-        : dialect?.field(thinking: sampling.thinking);
+    // On is the platform's switch; off the first way of saying it the route
+    // has not had refused ([PlatformProfiles.chatOffFor]), or nothing.
+    final dialectField = sampling.thinking
+        ? dialect?.field(thinking: true)
+        : platformOff?.field;
 
     final optional = <String, Object>{
       'temperature': ?values.temperature,
@@ -483,9 +483,9 @@ class OpenAiProvider implements AiProvider {
       mode: _JsonMode.object,
       maxCompletionTokens: learned.maxCompletionTokens,
       rejected: learned.rejectedFields,
-      dialectOffRefused: learned.thinkingOffTried.contains(
-        LearnedBehaviour.dialectOff,
-      ),
+      platformOff: config.sampling.thinking
+          ? null
+          : PlatformProfiles.chatOffFor(config, learned),
     );
     final key = config.apiKey.trim();
     return RequestPreview(

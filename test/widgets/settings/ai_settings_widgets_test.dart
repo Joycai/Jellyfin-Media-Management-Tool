@@ -56,12 +56,13 @@ void main() {
       String? text(ReasoningRoute route) =>
           reasoningRefusalText(l10n, route, config);
       expect(text(ReasoningRoute.offRefused), l10n.aiCellAlwaysReasons);
-      // Off asks for the least: the field it goes in is named.
-      expect(
-        text(ReasoningRoute.offLeast),
-        l10n.aiCellLeastEffort('output_config.effort'),
-      );
-      expect(text(ReasoningRoute.offLeast), contains('output_config.effort'));
+      // Off asks for the least: the field it goes in on that protocol is
+      // named.
+      final least = protocol == AiProviderType.openAi
+          ? 'reasoning_effort'
+          : 'output_config.effort';
+      expect(text(ReasoningRoute.offLeast), l10n.aiCellLeastEffort(least));
+      expect(text(ReasoningRoute.offLeast), contains(least));
       expect(text(ReasoningRoute.offToDefault), l10n.aiCellModelDefault);
       // Messages without thinking does not reason.
       expect(
@@ -184,6 +185,7 @@ void main() {
     WidgetTester tester, {
     required SamplingPreset? preset,
     required ReasoningRoute route,
+    String? routeField,
     bool thinking = false,
     bool? lastReasoned,
     ServerOwner owner = ServerOwner.own,
@@ -204,6 +206,11 @@ void main() {
           controllers: controllers,
           thinking: thinking,
           route: route,
+          routeField:
+              routeField ??
+              (route == ReasoningRoute.offLeast
+                  ? 'output_config.effort'
+                  : null),
           lastReasoned: lastReasoned,
           serverKind: null,
           owner: owner,
@@ -294,6 +301,17 @@ void main() {
       expect(find.text(l10n.thinkingAlwaysOn), findsNothing);
       expect(find.textContaining('the model still reasoned'), findsNothing);
     }
+    // The field is the route's own: Chat Completions says it otherwise.
+    await reasoningSwitch(
+      tester,
+      preset: null,
+      route: ReasoningRoute.offLeast,
+      routeField: 'reasoning_effort',
+    );
+    expect(
+      find.text(l10n.thinkingLeastEffort('reasoning_effort')),
+      findsOneWidget,
+    );
 
     // A working switch that still reasoned is the server's doing: on the
     // user's own server, its model settings; on someone else's, "turn it off

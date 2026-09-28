@@ -340,10 +340,12 @@ CapabilityCell capabilityCell(
           );
         case ReasoningRoute.ladder:
           // Only ladder steps count: a route key outlives its channel's
-          // platform, so a switch refused under one can still be on record
-          // here.
+          // platform, so a switch, or the least after it, refused under one
+          // can still be on record here.
           final tried = learned?.thinkingOffTried ?? const <String>{};
-          final steps = tried.where((w) => w != LearnedBehaviour.dialectOff);
+          final steps = tried.where(
+            (w) => !LearnedBehaviour.platformOffMarkers.contains(w),
+          );
           return steps.length >= 2
               ? (state: unavailable, text: l10n.aiCellLadderExhausted)
               : (state: unmeasured, text: l10n.aiCellLadder);

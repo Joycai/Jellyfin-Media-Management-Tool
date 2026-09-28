@@ -71,7 +71,7 @@ String? reasoningRefusalText(
     ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
     // …and off asks for the least of it.
     ReasoningRoute.offLeast => l10n.aiCellLeastEffort(
-      MessagesOff.leastEffort.field,
+      PlatformProfiles.leastEffortFieldFor(config),
     ),
     // Off refused without a reason: the model's default, reasoning or not.
     ReasoningRoute.offToDefault => l10n.aiCellModelDefault,
@@ -531,6 +531,10 @@ class AiSamplingSection extends StatelessWidget {
   /// one decides what a model no preset knows is drawn as.
   final ReasoningRoute route;
 
+  /// The field [route] names (`PlatformProfiles.reasoningRouteFor`): where
+  /// off asks for the least, the least's own.
+  final String? routeField;
+
   /// What the last test on this route showed; null when none ran.
   final bool? lastReasoned;
   final ServerKind? serverKind;
@@ -553,6 +557,7 @@ class AiSamplingSection extends StatelessWidget {
     required this.controllers,
     required this.thinking,
     required this.route,
+    required this.routeField,
     required this.lastReasoned,
     required this.serverKind,
     required this.owner,
@@ -774,10 +779,7 @@ class AiSamplingSection extends StatelessWidget {
       return (text: l10n.thinkingAlwaysOn, warning: false);
     }
     if (route == ReasoningRoute.offLeast) {
-      return (
-        text: l10n.thinkingLeastEffort(MessagesOff.leastEffort.field),
-        warning: false,
-      );
+      return (text: l10n.thinkingLeastEffort(routeField!), warning: false);
     }
     final reasoned = lastReasoned;
     // Only where a switch, or the server, can do something about it.

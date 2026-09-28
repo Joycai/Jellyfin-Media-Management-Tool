@@ -11,6 +11,19 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-09-28
+
+### Changed
+
+- With reasoning off, GLM-5.3 on Zhipu's OpenAI-compatible route is now
+  asked for the least reasoning (`reasoning_effort: low`) once it has said
+  it cannot stop, instead of being left to reason at its default. In tests
+  that cut its reasoning from 232–1,476 tokens to 0–131 per request, and it
+  still decided every group alike, though it sometimes left out a year it
+  would otherwise have given. The model page, the capability matrix and the
+  route-switch dialog name the field. A model that refuses the least as well
+  runs at its default and is shown as always reasoning.
+
 ## [1.3.2] - 2026-09-28
 
 ### Fixed
@@ -207,6 +220,7 @@ Changes before this point were not tracked in this file; the git log and the
 page have them.
 
 [Unreleased]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/compare/main...HEAD
+[1.3.3]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.3.2]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.3.1]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.3.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases

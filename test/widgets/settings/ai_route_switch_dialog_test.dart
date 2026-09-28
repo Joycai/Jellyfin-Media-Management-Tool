@@ -85,11 +85,15 @@ void main() {
     await pump();
     expect(find.text('off · thinking'), findsNWidgets(2));
 
-    // glm-5.3 always reasons: off sends nothing on the route that learned
-    // it, so no field is named there; the Messages route has not learned
-    // it yet.
+    // A model that refused off and the least: off sends nothing on the
+    // route that learned it, so no field is named there; the Messages route
+    // has not learned it yet.
     final provider = AiService.providerFor(channel.configFor(model));
     addTearDown(provider.forgetLearned);
+    const written = {
+      LearnedBehaviour.dialectOff,
+      LearnedBehaviour.leastEffortOff,
+    };
     LearnedStore.instance.update(
       LearnedStore.routeKey(
         protocol: AiProviderType.openAi.id,
@@ -97,9 +101,8 @@ void main() {
         model: 'glm-5.3',
         apiKey: 'k',
       ),
-      (b) => b.copyWith(thinkingOffTried: {LearnedBehaviour.dialectOff}),
+      (b) => b.copyWith(thinkingOffTried: written),
     );
-    const written = {LearnedBehaviour.dialectOff};
     expect(
       provider.learned.thinkingOffTried,
       written,
@@ -119,6 +122,90 @@ void main() {
     );
     expect(find.text('on · thinking'), findsOneWidget);
     expect(find.text('off · thinking'), findsOneWidget);
+  });
+
+  testWidgets('Zhipu Chat Completions names its own least for off, and on '
+      'only where it is still sent', (tester) async {
+    useTempSupportDir();
+    AiModelEntry model({required bool thinking}) =>
+        AiModelEntry.create(
+          upstream: 'glm-5.3',
+          route: AiProviderType.openAi,
+        ).copyWith(
+          params: {
+            AiProviderType.openAi: RouteParams(thinkingEnabled: thinking),
+          },
+        );
+    AiChannel channel(AiModelEntry m) =>
+        AiChannel.create(
+          platform: PlatformProfiles.zhipu,
+          name: 'z',
+          apiKey: 'k-dialog-cc-least',
+        ).copyWith(
+          routes: const [
+            AiRoute(protocol: AiProviderType.openAi),
+            AiRoute(protocol: AiProviderType.anthropic),
+          ],
+          models: [m],
+        );
+    final off = model(thinking: false);
+    final provider = AiService.providerFor(channel(off).configFor(off));
+    addTearDown(provider.forgetLearned);
+    void learn(
+      Set<String> rejected, {
+      Set<String> tried = const {LearnedBehaviour.dialectOff},
+    }) => LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.openAi.id,
+        base: 'https://open.bigmodel.cn/api/paas/v4',
+        model: 'glm-5.3',
+        apiKey: 'k-dialog-cc-least',
+      ),
+      (b) => b.copyWith(thinkingOffTried: tried, rejectedFields: rejected),
+    );
+    learn(const {});
+    const written = {LearnedBehaviour.dialectOff};
+    expect(
+      provider.learned.thinkingOffTried,
+      written,
+      reason: 'the test wrote the route the dialog reads',
+    );
+    Future<void> pump(AiModelEntry m) => pumpAiPage(
+      tester,
+      RouteSwitchDialog(
+        channel: channel(m),
+        model: m,
+        to: AiProviderType.anthropic,
+      ),
+      profiles: AiProfilesService(),
+    );
+
+    // Off goes out as the least, in Chat Completions' field; the Messages
+    // route has learned nothing and still says `disabled`.
+    await pump(off);
+    expect(find.text('off · reasoning_effort'), findsOneWidget);
+    expect(find.text('off · thinking'), findsOneWidget);
+    // On is still the switch.
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsOneWidget);
+
+    // A server that refused the switch by name sends nothing for on.
+    learn(const {'thinking'});
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsNothing);
+    expect(find.text('on'), findsOneWidget);
+    await pump(off);
+    expect(find.text('off · reasoning_effort'), findsOneWidget);
+
+    // Nor once the least was refused too: the model reasons, and on is not
+    // named where it is not sent.
+    learn(const {'thinking'}, tried: LearnedBehaviour.platformOffMarkers);
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsNothing);
+    expect(find.text('on'), findsOneWidget);
+    learn(const {}, tried: LearnedBehaviour.platformOffMarkers);
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsOneWidget);
   });
 
   testWidgets('a switch route that refused on still names the field for off', (
