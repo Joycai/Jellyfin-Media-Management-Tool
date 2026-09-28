@@ -139,12 +139,14 @@ abstract final class MessagesRefusal {
   /// mentions ("'top_p' is not supported with reasoning models",
   /// "`temperature` may only be set to 1 when thinking is enabled"). About
   /// thinking, it is read for what it says of the form asked
-  /// ([readThinkingRefusal]) and mapped by the direction asked; where that
-  /// records nothing, a sampling value named in it still is. The first
-  /// sentence with a lesson decides. So "reasoning_effort is not
-  /// supported; use temperature instead" gives thinking up and keeps
-  /// `temperature`, and "temperature is not supported with thinking" drops
-  /// `temperature` and keeps asking.
+  /// ([readThinkingRefusal]) and mapped by the direction asked — except
+  /// that thinking refused in words that name no form, with a sampling
+  /// value named beside it, refuses the value; and where thinking records
+  /// nothing, a sampling value named in it still is. The first sentence
+  /// with a lesson decides. So "reasoning_effort is not supported; use
+  /// temperature instead" gives thinking up and keeps `temperature`, while
+  /// "temperature is not supported with thinking" and "thinking mode does
+  /// not support temperature" drop `temperature` and keep asking.
   static RefusalLesson? read(
     String error, {
     required Map<String, Object?> payload,
@@ -172,9 +174,17 @@ abstract final class MessagesRefusal {
       final subject = _subjectOf(sentence, sentOptional);
       if (subject == null) continue;
       if (subject != _thinking) return OptionalRefused(subject);
+      final named = sentOptional.where(sentence.contains).firstOrNull;
       if (!history && sentType != null) {
+        final reading = _readSentence(sentence, sentType: sentType);
+        // Thinking refused in words that name no form, with a sampling
+        // value this request sent named beside it ("thinking mode does not
+        // support top_p"): the value is what is refused.
+        if (reading == ThinkingRefusal.featureRefused && named != null) {
+          return OptionalRefused(named);
+        }
         final lesson = _lessonFor(
-          _readSentence(sentence, sentType: sentType),
+          reading,
           sentType: sentType,
           sent: sentForm(payload),
           refused: MessagesThinking.refusedIn(
@@ -185,7 +195,6 @@ abstract final class MessagesRefusal {
         );
         if (lesson != null) return lesson;
       }
-      final named = sentOptional.where(sentence.contains).firstOrNull;
       if (named != null) return OptionalRefused(named);
     }
     return null;
@@ -392,8 +401,13 @@ abstract final class MessagesRefusal {
   /// ("`thinking` or `redacted_thinking` blocks … cannot be modified",
   /// "messages.3.content.0: Invalid `signature` in `thinking` block") says
   /// the history is wrong, whichever form was asked for: both are
-  /// unrelated. Read sentence by sentence, the echoed input cut out; the
-  /// first sentence that says something decides.
+  /// unrelated.
+  ///
+  /// This reads a whole message: the history ruled out, then sentence by
+  /// sentence with the echoed input cut, the first sentence that says
+  /// something deciding. [read] applies the same reading one sentence at a
+  /// time, once it knows the sentence is about thinking; this whole-message
+  /// form is what the vocabulary tests hold.
   static ThinkingRefusal readThinkingRefusal(
     String detail, {
     required String sentType,

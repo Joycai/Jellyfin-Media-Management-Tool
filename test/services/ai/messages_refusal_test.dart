@@ -298,6 +298,10 @@ void main() {
         ('temperature is not supported with thinking', 'temperature'),
         ('top_p is not supported in thinking mode', 'top_p'),
         ('`top_k` cannot be used with thinking enabled', 'top_k'),
+        // Thinking named first, but refused in words that name no form
+        // with the value beside it: the value, too.
+        ('in thinking mode, top_p is not supported', 'top_p'),
+        ('thinking mode does not support top_p', 'top_p'),
       ]) {
         expect(
           read(
@@ -310,6 +314,35 @@ void main() {
           reason: message,
         );
       }
+    });
+
+    test('thinking refused with no value beside it is thinking', () {
+      // The rule above needs the value in the sentence: asked on, no
+      // sampling value goes out, so this gives thinking up as ever.
+      expect(
+        read('thinking mode does not support top_p', sent: 'adaptive'),
+        every,
+      );
+      expect(
+        read(
+          'thinking is not supported. top_p: Extra inputs are not permitted',
+          sent: 'disabled',
+          optional: optional,
+          switchRoute: true,
+        ),
+        every,
+      );
+    });
+
+    test('an error about the history rules every sentence out', () {
+      expect(
+        read(
+          'messages.1.content.0: thinking blocks cannot be modified. '
+          'thinking: Extra inputs are not permitted',
+          sent: 'adaptive',
+        ),
+        isNull,
+      );
     });
 
     test('the first sentence with a lesson decides', () {
@@ -360,15 +393,29 @@ void main() {
         isNull,
       );
       // An echo with no `input_type` after it ends at the line's end, so
-      // the next field's line is still read.
+      // the next field's line is still read — the budget refused as an
+      // extra input, which gives every form up once the other is refused.
       expect(
         read(
           "thinking.type\n  Input should be 'adaptive' or 'disabled' "
           "[type=literal_error, input_value='enabled']\nthinking.budget_tokens\n"
           '  Extra inputs are not permitted [type=extra_forbidden]',
           sent: 'enabled',
+          rejected: {'thinking:adaptive'},
         ),
-        enabled,
+        every,
+      );
+      // `thinking` only inside the echo is not the field named.
+      expect(
+        read(
+          'top_k: Extra inputs are not permitted [type=extra_forbidden, '
+          "input_value={'thinking': {'type': 'disabled'}, 'top_k': 40}, "
+          'input_type=dict]',
+          sent: 'disabled',
+          optional: optional,
+          switchRoute: true,
+        ),
+        const OptionalRefused('top_k'),
       );
     });
   });
