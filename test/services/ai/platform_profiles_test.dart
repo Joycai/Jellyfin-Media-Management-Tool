@@ -204,41 +204,64 @@ void main() {
     }
   });
 
-  test('only MiniMax declares a Messages thinking switch', () {
-    // MiniMax-M3's /anthropic takes `adaptive | disabled` only (KB 03 §3).
-    for (final profile in PlatformProfiles.all) {
-      final spec = profile.routes[AiProviderType.anthropic];
-      if (spec == null) continue;
-      expect(
-        spec.messagesThinkingSwitch,
-        profile.id == 'minimax',
-        reason: profile.id,
+  test(
+    'the vendors whose Messages face thinks by default declare a switch',
+    () {
+      // MiniMax-M3's /anthropic takes `adaptive | disabled` only (KB 03 §3);
+      // DeepSeek, DashScope and Zhipu think unless told not to
+      // (measured 2026-09-28). No relay or mirror is a switch: off is the
+      // protocol's default there.
+      const switches = {'minimax', 'deepseek', 'dashscope', 'zhipu'};
+      for (final profile in PlatformProfiles.all) {
+        final spec = profile.routes[AiProviderType.anthropic];
+        if (spec == null) continue;
+        expect(
+          spec.messagesThinkingSwitch,
+          switches.contains(profile.id),
+          reason: profile.id,
+        );
+      }
+      AiConfig messages(String endpoint) => AiConfig(
+        provider: AiProviderType.anthropic,
+        endpoint: endpoint,
+        apiKey: 'k',
+        model: 'm',
       );
-    }
-    AiConfig messages(String endpoint) => AiConfig(
-      provider: AiProviderType.anthropic,
-      endpoint: endpoint,
-      apiKey: 'k',
-      model: 'm',
-    );
-    expect(
-      PlatformProfiles.messagesSwitchFor(
-        messages('https://api.minimaxi.com/anthropic'),
-      ),
-      isTrue,
-    );
-    // The same host on Chat Completions has no such switch.
-    expect(
-      PlatformProfiles.messagesSwitchFor(_at('https://api.minimaxi.com/v1')),
-      isFalse,
-    );
-    expect(
-      PlatformProfiles.messagesSwitchFor(
-        messages('https://open.bigmodel.cn/api/anthropic'),
-      ),
-      isFalse,
-    );
-  });
+      expect(
+        PlatformProfiles.messagesSwitchFor(
+          messages('https://api.minimaxi.com/anthropic'),
+        ),
+        isTrue,
+      );
+      // The same host on Chat Completions has no such switch.
+      expect(
+        PlatformProfiles.messagesSwitchFor(_at('https://api.minimaxi.com/v1')),
+        isFalse,
+      );
+      for (final endpoint in [
+        'https://open.bigmodel.cn/api/anthropic',
+        'https://api.deepseek.com/anthropic',
+        'https://dashscope.aliyuncs.com/apps/anthropic',
+      ]) {
+        expect(
+          PlatformProfiles.messagesSwitchFor(messages(endpoint)),
+          isTrue,
+          reason: endpoint,
+        );
+      }
+      // A relay, or Anthropic's own host: off sends nothing.
+      for (final endpoint in [
+        'https://relay.example.com',
+        'https://api.anthropic.com',
+      ]) {
+        expect(
+          PlatformProfiles.messagesSwitchFor(messages(endpoint)),
+          isFalse,
+          reason: endpoint,
+        );
+      }
+    },
+  );
 
   group('reasoningRouteFor', () {
     AiConfig at(
@@ -347,6 +370,22 @@ void main() {
         ).route,
         ReasoningRoute.offRefused,
       );
+
+      // Zhipu's Messages face is a switch too: glm-5.3, told off and
+      // refusing (1210), is the model that cannot stop; glm-4.6 takes it.
+      final glm = at(
+        AiProviderType.anthropic,
+        'https://open.bigmodel.cn/api/anthropic',
+        'glm-5.3',
+      );
+      expect(read(glm), (
+        route: ReasoningRoute.platformField,
+        field: 'thinking',
+      ));
+      expect(read(glm, tried: {LearnedBehaviour.dialectOff}), (
+        route: ReasoningRoute.offRefused,
+        field: 'thinking',
+      ));
 
       final claude = at(AiProviderType.anthropic, relay, 'claude-sonnet-4-5');
       expect(read(claude), (
@@ -627,6 +666,38 @@ void main() {
             wire: 'thinking',
             expected: expected,
             rejected: rejected,
+          );
+        }
+        // Zhipu's Messages face, a switch since 2026-09-28: the same
+        // bodies as MiniMax's, `adaptive` asked first whatever the model's
+        // own form would be, and glm-5.3's refusal of off remembered.
+        const zhipuMessages = 'https://open.bigmodel.cn/api/anthropic';
+        AiConfig glm({bool thinking = false}) => at(
+          AiProviderType.anthropic,
+          zhipuMessages,
+          'glm-5.3',
+          thinking: thinking,
+        );
+        for (final (rejected, tried, expected) in [
+          (<String>{}, <String>{}, ReasoningRoute.platformField),
+          (
+            <String>{},
+            {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offRefused,
+          ),
+          ({'thinking:adaptive'}, <String>{}, ReasoningRoute.onRefused),
+          // A record from before the switch, `enabled` refused by name, is
+          // read against adaptive: still a switch.
+          ({'thinking:enabled'}, <String>{}, ReasoningRoute.platformField),
+          ({'thinking'}, <String>{}, ReasoningRoute.platformField),
+        ]) {
+          await check(
+            glm,
+            base: '$zhipuMessages/v1',
+            wire: 'thinking',
+            expected: expected,
+            rejected: rejected,
+            tried: tried,
           );
         }
         // Against adaptive, a bare record reads as extended refused, so

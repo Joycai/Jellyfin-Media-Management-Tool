@@ -449,9 +449,10 @@ void main() {
       cell(model, AiProviderType.anthropic, Capability.json).text,
       l10n.aiCellPromptOnly,
     );
+    // Zhipu's Messages face thinks unless told not to: a switch there too.
     expect(
       cell(model, AiProviderType.anthropic, Capability.thinkingOff).text,
-      l10n.aiCellDefaultOff,
+      l10n.aiCellSwitch('thinking'),
     );
     // Sent, but a relay can rewrite `none` to medium: not measured.
     final responses = cell(

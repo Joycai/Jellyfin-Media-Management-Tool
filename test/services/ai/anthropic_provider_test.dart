@@ -693,6 +693,41 @@ void main() {
         expect(body['thinking'], {'type': 'adaptive'});
       });
 
+      test('DeepSeek, DashScope and Zhipu switch the same way', () async {
+        // Their Messages faces think unless told not to (measured
+        // 2026-09-28), so off is said in so many words, with the sampling
+        // values, and on is `adaptive` — the one form a switch route asks.
+        for (final (endpoint, model) in [
+          ('https://api.deepseek.com/anthropic', 'deepseek-v4-pro'),
+          ('https://dashscope.aliyuncs.com/apps/anthropic', 'qwen3.8-flash'),
+          ('https://open.bigmodel.cn/api/anthropic', 'glm-4.6'),
+        ]) {
+          for (final thinking in [false, true]) {
+            late Map<String, dynamic> body;
+            await AnthropicProvider(
+              _config(
+                endpoint,
+                model: model,
+                thinking: thinking,
+                temperature: 0.7,
+              ),
+              client: MockClient((request) async {
+                body = jsonDecode(request.body);
+                return _stream(
+                  _reply([
+                    {'type': 'text', 'text': 'ok'},
+                  ]),
+                );
+              }),
+            ).chat(messages: const [UserMessage('u')], tools: const []);
+            expect(body['thinking'], {
+              'type': thinking ? 'adaptive' : 'disabled',
+            }, reason: '$model $thinking');
+            expect(body.containsKey('temperature'), !thinking, reason: model);
+          }
+        }
+      });
+
       test(
         'a model that cannot stop reasoning is not told off again',
         () async {
@@ -749,25 +784,33 @@ void main() {
       /// with [message]; the bodies sent and what it learned.
       Future<(List<Map<String, dynamic>>, AnthropicProvider)> offRefused(
         String host,
-        String message,
-      ) async {
+        String message, {
+        String? endpoint,
+        String model = 'MiniMax-M3',
+      }) async {
         final bodies = <Map<String, dynamic>>[];
         final provider = AnthropicProvider(
-          _config('https://$host/anthropic', model: 'MiniMax-M3'),
+          _config(endpoint ?? 'https://$host/anthropic', model: model),
           client: MockClient((request) async {
             final body = jsonDecode(request.body) as Map<String, dynamic>;
             bodies.add(body);
             if (bodies.length > 8) throw StateError('runaway retries');
             return body.containsKey('thinking')
-                ? http.Response(
-                    jsonEncode({
-                      'type': 'error',
-                      'error': {
-                        'type': 'invalid_request_error',
-                        'message': message,
-                      },
-                    }),
+                // Bytes, UTF-8 declared: a String body would be Latin-1.
+                ? http.Response.bytes(
+                    utf8.encode(
+                      jsonEncode({
+                        'type': 'error',
+                        'error': {
+                          'type': 'invalid_request_error',
+                          'message': message,
+                        },
+                      }),
+                    ),
                     400,
+                    headers: const {
+                      'content-type': 'application/json; charset=utf-8',
+                    },
                   )
                 : _stream(
                     _reply([
@@ -786,6 +829,47 @@ void main() {
         }
         return (bodies, provider);
       }
+
+      test('a model told off in the words measured on 2026-09-28 is the '
+          'model that cannot stop, once', () async {
+        for (final (endpoint, model, message) in [
+          // Zhipu's own face, glm-5.3: code 1210, wrapped with the id.
+          (
+            'https://open.bigmodel.cn/api/anthropic',
+            'glm-5.3',
+            '[1210][该模型始终思考，不支持关闭思考；请使用 low、high 或 max。]'
+                '[202609281155421633d5b34a1644c0]',
+          ),
+          // DashScope's face for a third-party model, in its own
+          // `enable_thinking`.
+          (
+            'https://dashscope.aliyuncs.com/apps/anthropic',
+            'MiniMax-M2.5',
+            '<400> InternalError.Algo.InvalidParameter: The value of the '
+                'enable_thinking parameter is restricted to True.',
+          ),
+        ]) {
+          final (bodies, provider) = await offRefused(
+            '',
+            message,
+            endpoint: endpoint,
+            model: model,
+          );
+          expect(bodies, hasLength(2), reason: model);
+          expect(bodies.first['thinking'], {'type': 'disabled'});
+          expect(bodies.last.containsKey('thinking'), isFalse, reason: model);
+          expect(provider.learned.thinkingOffTried, {
+            LearnedBehaviour.dialectOff,
+          }, reason: model);
+          expect(provider.learned.rejectedFields, isEmpty, reason: model);
+          // The next request does not ask again.
+          final preview = await AnthropicProvider(
+            _config(endpoint, model: model),
+          ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+          expect(preview.body.containsKey('thinking'), isFalse, reason: model);
+          addTearDown(provider.forgetLearned);
+        }
+      });
 
       test('a server that does not know thinking stops being told', () async {
         // Thinking off must not fail every request on a route whose server
@@ -2340,4 +2424,53 @@ void main() {
         : false,
     timeout: const Timeout(Duration(minutes: 2)),
   );
+
+  group('whether the reply reasoned', () {
+    Future<bool> reasoned(List<Map<String, Object?>> blocks) async {
+      final result = await AnthropicProvider(
+        _config('https://reasoned.example'),
+        client: MockClient((_) async => _stream(_reply(blocks))),
+      ).chat(messages: const [UserMessage('u')], tools: const []);
+      return result.reasoned;
+    }
+
+    test(
+      'a thinking block with text, or a redacted one, is reasoning',
+      () async {
+        expect(
+          await reasoned([
+            {'type': 'thinking', 'thinking': 'hm', 'signature': 's'},
+            {'type': 'text', 'text': 'ok'},
+          ]),
+          isTrue,
+        );
+        expect(
+          await reasoned([
+            {'type': 'redacted_thinking', 'data': 'x'},
+            {'type': 'text', 'text': 'ok'},
+          ]),
+          isTrue,
+        );
+      },
+    );
+
+    test('an empty thinking block is not', () async {
+      // DashScope's kimi-k2.6 sends one whichever way it was asked
+      // (2026-09-28); read as reasoning, the connection test would say
+      // thinking did not turn off.
+      expect(
+        await reasoned([
+          {'type': 'thinking', 'thinking': ''},
+          {'type': 'text', 'text': 'ok'},
+        ]),
+        isFalse,
+      );
+      expect(
+        await reasoned([
+          {'type': 'text', 'text': 'ok'},
+        ]),
+        isFalse,
+      );
+    });
+  });
 }

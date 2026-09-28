@@ -235,7 +235,13 @@ abstract final class PlatformProfiles {
       ),
       AiProviderType.anthropic: RouteSpec(
         defaultPath: '/anthropic',
-        source: '【文档 2026-08】api-docs.deepseek.com/guides/anthropic_api',
+        // Thinks unless told not to: deepseek-v4-pro and deepseek-flash
+        // answer a request with no `thinking` with a thinking block, take
+        // `disabled` (no block) and `adaptive`; `budget_tokens` is ignored.
+        messagesThinkingSwitch: true,
+        source:
+            '【文档 2026-08】api-docs.deepseek.com/guides/anthropic_api; '
+            '【实测 2026-09-28】thinks by default, disabled | adaptive taken',
       ),
     },
   );
@@ -255,7 +261,16 @@ abstract final class PlatformProfiles {
       ),
       AiProviderType.anthropic: RouteSpec(
         defaultPath: '/apps/anthropic',
-        source: '【文档 2026-08】help.aliyun.com/model-studio · Anthropic API',
+        // Qwen (3.8-flash, 3.7-flash, 3.5-plus) thinks unless told not to
+        // and takes `disabled` and `adaptive`. The third-party models on
+        // the same face are learned one by one: MiniMax-M2.5 and glm-5.3
+        // refuse `disabled` in the face's own `enable_thinking`
+        // ("restricted to True", `MessagesRefusal`), kimi-k2-thinking
+        // takes it and thinks anyway (the connection test's judge).
+        messagesThinkingSwitch: true,
+        source:
+            '【文档 2026-08】help.aliyun.com/model-studio · Anthropic API; '
+            '【实测 2026-09-28】Qwen thinks by default, disabled | adaptive taken',
       ),
     },
   );
@@ -274,7 +289,15 @@ abstract final class PlatformProfiles {
       ),
       AiProviderType.anthropic: RouteSpec(
         defaultPath: '/api/anthropic',
-        source: '【文档 2026-08】docs.bigmodel.cn · Anthropic API',
+        // Thinks unless told not to. glm-4.6 takes `disabled`; the 5.3
+        // generation refuses it with code 1210 ("该模型始终思考，不支持关闭
+        // 思考；请使用 low、high 或 max") and is remembered as the model
+        // that cannot stop (`dialectOff`), one request once.
+        messagesThinkingSwitch: true,
+        source:
+            '【文档 2026-08】docs.bigmodel.cn · Anthropic API; '
+            '【实测 2026-09-28】thinks by default, disabled taken on 4.6, '
+            '1210 on 5.3',
       ),
     },
   );

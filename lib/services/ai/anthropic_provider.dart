@@ -567,8 +567,15 @@ class AnthropicProvider implements AiProvider {
             arguments: jsonEncode(block['input'] ?? const <String, Object?>{}),
           ),
     ];
+    // A `thinking` block with no text in it is not reasoning: DashScope's
+    // kimi-k2.6 sends one whichever way it was asked (2026-09-28), and the
+    // connection test would read it as thinking that would not turn off.
     final thought = blocks.any(
-      (b) => b['type'] == 'thinking' || b['type'] == 'redacted_thinking',
+      (b) => switch (b['type']) {
+        'redacted_thinking' => true,
+        'thinking' => (b['thinking'] as String? ?? '').isNotEmpty,
+        _ => false,
+      },
     );
     return ChatResult(
       text: [
