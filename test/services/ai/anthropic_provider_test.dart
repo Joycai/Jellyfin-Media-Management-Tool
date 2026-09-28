@@ -928,7 +928,7 @@ void main() {
 
       test('the least refused too, off sends nothing — once each', () async {
         for (final message in [
-          // Zhipu's 5.3 answers every effort but low, high and max so.
+          // Zhipu's 5.3 answers medium, minimal and none so.
           '[1210][该模型始终思考，不支持关闭思考；请使用 high 或 max。][id]',
           // Zhipu's own name for the field, translated.
           '[1210][reasoning_effort 参数值非法，可选值为：high、max][id]',
@@ -958,6 +958,37 @@ void main() {
           }, reason: message);
           expect(provider.learned.rejectedFields, isEmpty, reason: message);
           provider.forgetLearned();
+        }
+      });
+
+      test('the least goes with the sampling values, and only on a switch '
+          'route', () async {
+        final (_, provider) = await offRefused(
+          '',
+          '[1210][该模型始终思考，不支持关闭思考；请使用 low、high 或 max。][id]',
+          endpoint: 'https://open.bigmodel.cn/api/anthropic',
+          model: 'glm-5.3',
+        );
+        addTearDown(provider.forgetLearned);
+        final least = await AnthropicProvider(
+          _config(
+            'https://open.bigmodel.cn/api/anthropic',
+            model: 'glm-5.3',
+            temperature: 0.7,
+          ),
+        ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+        expect(least.body['output_config'], {'effort': 'low'});
+        expect(least.body['temperature'], 0.7);
+        // Anthropic's own host and a relay: off is the protocol's default.
+        for (final endpoint in [
+          'https://api.anthropic.com',
+          'https://relay.example.com',
+        ]) {
+          final off = await AnthropicProvider(
+            _config(endpoint),
+          ).previewRequest(messages: const [UserMessage('u')], tools: const []);
+          expect(off.body.containsKey('output_config'), isFalse);
+          expect(off.body.containsKey('thinking'), isFalse);
         }
       });
 

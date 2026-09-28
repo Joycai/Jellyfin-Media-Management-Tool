@@ -55,7 +55,7 @@ enum MessagesOff {
   /// said it cannot stop. Not the same as off: 【实测 2026-09-28】with tools,
   /// Zhipu's glm-5.3 then returns no thinking block (64 output tokens, 1449
   /// without it), glm-5.3-flash and MiniMax-M2.5 through DashScope still
-  /// think a little. `low` is the one value both platforms take — Zhipu's
+  /// think a little. `low` is the least value both platforms take — Zhipu's
   /// 5.3 refuses `medium`, `minimal` and `none` with the same "始终思考" — and
   /// it cannot go beside `disabled` (the pair draws that refusal too).
   leastEffort(LearnedBehaviour.leastEffortOff);

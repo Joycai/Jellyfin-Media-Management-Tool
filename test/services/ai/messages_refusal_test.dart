@@ -580,8 +580,8 @@ void main() {
 
     test('refused in any words is that rung refused', () {
       for (final message in [
-        // Zhipu's 5.3 answers every effort but low, high and max so
-        // (measured 2026-09-28 for medium, minimal and none).
+        // Zhipu's 5.3 answers medium, minimal and none so (measured
+        // 2026-09-28).
         '[1210][该模型始终思考，不支持关闭思考；请使用 low、high 或 max。][id]',
         // Zhipu's own name for the field (measured, for a bad value).
         '[1210][reasoning_effort 参数值非法，可选值为：none、minimal、low、medium、'
@@ -597,6 +597,15 @@ void main() {
         "effort: unsupported value 'low'",
         // Another protocol's field, as a relay translated it.
         'Unrecognized request argument supplied: reasoning_effort',
+        // Named first, in words no table lists: the rung all the same.
+        "Unexpected keyword argument 'output_config'",
+        'output_config is not a recognized field',
+        'unknown argument: output_config',
+        '不支持的参数：output_config',
+        '参数 output_config 不存在',
+        "output_config.effort: Input should be 'medium' or 'high'",
+        // Named after `thinking`, with nothing else learned.
+        'thinking config rejected: output_config is not allowed here',
       ]) {
         expect(readLeast(message), least, reason: message);
       }
@@ -618,12 +627,39 @@ void main() {
         ),
         isNull,
       );
-      // The effort named, nothing refused.
+      // …even where another sentence names the effort.
       expect(
         readLeast(
-          'max_tokens: 99999 > 8192, the maximum for this model at '
-          'output_config.effort low',
+          'messages.1.content.0: Invalid `signature` in `thinking` block. '
+          'output_config.effort was low',
         ),
+        isNull,
+      );
+      // `thinking` named first is read as ever: the value it names, here.
+      expect(
+        readLeast('thinking mode does not support top_p', optional: ['top_p']),
+        const OptionalRefused('top_p'),
+      );
+      // The form of thinking named, which this request did not send.
+      expect(
+        readLeast(
+          "thinking.type: Input tag 'adaptive' found using 'type' does not "
+          "match any of the expected tags: 'disabled', 'enabled'",
+        ),
+        isNull,
+      );
+      // Named only in the input Pydantic echoes back.
+      expect(
+        readLeast(
+          '1 validation error for Request\nmessages\n  Field required '
+          "[type=missing, input_value={'output_config': {'effort': 'low'}}, "
+          'input_type=dict]',
+        ),
+        isNull,
+      );
+      // Something else.
+      expect(
+        readLeast('max_tokens: 99999 > 8192, the maximum for this model'),
         isNull,
       );
       // `effort` inside another word is no name of it.
@@ -644,6 +680,17 @@ void main() {
           model: 'glm-5.3',
         ),
         isNull,
+      );
+      // Nor does `effort` go before a sampling value it precedes.
+      expect(
+        read(
+          'effort top_p 始终思考',
+          sent: 'disabled',
+          optional: ['top_p'],
+          endpoint: zhipu,
+          model: 'glm-5.3',
+        ),
+        const OptionalRefused('top_p'),
       );
     });
   });
