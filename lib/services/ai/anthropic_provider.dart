@@ -568,9 +568,9 @@ class AnthropicProvider implements AiProvider {
           ),
     ];
     // A `thinking` block with neither text nor a signature is not
-    // reasoning: DashScope's kimi-k2.6 sends one whichever way it was asked
-    // (2026-09-28), and the connection test would read it as thinking that
-    // would not turn off. Claude 5's block is empty of text under the
+    // reasoning: DashScope's kimi-k2.6 sends one when reasoning is not asked
+    // for or is turned off (2026-09-28; asked on, the block has text), and
+    // the connection test would read it as thinking that would not turn off. Claude 5's block is empty of text under the
     // default `display` but carries its signature (KB 03 §3, 2026-09-26).
     final thought = blocks.any(
       (b) => switch (b) {

@@ -20,7 +20,8 @@ reconstructed at release time.
   Studio) is remembered as such after one request and shown as always
   reasoning.
 - The connection test no longer reports reasoning that would not turn off
-  for a server that returns an empty thinking block either way.
+  for a server that returns an empty thinking block when reasoning is not
+  asked for or turned off.
 - A model family that reasons however it is asked (DeepSeek-R1, QwQ, the
   Qwen3 Thinking models; gpt-oss, which can only be lowered) is no longer
   described as "off by default", or as having a switch, in the model page
