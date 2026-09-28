@@ -484,6 +484,42 @@ void main() {
     });
   }
 
+  testWidgets('a Zhipu Chat Completions route that refused disabled asks '
+      'for the least in its own field', (tester) async {
+    final l10n = AppLocalizationsEn();
+    final (:entry, :channel) = await pumpRefused(
+      tester,
+      platform: PlatformProfiles.zhipu,
+      route: AiProviderType.openAi,
+      endpoint: zhipu,
+      base: zhipu,
+      model: 'glm-5.3',
+      tried: {LearnedBehaviour.dialectOff},
+      thinking: false,
+    );
+
+    final reasoning = find.byType(AppToggle).at(2);
+    expect(tester.widget<AppToggle>(reasoning).onChanged, isNotNull);
+    expect(tester.widget<AppToggle>(reasoning).value, isFalse);
+    final cell = capabilityCell(
+      l10n,
+      channel,
+      entry,
+      AiProviderType.openAi,
+      Capability.thinkingOff,
+    );
+    expect(cell.state, CapabilityState.unmeasured);
+    expect(cell.text, l10n.aiCellLeastEffort('reasoning_effort'));
+    expect(find.text(cell.text), findsOneWidget);
+    expect(
+      find.text(l10n.thinkingLeastEffort('reasoning_effort')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('output_config'), findsNothing);
+    expect(find.text(l10n.thinkingAlwaysOn), findsNothing);
+    await settleSaves(tester);
+  });
+
   testWidgets('a MiniMax switch route that refused disabled asks for the '
       'least: the switch stays live, and says so', (tester) async {
     final l10n = AppLocalizationsEn();

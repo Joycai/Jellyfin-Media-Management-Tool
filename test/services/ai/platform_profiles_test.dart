@@ -407,6 +407,61 @@ void main() {
       );
     });
 
+    test('the least is named in its protocol\'s field', () {
+      AiConfig on(AiProviderType provider, String endpoint) => AiConfig(
+        provider: provider,
+        endpoint: endpoint,
+        apiKey: 'k',
+        model: 'glm-5.3',
+      );
+      expect(
+        PlatformProfiles.leastEffortFieldFor(on(AiProviderType.openAi, zhipu)),
+        'reasoning_effort',
+      );
+      expect(
+        PlatformProfiles.leastEffortFieldFor(
+          on(
+            AiProviderType.anthropic,
+            'https://open.bigmodel.cn/api/anthropic',
+          ),
+        ),
+        'output_config.effort',
+      );
+    });
+
+    test('on is named where it still goes out', () {
+      String? onField(
+        AiProviderType provider,
+        String endpoint, {
+        Set<String> rejected = const {},
+      }) => PlatformProfiles.reasoningOnFieldFor(
+        AiConfig(
+          provider: provider,
+          endpoint: endpoint,
+          apiKey: 'k',
+          model: 'glm-5.3',
+        ),
+        LearnedBehaviour(rejectedFields: rejected),
+      );
+      expect(onField(AiProviderType.openAi, zhipu), 'thinking');
+      expect(
+        onField(AiProviderType.openAi, zhipu, rejected: {'thinking'}),
+        isNull,
+      );
+      expect(onField(AiProviderType.openAi, 'http://localhost:1234'), isNull);
+      const messages = 'https://open.bigmodel.cn/api/anthropic';
+      expect(onField(AiProviderType.anthropic, messages), 'thinking');
+      expect(
+        onField(
+          AiProviderType.anthropic,
+          messages,
+          rejected: {'thinking:adaptive'},
+        ),
+        isNull,
+      );
+      expect(onField(AiProviderType.openAiResponses, 'https://r.io'), isNull);
+    });
+
     test('only a route that declares the least has it', () {
       expect(off(volcengine)?.marker, LearnedBehaviour.dialectOff);
       expect(off(volcengine, tried: {LearnedBehaviour.dialectOff}), isNull);
@@ -785,6 +840,16 @@ void main() {
             expect(whenOff, isNull, reason: 'not beside the least');
             expect(named(bodyOff, field!), 'low', reason: field);
             expect(named(bodyOn, field), isNull, reason: 'the least is off');
+            // The route-switch dialog names on where it is still sent.
+            final onField = PlatformProfiles.reasoningOnFieldFor(
+              config,
+              learned,
+            );
+            if (onField == null) {
+              expect(whenOn, isNull, reason: 'on named nowhere, sent nowhere');
+            } else {
+              expect(bodyOn[onField], isNotNull, reason: 'on named, and sent');
+            }
           case ReasoningRoute.offToDefault:
             expect(whenOn, isNotNull, reason: 'on is still sent');
             expect(whenOff, isNull);

@@ -63,8 +63,8 @@ class RouteSwitchDialog extends StatelessWidget {
     // on where the model said it cannot stop — except on the rare route that
     // later refused on too (the name, or a switch route's `adaptive`), which
     // is named although nothing is sent. Where off asks for the least, off
-    // names its own field (`output_config.effort`) and on names `thinking`
-    // where the adapter still asks it.
+    // names its own field (`output_config.effort`, `reasoning_effort`) and
+    // on names the field the adapter still asks it in, if any.
     String thinking(AiConfig config) {
       final learned = AiService.providerFor(config).learned;
       final (:route, :field) = PlatformProfiles.reasoningRouteFor(
@@ -77,11 +77,7 @@ class RouteSwitchDialog extends StatelessWidget {
         ReasoningRoute.onRefused => on ? null : field,
         ReasoningRoute.offRefused => on ? field : null,
         ReasoningRoute.offLeast =>
-          !on
-              ? field
-              : PlatformProfiles.messagesOnFormFor(config, learned) != null
-              ? 'thinking'
-              : null,
+          on ? PlatformProfiles.reasoningOnFieldFor(config, learned) : field,
         ReasoningRoute.protocolField ||
         ReasoningRoute.offToDefault ||
         ReasoningRoute.refused ||

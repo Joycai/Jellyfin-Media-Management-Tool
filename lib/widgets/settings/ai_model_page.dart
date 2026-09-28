@@ -483,6 +483,7 @@ class _AiModelPageState extends State<AiModelPage> {
             controllers: _sampling,
             thinking: config.thinkingEnabled,
             route: route,
+            routeField: field,
             lastReasoned: _lastCheck?.reasoned,
             serverKind: _lastCheck?.serverKind,
             owner: PlatformProfiles.serverOwner(config),

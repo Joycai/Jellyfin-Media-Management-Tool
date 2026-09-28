@@ -686,6 +686,35 @@ abstract final class PlatformProfiles {
     return null;
   }
 
+  /// The field the least reasoning goes out in on [config]'s protocol, as
+  /// the settings screens name it: `reasoning_effort` on Chat Completions
+  /// ([chatLeast]), `output_config.effort` on Messages
+  /// ([MessagesOff.leastEffort]).
+  static String leastEffortFieldFor(AiConfig config) =>
+      config.provider == AiProviderType.openAi
+      ? chatLeast.field.key
+      : MessagesOff.leastEffort.field;
+
+  /// The field [config]'s route asks reasoning on in after what it
+  /// [learned], where it is a platform's or Messages' `thinking`, or null
+  /// where on sends nothing: the platform's switch unless refused by name on
+  /// Chat Completions, `thinking` while a form is left on Messages. The
+  /// route-switch dialog reads it where off asks for the least.
+  static String? reasoningOnFieldFor(
+    AiConfig config,
+    LearnedBehaviour learned,
+  ) => switch (config.provider) {
+    AiProviderType.openAi => switch (dialectFor(
+      config,
+    )?.field(thinking: true).key) {
+      final key? when !learned.rejectedFields.contains(key) => key,
+      _ => null,
+    },
+    AiProviderType.anthropic =>
+      messagesOnFormFor(config, learned) != null ? 'thinking' : null,
+    AiProviderType.googleGenAi || AiProviderType.openAiResponses => null,
+  };
+
   /// Whether [config]'s route is a Messages route that takes thinking as a
   /// switch — see [RouteSpec.messagesThinkingSwitch].
   static bool messagesSwitchFor(AiConfig config) =>
@@ -768,7 +797,10 @@ abstract final class PlatformProfiles {
         if (field == null) return (route: ReasoningRoute.ladder, field: null);
         final off = chatOffFor(config, learned);
         if (off?.marker == LearnedBehaviour.leastEffortOff) {
-          return (route: ReasoningRoute.offLeast, field: off!.field.key);
+          return (
+            route: ReasoningRoute.offLeast,
+            field: leastEffortFieldFor(config),
+          );
         }
         if (tried.contains(LearnedBehaviour.dialectOff)) {
           return (route: ReasoningRoute.offRefused, field: field);
@@ -793,7 +825,7 @@ abstract final class PlatformProfiles {
           if (messagesOffFor(config, learned) == MessagesOff.leastEffort) {
             return (
               route: ReasoningRoute.offLeast,
-              field: MessagesOff.leastEffort.field,
+              field: leastEffortFieldFor(config),
             );
           }
           if (tried.contains(LearnedBehaviour.dialectOff)) {

@@ -55,9 +55,35 @@ void main() {
     expect(value.text, l10n.aiCellAlwaysReasons);
   });
 
+  test('a Zhipu model that refused the switch off asks for the least', () {
+    final provider = AiService.providerFor(channel.configFor(model));
+    addTearDown(provider.forgetLearned);
+    const written = {LearnedBehaviour.dialectOff};
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.openAi.id,
+        base: 'https://open.bigmodel.cn/api/paas/v4',
+        model: 'glm-4.6',
+        apiKey: 'k',
+      ),
+      (b) => b.copyWith(thinkingOffTried: written),
+    );
+    expect(
+      provider.learned.thinkingOffTried,
+      written,
+      reason: 'the test wrote the route the matrix reads',
+    );
+
+    final value = cell(model, AiProviderType.openAi, Capability.thinkingOff);
+    // The least may stop it or only lower it: not measured either way.
+    expect(value.state, CapabilityState.unmeasured);
+    expect(value.text, l10n.aiCellLeastEffort('reasoning_effort'));
+  });
+
   test('a switch refused under another platform is no ladder step', () {
     // The route key has no platform in it: this route was a Zhipu one when
-    // the switch was refused, and one ladder step has been tried since.
+    // the switch and the least were refused, and one ladder step has been
+    // tried since.
     final local = AiChannel.create(
       platform: PlatformProfiles.lmStudio,
       name: 'l',
@@ -73,12 +99,16 @@ void main() {
         apiKey: '',
       ),
       (b) => b.copyWith(
-        thinkingOffTried: {LearnedBehaviour.dialectOff, 'templateKwargs'},
+        thinkingOffTried: {
+          LearnedBehaviour.dialectOff,
+          LearnedBehaviour.leastEffortOff,
+          'templateKwargs',
+        },
       ),
     );
     expect(
       provider.learned.thinkingOffTried,
-      hasLength(2),
+      hasLength(3),
       reason: 'the test wrote the route the matrix reads',
     );
 
