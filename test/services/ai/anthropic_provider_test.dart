@@ -2467,9 +2467,9 @@ void main() {
     });
 
     test('a block with neither text nor a signature is not', () async {
-      // DashScope's kimi-k2.6 sends one whichever way it was asked
-      // (2026-09-28); read as reasoning, the connection test would say
-      // thinking did not turn off.
+      // DashScope's kimi-k2.6 sends one when reasoning is not asked for or
+      // is turned off (2026-09-28); read as reasoning, the connection test
+      // would say thinking did not turn off.
       expect(
         await reasoned([
           {'type': 'thinking', 'thinking': '', 'signature': ''},
