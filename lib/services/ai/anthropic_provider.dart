@@ -229,24 +229,11 @@ class AnthropicProvider implements AiProvider {
     }
   }
 
-  /// The form this route asks for thinking in: the model's own first, the
-  /// other once that was refused, none once both were.
-  ///
-  /// A route declared as a switch asks adaptive only, the one form it takes.
-  MessagesThinking? _form(Set<String> rejected) {
-    if (!config.sampling.thinking) return null;
-    final first = _firstForm;
-    final refused = MessagesThinking.refusedIn(rejected, first: first);
-    final forms = PlatformProfiles.messagesSwitchFor(config)
-        ? [first]
-        : [first, first.other];
-    return forms.where((form) => !refused.contains(form)).firstOrNull;
-  }
-
-  /// The form thinking is asked in before any refusal
-  /// ([PlatformProfiles.messagesFirstFormFor]).
-  MessagesThinking get _firstForm =>
-      PlatformProfiles.messagesFirstFormFor(config);
+  /// The form this request asks for thinking in, or null with it off
+  /// ([PlatformProfiles.messagesOnFormFor]).
+  MessagesThinking? _form(LearnedBehaviour learned) => config.sampling.thinking
+      ? PlatformProfiles.messagesOnFormFor(config, learned)
+      : null;
 
   /// The request body — the one place it is built.
   Map<String, Object?> _payload(
@@ -256,7 +243,7 @@ class AnthropicProvider implements AiProvider {
   }) {
     final rejected = learned.rejectedFields;
     final values = config.sampling.values;
-    final form = _form(rejected);
+    final form = _form(learned);
     // Thinking needs room inside max_tokens — for extended, a budget of at
     // least 1024 with room left for the answer — so a smaller cap is raised.
     final thinking = form != null;

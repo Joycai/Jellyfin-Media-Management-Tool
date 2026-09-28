@@ -60,30 +60,35 @@ class RouteSwitchDialog extends StatelessWidget {
     // instead) — and the platform field is named where that choice still
     // sends it:
     // both ways on a working switch, off on a switch route that refused on,
-    // off where it asks for the least (`output_config.effort`),
     // on where the model said it cannot stop — except on the rare route that
     // later refused on too (the name, or a switch route's `adaptive`), which
-    // is named although nothing is sent.
+    // is named although nothing is sent. Where off asks for the least, off
+    // names its own field (`output_config.effort`) and on names `thinking`
+    // where the adapter still asks it.
     String thinking(AiConfig config) {
+      final learned = AiService.providerFor(config).learned;
       final (:route, :field) = PlatformProfiles.reasoningRouteFor(
         config,
-        AiService.providerFor(config).learned,
+        learned,
       );
       final on = config.sampling.thinking;
-      final sent = switch (route) {
-        ReasoningRoute.platformField => true,
-        ReasoningRoute.onRefused => !on,
-        ReasoningRoute.offRefused => on,
-        // Off asks for the least under its own field; on is `thinking`,
-        // which this state does not name.
-        ReasoningRoute.offLeast => !on,
+      final named = switch (route) {
+        ReasoningRoute.platformField => field,
+        ReasoningRoute.onRefused => on ? null : field,
+        ReasoningRoute.offRefused => on ? field : null,
+        ReasoningRoute.offLeast =>
+          !on
+              ? field
+              : PlatformProfiles.messagesOnFormFor(config, learned) != null
+              ? 'thinking'
+              : null,
         ReasoningRoute.protocolField ||
         ReasoningRoute.offToDefault ||
         ReasoningRoute.refused ||
-        ReasoningRoute.ladder => false,
+        ReasoningRoute.ladder => null,
       };
       final state = on ? l10n.aiOn : l10n.aiOff;
-      return sent ? '$state · $field' : state;
+      return named != null ? '$state · $named' : state;
     }
 
     String sampling(RouteParams p) {

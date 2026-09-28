@@ -100,8 +100,9 @@ bool reasoningSwitchable(SamplingPreset? preset, ReasoningRoute route) =>
 /// preset knows off — its default, which the user's own server can change
 /// and no other (`PlatformProfiles.serverOwner` picks the words). Where off was
 /// refused (`offRefused`, `offToDefault`) the page and Diagnostics each say
-/// the model's default instead of warning; everywhere else here a test that
-/// still reasoned is a warning on the page and a failed step in Diagnostics.
+/// the model's default instead of warning, and where off asks for the least
+/// (`offLeast`) they say that; everywhere else here a test that still
+/// reasoned is a warning on the page and a failed step in Diagnostics.
 bool reasoningWarns(SamplingPreset? preset, ReasoningRoute route) =>
     reasoningSwitchable(preset, route) ||
     (preset == null && route == ReasoningRoute.refused);

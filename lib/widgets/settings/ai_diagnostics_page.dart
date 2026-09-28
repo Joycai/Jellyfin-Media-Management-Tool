@@ -66,9 +66,9 @@ String describeCheck(AppLocalizations l10n, AiConnectionCheckResult result) {
 /// Whether the request for reasoning is no longer sent on a route in
 /// [route] (`PlatformProfiles.reasoningRouteFor`): on was refused, or the
 /// field is sent neither way. Not the rare route that cannot stop and later
-/// refused on too (`offRefused` and `offLeast` do not say): there a reply
-/// without reasoning reads as not shown, as the route-switch dialog names
-/// the field.
+/// refused on too (`offRefused` and `offLeast` do not say): a reply without
+/// reasoning there reads as asked for and not shown, undecided rather than
+/// failed.
 bool reasoningRefused(ReasoningRoute route) =>
     route == ReasoningRoute.onRefused || route == ReasoningRoute.refused;
 
@@ -79,10 +79,10 @@ bool reasoningRefused(ReasoningRoute route) =>
 /// change (on someone else's the page says turning it off has no effect;
 /// where the address does not say, both);
 /// nor Messages' own field, where off is the protocol's default.
+/// Not where off asks for the least (`offLeast`): something is sent there,
+/// and [thinkingStep] says so on its own.
 bool reasoningCannotStop(ReasoningRoute route) =>
-    route == ReasoningRoute.offRefused ||
-    route == ReasoningRoute.offLeast ||
-    route == ReasoningRoute.offToDefault;
+    route == ReasoningRoute.offRefused || route == ReasoningRoute.offToDefault;
 
 /// The reasoning step of a connection test, judged by the reply both ways:
 /// a switch sent is not a switch taken, and a relay can drop a request for

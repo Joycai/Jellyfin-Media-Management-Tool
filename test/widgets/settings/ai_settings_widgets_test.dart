@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations_en.dart';
+import 'package:jellyfin_media_management_tool/l10n/app_localizations_zh.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
@@ -19,6 +21,27 @@ void main() {
   test('only protocols with an adapter are in this build', () {
     expect(protocolInBuild(AiProviderType.openAi), isTrue);
     expect(protocolInBuild(AiProviderType.googleGenAi), isTrue);
+  });
+
+  test('the least is said as the least, never as off, in both languages', () {
+    const field = 'output_config.effort';
+    for (final (AppLocalizations l10n, least, off) in [
+      (AppLocalizationsEn(), 'least', 'is off'),
+      (AppLocalizationsZh(), '最低', '已关闭'),
+    ]) {
+      final named = [
+        l10n.thinkingLeastEffort(field),
+        l10n.aiCellLeastEffort(field),
+      ];
+      for (final text in [...named, l10n.aiStepThinkingLeast]) {
+        expect(text, contains(least), reason: text);
+        expect(text, isNot(contains(off)), reason: text);
+      }
+      // The field it goes out in is named, with the value sent.
+      for (final text in named) {
+        expect(text, contains('$field: low'), reason: text);
+      }
+    }
   });
 
   test('a refused switch is worded once, for the matrix and the page', () {

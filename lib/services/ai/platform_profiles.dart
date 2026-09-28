@@ -117,8 +117,9 @@ enum ReasoningRoute {
   /// The model said it cannot stop reasoning on a Messages switch route (it
   /// refused `disabled`), so off asks for the least of it
   /// (`output_config.effort: low`, [MessagesOff.leastEffort]) — which may
-  /// stop it or only lower it — and on is still sent: the two send
-  /// different things, so the toggle stays live. Outranks a refused on.
+  /// stop it or only lower it. On is still sent unless it was refused too
+  /// (`adaptive`, or the field by name); off differs either way, so the
+  /// toggle stays live, and this outranks a refused on.
   offLeast,
 
   /// Off was refused without saying why, so off sends nothing and the
@@ -138,8 +139,10 @@ enum ReasoningRoute {
 
   /// Whether a model no preset knows gets a live toggle here: where turning
   /// it can change whether the model reasons. Not where the model said it
-  /// cannot stop (on is still sent, but it reasons either way), and not the
-  /// ladder, which has nothing to send for on.
+  /// cannot stop and off sends nothing (on may still be sent, but it
+  /// reasons either way) — where off asks for the least instead, the two
+  /// send different things — and not the ladder, which has nothing to send
+  /// for on.
   bool get switchable =>
       this == platformField ||
       this == protocolField ||
@@ -650,9 +653,28 @@ abstract final class PlatformProfiles {
         .firstOrNull;
   }
 
+  /// The form [config]'s Messages route asks thinking in with it on, after
+  /// what it [learned]: the model's own first, the other once that was
+  /// refused, null once both were — a switch route asks adaptive only, the
+  /// one form it takes. The adapter's body and the route-switch dialog both
+  /// read it.
+  static MessagesThinking? messagesOnFormFor(
+    AiConfig config,
+    LearnedBehaviour learned,
+  ) {
+    final first = messagesFirstFormFor(config);
+    final refused = MessagesThinking.refusedIn(
+      learned.rejectedFields,
+      first: first,
+    );
+    final forms = messagesSwitchFor(config) ? [first] : [first, first.other];
+    return forms.where((form) => !refused.contains(form)).firstOrNull;
+  }
+
   /// The form [config]'s Messages route asks thinking in before any
   /// refusal: adaptive on a switch route, the one form it takes, otherwise
-  /// the model's own. The adapter and [reasoningRouteFor] both read it.
+  /// the model's own. The adapter (through [messagesOnFormFor]), the
+  /// refusal reading and [reasoningRouteFor] all read it.
   static MessagesThinking messagesFirstFormFor(AiConfig config) =>
       messagesSwitchFor(config)
       ? MessagesThinking.adaptive

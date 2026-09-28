@@ -243,10 +243,28 @@ void main() {
     await pump(off);
     expect(find.text('off · output_config.effort'), findsOneWidget);
     expect(find.text('off · thinking'), findsNothing);
-    // On is not this state's field: the choice alone.
+    // On still goes out as `thinking: {type: "adaptive"}`.
     await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsOneWidget);
     expect(find.text('on · output_config.effort'), findsNothing);
+
+    // Adaptive refused too: on sends nothing, so nothing is named for it,
+    // and off still asks for the least.
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.anthropic.id,
+        base: '${config.endpoint}/v1',
+        model: 'MiniMax-M3',
+        apiKey: 'k-dialog-least',
+      ),
+      (b) => b.copyWith(rejectedFields: {'thinking:adaptive'}),
+    );
+    expect(provider.learned.rejectedFields, {'thinking:adaptive'});
+    await pump(model(thinking: true));
+    expect(find.text('on · thinking'), findsNothing);
     expect(find.text('on'), findsOneWidget);
+    await pump(off);
+    expect(find.text('off · output_config.effort'), findsOneWidget);
   });
 
   testWidgets('a switch route whose server does not know thinking names it '
