@@ -289,16 +289,20 @@ CapabilityCell capabilityCell(
         }),
       );
     case Capability.thinkingOff:
-      // A family that always reasons is never asked off, whatever the
-      // route could send: nothing to measure.
       final preset = SamplingPresets.forModel(model.upstream);
-      if (preset?.thinkingControl == ThinkingControl.alwaysOn) {
-        return (state: unavailable, text: l10n.aiCellAlwaysReasons);
-      }
       final (:route, :field) = PlatformProfiles.reasoningRouteFor(
         config,
         learned ?? LearnedBehaviour.empty,
       );
+      // A family that reasons however it is asked is never asked off,
+      // whatever the route could send: nothing to measure, and the model
+      // page's route line says the same.
+      if (reasonsHoweverAsked(preset)) {
+        return (
+          state: unavailable,
+          text: reasoningRefusalText(l10n, route, config, preset: preset)!,
+        );
+      }
       switch (route) {
         // Messages thinking is off unless asked for, whether or not on was
         // refused.

@@ -13,7 +13,7 @@ reconstructed at release time.
 
 ### Fixed
 
-- Turning reasoning off on DeepSeek's, Alibaba Model Studio's and Zhipu's
+- Turning reasoning off on DeepSeek's, Alibaba Cloud Model Studio's and Zhipu's
   Anthropic-compatible routes now really turns it off: those servers think
   unless told not to, and the app used to send nothing for off there. A
   model that cannot stop (GLM-5.3; MiniMax-M2.5 and GLM through Model
@@ -21,9 +21,10 @@ reconstructed at release time.
   reasoning.
 - The connection test no longer reports reasoning that would not turn off
   for a server that returns an empty thinking block either way.
-- A model family that always reasons (DeepSeek-R1, QwQ, the Qwen3
-  Thinking models) is no longer described as "off by default" in the model
-  page or the capability matrix.
+- A model family that reasons however it is asked (DeepSeek-R1, QwQ, the
+  Qwen3 Thinking models; gpt-oss, which can only be lowered) is no longer
+  described as "off by default", or as having a switch, in the model page
+  or the capability matrix.
 
 ## [1.3.1] - 2026-09-28
 

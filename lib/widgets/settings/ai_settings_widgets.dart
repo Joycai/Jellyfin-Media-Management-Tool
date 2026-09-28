@@ -47,38 +47,42 @@ bool messagesDefaultOff(AiConfig config) =>
     config.provider == AiProviderType.anthropic &&
     !PlatformProfiles.messagesSwitchFor(config);
 
+/// Whether [preset]'s family reasons however it is asked — it always
+/// reasons, or can only be lowered — so that off is never sent for it and
+/// its toggle is drawn on and locked, whatever its route could do.
+bool reasonsHoweverAsked(SamplingPreset? preset) =>
+    preset?.reasons(requested: false) ?? false;
+
 /// What the capability matrix and the model page's route line both say of a
 /// route whose reasoning switch was refused, in the same words; null for a
 /// switch that works and for the ladder, which each page words its own way.
-/// A family that always reasons ([preset]) does so whatever the route sent
-/// or had refused — its toggle is drawn on and locked by the preset — so
-/// the line says that, never "off by default".
+/// A family that reasons however it is asked ([reasonsHoweverAsked]) is
+/// worded first, on every route: that it always reasons — never "off by
+/// default", and never a switch it is not asked off through.
 String? reasoningRefusalText(
   AppLocalizations l10n,
   ReasoningRoute route,
   AiConfig config, {
   SamplingPreset? preset,
-}) => switch (route) {
-  ReasoningRoute.offRefused ||
-  ReasoningRoute.offToDefault ||
-  ReasoningRoute.refused
-      when preset?.thinkingControl == ThinkingControl.alwaysOn =>
-    l10n.aiCellAlwaysReasons,
-  // The model said it cannot stop reasoning.
-  ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
-  // Off refused without a reason: the model's default, reasoning or not.
-  ReasoningRoute.offToDefault => l10n.aiCellModelDefault,
-  // Sent neither way; Messages without thinking does not reason, except on
-  // a switch route, whose platform may think by default.
-  ReasoningRoute.refused =>
-    messagesDefaultOff(config)
-        ? l10n.aiCellDefaultOff
-        : l10n.aiCellModelDefault,
-  ReasoningRoute.platformField ||
-  ReasoningRoute.protocolField ||
-  ReasoningRoute.onRefused ||
-  ReasoningRoute.ladder => null,
-};
+}) {
+  if (reasonsHoweverAsked(preset)) return l10n.aiCellAlwaysReasons;
+  return switch (route) {
+    // The model said it cannot stop reasoning.
+    ReasoningRoute.offRefused => l10n.aiCellAlwaysReasons,
+    // Off refused without a reason: the model's default, reasoning or not.
+    ReasoningRoute.offToDefault => l10n.aiCellModelDefault,
+    // Sent neither way; Messages without thinking does not reason, except on
+    // a switch route, whose platform may think by default.
+    ReasoningRoute.refused =>
+      messagesDefaultOff(config)
+          ? l10n.aiCellDefaultOff
+          : l10n.aiCellModelDefault,
+    ReasoningRoute.platformField ||
+    ReasoningRoute.protocolField ||
+    ReasoningRoute.onRefused ||
+    ReasoningRoute.ladder => null,
+  };
+}
 
 /// Whether the model page's reasoning toggle is live: a known family
 /// decides whether its reasoning can be switched at all; a model no preset

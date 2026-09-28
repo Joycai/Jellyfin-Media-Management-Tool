@@ -338,6 +338,26 @@ void main() {
     await settleSaves(tester);
   });
 
+  testWidgets('a family that always reasons on a working switch route is '
+      'said to, not the switch', (tester) async {
+    // DeepSeek's Messages face is a switch, but this family is never asked
+    // off through it: the route line agrees with the capability matrix.
+    await pumpRefused(
+      tester,
+      route: AiProviderType.anthropic,
+      model: 'deepseek-r1',
+      platform: PlatformProfiles.deepSeek,
+      endpoint: 'https://api.deepseek.com/anthropic',
+      base: 'https://api.deepseek.com/anthropic/v1',
+    );
+    expect(find.text('this model always reasons'), findsOneWidget);
+    expect(find.textContaining('platform profile'), findsNothing);
+    final toggle = tester.widget<AppToggle>(find.byType(AppToggle).at(2));
+    expect(toggle.onChanged, isNull);
+    expect(toggle.value, isTrue);
+    await settleSaves(tester);
+  });
+
   testWidgets('a preset model on a refused route still follows its saved '
       'choice', (tester) async {
     // Qwen3's preset switches reasoning itself and picks the sampling values

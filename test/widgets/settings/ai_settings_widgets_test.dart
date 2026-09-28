@@ -96,19 +96,22 @@ void main() {
       apiKey: 'k',
       model: 'deepseek-r1',
     );
-    final alwaysOn = SamplingPresets.forModel('deepseek-r1');
-    expect(alwaysOn?.thinkingControl, ThinkingControl.alwaysOn);
-    for (final route in [
-      ReasoningRoute.refused,
-      ReasoningRoute.offRefused,
-      ReasoningRoute.offToDefault,
-    ]) {
-      expect(
-        reasoningRefusalText(l10n, route, relay, preset: alwaysOn),
-        l10n.aiCellAlwaysReasons,
-        reason: '$route',
-      );
+    // Always on, or only to be lowered: reasons however it is asked, and
+    // is worded so on every route — a working switch included, since off
+    // is never sent for it.
+    for (final family in ['deepseek-r1', 'gpt-oss-120b']) {
+      final preset = SamplingPresets.forModel(family);
+      expect(reasonsHoweverAsked(preset), isTrue, reason: family);
+      for (final route in ReasoningRoute.values) {
+        expect(
+          reasoningRefusalText(l10n, route, relay, preset: preset),
+          l10n.aiCellAlwaysReasons,
+          reason: '$family $route',
+        );
+      }
     }
+    expect(reasonsHoweverAsked(SamplingPresets.forModel('qwen3-32b')), isFalse);
+    expect(reasonsHoweverAsked(null), isFalse);
     // A hybrid family, and a model no preset knows, read the route.
     expect(
       reasoningRefusalText(
@@ -118,6 +121,15 @@ void main() {
         preset: SamplingPresets.forModel('qwen3-32b'),
       ),
       l10n.aiCellDefaultOff,
+    );
+    expect(
+      reasoningRefusalText(
+        l10n,
+        ReasoningRoute.platformField,
+        relay,
+        preset: SamplingPresets.forModel('qwen3-32b'),
+      ),
+      isNull,
     );
     expect(
       reasoningRefusalText(l10n, ReasoningRoute.refused, relay),

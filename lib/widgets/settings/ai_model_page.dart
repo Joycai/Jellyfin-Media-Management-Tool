@@ -423,22 +423,28 @@ class _AiModelPageState extends State<AiModelPage> {
         children: [
           line(
             l10n.aiThinkingDialect,
-            Text(switch (route) {
-              // A switch route that refused on still sends off with its field.
-              ReasoningRoute.platformField ||
-              ReasoningRoute.onRefused => l10n.aiDialectField(field!),
-              ReasoningRoute.protocolField => l10n.aiCellProtocolSwitch(field!),
-              ReasoningRoute.ladder => l10n.aiRouteLadder,
-              // Once refused, what the capability matrix says of the route.
-              ReasoningRoute.offRefused ||
-              ReasoningRoute.offToDefault ||
-              ReasoningRoute.refused => reasoningRefusalText(
-                l10n,
-                route,
-                config,
-                preset: preset,
-              )!,
-            }, style: note.copyWith(color: t.textBody)),
+            // A family that reasons however it is asked, or a route that
+            // refused its switch: what the capability matrix says of it.
+            // Otherwise the field the route switches with, or the ladder.
+            Text(
+              reasoningRefusalText(l10n, route, config, preset: preset) ??
+                  switch (route) {
+                    // A switch route that refused on still sends off with
+                    // its field.
+                    ReasoningRoute.platformField ||
+                    ReasoningRoute.onRefused => l10n.aiDialectField(field!),
+                    ReasoningRoute.protocolField => l10n.aiCellProtocolSwitch(
+                      field!,
+                    ),
+                    // The refused states are worded above; listed here for
+                    // the switch to be whole.
+                    ReasoningRoute.ladder ||
+                    ReasoningRoute.offRefused ||
+                    ReasoningRoute.offToDefault ||
+                    ReasoningRoute.refused => l10n.aiRouteLadder,
+                  },
+              style: note.copyWith(color: t.textBody),
+            ),
           ),
           line(
             l10n.aiParamTools,
