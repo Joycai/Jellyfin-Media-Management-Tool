@@ -298,10 +298,8 @@ void main() {
         ('temperature is not supported with thinking', 'temperature'),
         ('top_p is not supported in thinking mode', 'top_p'),
         ('`top_k` cannot be used with thinking enabled', 'top_k'),
-        // Thinking named first, but refused in words that name no form
-        // with the value beside it: the value, too.
-        ('in thinking mode, top_p is not supported', 'top_p'),
-        ('thinking mode does not support top_p', 'top_p'),
+        // The words of a model that cannot stop count where they stand.
+        ('temperature is required and cannot be disabled', 'temperature'),
       ]) {
         expect(
           read(
@@ -316,22 +314,28 @@ void main() {
       }
     });
 
-    test('thinking refused with no value beside it is thinking', () {
-      // The rule above needs the value in the sentence: asked on, no
-      // sampling value goes out, so this gives thinking up as ever.
-      expect(
-        read('thinking mode does not support top_p', sent: 'adaptive'),
-        every,
-      );
-      expect(
-        read(
-          'thinking is not supported. top_p: Extra inputs are not permitted',
-          sent: 'disabled',
-          optional: optional,
-          switchRoute: true,
-        ),
-        every,
-      );
+    test('thinking named first is about thinking, whatever follows', () {
+      // The order of the names and nothing finer: what the sentence goes
+      // on to refuse is not read. A known limit, the same for `thinking`
+      // and a translated name.
+      for (final message in [
+        'thinking mode does not support top_p',
+        'in thinking mode, top_p is not supported',
+        'thinking is not supported with temperature',
+        'reasoning_effort is not supported with temperature',
+        'thinking is not supported. top_p: Extra inputs are not permitted',
+      ]) {
+        expect(
+          read(
+            message,
+            sent: 'disabled',
+            optional: optional,
+            switchRoute: true,
+          ),
+          every,
+          reason: message,
+        );
+      }
     });
 
     test('an error about the history rules every sentence out', () {
@@ -369,7 +373,8 @@ void main() {
 
     test('a value named where thinking says nothing is still the value', () {
       // Asked on, thinking named but neither refused nor the form named:
-      // the old fallback, kept.
+      // the old fallback, kept — and the value named first, not the first
+      // in the adapter's list.
       expect(
         read(
           'with thinking on, top_k must be unset',
@@ -377,6 +382,20 @@ void main() {
           optional: ['top_k'],
         ),
         const OptionalRefused('top_k'),
+      );
+      expect(
+        read(
+          'with thinking on, top_k and temperature must be unset',
+          sent: 'adaptive',
+          optional: ['temperature', 'top_k'],
+        ),
+        const OptionalRefused('top_k'),
+      );
+      // A semicolon ends a sentence: the refusal in the next one is not
+      // thinking's.
+      expect(
+        read('thinking is enabled; top_k unsupported', sent: 'adaptive'),
+        isNull,
       );
     });
 
@@ -408,14 +427,11 @@ void main() {
       // `thinking` only inside the echo is not the field named.
       expect(
         read(
-          'top_k: Extra inputs are not permitted [type=extra_forbidden, '
-          "input_value={'thinking': {'type': 'disabled'}, 'top_k': 40}, "
-          'input_type=dict]',
-          sent: 'disabled',
-          optional: optional,
-          switchRoute: true,
+          'tools.0.input_schema\n  Field required [type=missing, '
+          "input_value={'thinking': {'type': 'adaptive'}}, input_type=dict]",
+          sent: 'adaptive',
         ),
-        const OptionalRefused('top_k'),
+        isNull,
       );
     });
   });

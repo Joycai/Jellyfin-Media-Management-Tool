@@ -42,7 +42,9 @@ reconstructed at release time.
   value (it used to drop the value first, for a month); "temperature is not
   supported with thinking" drops the value and keeps saying off (it used to
   give thinking up). A field named only inside the error's echo of the
-  request is no longer taken as refused.
+  request is no longer taken as refused, and an error that points at the
+  thinking documentation while refusing another field no longer makes the
+  route give reasoning up.
 - A Messages route behind a relay that translates the request for thinking
   into its upstream's field and refuses it under that name
   (`reasoning_effort`, `chat_template_kwargs`, Gemini's `thinkingConfig`) no
@@ -181,6 +183,7 @@ Changes before this point were not tracked in this file; the git log and the
 page have them.
 
 [Unreleased]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/compare/main...HEAD
+[1.3.1]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.3.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.2.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases
 [1.1.0]: https://github.com/Joycai/Jellyfin-Media-Management-Tool/releases

@@ -13,8 +13,8 @@ import 'learned_behaviour.dart';
 import 'platform_profiles.dart';
 import 'thinking_dialect.dart';
 
-/// What a 400 says about a request for thinking, read the same way whether
-/// on or off was asked ([MessagesRefusal.readThinkingRefusal]).
+/// What a sentence of a 400 says about a request for thinking, read the
+/// same way whether on or off was asked ([MessagesRefusal.readThinkingRefusal]).
 enum ThinkingRefusal {
   /// The model cannot stop reasoning ("该模型始终思考，不支持关闭思考"). Read
   /// only when off was asked: it answers that question alone.
@@ -139,14 +139,15 @@ abstract final class MessagesRefusal {
   /// mentions ("'top_p' is not supported with reasoning models",
   /// "`temperature` may only be set to 1 when thinking is enabled"). About
   /// thinking, it is read for what it says of the form asked
-  /// ([readThinkingRefusal]) and mapped by the direction asked — except
-  /// that thinking refused in words that name no form, with a sampling
-  /// value named beside it, refuses the value; and where thinking records
-  /// nothing, a sampling value named in it still is. The first sentence
-  /// with a lesson decides. So "reasoning_effort is not supported; use
-  /// temperature instead" gives thinking up and keeps `temperature`, while
-  /// "temperature is not supported with thinking" and "thinking mode does
-  /// not support temperature" drop `temperature` and keep asking.
+  /// (the reading [readThinkingRefusal] holds) and mapped by the direction
+  /// asked; where that records nothing, a sampling value named in it still
+  /// is. The first sentence with a lesson decides. So "reasoning_effort is
+  /// not supported; use temperature instead" gives thinking up and keeps
+  /// `temperature`, while "temperature is not supported with thinking"
+  /// drops `temperature` and keeps asking. The rule is the order of the
+  /// names and nothing finer: "thinking mode does not support top_p" is
+  /// about thinking, and gives it up — the price of one rule that reads
+  /// `thinking`, a translated name and a value alike.
   static RefusalLesson? read(
     String error, {
     required Map<String, Object?> payload,
@@ -174,17 +175,9 @@ abstract final class MessagesRefusal {
       final subject = _subjectOf(sentence, sentOptional);
       if (subject == null) continue;
       if (subject != _thinking) return OptionalRefused(subject);
-      final named = sentOptional.where(sentence.contains).firstOrNull;
       if (!history && sentType != null) {
-        final reading = _readSentence(sentence, sentType: sentType);
-        // Thinking refused in words that name no form, with a sampling
-        // value this request sent named beside it ("thinking mode does not
-        // support top_p"): the value is what is refused.
-        if (reading == ThinkingRefusal.featureRefused && named != null) {
-          return OptionalRefused(named);
-        }
         final lesson = _lessonFor(
-          reading,
+          _readSentence(sentence, sentType: sentType),
           sentType: sentType,
           sent: sentForm(payload),
           refused: MessagesThinking.refusedIn(
@@ -195,6 +188,9 @@ abstract final class MessagesRefusal {
         );
         if (lesson != null) return lesson;
       }
+      // Thinking recorded nothing: a sampling value named in the sentence
+      // still is — the first named, as above.
+      final named = _first(sentence, sentOptional);
       if (named != null) return OptionalRefused(named);
     }
     return null;
@@ -205,8 +201,8 @@ abstract final class MessagesRefusal {
   static const _thinking = 'thinking';
 
   /// The field [sentence] names first — [_thinking], under its own name,
-  /// another protocol's, or the words of a model that cannot stop; or one
-  /// of [sentOptional] — or null when it names none.
+  /// another protocol's, or the words of a model that cannot stop, where
+  /// they stand; or one of [sentOptional] — or null when it names none.
   static String? _subjectOf(String sentence, List<String> sentOptional) {
     int? at(String name) {
       final index = sentence.indexOf(name);
@@ -222,9 +218,8 @@ abstract final class MessagesRefusal {
       }
     }
 
-    // "The model cannot stop" names no field and is about thinking
-    // whatever else the sentence names.
-    if (refusesThinkingOff(sentence)) consider(_thinking, 0);
+    // "The model cannot stop" names no field: the words stand for it.
+    consider(_thinking, thinkingOffWords.firstMatch(sentence)?.start);
     consider(_thinking, at('thinking'));
     for (final name in reasoningFieldNames) {
       if (name != 'thinking' && namesField(sentence, name)) {
@@ -235,6 +230,20 @@ abstract final class MessagesRefusal {
       consider(field, at(field));
     }
     return subject;
+  }
+
+  /// The one of [fields] that [sentence] names first, or null.
+  static String? _first(String sentence, List<String> fields) {
+    String? first;
+    var at = sentence.length;
+    for (final field in fields) {
+      final index = sentence.indexOf(field);
+      if (index >= 0 && index < at) {
+        at = index;
+        first = field;
+      }
+    }
+    return first;
   }
 
   /// What [reading], of a sentence about thinking, records for the
@@ -388,8 +397,10 @@ abstract final class MessagesRefusal {
   static final _subField = RegExp(r'thinking\.(type|budget_tokens|display)\b');
 
   /// What a 400 [detail] says about the request for thinking that sent
-  /// [sentType] (`adaptive`, `enabled` or `disabled`): the one reading both
-  /// directions map to what they remember. Words for a field the server
+  /// [sentType] (`adaptive`, `enabled` or `disabled`), the one reading of
+  /// the words for both directions — [read] applies it to each sentence
+  /// about thinking and maps it by the direction; this whole-message form
+  /// is what the vocabulary tests hold. Words for a field the server
   /// does not know are read before the value is looked for, since Pydantic
   /// echoes the refused input (`input_value={'type': 'disabled'}`) beside
   /// them. One that does not say `thinking` at all can still refuse it
@@ -401,13 +412,9 @@ abstract final class MessagesRefusal {
   /// ("`thinking` or `redacted_thinking` blocks … cannot be modified",
   /// "messages.3.content.0: Invalid `signature` in `thinking` block") says
   /// the history is wrong, whichever form was asked for: both are
-  /// unrelated.
-  ///
-  /// This reads a whole message: the history ruled out, then sentence by
-  /// sentence with the echoed input cut, the first sentence that says
-  /// something deciding. [read] applies the same reading one sentence at a
-  /// time, once it knows the sentence is about thinking; this whole-message
-  /// form is what the vocabulary tests hold.
+  /// unrelated. A whole message is read with the history ruled out, then
+  /// sentence by sentence with the echoed input cut, the first sentence
+  /// that says something deciding.
   static ThinkingRefusal readThinkingRefusal(
     String detail, {
     required String sentType,

@@ -15,10 +15,14 @@ library;
 /// thinking parameter it will not take with "该模型始终思考，不支持关闭思考"
 /// (KB 03 §3.1). No `mandatory` here: without the field named beside it,
 /// that word also turns up in unrelated errors ("messages is mandatory").
-bool refusesThinkingOff(String detail) => RegExp(
+bool refusesThinkingOff(String detail) => thinkingOffWords.hasMatch(detail);
+
+/// The words [refusesThinkingOff] reads, for a reader that needs to know
+/// where in a sentence they stand.
+final RegExp thinkingOffWords = RegExp(
   '始终思考|不支持关闭|无法关闭|不能关闭|'
   'cannot be (disabled|turned off)|always (thinks|reasons)',
-).hasMatch(detail);
+);
 
 /// Whether [detail], an error message in lower case, names [field] as one
 /// of the request's. A plain substring for the sampling fields, whose
