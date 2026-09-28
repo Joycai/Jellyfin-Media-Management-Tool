@@ -101,6 +101,28 @@ void main() {
       thinkingStep(l10n, asked: false, reasoned: false, cannotStop: true),
       (ok: true, text: l10n.aiStepThinkingOff),
     );
+    // Off asked for the least: a reply that still reasons is the most this
+    // route can do, and says so; one that shows none is off.
+    expect(
+      thinkingStep(
+        l10n,
+        asked: false,
+        reasoned: true,
+        cannotStop: true,
+        least: true,
+      ),
+      (ok: null, text: l10n.aiStepThinkingLeast),
+    );
+    expect(
+      thinkingStep(
+        l10n,
+        asked: false,
+        reasoned: false,
+        cannotStop: true,
+        least: true,
+      ),
+      (ok: true, text: l10n.aiStepThinkingOff),
+    );
   });
 
   test('the step is judged against what the test sent', () {
@@ -258,6 +280,45 @@ void main() {
         expected,
       );
     }
+    // A Messages switch route whose model cannot stop: off asked for the
+    // least, so a reply that reasons says so and one that shows none is
+    // off. Once the least was refused too, off sends nothing, as above.
+    const zhipuMessages = 'https://open.bigmodel.cn/api/anthropic';
+    for (final (tried, reasoned, expected) in [
+      (
+        {LearnedBehaviour.dialectOff},
+        true,
+        (ok: null, text: l10n.aiStepThinkingLeast),
+      ),
+      (
+        {LearnedBehaviour.dialectOff},
+        false,
+        (ok: true, text: l10n.aiStepThinkingOff),
+      ),
+      (
+        {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        true,
+        (ok: null, text: l10n.aiStepThinkingCannotStop),
+      ),
+      (
+        {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        false,
+        (ok: null, text: l10n.aiStepThinkingNotShown),
+      ),
+    ]) {
+      expect(
+        step(
+          AiProviderType.anthropic,
+          zhipuMessages,
+          'glm-5.3',
+          saved: false,
+          reasoned: reasoned,
+          tried: tried,
+        ),
+        expected,
+        reason: '$tried $reasoned',
+      );
+    }
     // Responses refused `none` without saying why: the model may not reason
     // at all, so none shown is off.
     expect(
@@ -411,6 +472,20 @@ void main() {
     expect(
       reasoningCannotStop(route(m3, tried: {LearnedBehaviour.dialectOff})),
       isTrue,
+    );
+    expect(
+      reasoningCannotStop(
+        route(
+          m3,
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ),
+      ),
+      isTrue,
+    );
+    // The least asked for off is not on refused.
+    expect(
+      reasoningRefused(route(m3, tried: {LearnedBehaviour.dialectOff})),
+      isFalse,
     );
 
     final responses = config(

@@ -1058,6 +1058,12 @@ abstract class AppLocalizations {
   /// **'This model\'s reasoning cannot be turned off; it is asked for the least on Chat Completions without a platform switch, and on Responses.'**
   String get thinkingEffortOnly;
 
+  /// No description provided for @thinkingLeastEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'This model cannot stop reasoning; with it off it is asked for the least ({field}: low), and may still reason a little.'**
+  String thinkingLeastEffort(String field);
+
   /// No description provided for @thinkingVerifiedOff.
   ///
   /// In en, this message translates to:
@@ -4952,6 +4958,12 @@ abstract class AppLocalizations {
   /// **'The reply shows no reasoning — though this model cannot stop it'**
   String get aiStepThinkingNotShown;
 
+  /// No description provided for @aiStepThinkingLeast.
+  ///
+  /// In en, this message translates to:
+  /// **'The model reasoned — this route can only ask it for the least'**
+  String get aiStepThinkingLeast;
+
   /// No description provided for @aiStepTools.
   ///
   /// In en, this message translates to:
@@ -5071,6 +5083,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'this model always reasons'**
   String get aiCellAlwaysReasons;
+
+  /// No description provided for @aiCellLeastEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'{field}: low · the least; this model cannot stop'**
+  String aiCellLeastEffort(String field);
 
   /// No description provided for @aiCellProtocolSwitch.
   ///

@@ -60,6 +60,7 @@ class RouteSwitchDialog extends StatelessWidget {
     // instead) — and the platform field is named where that choice still
     // sends it:
     // both ways on a working switch, off on a switch route that refused on,
+    // off where it asks for the least (`output_config.effort`),
     // on where the model said it cannot stop — except on the rare route that
     // later refused on too (the name, or a switch route's `adaptive`), which
     // is named although nothing is sent.
@@ -73,6 +74,9 @@ class RouteSwitchDialog extends StatelessWidget {
         ReasoningRoute.platformField => true,
         ReasoningRoute.onRefused => !on,
         ReasoningRoute.offRefused => on,
+        // Off asks for the least under its own field; on is `thinking`,
+        // which this state does not name.
+        ReasoningRoute.offLeast => !on,
         ReasoningRoute.protocolField ||
         ReasoningRoute.offToDefault ||
         ReasoningRoute.refused ||

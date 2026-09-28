@@ -314,6 +314,13 @@ CapabilityCell capabilityCell(
         case ReasoningRoute.platformField:
         case ReasoningRoute.onRefused:
           return (state: works, text: l10n.aiCellSwitch(field!));
+        // The least asked for off: it may stop the model or only lower it,
+        // and a server may ignore it; only a test says which.
+        case ReasoningRoute.offLeast:
+          return (
+            state: unmeasured,
+            text: reasoningRefusalText(l10n, route, config, preset: preset)!,
+          );
         // Responses asks for `effort: none`. Sending it is not the same as
         // it being honoured — a relay can rewrite it to medium — so it stays
         // unmeasured; the connection test's "still reasoned" is the judge.

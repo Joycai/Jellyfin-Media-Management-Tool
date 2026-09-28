@@ -431,10 +431,28 @@ void main() {
         route: ReasoningRoute.platformField,
         field: 'thinking',
       ));
+      // The model cannot stop: off asks for the least of it, and once that
+      // was refused too, off sends nothing.
       expect(read(m3, tried: {LearnedBehaviour.dialectOff}), (
-        route: ReasoningRoute.offRefused,
-        field: 'thinking',
+        route: ReasoningRoute.offLeast,
+        field: 'output_config.effort',
       ));
+      expect(
+        read(
+          m3,
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ),
+        (route: ReasoningRoute.offRefused, field: 'thinking'),
+      );
+      // The least outranks a refused on: the toggle still does something.
+      expect(
+        read(
+          m3,
+          rejected: {'thinking:adaptive'},
+          tried: {LearnedBehaviour.dialectOff},
+        ).route,
+        ReasoningRoute.offLeast,
+      );
       // A switch route asks adaptive only; refused, on is not sent.
       expect(read(m3, rejected: {'thinking:adaptive'}), (
         route: ReasoningRoute.onRefused,
@@ -459,6 +477,14 @@ void main() {
           rejected: {'thinking', 'thinking:adaptive', 'thinking:enabled'},
           tried: {LearnedBehaviour.dialectOff},
         ).route,
+        ReasoningRoute.offLeast,
+      );
+      expect(
+        read(
+          m3,
+          rejected: {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+          tried: {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
+        ).route,
         ReasoningRoute.offRefused,
       );
 
@@ -474,8 +500,8 @@ void main() {
         field: 'thinking',
       ));
       expect(read(glm, tried: {LearnedBehaviour.dialectOff}), (
-        route: ReasoningRoute.offRefused,
-        field: 'thinking',
+        route: ReasoningRoute.offLeast,
+        field: 'output_config.effort',
       ));
 
       final claude = at(AiProviderType.anthropic, relay, 'claude-sonnet-4-5');
@@ -557,6 +583,8 @@ void main() {
           ReasoningRoute.protocolField,
           // Off is still sent, so the toggle can still turn reasoning off.
           ReasoningRoute.onRefused,
+          // On is still sent, and off asks for the least.
+          ReasoningRoute.offLeast,
           // On is still sent; what off does, only a test shows.
           ReasoningRoute.offToDefault,
         ],
@@ -567,6 +595,7 @@ void main() {
         ReasoningRoute.platformField,
         ReasoningRoute.protocolField,
         ReasoningRoute.onRefused,
+        ReasoningRoute.offLeast,
         ReasoningRoute.offToDefault,
         ReasoningRoute.ladder,
       ]) {
@@ -609,13 +638,21 @@ void main() {
           reason: 'the test wrote the route the adapter reads',
         );
 
-        Future<Object?> sent(AiProvider provider) async =>
+        Future<Map<String, Object?>> sent(AiProvider provider) async =>
             (await provider.previewRequest(
               messages: const [UserMessage('u')],
               tools: const [],
-            ))!.body[wire];
-        final whenOn = await sent(on);
-        final whenOff = await sent(off);
+            ))!.body;
+        final bodyOn = await sent(on);
+        final bodyOff = await sent(off);
+        final whenOn = bodyOn[wire];
+        final whenOff = bodyOff[wire];
+        // Off may be said in another field: the least reasoning on a
+        // Messages switch route.
+        List<Object?> reasoning(Map<String, Object?> body) => [
+          body[wire],
+          body['output_config'],
+        ];
 
         final route = PlatformProfiles.reasoningRouteFor(config, learned).route;
         expect(route, expected);
@@ -623,8 +660,8 @@ void main() {
         // off refused the two bodies differ, but the model reasons in both.
         if (route.switchable) {
           expect(
-            whenOn,
-            isNot(whenOff),
+            reasoning(bodyOn),
+            isNot(reasoning(bodyOff)),
             reason: 'a live toggle does something',
           );
         }
@@ -635,6 +672,13 @@ void main() {
               expect(whenOn, isNotNull, reason: 'on is still sent');
             }
             expect(whenOff, isNull);
+            expect(bodyOff['output_config'], isNull, reason: 'nor the least');
+          case ReasoningRoute.offLeast:
+            if (rejected.isEmpty) {
+              expect(whenOn, isNotNull, reason: 'on is still sent');
+            }
+            expect(whenOff, isNull, reason: 'not beside the least');
+            expect(bodyOff['output_config'], {'effort': 'low'});
           case ReasoningRoute.offToDefault:
             expect(whenOn, isNotNull, reason: 'on is still sent');
             expect(whenOff, isNull);
@@ -690,15 +734,24 @@ void main() {
         );
         for (final (rejected, tried, expected) in [
           (<String>{}, <String>{}, ReasoningRoute.platformField),
+          // The model cannot stop: off asks for the least, and once that
+          // was refused too, nothing.
+          (<String>{}, {LearnedBehaviour.dialectOff}, ReasoningRoute.offLeast),
           (
             <String>{},
-            {LearnedBehaviour.dialectOff},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
           ({'thinking:adaptive'}, <String>{}, ReasoningRoute.onRefused),
+          // The least outranks a refused on: the toggle still does something.
           (
             {'thinking:adaptive'},
             {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offLeast,
+          ),
+          (
+            {'thinking:adaptive'},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
           // A legacy bare record is read against the form asked first:
@@ -723,10 +776,16 @@ void main() {
             ReasoningRoute.onRefused,
           ),
           // The model said it cannot stop, and later the field was refused
-          // too: nothing is sent, and the model's word stands.
+          // too: the model's word stands, and the least is another field.
           (
             {'thinking', 'thinking:adaptive', 'thinking:enabled'},
             {LearnedBehaviour.dialectOff},
+            ReasoningRoute.offLeast,
+          ),
+          // The least refused as well: nothing is sent.
+          (
+            {'thinking', 'thinking:adaptive', 'thinking:enabled'},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
         ]) {
@@ -771,9 +830,10 @@ void main() {
         );
         for (final (rejected, tried, expected) in [
           (<String>{}, <String>{}, ReasoningRoute.platformField),
+          (<String>{}, {LearnedBehaviour.dialectOff}, ReasoningRoute.offLeast),
           (
             <String>{},
-            {LearnedBehaviour.dialectOff},
+            {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
             ReasoningRoute.offRefused,
           ),
           ({'thinking:adaptive'}, <String>{}, ReasoningRoute.onRefused),

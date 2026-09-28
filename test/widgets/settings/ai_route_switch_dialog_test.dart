@@ -185,6 +185,70 @@ void main() {
     expect(find.text('on'), findsOneWidget);
   });
 
+  testWidgets('a switch route whose model cannot stop names the least for '
+      'off', (tester) async {
+    useTempSupportDir();
+    AiModelEntry model({required bool thinking}) =>
+        AiModelEntry.create(
+          upstream: 'MiniMax-M3',
+          route: AiProviderType.anthropic,
+        ).copyWith(
+          params: {
+            AiProviderType.anthropic: RouteParams(thinkingEnabled: thinking),
+          },
+        );
+    AiChannel channel(AiModelEntry m) =>
+        AiChannel.create(
+          platform: PlatformProfiles.miniMax,
+          name: 'mm',
+          apiKey: 'k-dialog-least',
+        ).copyWith(
+          routes: const [
+            AiRoute(protocol: AiProviderType.anthropic),
+            AiRoute(protocol: AiProviderType.openAi),
+          ],
+          models: [m],
+        );
+    final off = model(thinking: false);
+    final config = channel(off).configFor(off);
+    final provider = AiService.providerFor(config);
+    addTearDown(provider.forgetLearned);
+    const written = {LearnedBehaviour.dialectOff};
+    LearnedStore.instance.update(
+      LearnedStore.routeKey(
+        protocol: AiProviderType.anthropic.id,
+        base: '${config.endpoint}/v1',
+        model: 'MiniMax-M3',
+        apiKey: 'k-dialog-least',
+      ),
+      (b) => b.copyWith(thinkingOffTried: written),
+    );
+    expect(
+      provider.learned.thinkingOffTried,
+      written,
+      reason: 'the test wrote the route the dialog reads',
+    );
+
+    Future<void> pump(AiModelEntry m) => pumpAiPage(
+      tester,
+      RouteSwitchDialog(
+        channel: channel(m),
+        model: m,
+        to: AiProviderType.openAi,
+      ),
+      profiles: AiProfilesService(),
+    );
+
+    // Off goes out as `output_config: {effort: "low"}`, and says so.
+    await pump(off);
+    expect(find.text('off · output_config.effort'), findsOneWidget);
+    expect(find.text('off · thinking'), findsNothing);
+    // On is not this state's field: the choice alone.
+    await pump(model(thinking: true));
+    expect(find.text('on · output_config.effort'), findsNothing);
+    expect(find.text('on'), findsOneWidget);
+  });
+
   testWidgets('a switch route whose server does not know thinking names it '
       'neither way', (tester) async {
     useTempSupportDir();

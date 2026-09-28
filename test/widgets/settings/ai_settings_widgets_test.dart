@@ -33,6 +33,12 @@ void main() {
       String? text(ReasoningRoute route) =>
           reasoningRefusalText(l10n, route, config);
       expect(text(ReasoningRoute.offRefused), l10n.aiCellAlwaysReasons);
+      // Off asks for the least: the field it goes in is named.
+      expect(
+        text(ReasoningRoute.offLeast),
+        l10n.aiCellLeastEffort('output_config.effort'),
+      );
+      expect(text(ReasoningRoute.offLeast), contains('output_config.effort'));
       expect(text(ReasoningRoute.offToDefault), l10n.aiCellModelDefault);
       // Messages without thinking does not reason.
       expect(
@@ -199,6 +205,7 @@ void main() {
         route == ReasoningRoute.platformField ||
             route == ReasoningRoute.protocolField ||
             route == ReasoningRoute.onRefused ||
+            route == ReasoningRoute.offLeast ||
             route == ReasoningRoute.offToDefault,
         reason: '$route',
       );
@@ -228,6 +235,7 @@ void main() {
       ReasoningRoute.platformField,
       ReasoningRoute.protocolField,
       ReasoningRoute.onRefused,
+      ReasoningRoute.offLeast,
       ReasoningRoute.offToDefault,
       ReasoningRoute.ladder,
     ]) {
@@ -248,6 +256,21 @@ void main() {
     );
     expect(find.text(l10n.thinkingAlwaysOn), findsOneWidget);
     expect(find.text(l10n.thinkingStillOn), findsNothing);
+
+    // Where off asks for the least, that is what off does: said before any
+    // test and after one, and never "always on" nor "turn it off".
+    final least = l10n.thinkingLeastEffort('output_config.effort');
+    for (final lastReasoned in [null, true, false]) {
+      await reasoningSwitch(
+        tester,
+        preset: null,
+        route: ReasoningRoute.offLeast,
+        lastReasoned: lastReasoned,
+      );
+      expect(find.text(least), findsOneWidget, reason: '$lastReasoned');
+      expect(find.text(l10n.thinkingAlwaysOn), findsNothing);
+      expect(find.textContaining('the model still reasoned'), findsNothing);
+    }
 
     // A working switch that still reasoned is the server's doing: on the
     // user's own server, its model settings; on someone else's, "turn it off

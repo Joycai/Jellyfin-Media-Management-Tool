@@ -440,6 +440,7 @@ class _AiModelPageState extends State<AiModelPage> {
                     // the switch to be whole.
                     ReasoningRoute.ladder ||
                     ReasoningRoute.offRefused ||
+                    ReasoningRoute.offLeast ||
                     ReasoningRoute.offToDefault ||
                     ReasoningRoute.refused => l10n.aiRouteLadder,
                   },

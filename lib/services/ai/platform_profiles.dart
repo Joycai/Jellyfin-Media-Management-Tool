@@ -65,6 +65,12 @@ enum MessagesOff {
 
   const MessagesOff(this.triedMarker);
 
+  /// The field this rung says off with, as the settings screens name it.
+  String get field => switch (this) {
+    disabled => 'thinking',
+    leastEffort => 'output_config.effort',
+  };
+
   /// The fields this rung adds to the request body.
   Map<String, Object> get body => switch (this) {
     disabled => const {
@@ -101,12 +107,19 @@ enum ReasoningRoute {
   /// can still turn reasoning off, and on leaves the model at its default.
   onRefused,
 
-  /// The model said it cannot stop reasoning (Zhipu's 5.3 generation, a
-  /// switch route that refused `disabled`), so off sends nothing and the
-  /// model reasons at its default. On is still sent, unless on was later
-  /// refused too (the field by name, or `adaptive` on a switch route); the
-  /// model reasons either way.
+  /// The model said it cannot stop reasoning (Zhipu's 5.3 generation on
+  /// Chat Completions; on a Messages switch route, once the least was
+  /// refused too), so off sends nothing and the model reasons at its
+  /// default. On is still sent, unless on was later refused too (the field
+  /// by name, or `adaptive` on a switch route); the model reasons either way.
   offRefused,
+
+  /// The model said it cannot stop reasoning on a Messages switch route (it
+  /// refused `disabled`), so off asks for the least of it
+  /// (`output_config.effort: low`, [MessagesOff.leastEffort]) — which may
+  /// stop it or only lower it — and on is still sent: the two send
+  /// different things, so the toggle stays live. Outranks a refused on.
+  offLeast,
 
   /// Off was refused without saying why, so off sends nothing and the
   /// model runs at its default — which may or may not reason: Responses
@@ -131,6 +144,7 @@ enum ReasoningRoute {
       this == platformField ||
       this == protocolField ||
       this == onRefused ||
+      this == offLeast ||
       this == offToDefault;
 
   /// What a toggle for a model no preset knows is drawn as, whatever was
@@ -141,6 +155,7 @@ enum ReasoningRoute {
     platformField ||
     protocolField ||
     onRefused ||
+    offLeast ||
     offToDefault ||
     ladder => null,
   };
@@ -684,6 +699,12 @@ abstract final class PlatformProfiles {
         // takes `disabled`. (A legacy bare record is a verdict on
         // `enabled` alone, which a switch route never sends.)
         if (messagesSwitchFor(config)) {
+          if (messagesOffFor(config, learned) == MessagesOff.leastEffort) {
+            return (
+              route: ReasoningRoute.offLeast,
+              field: MessagesOff.leastEffort.field,
+            );
+          }
           if (tried.contains(LearnedBehaviour.dialectOff)) {
             return (route: ReasoningRoute.offRefused, field: 'thinking');
           }
