@@ -621,6 +621,8 @@ void main() {
         // The field written as a field.
         "unsupported parameter 'effort'",
         'got effort=low, expected one of medium, high',
+        "Invalid value for effort: 'low'. Supported values are: medium, high",
+        "effort 'low' is not supported",
         "1 validation error for Request\neffort: Input should be 'medium'",
       ]) {
         expect(readLeast(message), least, reason: message);

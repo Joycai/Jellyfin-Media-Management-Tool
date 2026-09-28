@@ -940,6 +940,10 @@ void main() {
               "not permitted [type=extra_forbidden, input_value={'effort': "
               "'low'}, input_type=dict]",
           'Unknown parameter: output_config.effort',
+          // `thinking` first, refused in its words (#123 review).
+          'thinking cannot be disabled for this model',
+          // The field given a value, in prose.
+          "Invalid value for effort: 'low'",
         ]) {
           final (bodies, provider) = await leastRefused(message);
           expect(bodies, hasLength(3), reason: message);

@@ -300,12 +300,13 @@ abstract final class MessagesRefusal {
   }
 
   /// The least's field as a field is written: `output_config`, a dotted
-  /// `.effort`, a quoted one, `effort=`, or `effort:` opening a line — not
-  /// the word in prose ("despite our best effort"), and not the end of
+  /// `.effort`, a quoted one, one given a value (`effort=low`, "effort
+  /// 'low'", "effort: 'low'"), or `effort:` opening a line — not the word
+  /// in prose ("despite our best effort"), and not the end of
   /// `reasoning_effort`, which is another protocol's name for thinking and
   /// counts as that.
   static final _effortField = RegExp(
-    r'''output_config|\.effort\b|["'`]effort["'`]|(?<![a-z_-])effort=|^\s*effort\s*:''',
+    r'''output_config|\.effort\b|["'`]effort["'`]|(?<![a-z_-])effort(=|\s*:?\s*["'`])|^\s*effort\s*:''',
     multiLine: true,
   );
 
