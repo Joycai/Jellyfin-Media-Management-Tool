@@ -944,6 +944,8 @@ void main() {
           'thinking cannot be disabled for this model',
           // The field given a value, in prose.
           "Invalid value for effort: 'low'",
+          // The field opening the message, after the status (#123 review).
+          'effort: Input should be medium or high',
         ]) {
           final (bodies, provider) = await leastRefused(message);
           expect(bodies, hasLength(3), reason: message);

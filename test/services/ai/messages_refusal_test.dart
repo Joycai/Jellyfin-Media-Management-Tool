@@ -11,6 +11,7 @@ import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dar
 /// none) and carried the sampling fields [optional], on a route that already
 /// refused [rejected] — a relay, or MiniMax's `/anthropic` when [switchRoute].
 /// [least]: off said as the least reasoning, `output_config: {effort: low}`.
+/// The message goes in as `chat()` passes it, after the status.
 RefusalLesson? read(
   String message, {
   String? sent,
@@ -21,7 +22,8 @@ RefusalLesson? read(
   String model = 'claude-opus-4-6',
   String? endpoint,
 }) => MessagesRefusal.read(
-  message,
+  // As `chat()` passes it: `AiHttp.describeError` puts the status first.
+  'HTTP 400: $message',
   payload: {
     'model': model,
     if (sent != null) 'thinking': {'type': sent},

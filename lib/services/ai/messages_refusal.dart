@@ -133,7 +133,8 @@ abstract final class MessagesRefusal {
   /// what the request [payload] carried, what the route already [learned],
   /// and the route's shape from [config].
   ///
-  /// The text is read once — lower case, the model id taken out, Pydantic's
+  /// The text is read once — lower case, the status and the model id taken
+  /// out, Pydantic's
   /// echoed input cut, split into sentences — and sentence by sentence. A
   /// sentence is about the field it names first: `thinking`, another
   /// protocol's name for it, or a sampling value this request sent. About
@@ -166,12 +167,14 @@ abstract final class MessagesRefusal {
     required AiConfig config,
   }) {
     final rejected = learned.rejectedFields;
-    // The model id is not the message: a relay's `…-thinking` model named
-    // in an unrelated error must not read as a refusal.
-    final about = error.toLowerCase().replaceAll(
-      config.model.toLowerCase(),
-      '',
-    );
+    // The status `AiHttp.describeError` puts first is not the message, and
+    // would stand before a field that opens it (`effort: …`). Nor is the
+    // model id: a relay's `…-thinking` model named in an unrelated error
+    // must not read as a refusal.
+    final about = error
+        .toLowerCase()
+        .replaceFirst(_status, '')
+        .replaceAll(config.model.toLowerCase(), '');
     final sentType = switch (payload['thinking']) {
       {'type': final String type} => type,
       _ => null,
@@ -232,6 +235,9 @@ abstract final class MessagesRefusal {
     }
     return null;
   }
+
+  /// The `HTTP 400: ` that `AiHttp.describeError` puts before the message.
+  static final _status = RegExp(r'^http \d{3}: ');
 
   /// The marker [_subjectOf] returns for a sentence about thinking, under
   /// its own name or another protocol's.
