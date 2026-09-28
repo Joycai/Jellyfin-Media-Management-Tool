@@ -11,6 +11,8 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-28
+
 ### Added
 
 - Linux builds. Each release now also attaches a `.tar.gz` of the Linux app
