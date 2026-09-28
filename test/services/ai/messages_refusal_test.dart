@@ -153,13 +153,29 @@ void main() {
     });
 
     test('a switch route refused a form keeps that form only', () {
+      // Its one form: no other to swap to, and off still says `disabled`.
+      const refusedForm = "thinking.type: unsupported value 'adaptive'";
+      const namedForm =
+          "thinking.type: Input tag 'adaptive' found using 'type' does not "
+          "match any of the expected tags: 'disabled', 'enabled'";
+      expect(read(refusedForm, sent: 'adaptive', switchRoute: true), adaptive);
       expect(
         read(
-          "thinking.type: unsupported value 'adaptive'",
+          refusedForm,
           sent: 'adaptive',
           switchRoute: true,
+          rejected: {'thinking:enabled'},
         ),
         adaptive,
+      );
+      // Merely named: nothing to swap to, so nothing is learned.
+      expect(read(namedForm, sent: 'adaptive', switchRoute: true), isNull);
+    });
+
+    test('every form recorded is a copy no one can change', () {
+      expect(
+        () => MessagesRefusal.everyThinkingForm.add('x'),
+        throwsUnsupportedError,
       );
     });
   });

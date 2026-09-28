@@ -389,10 +389,10 @@ abstract final class MessagesRefusal {
 
   /// What a refusal of the `thinking` field itself records: every form, and
   /// the field by name.
-  static final everyThinkingForm = {
+  static final everyThinkingForm = Set<String>.unmodifiable({
     for (final form in MessagesThinking.values) form.refusedName,
     'thinking',
-  };
+  });
 
   /// Whether [detail] is about the thinking blocks already in the
   /// conversation rather than about the request for thinking.
