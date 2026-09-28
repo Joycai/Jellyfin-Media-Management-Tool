@@ -567,8 +567,22 @@ class AnthropicProvider implements AiProvider {
             arguments: jsonEncode(block['input'] ?? const <String, Object?>{}),
           ),
     ];
+    // A `thinking` block with neither text nor a signature is not
+    // reasoning: DashScope's kimi-k2.6 sends one whichever way it was asked
+    // (2026-09-28), and the connection test would read it as thinking that
+    // would not turn off. Claude 5's block is empty of text under the
+    // default `display` but carries its signature (KB 03 §3, 2026-09-26).
     final thought = blocks.any(
-      (b) => b['type'] == 'thinking' || b['type'] == 'redacted_thinking',
+      (b) => switch (b) {
+        {'type': 'redacted_thinking'} => true,
+        {'type': 'thinking', 'thinking': final String text}
+            when text.isNotEmpty =>
+          true,
+        {'type': 'thinking', 'signature': final String signature}
+            when signature.isNotEmpty =>
+          true,
+        _ => false,
+      },
     );
     return ChatResult(
       text: [

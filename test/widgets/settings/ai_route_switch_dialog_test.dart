@@ -81,10 +81,13 @@ void main() {
       profiles: AiProfilesService(),
     );
 
+    // Both of Zhipu's routes switch thinking with a field of that name.
     await pump();
-    expect(find.text('off · thinking'), findsOneWidget);
+    expect(find.text('off · thinking'), findsNWidgets(2));
 
-    // glm-5.3 always reasons: off sends nothing, so no field is named.
+    // glm-5.3 always reasons: off sends nothing on the route that learned
+    // it, so no field is named there; the Messages route has not learned
+    // it yet.
     final provider = AiService.providerFor(channel.configFor(model));
     addTearDown(provider.forgetLearned);
     LearnedStore.instance.update(
@@ -103,8 +106,10 @@ void main() {
       reason: 'the test wrote the route the dialog reads',
     );
     await pump();
-    expect(find.text('off · thinking'), findsNothing);
-    // On is still sent there, so it is still named.
+    expect(find.text('off · thinking'), findsOneWidget);
+    expect(find.text('off'), findsOneWidget);
+    // On is still sent there, so it is still named; the Messages route,
+    // with nothing saved on it, starts off and names its field for that.
     await pump(
       model.copyWith(
         params: {
@@ -113,6 +118,7 @@ void main() {
       ),
     );
     expect(find.text('on · thinking'), findsOneWidget);
+    expect(find.text('off · thinking'), findsOneWidget);
   });
 
   testWidgets('a switch route that refused on still names the field for off', (
@@ -334,10 +340,11 @@ void main() {
 
     await pump(model('qwen3-30b-a3b-thinking-2507', thinking: false));
     expect(find.text('on · enable_thinking'), findsOneWidget);
-    // The Messages route it would switch to asks on too, with nothing saved.
-    expect(find.text('on'), findsOneWidget);
+    // The Messages route it would switch to asks on too, with nothing saved,
+    // in its own field: DashScope's Messages face is a switch as well.
+    expect(find.text('on · thinking'), findsOneWidget);
     await pump(model('qwen3-30b-a3b-instruct-2507', thinking: true));
     expect(find.text('off · enable_thinking'), findsOneWidget);
-    expect(find.text('off'), findsOneWidget);
+    expect(find.text('off · thinking'), findsOneWidget);
   });
 }

@@ -174,6 +174,59 @@ void main() {
     expect(value.text, l10n.aiCellDefaultOff);
   });
 
+  test('a family that always reasons has nothing to turn off', () {
+    // Whatever the route: a Zhipu switch, a relay's Messages face with the
+    // field refused, or one with nothing refused (#119 known issue 6).
+    final r1 = AiModelEntry.create(
+      upstream: 'deepseek-r1',
+      route: AiProviderType.openAi,
+    );
+    final zhipuCell = cell(r1, AiProviderType.openAi, Capability.thinkingOff);
+    expect(zhipuCell.state, CapabilityState.unavailable);
+    expect(zhipuCell.text, l10n.aiCellAlwaysReasons);
+
+    final relay =
+        AiChannel.create(
+              platform: PlatformProfiles.custom,
+              name: 'r',
+              apiKey: 'k-always-on',
+            )
+            .copyWith(
+              routes: [
+                const AiRoute(
+                  protocol: AiProviderType.anthropic,
+                  endpoint: 'https://matrix-always.example',
+                ),
+              ],
+            )
+            .withModel(r1);
+    for (final refused in [
+      <String>{},
+      {'thinking:adaptive', 'thinking:enabled', 'thinking'},
+    ]) {
+      final provider = AiService.providerFor(relay.configFor(r1));
+      addTearDown(provider.forgetLearned);
+      LearnedStore.instance.update(
+        LearnedStore.routeKey(
+          protocol: AiProviderType.anthropic.id,
+          base: 'https://matrix-always.example/v1',
+          model: 'deepseek-r1',
+          apiKey: 'k-always-on',
+        ),
+        (b) => b.copyWith(rejectedFields: refused),
+      );
+      final value = capabilityCell(
+        l10n,
+        relay,
+        r1,
+        AiProviderType.anthropic,
+        Capability.thinkingOff,
+      );
+      expect(value.state, CapabilityState.unavailable, reason: '$refused');
+      expect(value.text, l10n.aiCellAlwaysReasons, reason: '$refused');
+    }
+  });
+
   // Refused `none`, or refused `reasoning` itself: nothing is sent when off.
   for (final (what, learn)
       in <(String, LearnedBehaviour Function(LearnedBehaviour))>[
@@ -449,9 +502,10 @@ void main() {
       cell(model, AiProviderType.anthropic, Capability.json).text,
       l10n.aiCellPromptOnly,
     );
+    // Zhipu's Messages face thinks unless told not to: a switch there too.
     expect(
       cell(model, AiProviderType.anthropic, Capability.thinkingOff).text,
-      l10n.aiCellDefaultOff,
+      l10n.aiCellSwitch('thinking'),
     );
     // Sent, but a relay can rewrite `none` to medium: not measured.
     final responses = cell(

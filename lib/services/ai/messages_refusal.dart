@@ -392,11 +392,18 @@ abstract final class MessagesRefusal {
   /// Whether [detail], answering a request to turn thinking off, says the
   /// model's reasoning is mandatory in another protocol's name for the
   /// field — the model cannot stop, as [refusesThinkingOff] reads the words
-  /// that name no field. `mandatory` counts only beside a name: on its own
-  /// it turns up in unrelated errors ("messages is mandatory").
-  static bool _mandatoryTranslated(String detail) =>
-      detail.contains('mandatory') &&
+  /// that name no field. The words count only beside a name: on their own
+  /// they turn up in unrelated errors ("messages is mandatory", any
+  /// parameter "restricted to" a value).
+  static bool _cannotStopTranslated(String detail) =>
+      _cannotStopWords.hasMatch(detail) &&
       translatedFieldNamed(detail, own: 'thinking') != null;
+
+  /// "reasoning is mandatory for this model"; DashScope's Messages face
+  /// told off for a model that only thinks, in its own name for the field
+  /// (【实测 2026-09-28】MiniMax-M2.5 and glm-5.3 there: "The value of the
+  /// enable_thinking parameter is restricted to True.").
+  static final _cannotStopWords = RegExp('mandatory|restricted to true');
 
   /// A sub-field of `thinking` named — the ones a request carries, so that
   /// "thinking.Please", a docs URL ending in `thinking.html` or a relay's
@@ -413,8 +420,9 @@ abstract final class MessagesRefusal {
   /// them. One that does not say `thinking` at all can still refuse it
   /// under another protocol's name for the field, a relay's translation
   /// ([refusesThinkingTranslated]): the field unknown, nothing finer —
-  /// except "mandatory" beside such a name in answer to off, which is the
-  /// model that cannot stop. A budget error is about the numbers, never the
+  /// except "mandatory" or "restricted to true" beside such a name in
+  /// answer to off, which is the model that cannot stop
+  /// ([_cannotStopTranslated]). A budget error is about the numbers, never the
   /// form, and an error about the thinking blocks in the conversation
   /// ("`thinking` or `redacted_thinking` blocks … cannot be modified",
   /// "messages.3.content.0: Invalid `signature` in `thinking` block") says
@@ -444,7 +452,7 @@ abstract final class MessagesRefusal {
     // looked for. It answers off alone: asked on, the same words beside a
     // form or the field are read as those.
     if (sentType == 'disabled' &&
-        (refusesThinkingOff(detail) || _mandatoryTranslated(detail))) {
+        (refusesThinkingOff(detail) || _cannotStopTranslated(detail))) {
       return ThinkingRefusal.cannotStop;
     }
     // Said of another protocol's field: a relay translated `thinking` and

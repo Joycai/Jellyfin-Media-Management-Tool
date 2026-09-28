@@ -14,6 +14,7 @@ RefusalLesson? read(
   Set<String> rejected = const {},
   bool switchRoute = false,
   String model = 'claude-opus-4-6',
+  String? endpoint,
 }) => MessagesRefusal.read(
   message,
   payload: {
@@ -24,9 +25,11 @@ RefusalLesson? read(
   learned: LearnedBehaviour(rejectedFields: rejected),
   config: AiConfig(
     provider: AiProviderType.anthropic,
-    endpoint: switchRoute
-        ? 'https://api.minimaxi.com/anthropic'
-        : 'https://relay.example',
+    endpoint:
+        endpoint ??
+        (switchRoute
+            ? 'https://api.minimaxi.com/anthropic'
+            : 'https://relay.example'),
     apiKey: 'k',
     model: model,
   ),
@@ -443,6 +446,110 @@ void main() {
           sent: 'adaptive',
         ),
         isNull,
+      );
+    });
+  });
+
+  group('wordings measured on 2026-09-28', () {
+    const dashScope = 'https://dashscope.aliyuncs.com/apps/anthropic';
+    const zhipu = 'https://open.bigmodel.cn/api/anthropic';
+    const sampling = ['temperature', 'top_p', 'top_k'];
+    // DashScope translates `thinking` into its own `enable_thinking` and
+    // passes the refusal back: MiniMax-M2.5 and glm-5.3 there told off.
+    const restricted =
+        '<400> InternalError.Algo.InvalidParameter: The value of the '
+        'enable_thinking parameter is restricted to True.';
+    // Zhipu's own Messages face, glm-5.3 told off: code 1210, the words
+    // wrapped in brackets with the request id.
+    const zhipu1210 =
+        '[1210][该模型始终思考，不支持关闭思考；请使用 low、high 或 max。]'
+        '[202609281155421633d5b34a1644c0]';
+
+    test('a translated name "restricted to true" is the model that '
+        'cannot stop', () {
+      expect(
+        read(
+          restricted,
+          sent: 'disabled',
+          optional: sampling,
+          endpoint: dashScope,
+          model: 'MiniMax-M2.5',
+        ),
+        off,
+      );
+      // On a relay too: the words say what they say wherever they come from.
+      expect(read(restricted, sent: 'disabled', optional: sampling), off);
+      // Asked on, the same words name no form and refuse nothing: thrown.
+      expect(read(restricted, sent: 'adaptive', endpoint: dashScope), isNull);
+      // Without the name it is any parameter, not the model.
+      expect(
+        read(
+          'The value of the frobnicate parameter is restricted to True.',
+          sent: 'disabled',
+          endpoint: dashScope,
+        ),
+        isNull,
+      );
+    });
+
+    test('Zhipu 1210, wrapped, is the model that cannot stop', () {
+      expect(
+        read(
+          zhipu1210,
+          sent: 'disabled',
+          optional: sampling,
+          endpoint: zhipu,
+          model: 'glm-5.3',
+        ),
+        off,
+      );
+      // Asked on (a bad type, which the adapter never sends), it names no
+      // form: nothing learned.
+      expect(read(zhipu1210, sent: 'adaptive', endpoint: zhipu), isNull);
+    });
+
+    test('a budget or a body error teaches nothing', () {
+      expect(
+        read(
+          '<400> InternalError.Algo.InvalidParameter: max_completion_tokens '
+          '[512] must be greater than thinking_budget [1024]',
+          sent: 'enabled',
+          endpoint: dashScope,
+          model: 'qwen3.8-flash',
+        ),
+        isNull,
+      );
+      expect(
+        read(
+          'Request body format invalid',
+          sent: 'adaptive',
+          endpoint: dashScope,
+          model: 'qwen3.8-flash',
+        ),
+        isNull,
+      );
+    });
+
+    test('a sampling value out of range is that value refused', () {
+      expect(
+        read(
+          '<400> InternalError.Algo.InvalidParameter: Temperature should be '
+          'in [0.0, 2.0)',
+          sent: 'disabled',
+          optional: sampling,
+          endpoint: dashScope,
+          model: 'qwen3.8-flash',
+        ),
+        const OptionalRefused('temperature'),
+      );
+      expect(
+        read(
+          "invalid params, param 'top_p' should be in (0,1] (2013)",
+          optional: sampling,
+          switchRoute: true,
+          model: 'MiniMax-M3',
+        ),
+        const OptionalRefused('top_p'),
       );
     });
   });
