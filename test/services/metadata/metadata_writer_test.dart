@@ -276,6 +276,35 @@ void main() {
       ));
     });
 
+    test(
+      'a catalogue code vetoes an episode where it leads or matches',
+      () async {
+        for (final video in [
+          // Led by a code — after a site prefix or a [group] tag too — or
+          // carrying the code's own number.
+          '/a/SPSF-43 Title 02.mp4',
+          '/b/hhd800.com@ABC-123.mp4',
+          '/c/[GIGA]SPSF-43.mkv',
+          '/d/ABC 123.mp4',
+        ]) {
+          seedFile(fs, video, contents: 'v');
+          expect(
+            (await writer.nfoTargetFor(video)).kind,
+            NfoKind.movie,
+            reason: video,
+          );
+        }
+      },
+    );
+
+    test('a title word and a number is an episode, not a code', () async {
+      seedFile(fs, '/tv/Bleach/Bleach 03.mkv', contents: 'v');
+      expect(await target('/tv/Bleach/Bleach 03.mkv'), (
+        'Bleach 03.nfo',
+        NfoKind.episode,
+      ));
+    });
+
     test('an unnumbered special in Specials is an episode', () async {
       seedFile(fs, '/tv/Show/Specials/Show OVA.mkv', contents: 'v');
       expect(await target('/tv/Show/Specials/Show OVA.mkv'), (
@@ -292,6 +321,24 @@ void main() {
       seedFile(fs, '/work/P/Other-cd1.mkv', contents: 'o');
       expect(await target('/work/P/P-cd2.mkv'), ('P-cd1.nfo', NfoKind.movie));
       expect(await target('/work/P/P-cd1.mkv'), ('P-cd1.nfo', NfoKind.movie));
+    });
+
+    test('parts Jellyfin does not stack keep their own NFO', () async {
+      // Jellyfin stacks only on a trailing part token; these are two items.
+      seedFile(fs, '/work/M/Movie-cd1 1080p.mkv', contents: '1');
+      seedFile(fs, '/work/M/Movie 1080p-cd2.mkv', contents: '2');
+      expect(await target('/work/M/Movie 1080p-cd2.mkv'), (
+        'Movie 1080p-cd2.nfo',
+        NfoKind.movie,
+      ));
+    });
+
+    test('a special in a disc folder is not an episode', () async {
+      seedFile(fs, '/work/Movie/CD1/Movie OVA.mkv', contents: 'v');
+      expect(
+        (await writer.nfoTargetFor('/work/Movie/CD1/Movie OVA.mkv')).kind,
+        NfoKind.movie,
+      );
     });
 
     test('dotfiles do not make the folder mixed', () async {

@@ -16,9 +16,11 @@ reconstructed at release time.
 - Scraping a single video now picks the NFO Jellyfin will actually read for
   it. An episode gets `<video>.nfo` written as `<episodedetails>`, even alone
   in its season folder (it used to get a `movie.nfo` there that nothing
-  read), and so does an unnumbered special in `Specials`. A part of a stack
-  (`-cd1`, `-cd2`) writes the first part's `<video>.nfo`, the one Jellyfin
-  reads for the whole stack. An extra (`-featurette`, a `trailers` folder)
+  read), and so does an unnumbered special in `Specials`. A catalogue-coded
+  file (`SPSF-43`, `hhd800.com@ABC-123`) stays a movie, while `EP03` and
+  `Bleach 03` are episodes. A part Jellyfin stacks (`-cd1`, `-cd2`) writes
+  the first part's `<video>.nfo`, the one Jellyfin reads for the whole
+  stack. An extra (`-featurette`, a `trailers` folder)
   gets its own `<video>.nfo`. Hidden files such as macOS `._` copies no
   longer count as a second video. A feature keeps `movie.nfo` when its
   only neighbours are its own extras. An existing `<video>.nfo` is updated

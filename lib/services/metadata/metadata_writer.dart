@@ -244,11 +244,11 @@ class MetadataWriter {
   /// episode only from `<video>.nfo`. So:
   ///
   /// * an episode — `SxxEyy`, a season or `Specials` folder, or an episode
-  ///   number that is not a catalogue code's (`SPSF-43` reads as "episode 43"
-  ///   otherwise) — gets `<video>.nfo` as `<episodedetails>`;
-  /// * a part (`-cd1`, `-part2`) gets the *first* part's `<video>.nfo`:
-  ///   Jellyfin stacks the parts into one movie whose path is part one, so a
-  ///   `-cd2.nfo` would never be read;
+  ///   number that is not a catalogue code's (see [_isEpisode]) — gets
+  ///   `<video>.nfo` as `<episodedetails>`;
+  /// * a part (`-cd1`, `-part2`) gets `<video>.nfo`, and a part Jellyfin
+  ///   stacks with others gets the *first* part's: the stack is one movie
+  ///   whose path is part one, so a `-cd2.nfo` would never be read;
   /// * an extra (`-featurette`, a `trailers` folder) gets `<video>.nfo`:
   ///   `movie.nfo` would speak for the whole folder, i.e. the feature;
   /// * any other video gets `movie.nfo`, unless the folder holds another
@@ -271,25 +271,30 @@ class MetadataWriter {
     }
     final siblings = await _otherVideos(dir, name);
 
-    final part = parsed.part;
-    if (part != null) {
-      var first = (part: part, name: name);
-      for (final (other, info) in siblings) {
-        final otherPart = info.part;
-        if (otherPart == null || info.seriesKey != parsed.seriesKey) continue;
-        if (otherPart < first.part ||
-            (otherPart == first.part && other.compareTo(first.name) < 0)) {
-          first = (part: otherPart, name: other);
+    final stack = _StackPart.of(name, path);
+    if (parsed.part != null || stack != null) {
+      var first = name;
+      if (stack != null) {
+        var lowest = stack.number;
+        for (final other in siblings) {
+          final part = _StackPart.of(other, path);
+          if (part == null || part.key != stack.key) continue;
+          if (part.number < lowest ||
+              (part.number == lowest && other.compareTo(first) < 0)) {
+            lowest = part.number;
+            first = other;
+          }
         }
       }
       return NfoTarget(
         dir: dir,
-        fileName: nfoNameForVideo(first.name),
+        fileName: nfoNameForVideo(first),
         kind: NfoKind.movie,
       );
     }
 
-    if (siblings.any((s) => s.$2.extraType == null)) {
+    // Parsed lazily: the first feature found settles it.
+    if (siblings.any((other) => _parse(dir, other).extraType == null)) {
       return NfoTarget(dir: dir, fileName: own, kind: NfoKind.movie);
     }
 
@@ -320,14 +325,11 @@ class MetadataWriter {
     return current;
   }
 
-  /// The other videos in [dir], parsed. Dotfiles are skipped, as everywhere
-  /// in the app — a macOS `._Movie.mkv` is not a second feature.
-  Future<List<(String, ParsedFile)>> _otherVideos(
-    String dir,
-    String name,
-  ) async {
+  /// The names of the other videos in [dir]. Dotfiles are skipped, as
+  /// everywhere in the app — a macOS `._Movie.mkv` is not a second feature.
+  Future<List<String>> _otherVideos(String dir, String name) async {
     final path = fs.path;
-    final out = <(String, ParsedFile)>[];
+    final out = <String>[];
     try {
       await for (final entity in fs.directory(dir).list()) {
         if (entity is! File) continue;
@@ -336,7 +338,7 @@ class MetadataWriter {
         if (FileLabelService.getLabel(path.extension(other)) != 'Video') {
           continue;
         }
-        out.add((other, _parse(dir, other)));
+        out.add(other);
       }
     } catch (_) {
       // Unreadable folder: assume the common case rather than fail the scrape
@@ -350,23 +352,31 @@ class MetadataWriter {
   ParsedFile _parse(String dir, String name) =>
       FilenameParser.parse(fs.path.join(fs.path.basename(dir), name));
 
+  /// Whether [f] is an episode rather than a movie.
+  ///
+  /// A catalogue code parses as an episode number (`SPSF-43` is "episode
+  /// 43"), so a code vetoes the episode when it leads the name, after any
+  /// `[group]` tags (`SPSF-43 Title 02`, `hhd800.com@ABC-123`), or when its
+  /// number is the episode's (`[GIGA]SPSF-43`). An `EP03` marker is not a
+  /// code, nor is a title word and a number (`Bleach 03`): a space counts as
+  /// a code's separator only between capitals (`ABC 123`). A CRC tag
+  /// (`[ABCD1234]`) neither leads nor matches, so it leaves the episode be.
   static bool _isEpisode(ParsedFile f, String name, String folderName) {
     if (f.season != null || f.specialLabel != null) return true;
     // `Specials/Show OVA.mkv`: a special with no number on it.
-    if (f.special &&
-        f.extraType == null &&
-        FilenameParser.isContainerFolder(folderName)) {
-      return true;
-    }
+    if (f.special && FilenameParser.isSeasonFolder(folderName)) return true;
     final episode = f.episode;
     if (episode == null) return false;
-    // `SPSF-43` parses as episode 43, but the number is the code's. Any other
-    // code — an `EP03` marker, a `[ABCD1234]` CRC tag — leaves the episode be.
-    final code = detectMediaCode(name);
-    if (code == null || code.startsWith('EP-')) return true;
-    return int.tryParse(code.substring(code.lastIndexOf('-') + 1)) != episode;
+    final lead = _leadingTags.matchAsPrefix(name)?.end ?? 0;
+    for (final c in findMediaCodes(name)) {
+      if (c.letters.toUpperCase() == 'EP') continue;
+      if (c.separator == ' ' && c.letters != c.letters.toUpperCase()) continue;
+      if (c.start == lead || c.number == episode) return false;
+    }
+    return true;
   }
 
+  static final _leadingTags = RegExp(r'(?:\s*[\[【(][^\]】)]*[\]】)])*\s*');
   Future<bool> _exists(String target) async {
     try {
       return await fs.file(target).exists();
@@ -382,5 +392,32 @@ class MetadataWriter {
     final dot = videoFileName.lastIndexOf('.');
     final base = dot <= 0 ? videoFileName : videoFileName.substring(0, dot);
     return '$base.nfo';
+  }
+}
+
+/// A file name in Jellyfin's multi-part stacking form: a part token at the end
+/// of the name (`Movie-cd1.mkv`, `Movie (2026) [Part 2].mkv`). Files stack when
+/// the text before the token, the token and the extension agree ([key]); a
+/// name with anything after its number (`Movie-cd1 1080p.mkv`) never stacks.
+class _StackPart {
+  final String key;
+  final int number;
+
+  const _StackPart(this.key, this.number);
+
+  static final _rule = RegExp(
+    r'^(.*?)(?:(?<=[\]\)\}])|[ _.-]+)[\(\[]?(cd|dvd|part|pt|dis[ck])[ _.-]*'
+    r'([0-9]+)[\)\]]?$',
+    caseSensitive: false,
+  );
+
+  static _StackPart? of(String fileName, p.Context path) {
+    final m = _rule.firstMatch(path.basenameWithoutExtension(fileName));
+    if (m == null) return null;
+    return _StackPart(
+      '${m.group(1)!.toLowerCase()}|${m.group(2)!.toLowerCase()}'
+      '|${path.extension(fileName).toLowerCase()}',
+      int.parse(m.group(3)!),
+    );
   }
 }
