@@ -243,15 +243,17 @@ class MetadataWriter {
   /// wins when both exist), but not `movie.nfo` in a *mixed folder*, and an
   /// episode only from `<video>.nfo`. So:
   ///
-  /// * an episode — `SxxEyy`, a `Season NN` folder, or a bare episode number
-  ///   on a name without a catalogue code (`SPSF-43` reads as "episode 43"
+  /// * an episode — `SxxEyy`, a season or `Specials` folder, or an episode
+  ///   number that is not a catalogue code's (`SPSF-43` reads as "episode 43"
   ///   otherwise) — gets `<video>.nfo` as `<episodedetails>`;
-  /// * a part (`-cd1`, `-part2`) or an extra (`-featurette`, a `trailers`
-  ///   folder) gets `<video>.nfo`: `movie.nfo` would speak for the whole
-  ///   folder, i.e. the feature;
+  /// * a part (`-cd1`, `-part2`) gets the *first* part's `<video>.nfo`:
+  ///   Jellyfin stacks the parts into one movie whose path is part one, so a
+  ///   `-cd2.nfo` would never be read;
+  /// * an extra (`-featurette`, a `trailers` folder) gets `<video>.nfo`:
+  ///   `movie.nfo` would speak for the whole folder, i.e. the feature;
   /// * any other video gets `movie.nfo`, unless the folder holds another
-  ///   feature (extras do not count) or only a `<video>.nfo` exists already —
-  ///   then `<video>.nfo`.
+  ///   feature (extras and dotfiles do not count) or only a `<video>.nfo`
+  ///   exists already — then `<video>.nfo`.
   ///
   /// A folder that cannot be listed counts as holding one video.
   Future<NfoTarget> nfoTargetFor(String videoPath) async {
@@ -261,31 +263,35 @@ class MetadataWriter {
     final own = nfoNameForVideo(name);
     final parsed = _parse(dir, name);
 
-    if (_isEpisode(parsed, name)) {
+    if (_isEpisode(parsed, name, path.basename(dir))) {
       return NfoTarget(dir: dir, fileName: own, kind: NfoKind.episode);
     }
-    if (parsed.part != null || parsed.extraType != null) {
+    if (parsed.extraType != null) {
       return NfoTarget(dir: dir, fileName: own, kind: NfoKind.movie);
     }
+    final siblings = await _otherVideos(dir, name);
 
-    var mixed = false;
-    try {
-      await for (final entity in fs.directory(dir).list()) {
-        if (entity is! File) continue;
-        final other = path.basename(entity.path);
-        if (other == name) continue;
-        if (FileLabelService.getLabel(path.extension(other)) != 'Video') {
-          continue;
+    final part = parsed.part;
+    if (part != null) {
+      var first = (part: part, name: name);
+      for (final (other, info) in siblings) {
+        final otherPart = info.part;
+        if (otherPart == null || info.seriesKey != parsed.seriesKey) continue;
+        if (otherPart < first.part ||
+            (otherPart == first.part && other.compareTo(first.name) < 0)) {
+          first = (part: otherPart, name: other);
         }
-        if (_parse(dir, other).extraType != null) continue;
-        mixed = true;
-        break;
       }
-    } catch (_) {
-      // Unreadable folder: assume the common case rather than fail the scrape
-      // before it starts.
+      return NfoTarget(
+        dir: dir,
+        fileName: nfoNameForVideo(first.name),
+        kind: NfoKind.movie,
+      );
     }
-    if (mixed) return NfoTarget(dir: dir, fileName: own, kind: NfoKind.movie);
+
+    if (siblings.any((s) => s.$2.extraType == null)) {
+      return NfoTarget(dir: dir, fileName: own, kind: NfoKind.movie);
+    }
 
     final movieNfo = NfoKind.movie.fileName!;
     // An existing <video>.nfo is updated in place rather than shadowed by a
@@ -301,11 +307,12 @@ class MetadataWriter {
   }
 
   /// The series folder above [dir]: [dir] itself, or the first folder up that
-  /// is not a `Season NN` / `Specials` container — where `tvshow.nfo` goes.
+  /// only subdivides a title (`Season 01`, `S01`, `第1季`, `Specials`, …, as
+  /// [FilenameParser.isContainerFolder] reads them) — where `tvshow.nfo` goes.
   static String seriesDirFor(String dir, {p.Context? context}) {
     final path = context ?? p.context;
     var current = path.normalize(dir);
-    while (_seasonFolder.hasMatch(path.basename(current).trim())) {
+    while (FilenameParser.isContainerFolder(path.basename(current))) {
       final parent = path.dirname(current);
       if (parent == current) break;
       current = parent;
@@ -313,20 +320,52 @@ class MetadataWriter {
     return current;
   }
 
-  static final _seasonFolder = RegExp(
-    r'^(season\s*\d+|specials)$',
-    caseSensitive: false,
-  );
+  /// The other videos in [dir], parsed. Dotfiles are skipped, as everywhere
+  /// in the app — a macOS `._Movie.mkv` is not a second feature.
+  Future<List<(String, ParsedFile)>> _otherVideos(
+    String dir,
+    String name,
+  ) async {
+    final path = fs.path;
+    final out = <(String, ParsedFile)>[];
+    try {
+      await for (final entity in fs.directory(dir).list()) {
+        if (entity is! File) continue;
+        final other = path.basename(entity.path);
+        if (other == name || other.startsWith('.')) continue;
+        if (FileLabelService.getLabel(path.extension(other)) != 'Video') {
+          continue;
+        }
+        out.add((other, _parse(dir, other)));
+      }
+    } catch (_) {
+      // Unreadable folder: assume the common case rather than fail the scrape
+      // before it starts.
+    }
+    return out;
+  }
 
   /// Parsed with its folder name, which is what marks `Season 01/01.mkv` as an
   /// episode and `trailers/x.mkv` as an extra.
   ParsedFile _parse(String dir, String name) =>
       FilenameParser.parse(fs.path.join(fs.path.basename(dir), name));
 
-  static bool _isEpisode(ParsedFile f, String name) =>
-      f.season != null ||
-      f.specialLabel != null ||
-      (f.episode != null && detectMediaCode(name) == null);
+  static bool _isEpisode(ParsedFile f, String name, String folderName) {
+    if (f.season != null || f.specialLabel != null) return true;
+    // `Specials/Show OVA.mkv`: a special with no number on it.
+    if (f.special &&
+        f.extraType == null &&
+        FilenameParser.isContainerFolder(folderName)) {
+      return true;
+    }
+    final episode = f.episode;
+    if (episode == null) return false;
+    // `SPSF-43` parses as episode 43, but the number is the code's. Any other
+    // code — an `EP03` marker, a `[ABCD1234]` CRC tag — leaves the episode be.
+    final code = detectMediaCode(name);
+    if (code == null || code.startsWith('EP-')) return true;
+    return int.tryParse(code.substring(code.lastIndexOf('-') + 1)) != episode;
+  }
 
   Future<bool> _exists(String target) async {
     try {

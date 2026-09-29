@@ -261,6 +261,46 @@ void main() {
       ));
     });
 
+    test('an episode marker or a CRC tag is not a catalogue code', () async {
+      // Only a code whose number *is* the episode number vetoes it.
+      seedFile(fs, '/tv/Show/Show EP03.mkv', contents: 'v');
+      const anime = '[SubsPlease] Frieren - 03 (1080p) [ABCD1234].mkv';
+      seedFile(fs, '/tv/Frieren/$anime', contents: 'v');
+      expect(await target('/tv/Show/Show EP03.mkv'), (
+        'Show EP03.nfo',
+        NfoKind.episode,
+      ));
+      expect(await target('/tv/Frieren/$anime'), (
+        '[SubsPlease] Frieren - 03 (1080p) [ABCD1234].nfo',
+        NfoKind.episode,
+      ));
+    });
+
+    test('an unnumbered special in Specials is an episode', () async {
+      seedFile(fs, '/tv/Show/Specials/Show OVA.mkv', contents: 'v');
+      expect(await target('/tv/Show/Specials/Show OVA.mkv'), (
+        'Show OVA.nfo',
+        NfoKind.episode,
+      ));
+    });
+
+    test('every part of a stack writes the first part\'s NFO', () async {
+      // Jellyfin stacks the parts into one movie whose path is part one;
+      // P-cd2.nfo would never be read.
+      seedFile(fs, '/work/P/P-cd1.mkv', contents: '1');
+      seedFile(fs, '/work/P/P-cd2.mkv', contents: '2');
+      seedFile(fs, '/work/P/Other-cd1.mkv', contents: 'o');
+      expect(await target('/work/P/P-cd2.mkv'), ('P-cd1.nfo', NfoKind.movie));
+      expect(await target('/work/P/P-cd1.mkv'), ('P-cd1.nfo', NfoKind.movie));
+    });
+
+    test('dotfiles do not make the folder mixed', () async {
+      // macOS AppleDouble files on an exFAT drive.
+      seedFile(fs, '/work/T/T.mkv', contents: 'v');
+      seedFile(fs, '/work/T/._T.mkv', contents: 'x');
+      expect(await target('/work/T/T.mkv'), ('movie.nfo', NfoKind.movie));
+    });
+
     test('an existing <video>.nfo is updated, not shadowed', () async {
       seedFile(fs, '/work/T/T.mkv', contents: 'v');
       seedFile(fs, '/work/T/T.nfo', contents: _nfo);
@@ -292,6 +332,13 @@ void main() {
       );
       expect(MetadataWriter.seriesDirFor('/tv/Show', context: ctx), '/tv/Show');
       expect(MetadataWriter.seriesDirFor('/Season 1', context: ctx), '/');
+      // The season folders FilenameParser reads, not just `Season NN`.
+      for (final season in ['S01', 'Series 2', '第1季', 'SP']) {
+        expect(
+          MetadataWriter.seriesDirFor('/tv/Show/$season', context: ctx),
+          '/tv/Show',
+        );
+      }
     });
   });
 

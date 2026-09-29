@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/metadata_writer.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/nfo_merge.dart';
+import 'package:jellyfin_media_management_tool/services/metadata/nfo_writer.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/builtin_recipes.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/image_downloader.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/page_fetcher.dart';
@@ -430,6 +431,28 @@ void main() {
       expect(nfo, contains('<poster>folder.jpg</poster>'));
       expect(fs.file('/work/folder.jpg').existsSync(), isTrue);
       expect(fs.file('/work/poster.jpg').existsSync(), isFalse);
+    });
+
+    test('an episode is written as <episodedetails>', () async {
+      // The kind the flow detected is what decides the root; the file name
+      // alone would read `<video>.nfo` as a movie.
+      final fs = newMemoryFs();
+      final service = _service(_Site(), fs: fs);
+      final result = await service.scrapeUrl(_url);
+
+      await service.commit(
+        metadata: result.merged,
+        pageUrl: result.pageUrl,
+        targetDir: '/tv/Show/Season 01',
+        nfoFileName: 'Show S01E01.nfo',
+        kind: NfoKind.episode,
+      );
+
+      final nfo = fs
+          .file('/tv/Show/Season 01/Show S01E01.nfo')
+          .readAsStringSync();
+      expect(nfo, contains('<episodedetails>'));
+      expect(nfo, isNot(contains('<movie>')));
     });
 
     test('sends the page as Referer when downloading images', () async {

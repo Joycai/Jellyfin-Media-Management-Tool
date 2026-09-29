@@ -463,10 +463,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
       _targetDir = p.dirname(path);
       _nfoFileName = p.basename(path);
       _nfoChosen = true;
-      // An existing tvshow.nfo is a series whatever the switch said; anything
-      // else keeps the user's choice, since `<video>.nfo` says nothing.
-      if (NfoKind.forFileName(_nfoFileName) == NfoKind.tvShow) {
-        _kind = NfoKind.tvShow;
+      // tvshow.nfo is a series and movie.nfo a movie whatever the switch
+      // said; `<video>.nfo` says nothing, so it keeps the user's choice.
+      switch (_nfoFileName.toLowerCase()) {
+        case 'tvshow.nfo':
+          _kind = NfoKind.tvShow;
+        case 'movie.nfo':
+          _kind = NfoKind.movie;
       }
     });
   }
@@ -934,8 +937,9 @@ class _ScrapePanelState extends State<ScrapePanel> {
         ),
       );
 
-  /// Movie / TV show (/ episode). A deliberate compact variant, sized like the search-site
-  /// chips so it sits on the section-label line; hence the explicit metrics.
+  /// Movie / TV show (/ episode). A deliberate compact variant, sized like
+  /// the search-site chips so it sits on the section-label line; hence the
+  /// explicit metrics.
   Widget _kindSwitch(AppLocalizations l10n) => SegmentedButton<NfoKind>(
     segments: [
       ButtonSegment(
