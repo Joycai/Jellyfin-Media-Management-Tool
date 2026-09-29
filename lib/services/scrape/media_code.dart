@@ -34,21 +34,57 @@ const _notCodes = {
   'dd5',
 };
 
-/// The first plausible code in [name], normalized to `LETTERS-DIGITS`, or null.
+/// One code-shaped run in a name, as [findMediaCodes] found it.
+class MediaCodeMatch {
+  /// The letters as written (`Spsf`, `SPSF`).
+  final String letters;
+  final String digits;
+
+  /// What stood between them: `-`, `_`, ` ` or nothing.
+  final String separator;
+
+  /// Offset of the match in the name's stem.
+  final int start;
+
+  const MediaCodeMatch({
+    required this.letters,
+    required this.digits,
+    required this.separator,
+    required this.start,
+  });
+
+  /// Normalized to `LETTERS-DIGITS`, leading zeros kept.
+  String get code => '${letters.toUpperCase()}-$digits';
+
+  int get number => int.parse(digits);
+}
+
+/// Every plausible code in [name], in order.
 ///
-/// The extension is stripped first so `.mp4` cannot be read as a code, and
-/// leading zeros are kept — `ABP-00123` and `ABP-123` are different catalogue
-/// numbers on some labels.
-String? detectMediaCode(String name) {
+/// The extension is stripped first so `.mp4` cannot be read as a code.
+Iterable<MediaCodeMatch> findMediaCodes(String name) sync* {
   final dot = name.lastIndexOf('.');
   final stem = dot > 0 ? name.substring(0, dot) : name;
 
   for (final match in _codePattern.allMatches(stem)) {
-    final letters = match.group(1)!.toUpperCase();
+    final letters = match.group(1)!;
     final digits = match.group(2)!;
-    if (_notCodes.contains('$letters$digits'.toLowerCase())) continue;
-    if (_notCodes.contains(letters.toLowerCase())) continue;
-    return '$letters-$digits';
+    final lower = letters.toLowerCase();
+    if (_notCodes.contains('$lower$digits')) continue;
+    if (_notCodes.contains(lower)) continue;
+    yield MediaCodeMatch(
+      letters: letters,
+      digits: digits,
+      separator: match
+          .group(0)!
+          .substring(letters.length, match.group(0)!.length - digits.length),
+      start: match.start,
+    );
   }
-  return null;
 }
+
+/// The first plausible code in [name], normalized to `LETTERS-DIGITS`, or null.
+///
+/// Leading zeros are kept — `ABP-00123` and `ABP-123` are different catalogue
+/// numbers on some labels.
+String? detectMediaCode(String name) => findMediaCodes(name).firstOrNull?.code;

@@ -487,12 +487,17 @@ abstract final class FilenameParser {
     );
   }
 
+  /// Whether a folder named [name] holds a season's episodes (`Season 2`,
+  /// `S02`, `第2季`) or the specials (`Specials`, `SP`).
+  static bool isSeasonFolder(String name) =>
+      _seasonOfFolder(name) != null ||
+      _specialsFolder.hasMatch(name.trim().toLowerCase());
+
   /// Whether a folder named [name] only subdivides a title (`Season 2`,
   /// `Specials`, `Extras`, `CD1`) rather than being one.
   static bool isContainerFolder(String name) {
     final lower = name.trim().toLowerCase();
-    return _seasonOfFolder(name) != null ||
-        _specialsFolder.hasMatch(lower) ||
+    return isSeasonFolder(name) ||
         _extrasFolders.containsKey(lower) ||
         _discFolder.hasMatch(lower);
   }

@@ -467,6 +467,15 @@ void main() {
       }
     });
 
+    test('isSeasonFolder is the season and specials half only', () {
+      for (final name in ['Season 1', 'S2', '第二季', 'Specials', 'SPs']) {
+        expect(FilenameParser.isSeasonFolder(name), isTrue, reason: name);
+      }
+      for (final name in ['Extras', 'CD1', 'Trailers', 'Show']) {
+        expect(FilenameParser.isSeasonFolder(name), isFalse, reason: name);
+      }
+    });
+
     test('containerParent', () {
       expect(
         FilenameParser.containerParent(p.join('Show', 'Season 1')),
