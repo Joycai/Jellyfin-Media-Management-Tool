@@ -56,6 +56,7 @@ Future<void> startScrapeFlow(
     context,
     targetDir: where.targetDir,
     nfoFileName: where.nfoFileName,
+    kind: where.kind,
     label: where.label,
     suggestedKeyword: detectMediaCode(where.label),
   );
@@ -209,6 +210,7 @@ Future<void> _commit(
 class _ScrapeTarget {
   final String targetDir;
   final String nfoFileName;
+  final NfoKind kind;
 
   /// Basename used for the task label and for code detection.
   final String label;
@@ -216,23 +218,27 @@ class _ScrapeTarget {
   const _ScrapeTarget({
     required this.targetDir,
     required this.nfoFileName,
+    required this.kind,
     required this.label,
   });
 }
 
 /// A folder (or no selection at all) writes `movie.nfo` inside it. A focused
 /// video writes into its own folder under the name Jellyfin will actually read
-/// there — `movie.nfo`, or `<video base name>.nfo` when the folder is mixed;
-/// [MetadataWriter.nfoNameFor] makes that call.
+/// for it — `movie.nfo` for a lone feature, `<video base name>.nfo` for an
+/// episode, a part, an extra or a mixed folder; [MetadataWriter.nfoTargetFor]
+/// makes that call.
 Future<_ScrapeTarget> _resolveTarget(
   FileEntry? target,
   String baseDir,
   MetadataWriter writer,
 ) async {
   if (target != null && !target.isDirectory) {
+    final nfo = await writer.nfoTargetFor(target.path);
     return _ScrapeTarget(
-      targetDir: p.dirname(target.path),
-      nfoFileName: await writer.nfoNameFor(target.path),
+      targetDir: nfo.dir,
+      nfoFileName: nfo.fileName,
+      kind: nfo.kind,
       label: target.name,
     );
   }
@@ -240,6 +246,7 @@ Future<_ScrapeTarget> _resolveTarget(
   return _ScrapeTarget(
     targetDir: dir,
     nfoFileName: NfoKind.movie.fileName!,
+    kind: NfoKind.movie,
     label: p.basename(dir),
   );
 }

@@ -25,9 +25,12 @@ import 'dart:convert';
 
 import 'package:file/file.dart';
 import 'package:file/local.dart';
+import 'package:path/path.dart' as p;
 
 import '../file_label_service.dart';
+import '../organize/filename_parser.dart';
 import '../path_safety.dart';
+import '../scrape/media_code.dart';
 import 'nfo_writer.dart';
 
 const FileSystem _defaultFs = LocalFileSystem();
@@ -81,6 +84,19 @@ class MetadataWriteResult {
     for (final w in written)
       if (w.overwritten && w.backupPath != null) w.path: w.backupPath!,
   };
+}
+
+/// Where one scrape's NFO lands: [fileName] in [dir], with a [kind] root.
+class NfoTarget {
+  final String dir;
+  final String fileName;
+  final NfoKind kind;
+
+  const NfoTarget({
+    required this.dir,
+    required this.fileName,
+    required this.kind,
+  });
 }
 
 class MetadataWriter {
@@ -221,37 +237,108 @@ class MetadataWriter {
     }
   }
 
-  /// The NFO file name Jellyfin will read for the movie at [videoPath].
+  /// Where a scrape of the video at [videoPath] writes, and as what.
   ///
-  /// `movie.nfo` — the name Jellyfin documents and the one verified against a
-  /// live library — unless the video shares its folder with other videos. That
-  /// is a *mixed folder* to Jellyfin, where `movie.nfo` is not read at all and
-  /// only `<video base name>.nfo` (see [nfoNameForVideo]) can work. A folder
-  /// that cannot be listed counts as holding one video.
-  Future<String> nfoNameFor(String videoPath) async {
+  /// Jellyfin reads a movie from `movie.nfo` or `<video>.nfo` (`movie.nfo`
+  /// wins when both exist), but not `movie.nfo` in a *mixed folder*, and an
+  /// episode only from `<video>.nfo`. So:
+  ///
+  /// * an episode — `SxxEyy`, a `Season NN` folder, or a bare episode number
+  ///   on a name without a catalogue code (`SPSF-43` reads as "episode 43"
+  ///   otherwise) — gets `<video>.nfo` as `<episodedetails>`;
+  /// * a part (`-cd1`, `-part2`) or an extra (`-featurette`, a `trailers`
+  ///   folder) gets `<video>.nfo`: `movie.nfo` would speak for the whole
+  ///   folder, i.e. the feature;
+  /// * any other video gets `movie.nfo`, unless the folder holds another
+  ///   feature (extras do not count) or only a `<video>.nfo` exists already —
+  ///   then `<video>.nfo`.
+  ///
+  /// A folder that cannot be listed counts as holding one video.
+  Future<NfoTarget> nfoTargetFor(String videoPath) async {
     final path = fs.path;
+    final dir = path.dirname(videoPath);
     final name = path.basename(videoPath);
-    var others = 0;
+    final own = nfoNameForVideo(name);
+    final parsed = _parse(dir, name);
+
+    if (_isEpisode(parsed, name)) {
+      return NfoTarget(dir: dir, fileName: own, kind: NfoKind.episode);
+    }
+    if (parsed.part != null || parsed.extraType != null) {
+      return NfoTarget(dir: dir, fileName: own, kind: NfoKind.movie);
+    }
+
+    var mixed = false;
     try {
-      await for (final entity in fs.directory(path.dirname(videoPath)).list()) {
+      await for (final entity in fs.directory(dir).list()) {
         if (entity is! File) continue;
-        if (path.basename(entity.path) == name) continue;
-        if (FileLabelService.getLabel(path.extension(entity.path)) != 'Video') {
+        final other = path.basename(entity.path);
+        if (other == name) continue;
+        if (FileLabelService.getLabel(path.extension(other)) != 'Video') {
           continue;
         }
-        others++;
+        if (_parse(dir, other).extraType != null) continue;
+        mixed = true;
         break;
       }
     } catch (_) {
       // Unreadable folder: assume the common case rather than fail the scrape
       // before it starts.
     }
-    return others == 0 ? NfoKind.movie.fileName! : nfoNameForVideo(name);
+    if (mixed) return NfoTarget(dir: dir, fileName: own, kind: NfoKind.movie);
+
+    final movieNfo = NfoKind.movie.fileName!;
+    // An existing <video>.nfo is updated in place rather than shadowed by a
+    // new movie.nfo, which Jellyfin would read instead.
+    final useOwn =
+        !await _exists(path.join(dir, movieNfo)) &&
+        await _exists(path.join(dir, own));
+    return NfoTarget(
+      dir: dir,
+      fileName: useOwn ? own : movieNfo,
+      kind: NfoKind.movie,
+    );
+  }
+
+  /// The series folder above [dir]: [dir] itself, or the first folder up that
+  /// is not a `Season NN` / `Specials` container — where `tvshow.nfo` goes.
+  static String seriesDirFor(String dir, {p.Context? context}) {
+    final path = context ?? p.context;
+    var current = path.normalize(dir);
+    while (_seasonFolder.hasMatch(path.basename(current).trim())) {
+      final parent = path.dirname(current);
+      if (parent == current) break;
+      current = parent;
+    }
+    return current;
+  }
+
+  static final _seasonFolder = RegExp(
+    r'^(season\s*\d+|specials)$',
+    caseSensitive: false,
+  );
+
+  /// Parsed with its folder name, which is what marks `Season 01/01.mkv` as an
+  /// episode and `trailers/x.mkv` as an extra.
+  ParsedFile _parse(String dir, String name) =>
+      FilenameParser.parse(fs.path.join(fs.path.basename(dir), name));
+
+  static bool _isEpisode(ParsedFile f, String name) =>
+      f.season != null ||
+      f.specialLabel != null ||
+      (f.episode != null && detectMediaCode(name) == null);
+
+  Future<bool> _exists(String target) async {
+    try {
+      return await fs.file(target).exists();
+    } catch (_) {
+      return false;
+    }
   }
 
   /// `<video base name>.nfo` — the per-video form Jellyfin reads in a mixed
-  /// folder. Prefer [nfoNameFor], which knows when the plain `movie.nfo` is
-  /// the right answer.
+  /// folder, and the only one an episode can use. Prefer [nfoTargetFor], which
+  /// knows when the plain `movie.nfo` is the right answer.
   static String nfoNameForVideo(String videoFileName) {
     final dot = videoFileName.lastIndexOf('.');
     final base = dot <= 0 ? videoFileName : videoFileName.substring(0, dot);

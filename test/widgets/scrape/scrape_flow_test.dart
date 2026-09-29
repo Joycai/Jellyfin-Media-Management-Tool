@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
+import 'package:jellyfin_media_management_tool/models/file_entry.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
@@ -33,6 +34,7 @@ Future<void> _pumpApp(WidgetTester tester) async {
 
   final fs = MemoryFileSystem();
   await fs.directory('/work').create(recursive: true);
+  await fs.file('/tv/Show/Season 01/Show S01E01.mkv').create(recursive: true);
 
   await tester.pumpWidget(
     MultiProvider(
@@ -79,6 +81,19 @@ Future<void> _pumpApp(WidgetTester tester) async {
                       suggestedKeyword: 'SPSF-43',
                     ),
                     child: const Text('go with code'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => startScrapeFlow(
+                      context,
+                      target: FileEntry(
+                        path: '/tv/Show/Season 01/Show S01E01.mkv',
+                        isDirectory: false,
+                        size: 0,
+                        modified: DateTime(2026),
+                      ),
+                      baseDir: '/tv/Show/Season 01',
+                    ),
+                    child: const Text('go with episode'),
                   ),
                 ],
               ),
@@ -193,6 +208,35 @@ void main() {
     await tester.tap(find.text('Movie'));
     await tester.pumpAndSettle();
     expect(find.textContaining('movie.nfo'), findsWidgets);
+  });
+
+  testWidgets('an episode targets its own NFO, the series one folder up', (
+    tester,
+  ) async {
+    // Jellyfin reads an episode only from <video>.nfo; movie.nfo in a season
+    // folder is never read, and tvshow.nfo belongs to the series folder.
+    await _pumpApp(tester);
+    await tester.tap(find.text('go with episode'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Episode'), findsOneWidget);
+    expect(find.text('/tv/Show/Season 01/Show S01E01.nfo'), findsOneWidget);
+    expect(find.textContaining('movie.nfo'), findsNothing);
+
+    await tester.tap(find.text('TV show'));
+    await tester.pumpAndSettle();
+    expect(find.text('/tv/Show/tvshow.nfo'), findsOneWidget);
+
+    await tester.tap(find.text('Episode'));
+    await tester.pumpAndSettle();
+    expect(find.text('/tv/Show/Season 01/Show S01E01.nfo'), findsOneWidget);
+  });
+
+  testWidgets('a folder scrape offers no episode kind', (tester) async {
+    await _pumpApp(tester);
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    expect(find.text('Episode'), findsNothing);
   });
 
   testWidgets('no AI profile means no direct-LLM button', (tester) async {

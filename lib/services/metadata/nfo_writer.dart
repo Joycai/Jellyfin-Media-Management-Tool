@@ -46,8 +46,9 @@ enum NfoKind {
   }
 
   /// The kind implied by a file name: `tvshow.nfo` is a series, everything
-  /// else (`movie.nfo`, `<video>.nfo`) a movie — this app does not scrape
-  /// individual episodes.
+  /// else (`movie.nfo`, `<video>.nfo`) a movie. A name alone cannot say
+  /// `<video>.nfo` is an episode; `MetadataWriter.nfoTargetFor` reads that
+  /// off the video instead.
   static NfoKind forFileName(String nfoFileName) =>
       nfoFileName.toLowerCase() == 'tvshow.nfo' ? tvShow : movie;
 }

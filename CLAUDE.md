@@ -151,7 +151,7 @@ A second pipeline, parallel to organize and sharing only `AiProvider`: product-p
 - [page_fetcher.dart](lib/services/scrape/page_fetcher.dart) is the only code that talks to a scraped site. It follows redirects itself, owns encoding, cookies (recipe < own session < imported, all memory-only), `Referer` (site root by default) and a per-host request interval. A recipe's `sessionUrl` must be on the same host.
 - **Only the commit task writes.** `NfoWriter` replaces only `managedElements`; `NfoMerge` defaults to fill blanks, keep conflicts. The scrape `backup` checkbox gates both real copies and the manifest.
 - **Jellyfin identifies artwork by file name**: `ImageRole.stem` is the file name, one role per image type, single-slot roles are exclusive, unmarked images keep the server's name. `ImageNaming.plan` takes the extension from magic bytes and sanitizes the stem.
-- NFO names follow Jellyfin: `movie.nfo`, or `<video>.nfo` in a mixed folder (`MetadataWriter.nfoNameFor`); `tvshow.nfo` for series. A refresh keeps the existing root element.
+- NFO names follow Jellyfin (`MetadataWriter.nfoTargetFor`): `movie.nfo` for a lone feature; `<video>.nfo` for an episode (as `<episodedetails>`), a part (`-cd1`), an extra (`-featurette`), a mixed folder, or when only that file exists; `tvshow.nfo` in the series folder, above `Season NN`. A bare episode number counts only on a name with no catalogue code. A refresh keeps the existing root element.
 - Folder refresh re-fetches only pages recorded in the NFO's `<!-- scraped from … -->` comment, applies default merge plans, is serial, and writes one manifest.
 - `test/fixtures/giga_product_7743.html` is real markup pinning duplicated ids and folded/expanded synopsis copies.
 
