@@ -2834,6 +2834,12 @@ abstract class AppLocalizations {
   /// **'TV show'**
   String get scrapeKindTvShow;
 
+  /// No description provided for @scrapeKindEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode'**
+  String get scrapeKindEpisode;
+
   /// No description provided for @scrapePanelTitle.
   ///
   /// In en, this message translates to:
@@ -3005,7 +3011,7 @@ abstract class AppLocalizations {
   /// No description provided for @scrapeNfoAutoMatched.
   ///
   /// In en, this message translates to:
-  /// **'Auto-matched {name} in the same folder'**
+  /// **'Auto-matched {name}'**
   String scrapeNfoAutoMatched(Object name);
 
   /// No description provided for @scrapeStepFetch.

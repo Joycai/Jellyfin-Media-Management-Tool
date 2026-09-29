@@ -34,6 +34,7 @@ import '../../services/ai/ai_cancel_token.dart';
 import '../../services/ai/ai_profiles_service.dart';
 import '../../services/ai/ai_provider.dart';
 import '../../services/ai/ai_service.dart';
+import '../../services/metadata/metadata_writer.dart';
 import '../../services/metadata/nfo_writer.dart';
 import '../../services/scrape/cookie_store.dart';
 import '../../services/scrape/direct_extractor.dart';
@@ -70,6 +71,7 @@ Future<ScrapePanelResult?> showScrapePanel(
   BuildContext context, {
   required String targetDir,
   required String nfoFileName,
+  NfoKind? kind,
   required String label,
   String? suggestedKeyword,
 }) => showGlassDialog<ScrapePanelResult>(
@@ -78,6 +80,7 @@ Future<ScrapePanelResult?> showScrapePanel(
   builder: (_) => ScrapePanel(
     targetDir: targetDir,
     nfoFileName: nfoFileName,
+    kind: kind,
     label: label,
     suggestedKeyword: suggestedKeyword,
   ),
@@ -86,6 +89,9 @@ Future<ScrapePanelResult?> showScrapePanel(
 class ScrapePanel extends StatefulWidget {
   final String targetDir;
   final String nfoFileName;
+
+  /// What the target was detected as; null reads it off [nfoFileName].
+  final NfoKind? kind;
   final String label;
   final String? suggestedKeyword;
 
@@ -93,6 +99,7 @@ class ScrapePanel extends StatefulWidget {
     super.key,
     required this.targetDir,
     required this.nfoFileName,
+    this.kind,
     required this.label,
     this.suggestedKeyword,
   });
@@ -120,24 +127,31 @@ class _ScrapePanelState extends State<ScrapePanel> {
   late String _targetDir = widget.targetDir;
   late String _nfoFileName = widget.nfoFileName;
 
-  /// Movie or series. Decides both the file name (`movie.nfo` / `tvshow.nfo`)
-  /// and the root element the writer emits. Seeded from the suggested name so
-  /// a Browse to an existing `tvshow.nfo` reads as a series.
-  late NfoKind _kind = NfoKind.forFileName(widget.nfoFileName);
+  /// Movie, series or episode. Decides the file name (`movie.nfo` /
+  /// `tvshow.nfo` / `<video>.nfo`), where it goes, and the root element the
+  /// writer emits. Seeded from the detected kind, else from the suggested name
+  /// so a Browse to an existing `tvshow.nfo` reads as a series.
+  late final NfoKind _detectedKind =
+      widget.kind ?? NfoKind.forFileName(widget.nfoFileName);
+  late NfoKind _kind = _detectedKind;
 
   /// True once the user picked the NFO themselves, so the caption stops
   /// claiming it was auto-detected.
   bool _nfoChosen = false;
 
-  /// Switching kind renames the target unless the user chose a file by hand —
+  /// Switching kind retargets the NFO unless the user chose a file by hand —
   /// their pick outranks a default, but a default should follow the switch.
+  /// A series is described once, by `tvshow.nfo` in the series folder, so
+  /// from inside `Season 01` it goes up a level.
   void _setKind(NfoKind kind) {
     setState(() {
       _kind = kind;
       if (_nfoChosen) return;
-      _nfoFileName = kind == NfoKind.tvShow
-          ? NfoKind.tvShow.fileName!
-          : widget.nfoFileName;
+      final series = kind == NfoKind.tvShow;
+      _targetDir = series
+          ? MetadataWriter.seriesDirFor(widget.targetDir)
+          : widget.targetDir;
+      _nfoFileName = series ? NfoKind.tvShow.fileName! : widget.nfoFileName;
     });
   }
 
@@ -920,7 +934,7 @@ class _ScrapePanelState extends State<ScrapePanel> {
         ),
       );
 
-  /// Movie / TV show. A deliberate compact variant, sized like the search-site
+  /// Movie / TV show (/ episode). A deliberate compact variant, sized like the search-site
   /// chips so it sits on the section-label line; hence the explicit metrics.
   Widget _kindSwitch(AppLocalizations l10n) => SegmentedButton<NfoKind>(
     segments: [
@@ -934,6 +948,13 @@ class _ScrapePanelState extends State<ScrapePanel> {
         icon: const Icon(Icons.tv_outlined, size: 13),
         label: Text(l10n.scrapeKindTvShow),
       ),
+      // Only for a video detected as one: a folder is never an episode.
+      if (_detectedKind == NfoKind.episode)
+        ButtonSegment(
+          value: NfoKind.episode,
+          icon: const Icon(Icons.video_file_outlined, size: 13),
+          label: Text(l10n.scrapeKindEpisode),
+        ),
     ],
     selected: {_kind},
     showSelectedIcon: false,

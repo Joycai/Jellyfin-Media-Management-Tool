@@ -1590,6 +1590,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scrapeKindTvShow => 'TV show';
 
   @override
+  String get scrapeKindEpisode => 'Episode';
+
+  @override
   String get scrapePanelTitle => 'Scrape metadata';
 
   @override
@@ -1685,7 +1688,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String scrapeNfoAutoMatched(Object name) {
-    return 'Auto-matched $name in the same folder';
+    return 'Auto-matched $name';
   }
 
   @override

@@ -11,6 +11,17 @@ reconstructed at release time.
 
 ## [Unreleased]
 
+### Fixed
+
+- Scraping a single video now picks the NFO Jellyfin will actually read for
+  it. An episode gets `<video>.nfo` written as `<episodedetails>`, even alone
+  in its season folder (it used to get a `movie.nfo` there that nothing
+  read). A part (`-cd1`, `-part2`) or an extra (`-featurette`, a `trailers`
+  folder) gets its own `<video>.nfo`. A feature keeps `movie.nfo` when its
+  only neighbours are its own extras. An existing `<video>.nfo` is updated
+  instead of being hidden behind a new `movie.nfo`. Switching the panel to
+  TV show puts `tvshow.nfo` in the series folder, not the season folder.
+
 ## [1.3.3] - 2026-09-28
 
 ### Changed

@@ -1552,6 +1552,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrapeKindTvShow => '剧集';
 
   @override
+  String get scrapeKindEpisode => '单集';
+
+  @override
   String get scrapePanelTitle => '刮削元数据';
 
   @override
@@ -1645,7 +1648,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String scrapeNfoAutoMatched(Object name) {
-    return '已自动匹配同目录的 $name';
+    return '已自动匹配 $name';
   }
 
   @override

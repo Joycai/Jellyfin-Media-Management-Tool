@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file/file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/metadata/metadata_writer.dart';
+import 'package:jellyfin_media_management_tool/services/metadata/nfo_writer.dart';
 
 import '../../helpers/fs.dart';
 
@@ -187,27 +188,110 @@ void main() {
     });
   });
 
-  group('nfoNameFor', () {
+  group('nfoTargetFor', () {
+    Future<(String, NfoKind)> target(String videoPath) async {
+      final t = await writer.nfoTargetFor(videoPath);
+      expect(t.dir, fs.path.dirname(videoPath));
+      return (t.fileName, t.kind);
+    }
+
     test('a video alone in its folder gets movie.nfo', () async {
       // The name Jellyfin documents for movies, and the one verified against
-      // a live library; <video>.nfo also works there but this is the default.
+      // a live library; no NFO has to exist yet.
       seedFile(fs, '/work/Title (2026)/Title.mkv', contents: 'v');
       seedFile(fs, '/work/Title (2026)/Title.srt', contents: 's');
-      expect(
-        await writer.nfoNameFor('/work/Title (2026)/Title.mkv'),
+      expect(await target('/work/Title (2026)/Title.mkv'), (
         'movie.nfo',
-      );
+        NfoKind.movie,
+      ));
+    });
+
+    test('a catalogue code is not read as an episode number', () async {
+      seedFile(fs, '/work/SPSF-43/SPSF-43.mp4', contents: 'v');
+      expect(await target('/work/SPSF-43/SPSF-43.mp4'), (
+        'movie.nfo',
+        NfoKind.movie,
+      ));
     });
 
     test('a video sharing its folder with another gets its own name', () async {
       // A mixed folder to Jellyfin, where movie.nfo is not read at all.
       seedFile(fs, '/work/mixed/A.mkv', contents: 'a');
       seedFile(fs, '/work/mixed/B.mp4', contents: 'b');
-      expect(await writer.nfoNameFor('/work/mixed/A.mkv'), 'A.nfo');
+      expect(await target('/work/mixed/A.mkv'), ('A.nfo', NfoKind.movie));
+    });
+
+    test('extras beside the feature do not make the folder mixed', () async {
+      seedFile(fs, '/work/T/T.mkv', contents: 'v');
+      seedFile(fs, '/work/T/T-trailer.mkv', contents: 't');
+      seedFile(fs, '/work/T/T-featurette.mkv', contents: 'f');
+      expect(await target('/work/T/T.mkv'), ('movie.nfo', NfoKind.movie));
+    });
+
+    test('a part or an extra gets its own name, even alone', () async {
+      for (final video in [
+        '/work/P/P-cd1.mkv',
+        '/work/Q/Q-part1.mkv',
+        '/work/R/R-featurette.mkv',
+        '/work/S/featurettes/Making of.mkv',
+      ]) {
+        seedFile(fs, video, contents: 'v');
+        final name = fs.path.basenameWithoutExtension(video);
+        expect(await target(video), ('$name.nfo', NfoKind.movie));
+      }
+    });
+
+    test('an episode gets its own name and <episodedetails>', () async {
+      // Even alone: movie.nfo in a season folder is never read.
+      seedFile(fs, '/tv/Show/Season 01/Show S01E01.mkv', contents: 'v');
+      seedFile(fs, '/tv/Show/Season 02/01.mkv', contents: 'v');
+      seedFile(fs, '/tv/Anime/Anime - 03.mkv', contents: 'v');
+      seedFile(fs, '/tv/Anime/Anime - 04.mkv', contents: 'v');
+      expect(await target('/tv/Show/Season 01/Show S01E01.mkv'), (
+        'Show S01E01.nfo',
+        NfoKind.episode,
+      ));
+      expect(await target('/tv/Show/Season 02/01.mkv'), (
+        '01.nfo',
+        NfoKind.episode,
+      ));
+      expect(await target('/tv/Anime/Anime - 03.mkv'), (
+        'Anime - 03.nfo',
+        NfoKind.episode,
+      ));
+    });
+
+    test('an existing <video>.nfo is updated, not shadowed', () async {
+      seedFile(fs, '/work/T/T.mkv', contents: 'v');
+      seedFile(fs, '/work/T/T.nfo', contents: _nfo);
+      expect(await target('/work/T/T.mkv'), ('T.nfo', NfoKind.movie));
+    });
+
+    test('movie.nfo wins when both exist, as it does in Jellyfin', () async {
+      seedFile(fs, '/work/T/T.mkv', contents: 'v');
+      seedFile(fs, '/work/T/T.nfo', contents: _nfo);
+      seedFile(fs, '/work/T/movie.nfo', contents: _nfo);
+      expect(await target('/work/T/T.mkv'), ('movie.nfo', NfoKind.movie));
     });
 
     test('a folder that cannot be listed counts as one video', () async {
-      expect(await writer.nfoNameFor('/missing/A.mkv'), 'movie.nfo');
+      expect(await target('/missing/A.mkv'), ('movie.nfo', NfoKind.movie));
+    });
+  });
+
+  group('seriesDirFor', () {
+    test('walks past season and specials folders', () {
+      final ctx = fs.path;
+      expect(
+        MetadataWriter.seriesDirFor('/tv/Show/Season 01', context: ctx),
+        '/tv/Show',
+      );
+      expect(
+        MetadataWriter.seriesDirFor('/tv/Show/Specials', context: ctx),
+        '/tv/Show',
+      );
+      expect(MetadataWriter.seriesDirFor('/tv/Show', context: ctx), '/tv/Show');
+      expect(MetadataWriter.seriesDirFor('/Season 1', context: ctx), '/');
     });
   });
 
