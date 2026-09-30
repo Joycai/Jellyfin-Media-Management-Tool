@@ -56,6 +56,8 @@ provider 层刻意不含任何领域知识，刮削直接拿来用即可，无�
 
 ## 2. 分层与文件清单
 
+> **现状**：下列文件清单是立项时的设想，已与代码不符（如 `nfo_merge_plan.dart`、`scrape_url_dialog.dart`、`scrape_preview_dialog.dart` 不存在；实际是 `services/metadata/nfo_merge.dart`、`widgets/scrape/scrape_panel.dart`、`scrape_review_pane.dart`、`scrape_flow.dart`）。实际落点见 [architecture/metadata-scraping.md](../architecture/metadata-scraping.md)。
+
 ```
 lib/models/
   media_metadata.dart        // 抓取结果 + 每字段来源标记（jsonld/selector/llm/manual）
@@ -332,6 +334,8 @@ CLAUDE.md 明确要求："任何写盘代码必须走 `applyOrganizeAction`，�
 ---
 
 ## 11. 分阶段落地计划
+
+> **现状**：P2 中批量刮削已完成（`batch_scrape_dialog.dart` 与文件夹刷新）；媒体库、配方导入导出、刮削结果注入整理尚未做，见 CLAUDE.md 与 backlog。
 
 **P0 — 最小可用闭环（约 3–4 人天）**
 

@@ -76,7 +76,7 @@ PR 划分：
    - 模拟 429 / 5xx 时，在响应头带上 `retry-after: 0`，`_retryAfter` 就会给 0 秒，测试不会多等 1.5 秒。
 3. **先让测试失败。**
    - 每条新测试先在未修改的代码上跑一次，确认它失败，并且失败的原因正是审查描述的现象，然后再改代码。
-   - 这一步的目的是验证测试确实钉住了问题（见记忆 subagent-review-loops：要对测试做变异检验）。
+   - 这一步的目的是验证测试确实钉住了问题（对测试做变异检验）。
 4. **规则变了，同提交改文档。** CLAUDE.md 的一句话规则与 `docs/architecture/organize-pipeline.md` 的长文一起改（CLAUDE.md 开头的约定）。上表「同提交要改的规则文档」列出了每步涉及的地方。
 5. **`ai_learned.json` 不升版本。**
    - 新学到的东西只往现有的两个集合里加新名字：`thinkingOffTried` 和 `rejectedFields`。
@@ -634,7 +634,7 @@ PR 划分：
 
 全部完成时，下面每一项都应成立：
 
-- [x] 审查问题清单里 A1–A12 的状态都是提交号，A11 是「乙 + 提交号」。
+- [x] 审查问题清单里 A1–A13 的状态都是提交号，A11 是「乙 + 提交号」。
 - [x] 真实适配器 + `MockClient` 回 429、503、401、402 时，`probeTools` 的结果是 `inconclusive`，`onToolSupport` 没被调用。
 - [x] 智谱 glm-5.3 在默认设置（思考关）下，第二个请求起可以正常使用。
 - [x] ② 的每个请求都有 `instructions`；思考关时有 `reasoning:{effort:"none"}`，除非该路线学到了被拒。
@@ -668,3 +668,4 @@ PR 划分：
 | 2026-09-25 | A10：Messages 与 Gemini 的端点先去掉查询串和片段（`AiHttp.endpointBase`），剥路径段有前置非 `/` 的约束；错误里的 URL 用适配器自己算出的地址，不用 `res.request?.url` | 查询串在这两个适配器上本来就拼不出能用的地址；主机名恰好叫 `messages` / `models` 时不能剥；两种取法是同一个值 |
 | 2026-09-25 | 整体审查后的修正：④ 只在文案点名形态（`adaptive` / `enabled` / `thinking.type`）时换形态，拒的是思考本身就一次记下全部形态和 `thinking`；旧版本留下的单独 `thinking` 按「`enabled` 被拒」读；声明为开关的 ④ 路线被拒 `disabled` 时记 `dialect`、之后关思考不再发；④ 拼接的工具参数也合并；① 非流式也规整参数；② 的 `param` 为 `reasoning.encrypted_content` 时按 `include` 算；诊断页「请求了但被拒」单列一步；能力矩阵读 `rejectedFields` | 逐个提交读不出来、合起来才显出的问题：旧记录会让 Claude 4.6+ 的思考继续被关 30 天；V4 一旦把开关挂到智谱 ④，glm-5.3 关思考的每个请求都会失败；任何提到 thinking 的 400 都会换形态 |
 | 2026-09-25 | 上一行的复审：旧版本的单独 `thinking` 只在首选形态是 `adaptive`（Claude 4.6+、开关路线）时按「`enabled` 被拒」读，首选是 `enabled` 时仍按思考已放弃读；开关路线发 `disabled` 与否只看 `thinkingOffTried` 的 `dialect`，不再看 `rejectedFields` 里的 `thinking`（开思考时被拒不等于 `disabled` 被拒）；发 `disabled` 时，文案拒收 `thinking` 字段本身也记 `dialect`，关于历史里思考块的错误不学 | 首选 `enabled` 的模型（如 claude-3-5-haiku）带着旧记录会改发 `adaptive`，老模型点名形态却不拒思考本身的回复按第 3 条照原样抛错，原本能用的路线每个请求都失败；`removeWhere` 不再删 `thinking` 后，拒收整个字段的开关路线关思考时每个请求也会失败 |
+| 2026-09-30 | 补记落地之后的变化：V4 已由 5a8ad6e 落地；A3 / A6 / A8 修复后的推理请求语义又被 c9d8970、7e013a3、1cb546c 改写（关思考时要求最低档）。V1（`thinkingLevel: 'low'` 小写）、V2（`repetition_penalty`）仍未测。PR-1…PR-5 的表只是评审顺序，实际是一个 PR（#111） | 现行行为以 CLAUDE.md 与 architecture/organize-pipeline.md 为准，本计划只记当时的方案 |

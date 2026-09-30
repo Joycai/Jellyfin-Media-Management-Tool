@@ -67,7 +67,7 @@
 
 ## 3.2 媒体库网格 / 详情（Library 分区 · 占位）
 
-> 现有应用没有 Library 能力（`_ComingSoon` 占位）。按设计稿实现**视觉骨架 + 占位数据说明**，
+> 现有应用没有 Library 能力（`HomeScreen` 的 `_LibraryPlaceholder` 占位，见 backlog B1）。按设计稿实现**视觉骨架 + 占位数据说明**，
 > 真实数据接入计入 backlog。
 
 ### 网格页

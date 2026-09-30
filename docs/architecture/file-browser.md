@@ -1,7 +1,7 @@
 # File browser: copy, cut, paste, move
 
-The rules are in `CLAUDE.md` → *File browser transfers*. This file holds the
-reasons.
+> The long form behind the rules in [CLAUDE.md](../../CLAUDE.md) → *File browser
+> transfers*: the reasons, the measurements and the history. Keep the two in step.
 
 ## Why an app-internal clipboard
 
@@ -59,7 +59,7 @@ user. It also refuses before running what would go wrong later:
 Refusals are reported even when the rest of the batch goes ahead. A paste
 that silently drops one of five items is how libraries lose files.
 
-Sizing walks directory trees up front (`_treeBytes`). That is one stat per
+Sizing walks directory trees up front (`_listTree`). That is one stat per
 file before anything moves, but it is what makes the progress bar mean
 something: a single item can be a 40 GB season, and an item count would sit
 at 0/1 for an hour.
