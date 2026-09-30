@@ -13,6 +13,11 @@
 
 ## 6.1 AI 服务
 
+> **现状差异**：本节描述 AI 接入重设计之前的「服务列表 + 详情」页。现行设置页是
+> 渠道 → 线路 → 模型三层（`lib/widgets/settings/ai_services_screen.dart`；模型见
+> [architecture/organize-pipeline.md](../../architecture/organize-pipeline.md#channels-routes-and-models)），
+> 布局与取值以代码和 backlog B28–B34 为准。
+
 ### 服务管理页（左列表 360 + 右详情）
 
 顶条 h54：返回按钮 + 分隔线 + 标题 15/600 + 副标题 12px +
@@ -44,9 +49,8 @@
   标签 10.5px + 值 mono 18/600，1×36 分隔线；右侧 48 高柱状图，柱宽 6 · r2 ·
   gap 3，普通 `accent 50%`，峰值 `linear-gradient(180deg,#5b8dff,#9d7bff)`。
 
-> **现状差异**：用量条的「$ 金额 / 平均延迟 / 柱状图」应用未统计。
-> 按设计稿保留版式，用现有 `AiService` 的 usage 统计填能填的，其余显示 `—`；
-> 完整计量计入 backlog。
+> **现状差异**：用量条已按「本次启动以来」填入请求数、tokens 与平均延迟（`AiService.avgLatencyMs`）；
+> 「$ 金额 / 柱状图」仍未统计，计入 backlog B6 / B30。
 
 ### 模型参数（展开页）
 

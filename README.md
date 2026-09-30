@@ -55,17 +55,23 @@ that folder.
 
 ## AI backends
 
-Two wire protocols, which between them cover nearly everything:
+Four wire protocols, which between them cover nearly everything:
 
-- **OpenAI-compatible** `/chat/completions` — OpenAI, Azure, OpenRouter and
-  other relays, and local servers: **LM Studio, Ollama, llama.cpp, vLLM**. A
-  local server usually needs no API key at all, and pasting the URL it prints at
-  startup is enough.
-- **Google Generative Language API** `:generateContent`.
+- **OpenAI-compatible Chat Completions** (`/chat/completions`) — OpenAI, Azure,
+  OpenRouter and other relays, and local servers: **LM Studio, Ollama,
+  llama.cpp, vLLM**. A local server usually needs no API key at all, and
+  pasting the URL it prints at startup is enough.
+- **OpenAI Responses** (`/responses`).
+- **Anthropic Messages** (`/messages`), including the Anthropic-compatible
+  routes several vendors publish.
+- **Google Generative Language API** (`:generateContent`).
 
-Several named profiles can coexist; the connection test is a real completion
-rather than a model listing, because a server can list models happily while
-rejecting every generation.
+A **channel** is one key on one platform; it offers one or more **routes** (a
+protocol family at an address), and each model keeps its own parameters per
+route. Several channels can coexist, and each task — organize, scrape, vision —
+names the model it runs on. The connection test is a real completion rather
+than a model listing, because a server can list models happily while rejecting
+every generation.
 
 **Local models are a first-class target, not an afterthought.** The app ships
 the sampling parameters model authors publish for their own families (Qwen,
@@ -99,6 +105,8 @@ scraped from.
 ## Browsing and previewing
 
 - Multi-select, sorting, resizable columns, live directory watching.
+- Copy, cut and paste between folders. A paste never overwrites — a taken name
+  is skipped or numbered — and it runs as a task with its own undo record.
 - Video thumbnails rendered per platform (AVFoundation / Media Foundation /
   FFmpeg), cached on disk and keyed so a re-encode never shows a stale frame.
 - Inline preview: video playback, zoomable images, monospaced text for subtitles
@@ -132,7 +140,7 @@ placeholders rather than hidden or faked; each one is listed in
 
 ## Build from source
 
-Requires the Flutter SDK (Dart `^3.10.4`; CI builds on Flutter 3.44.2).
+Requires the Flutter SDK (Dart `^3.10.4`). CI builds on the Flutter version pinned in [`.fvmrc`](.fvmrc); `fvm use` picks up the same file.
 
 ```bash
 git clone https://github.com/Joycai/Jellyfin-Media-Management-Tool.git

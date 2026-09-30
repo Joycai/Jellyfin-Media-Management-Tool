@@ -77,6 +77,8 @@
 - 英文按钮文案按 1.35 倍宽度预留；德/法按 1.6 倍校验不换行。
 - 中英混排不手动加空格。
 
+> **现状**：字阶里的「15–16」一行在代码里是 `sizeTitle=15` 与 `sizeSubheading=16` 两个常量；文中的 10.5px 落地时吸附到 `sizeLabel`(10) 或 `sizeMono`(11)。JetBrains Mono 未打包，回落链见 `AppTypeScale.monoFallback`（backlog B22）。
+
 ## 1.3 间距 · 圆角 · 尺寸 · 层级
 
 基准步进 2px，常用 4 / 6 / 8 / 10 / 12 / 16 / 22 / 24。

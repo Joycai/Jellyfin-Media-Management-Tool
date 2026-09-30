@@ -7,8 +7,9 @@ something — is [CLAUDE.md](CLAUDE.md), and it is kept current.
 
 ## Getting set up
 
-You need the Flutter SDK (Dart `^3.10.4`). CI builds on **Flutter 3.44.2**, so
-that is the version to match if something only breaks for you.
+You need the Flutter SDK (Dart `^3.10.4`). CI builds on the Flutter version pinned in
+[`.fvmrc`](.fvmrc) (`fvm use` reads it), so that is the version to match if
+something only breaks for you.
 
 ```bash
 git clone https://github.com/Joycai/Jellyfin-Media-Management-Tool.git
@@ -59,11 +60,12 @@ for path. The rule and its edges are written out in
 | Path | Holds |
 |---|---|
 | `lib/models/` | Plain data types, hand-rolled JSON |
-| `lib/services/<pipeline>/` | Services belonging to one pipeline — `ai/`, `organize/`, `scrape/`, `metadata/`, `agent/`, `thumbnails/` |
+| `lib/services/<pipeline>/` | Services belonging to one pipeline — `ai/`, `organize/`, `scrape/`, `metadata/`, `agent/`, `thumbnails/`, `transfer/` |
 | `lib/services/*.dart` | Only app-wide services and the pure helpers `path_safety` / `gpu_info` |
 | `lib/widgets/<area>/` | One folder per UI area, including the screen that owns it |
 | `lib/widgets/ui/`, `lib/widgets/glass/` | The design-system primitives everything else is built from |
 | `lib/theme/` | `design_tokens.dart` — the only place a colour, radius, size, duration or type step is written down |
+| `lib/shortcuts/`, `lib/utils/` | The shortcut list, and small pure helpers |
 | `lib/l10n/` | ARB files; the generated `app_localizations*.dart` are **not** hand-edited |
 | `docs/spec/` | The design and module specs the code is written against |
 
@@ -74,7 +76,8 @@ path in the same commit. A new top-level directory under `lib/` needs a reason.
 
 These each exist because the alternative broke something. CLAUDE.md says which.
 
-- **Every disk write** goes through `applyOrganizeAction` or `MetadataWriter`,
+- **Every disk write** goes through `applyOrganizeAction`, `MetadataWriter` (scrape
+  output) or `executeTransfer` (copy/cut/paste),
   and validates with `PathSafety.isWithin` — passing `context:` so an injected
   in-memory POSIX filesystem isn't parsed with Windows rules.
 - **All path manipulation** goes through the `path` package. Never string
@@ -154,6 +157,9 @@ Release. User-facing changes get a line in [CHANGELOG.md](CHANGELOG.md) under
 | [CLAUDE.md](CLAUDE.md) | Someone about to change the code — the invariants, one line each |
 | [docs/architecture/](docs/architecture/) | The reasons and measurements behind those invariants, per subsystem |
 | [docs/spec/](docs/spec/) | The design and module specs the code is written against |
+| [docs/audits/](docs/audits/) | Dated reviews against an outside reference, and their fix plans |
+
+The [docs/README.md](docs/README.md) index says which to open first.
 
 ## License
 

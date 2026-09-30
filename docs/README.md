@@ -34,6 +34,7 @@ and change both together.
 | [organize-pipeline.md](architecture/organize-pipeline.md) | The AI organize flow, providers, timeouts, reasoning and sampling, tool probing, the agent runtime |
 | [metadata-scraping.md](architecture/metadata-scraping.md) | The extraction ladder, page fetching, cookies and age gates, the scrape panel, artwork roles, NFO naming, folder refresh |
 | [rendering-and-theming.md](architecture/rendering-and-theming.md) | Design tokens, fonts, `GlassSurface`, the baked backdrop and blur with their measurements, the settings screen grid |
+| [file-browser.md](architecture/file-browser.md) | Copy, cut, paste and move: the app-internal clipboard, why a paste never overwrites, the plan step, per-file move records, symlink refusal, cross-volume moves |
 | [window-and-native.md](architecture/window-and-native.md) | The custom title bar, Snap Layouts (B15), macOS traffic lights, the GPU adapter, the Windows thumbnail worker |
 
 ## Audits
@@ -49,7 +50,7 @@ audit's status column.
 | | |
 |---|---|
 | [`audits/2026-09-ai-protocol.md`](audits/2026-09-ai-protocol.md) | The four AI protocol adapters (text and image input) checked against the ai-agent-architecture knowledge base: 13 findings, 7 of them silent, with reproductions and a fix order. |
-| [`audits/2026-09-ai-protocol-plan.md`](audits/2026-09-ai-protocol-plan.md) | Its fix plan: 13 commits in 5 PRs, each with the code change, the tests through a real adapter, and the rule documents to update in the same commit; what to do once each unverified item is measured. |
+| [`audits/2026-09-ai-protocol-plan.md`](audits/2026-09-ai-protocol-plan.md) | Its fix plan: 13 fix commits, landed as one PR (#111), each with the code change, the tests through a real adapter, and the rule documents to update in the same commit; what to do once each unverified item is measured. |
 
 ## UI redesign spec
 

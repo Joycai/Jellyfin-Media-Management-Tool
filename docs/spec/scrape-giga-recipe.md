@@ -102,7 +102,7 @@ curl -s -H 'Cookie: old_check=yes; layout=jpn' \
 |---|---|---|---|
 | `old_check` | `yes` | **年龄门通过标记** | ✅ 关键 |
 | `layout` | `jpn` | 界面语言（日文） | ✅ 建议带，保证标签是日文，配方才对得上 |
-| `PHPSESSID` | `rscija2o…` | PHP 会话 | ⚠️ 可能不需要，见下 |
+| `PHPSESSID` | `<已省略>` | PHP 会话 | ⚠️ 可能不需要，见下 |
 | `WSLB` | `www2` | 负载均衡粘性 | ❌ 不需要 |
 | `giga_footstamp` | `7743` | "最近浏览"记录 | ❌ 不需要 |
 | `_ga` / `_ga_*` | … | Google Analytics | ❌ 不需要 |

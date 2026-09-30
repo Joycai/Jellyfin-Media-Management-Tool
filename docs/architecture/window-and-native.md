@@ -6,7 +6,7 @@
 
 ## App shell
 
-`lib/main.dart` initializes services then runs `MyApp` → `HomeScreen` (or `OnboardingScreen` until `settings.onboardingSeen`). There is **no router** (no `go_router`); full-page surfaces (Settings, History, task detail) are plain `Navigator.push`, and everything else is a dialog.
+`lib/main.dart` initializes services then runs `MyApp` → `HomeScreen` (or `OnboardingScreen` until `settings.onboardingSeen`). There is **no router** (no `go_router`); full-page surfaces (Settings, History, apply progress) are plain `Navigator.push`, and everything else is a dialog.
 
 **The OS title bar is gone.** `main()` calls `windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: <macOS only>)`, and one 48px bar carries the brand, the section tabs, the search field, the actions and — on Windows and Linux — our own 46x48 caption buttons ([caption_buttons.dart](../../lib/widgets/shell/caption_buttons.dart)). macOS keeps the system traffic lights and the bar reserves 84px for them. The window *frame* survives, so resize edges, the system shadow and the OS's own rounded corners still work: `AppShell` deliberately does not clip, because both OSes round a frameless window themselves and a `ClipRRect` on top would only expose Flutter's opaque backdrop in the corners.
 
