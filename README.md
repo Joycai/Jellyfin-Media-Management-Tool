@@ -162,8 +162,8 @@ Platform notes:
 ## Contributing
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the build gates and the
-conventions. [CLAUDE.md](CLAUDE.md) is the architecture document — the
-invariants worth knowing before changing anything are in there, and it is kept
+conventions. [AGENTS.md](AGENTS.md) defines the coding-agent workflow and links
+the subsystem invariants worth knowing before changing anything. Both are kept
 current. The design and module specs the code is written against are indexed in
 [`docs/`](docs/), and [CHANGELOG.md](CHANGELOG.md) says what changed between
 versions.

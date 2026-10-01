@@ -1,7 +1,7 @@
 # Metadata scraping
 
-> The long form behind the rules in [CLAUDE.md](../../CLAUDE.md): the reasons, the
-> measurements and the history. CLAUDE.md states each rule in a line; this is where
+> The long form behind the rules in [AGENTS.md](../../AGENTS.md): the reasons, the
+> measurements and the history. [agent-invariants.md](agent-invariants.md) holds the detailed rules; this is where
 > to look before arguing with one. Keep the two in step.
 
 A second pipeline, parallel to organize and sharing only `AiProvider`. Point it at a product-page URL; it extracts title / code / synopsis / cast / artwork, shows a reviewable diff against any NFO already on disk, and only then writes. Design notes and the verified GIGA analysis are in [docs/spec/scrape-module-spec.md](../spec/scrape-module-spec.md) and [docs/spec/scrape-giga-recipe.md](../spec/scrape-giga-recipe.md).

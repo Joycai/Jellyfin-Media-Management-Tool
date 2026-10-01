@@ -25,6 +25,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Verify agent tooling
+        run: python3 -m unittest discover -s scripts/tests
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:

@@ -53,9 +53,9 @@ TARGETS = [
         re.compile(r'(#define MyAppVersion\s*")([^"]*)(")'),
         "name",
     ),
-    # Documentation line in CLAUDE.md. Full string inside backticks.
+    # Documentation line in AGENTS.md. Full string inside backticks.
     (
-        "CLAUDE.md",
+        "AGENTS.md",
         re.compile(r"(Current app version:\s*`)([^`]*)(`)"),
         "full",
     ),

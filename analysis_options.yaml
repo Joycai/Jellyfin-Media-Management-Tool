@@ -30,11 +30,11 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   # Every rule below was already the house style before it was switched on, so
-  # none of them is a new opinion — they are the ones CLAUDE.md and
+  # none of them is a new opinion — they are the ones AGENTS.md and
   # CONTRIBUTING.md state in prose, made enforceable. CI runs
   # `flutter analyze --fatal-infos`, so a violation fails the build.
   rules:
-    # lib/ reaches its own libraries relatively (CLAUDE.md, Source layout).
+    # lib/ reaches its own libraries relatively (AGENTS.md, Source layout).
     - prefer_relative_imports
     # dart: / package: / relative, alphabetical within each group.
     - directives_ordering

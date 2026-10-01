@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/organize/rename_service.dart';
 
-/// rename_service.dart had no test at all, and CLAUDE.md singles out one of
+/// rename_service.dart had no test at all, and AGENTS.md singles out one of
 /// its rules as worth preserving: baseNameForTarget has to walk *past* the
 /// Season NN / Specials container folders up to the series folder, or a TV
 /// rename produces `Season 01.S01E01.mkv`. That rule is asserted here so it

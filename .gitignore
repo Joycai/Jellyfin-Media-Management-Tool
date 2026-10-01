@@ -47,6 +47,9 @@ app.*.map.json
 
 # dev-workflow task notes (local only)
 .claude/tasks/
+.claude/worktrees/
+.codex/tasks/
+.codex/worktrees/
 
 # fvm (the pinned version is .fvmrc; the SDK symlink is local)
 .fvm/

@@ -2,8 +2,8 @@
 
 Thanks for looking. This file is the short version: what to install, what the
 build gates are, and the handful of conventions that are load-bearing rather
-than taste. The long version — every invariant worth knowing before you change
-something — is [CLAUDE.md](CLAUDE.md), and it is kept current.
+than taste. [AGENTS.md](AGENTS.md) defines the shared workflow and links the
+detailed subsystem invariants, which are kept current.
 
 ## Getting set up
 
@@ -55,7 +55,7 @@ deliberately drops. `dart fix --apply` resolves most of what they flag.
 
 `lib/` is organized by **feature, not by layer**, and `test/` mirrors it path
 for path. The rule and its edges are written out in
-[CLAUDE.md § Source layout](CLAUDE.md#source-layout); the summary is:
+[AGENTS.md § Source layout](AGENTS.md#source-layout); the summary is:
 
 | Path | Holds |
 |---|---|
@@ -74,7 +74,7 @@ path in the same commit. A new top-level directory under `lib/` needs a reason.
 
 ## Conventions that are not negotiable
 
-These each exist because the alternative broke something. CLAUDE.md says which.
+These each exist because the alternative broke something. AGENTS.md says which.
 
 - **Every disk write** goes through `applyOrganizeAction`, `MetadataWriter` (scrape
   output) or `executeTransfer` (copy/cut/paste),
@@ -132,21 +132,41 @@ docs: record that Snap Layouts is verified broken, not merely unverified
 
 Branch off `main`, keep a pull request to one subject, and say in the
 description what you verified — "838 tests pass" and "measured at 4K maximized"
-are the useful kind. If your change invalidates something CLAUDE.md or
+are the useful kind. If your change invalidates something AGENTS.md or
 `docs/architecture/` asserts, **update both in the same pull request**; a stale architecture note is
 worse than no note.
 
 ## Versioning and releases
 
 The version is hardcoded in four places that drift if edited by hand, so bump it
-with the `sync-version` skill (`.claude/skills/sync-version/`), which keeps
+with the `sync-version` skill (`.agents/skills/sync-version/`), which keeps
 `pubspec.yaml` (`version:` **and** `msix_version:`), the About screen, the Inno
-Setup installer default and CLAUDE.md in lockstep.
+Setup installer default and AGENTS.md in lockstep.
 
 Releases are cut by dispatching `.github/workflows/release.yml`, which builds
 the macOS DMG, the Windows installer and the portable ZIP, and drafts the GitHub
 Release. User-facing changes get a line in [CHANGELOG.md](CHANGELOG.md) under
 `Unreleased` as they land, not reconstructed at release time.
+
+## Coding agents
+
+Codex reads the repository workflow from [AGENTS.md](AGENTS.md) and discovers
+skills under `.agents/skills/`. Detailed subsystem rules live in
+[agent-invariants.md](docs/architecture/agent-invariants.md); read the matching
+architecture note before changing a subsystem. Repository rules take precedence
+over generic Flutter skill examples.
+
+The optional branch-version reminder is configured in `.codex/hooks.json`.
+It requires Python 3 (`python` on Windows, `python3` on macOS/Linux) and Git on
+PATH. Review and trust the exact hook with `/hooks` in Codex CLI before relying
+on it; a changed definition needs review again. It emits a reminder and never
+bumps automatically. Version synchronization remains checked by CI even when
+hooks are disabled. The checked-in `.codex/config.toml` enables hooks without
+selecting a model or changing user permissions.
+
+Run the agent-tooling regressions with `python -m unittest discover -s
+scripts/tests` (`python3` on macOS/Linux). Existing local `.claude/worktrees/`
+checkouts are preserved; only the tracked Claude configuration was migrated.
 
 ## Where documentation lives
 
@@ -154,7 +174,7 @@ Release. User-facing changes get a line in [CHANGELOG.md](CHANGELOG.md) under
 |---|---|
 | [README.md](README.md) | Someone deciding whether to use the app |
 | [CHANGELOG.md](CHANGELOG.md) | Someone asking what changed between two versions |
-| [CLAUDE.md](CLAUDE.md) | Someone about to change the code — the invariants, one line each |
+| [AGENTS.md](AGENTS.md) | Someone about to change the code — shared conventions and links to subsystem rules |
 | [docs/architecture/](docs/architecture/) | The reasons and measurements behind those invariants, per subsystem |
 | [docs/spec/](docs/spec/) | The design and module specs the code is written against |
 | [docs/audits/](docs/audits/) | Dated reviews against an outside reference, and their fix plans |
