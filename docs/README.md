@@ -8,7 +8,7 @@ that matches yours:
 | [`../README.md`](../README.md) | What does this app do, and how do I install it? |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | What changed between two versions? |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | How do I set up, build, test and submit a change? |
-| [`../CLAUDE.md`](../CLAUDE.md) | What will break if I change this? — the rules, one line each |
+| [`../AGENTS.md`](../AGENTS.md) | How should an agent work here? — conventions and subsystem guidance |
 | [`architecture/`](architecture/) | Why is the code shaped like this? — the reasons and measurements behind those rules |
 | [`spec/`](spec/) | What was the app *specified* to be? |
 | [`audits/`](audits/) | What did a review find wrong, and has it been fixed? |
@@ -16,7 +16,7 @@ that matches yours:
 Everything under `docs/spec/` is a **spec** — the design and analysis the code was
 written against. Specs are a record of a source (a design project, a page
 teardown), so they are not rewritten when the code moves on. Where a spec and the
-code disagree, **CLAUDE.md and `architecture/` describe what exists** and are the
+code disagree, **AGENTS.md and `architecture/` describe what exists** and are the
 ones to trust; the spec carries a short note saying where it landed, and anything designed but not yet
 built is listed in [`spec/ui-redesign/backlog.md`](spec/ui-redesign/backlog.md)
 rather than quietly dropped.
@@ -25,12 +25,13 @@ The specs and audits are written in Chinese; the rest of the documentation is in
 
 ## Architecture notes
 
-The long form of CLAUDE.md, one file per subsystem. CLAUDE.md states each rule
-in a line and links here; read the matching file before changing the subsystem,
+AGENTS.md holds the shared conventions and links to the detailed subsystem
+invariants and architecture notes; read the matching file before changing the subsystem,
 and change both together.
 
 | | |
 |---|---|
+| [agent-invariants.md](architecture/agent-invariants.md) | Detailed coding rules for the app shell, services, pipelines, persistence, theming and platforms |
 | [organize-pipeline.md](architecture/organize-pipeline.md) | The AI organize flow, providers, timeouts, reasoning and sampling, tool probing, the agent runtime |
 | [metadata-scraping.md](architecture/metadata-scraping.md) | The extraction ladder, page fetching, cookies and age gates, the scrape panel, artwork roles, NFO naming, folder refresh |
 | [rendering-and-theming.md](architecture/rendering-and-theming.md) | Design tokens, fonts, `GlassSurface`, the baked backdrop and blur with their measurements, the settings screen grid |

@@ -219,7 +219,7 @@ jobs:
         run: |
           mkdir -p dist
           # The bundle is relocatable; it needs libmpv, FFmpeg and libjpeg from
-          # the system at run time (see CLAUDE.md, Platform-specific notes).
+          # the system at run time (see AGENTS.md, Platform-specific notes).
           tar -C build/linux/x64/release -czf \
             "dist/${APP_BASENAME}-${VERSION}-linux-x64.tar.gz" \
             --transform "s,^bundle,${APP_BASENAME}-${VERSION}," bundle

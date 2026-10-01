@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Bump this app to version 1.0.0 — we're cutting the first stable release. Make sure every place that shows a version is updated.",
-      "expected_output": "pubspec.yaml becomes 1.0.0+2, settings_screen.dart _appVersion becomes '1.0.0', inno_setup.iss MyAppVersion becomes 1.0.0, CLAUDE.md doc line becomes 1.0.0+2. macOS/Windows/Linux build files are NOT edited. No stale 0.9.0 remains in source.",
+      "expected_output": "pubspec.yaml becomes 1.0.0+2, settings_screen.dart _appVersion becomes '1.0.0+2', inno_setup.iss MyAppVersion becomes 1.0.0, AGENTS.md doc line becomes 1.0.0+2. macOS/Windows/Linux build files are NOT edited. No stale 0.9.0 remains in source.",
       "files": []
     },
     {
@@ -22,13 +22,13 @@
     {
       "id": 4,
       "prompt": "Start a branch for the new subtitle auto-matching feature and stub out the service class.",
-      "expected_output": "Creates a feat/ branch, and — prompted by the PreToolUse hook — asks in ONE short sentence whether the branch should carry a version bump, noting feat/ implies minor. Does NOT run sync_version.py unprompted. Proceeds with the actual stub work without waiting.",
+      "expected_output": "Creates a codex/feat/ branch, and — prompted by the PreToolUse hook — asks in ONE short sentence whether the branch should carry a version bump, noting feat/ implies minor. Does NOT run sync_version.py unprompted. Proceeds with the actual stub work without waiting.",
       "files": []
     },
     {
       "id": 5,
       "prompt": "Make a branch called chore/tidy-up-imports and clean up the unused imports across lib/.",
-      "expected_output": "Creates the branch and does the cleanup with NO version question raised at all — chore/ ships no user-visible change, so the hook stays silent and the skill should not volunteer a bump.",
+      "expected_output": "Creates the requested branch and does the cleanup with NO version question raised at all — chore/ ships no user-visible change, so the hook stays silent and the skill should not volunteer a bump.",
       "files": []
     },
     {

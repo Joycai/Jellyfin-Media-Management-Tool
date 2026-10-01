@@ -15,11 +15,11 @@
 ## Checklist
 
 - [ ] New libraries sit in their feature's folder, with the test at the mirrored
-      path under `test/` ([CLAUDE.md § Source layout](https://github.com/Joycai/Jellyfin-Media-Management-Tool/blob/main/CLAUDE.md#source-layout))
+      path under `test/` ([AGENTS.md § Source layout](https://github.com/Joycai/Jellyfin-Media-Management-Tool/blob/main/AGENTS.md#source-layout))
 - [ ] New user-facing strings are in **both** `app_en.arb` and `app_zh.arb`
 - [ ] No literal colours, radii, sizes, font sizes or durations in a widget —
       a deliberate one-off names the spec section it came from
 - [ ] Anything writing to disk goes through `applyOrganizeAction` or
       `MetadataWriter`, and validates with `PathSafety.isWithin`
-- [ ] CLAUDE.md updated if this invalidates something it asserts
+- [ ] AGENTS.md updated if this invalidates something it asserts
 - [ ] User-facing change noted in `CHANGELOG.md` under `Unreleased`

@@ -1,7 +1,7 @@
 # Rendering and theming
 
-> The long form behind the rules in [CLAUDE.md](../../CLAUDE.md): the reasons, the
-> measurements and the history. CLAUDE.md states each rule in a line; this is where
+> The long form behind the rules in [AGENTS.md](../../AGENTS.md): the reasons, the
+> measurements and the history. [agent-invariants.md](agent-invariants.md) holds the detailed rules; this is where
 > to look before arguing with one. Keep the two in step.
 
 ## Theming

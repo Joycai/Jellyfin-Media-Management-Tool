@@ -1,7 +1,6 @@
 # File browser: copy, cut, paste, move
 
-> The long form behind the rules in [CLAUDE.md](../../CLAUDE.md) → *File browser
-> transfers*: the reasons, the measurements and the history. Keep the two in step.
+> The long form behind the rules in [agent-invariants.md](agent-invariants.md#file-browser-transfers): the reasons, the measurements and the history. Keep the two in step.
 
 ## Why an app-internal clipboard
 

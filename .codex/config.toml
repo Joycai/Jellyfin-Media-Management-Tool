@@ -1,0 +1,4 @@
+# Project config layer for the repository lifecycle hook.
+# Hook definitions still require individual review and trust with /hooks.
+[features]
+hooks = true

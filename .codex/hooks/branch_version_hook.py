@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PreToolUse hook: notice branch creation and surface the version question.
 
-Registered against the Bash tool in .claude/settings.json. Most Bash calls are
+Registered against shell tools in .codex/hooks.json. Most Bash calls are
 not branch creation, so the hook stays silent unless it recognises one — a hook
 that speaks up on every command trains everyone to ignore it.
 
@@ -69,7 +69,8 @@ def current_version(root: Path) -> str | None:
 
 def build_message(branch: str, root: Path) -> str | None:
     """The reminder text, or None when this branch does not warrant one."""
-    prefix = branch.split("/", 1)[0].lower() if "/" in branch else ""
+    policy_name = branch.removeprefix("codex/")
+    prefix = re.split(r"[/\-]", policy_name, maxsplit=1)[0].lower()
 
     # A branch created *by* this workflow already is the version change; asking
     # again would loop.
@@ -93,13 +94,15 @@ def build_message(branch: str, root: Path) -> str | None:
         )
 
     version = current_version(root) or "unknown"
-    script = ".claude/skills/sync-version/scripts/sync_version.py"
+    script = ".agents/skills/sync-version/scripts/sync_version.py"
 
     return (
         f"About to create branch `{branch}`. Current version: `{version}`.\n\n"
         f"{suggestion}\n\n"
-        "Ask the user — in one short sentence, as part of your next reply — "
-        "whether this branch should carry a version bump. Do not run "
+        "Use the conversation's existing version instructions first. If the "
+        "user already authorized a bump, apply it without asking again. "
+        "Otherwise ask once briefly whether this branch should carry a bump. "
+        "Do not run "
         f"`{script}` unless they say yes; bumping on every branch makes "
         "parallel branches collide in pubspec.yaml, and many changes are best "
         "released together under a single version. If they decline, drop it "
@@ -115,12 +118,19 @@ def main() -> int:
     except (json.JSONDecodeError, ValueError):
         return 0  # Malformed input is the harness's problem, not a reason to fail.
 
-    # Both shells reach git on this repo's platforms, and each carries the
-    # command under the same `tool_input.command` key.
-    if payload.get("tool_name") not in ("Bash", "PowerShell"):
+    # Codex normalizes shell calls as Bash; accept direct unified-exec
+    # payloads as well when testing or running through another harness.
+    if not isinstance(payload, dict) or payload.get("tool_name") not in (
+        "Bash", "PowerShell", "exec_command"
+    ):
         return 0
 
-    command = (payload.get("tool_input") or {}).get("command") or ""
+    tool_input = payload.get("tool_input") or {}
+    if not isinstance(tool_input, dict):
+        return 0
+    command = tool_input.get("command") or tool_input.get("cmd") or ""
+    if not isinstance(command, str):
+        return 0
     match = _BRANCH_CMD.search(command)
     if not match:
         return 0
