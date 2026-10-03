@@ -43,7 +43,7 @@ dependencies:
   # Metadata scraping: HTML5 parsing with CSS-selector queries for the
   # recipe engine, and XML for reading/writing Jellyfin .nfo files.
   html: ^0.15.7
-  xml: ^7.0.1
+  xml: ^7.1.0
 
 dev_dependencies:
   flutter_test:
