@@ -17,10 +17,10 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   http: ^1.5.0
-  file_picker: ^13.1.0
+  file_picker: ^13.3.0
   path: ^1.9.1
   path_provider: ^2.1.5
-  url_launcher: ^6.3.2
+  url_launcher: ^6.3.3
   provider: ^6.1.5
   file: ^7.0.0
   # In-app image/video preview (video playback via libmpv).
@@ -32,18 +32,18 @@ dependencies:
   fc_native_video_thumbnail: ^3.0.1
   # sha1 for thumbnail cache keys (already in the tree transitively; declared
   # directly because we import it).
-  crypto: ^3.0.6
+  crypto: ^3.0.8
   # Native window control (minimum window size).
   window_manager: ^0.5.2
   # Raw FFI into dxgi.dll to name the graphics adapter on the About page
   # (already in the lock file transitively; declared because we import it).
   ffi: ^2.1.0
   # Unzipping downloaded font packages (HarmonyOS Sans / MiSans).
-  archive: ^4.2.0
+  archive: ^4.5.2
   # Metadata scraping: HTML5 parsing with CSS-selector queries for the
   # recipe engine, and XML for reading/writing Jellyfin .nfo files.
   html: ^0.15.7
-  xml: ^7.0.1
+  xml: ^7.1.0
 
 dev_dependencies:
   flutter_test:
