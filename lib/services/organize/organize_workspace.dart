@@ -164,11 +164,10 @@ class OrganizeWorkspace {
   final String? _explicitRoot;
   Future<void> _queue = Future.value();
 
-  /// [fs] and [root] are injected in tests; production callers leave them at
+  /// [_fs] and [root] are injected in tests; production callers leave them at
   /// the defaults (real local FS + `<app-support>/agent/`).
-  OrganizeWorkspace({FileSystem fs = const LocalFileSystem(), String? root})
-    : _fs = fs,
-      _explicitRoot = root;
+  OrganizeWorkspace({this._fs = const LocalFileSystem(), String? root})
+    : _explicitRoot = root;
 
   /// Fingerprint of one file: where it is, how big, when it last changed.
   String fileKey(String baseDir, FileStamp stamp) => _hash(

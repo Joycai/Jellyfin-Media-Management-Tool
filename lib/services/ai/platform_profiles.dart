@@ -704,9 +704,9 @@ abstract final class PlatformProfiles {
     AiConfig config,
     LearnedBehaviour learned,
   ) => switch (config.provider) {
-    AiProviderType.openAi => switch (dialectFor(
-      config,
-    )?.field(thinking: true).key) {
+    AiProviderType.openAi => switch (dialectFor(config)
+        ?.field(thinking: true)
+        .key) {
       final key? when !learned.rejectedFields.contains(key) => key,
       _ => null,
     },

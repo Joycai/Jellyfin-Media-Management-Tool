@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
@@ -10,6 +12,7 @@ import 'package:jellyfin_media_management_tool/widgets/settings/settings_control
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_paths_section.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_privacy_section.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_shortcuts_section.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 /// Layout smoke tests for the 06-Config pages.

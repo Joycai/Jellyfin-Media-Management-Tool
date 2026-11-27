@@ -147,9 +147,8 @@ class LearnedBehaviour {
 }
 
 class LearnedStore {
-  LearnedStore({File? file, DateTime Function()? clock})
-    : _file = file,
-      _clock = clock ?? DateTime.now;
+  LearnedStore({this._file, DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now;
 
   /// The app-wide store, pointed at `<appSupport>/ai_learned.json` by
   /// `main()`. Without a file it only remembers for the process, which is

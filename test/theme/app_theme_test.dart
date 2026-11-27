@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   group('ThemeData is memoized per brightness', () {

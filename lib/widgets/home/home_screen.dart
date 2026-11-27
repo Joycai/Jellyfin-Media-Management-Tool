@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -75,8 +75,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _pickFolder() async {
     final browser = context.read<FileBrowserService>();
     final settings = context.read<SettingsService>();
-    final dir = await FilePicker.getDirectoryPath();
-    if (dir != null) {
+    final uri = await FilePicker.pickDirectory();
+    if (uri != null) {
+      final dir = p.normalize(uri.toFilePath());
       browser.setCurrentDirectory(dir);
       await settings.pushRecent(dir);
     }
@@ -141,9 +142,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final dir = browser.currentDirectory;
     if (dir == null) {
       final l10n = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.scrapeNoFolder)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.scrapeNoFolder)));
       return;
     }
     await startScrapeFlow(context, target: browser.selectedFile, baseDir: dir);

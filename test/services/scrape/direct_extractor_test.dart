@@ -9,9 +9,8 @@ import 'package:jellyfin_media_management_tool/services/scrape/page_digest.dart'
 
 import '../../helpers/ai.dart';
 
-final _fixture = io.File(
-  'test/fixtures/giga_product_7743.html',
-).readAsStringSync();
+final _fixture = io.File('test/fixtures/giga_product_7743.html')
+    .readAsStringSync();
 
 final _page = Uri.parse(
   'https://www.giga-web.jp/product/index.php?product_id=7743',
@@ -143,9 +142,8 @@ void main() {
         (_) => textTurn('Done.'),
       ]);
 
-      final result = await DirectExtractor(
-        provider,
-      ).extract(document: html_parser.parse(_fixture), pageUrl: _page);
+      final result = await DirectExtractor(provider)
+          .extract(document: html_parser.parse(_fixture), pageUrl: _page);
 
       expect(result!.metadata.code, 'SPSF-43');
       expect(result.metadata.runtimeMinutes, 85);
@@ -159,9 +157,8 @@ void main() {
     test('the page is offered as an outline, not in full', () async {
       final provider = ScriptedChatProvider([(_) => textTurn('Nothing.')]);
 
-      await DirectExtractor(
-        provider,
-      ).extract(document: html_parser.parse(_fixture), pageUrl: _page);
+      await DirectExtractor(provider)
+          .extract(document: html_parser.parse(_fixture), pageUrl: _page);
 
       final task = provider.seen.first[1] as UserMessage;
       expect(task.content, contains('Outline of'));
@@ -224,9 +221,8 @@ void main() {
         (_) => textTurn('I could not find anything.'),
       ]);
 
-      final result = await DirectExtractor(
-        provider,
-      ).extract(document: html_parser.parse(_fixture), pageUrl: _page);
+      final result = await DirectExtractor(provider)
+          .extract(document: html_parser.parse(_fixture), pageUrl: _page);
 
       expect(result, isNull);
       expect(provider.calls, 3, reason: 'one turn and two reminders');
@@ -242,9 +238,8 @@ void main() {
           (_) => textTurn('Giving up.'),
         ]);
 
-        final result = await DirectExtractor(
-          provider,
-        ).extract(document: html_parser.parse(_fixture), pageUrl: _page);
+        final result = await DirectExtractor(provider)
+            .extract(document: html_parser.parse(_fixture), pageUrl: _page);
 
         expect(result, isNull);
         expect(

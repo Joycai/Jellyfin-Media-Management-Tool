@@ -1,12 +1,15 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/models/file_entry.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/dialogs/preview_dialog.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// PreviewDialog is what a double-click on a row opens. The video half needs
 /// media_kit's native libmpv backend, which a widget test cannot load, so

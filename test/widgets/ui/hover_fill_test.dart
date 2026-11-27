@@ -1,9 +1,9 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/settings_controls.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// What a hover fades *through*, and whether it lands anywhere visible.
 ///
@@ -81,9 +81,8 @@ void main() {
     ) async {
       await _pump(tester, brightness: brightness);
       final button = find.byType(AppButton);
-      final t = Theme.of(
-        tester.element(find.byType(SettingsCard)),
-      ).extension<AppTokens>()!;
+      final t = Theme.of(tester.element(find.byType(SettingsCard)))
+          .extension<AppTokens>()!;
       // Both the card and the hover are translucent washes, so they have to be
       // laid on the opaque window ground before they can be compared at all.
       final ground = Color.alphaBlend(t.cardFill, t.windowBase);

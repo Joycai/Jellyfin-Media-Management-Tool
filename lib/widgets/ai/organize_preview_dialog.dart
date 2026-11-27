@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 
 import '../../l10n/app_localizations.dart';
@@ -312,9 +312,8 @@ class _OrganizePreviewDialogState extends State<OrganizePreviewDialog> {
           style: TextStyle(
             fontSize: AppTypeScale.sizeControl,
             fontWeight: FontWeight.w600,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.8),
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.8),
           ),
         ),
       ],

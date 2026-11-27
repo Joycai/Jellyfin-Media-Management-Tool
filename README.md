@@ -140,7 +140,7 @@ placeholders rather than hidden or faked; each one is listed in
 
 ## Build from source
 
-Requires the Flutter SDK (Dart `^3.10.4`). CI builds on the Flutter version pinned in [`.fvmrc`](.fvmrc); `fvm use` picks up the same file.
+Requires the Flutter SDK (Dart `^3.14.0`). CI builds on the Flutter version pinned in [`.fvmrc`](.fvmrc); `fvm use` picks up the same file.
 
 ```bash
 git clone https://github.com/Joycai/Jellyfin-Media-Management-Tool.git

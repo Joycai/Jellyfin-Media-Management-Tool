@@ -114,9 +114,9 @@ void main() {
       // MetadataWriter would refuse the write anyway, but a refused write is a
       // lost image; producing a usable name is better than relying on the
       // backstop.
-      final name = _plan(
-        order: ['https://e.test/%2e%2e%2f%2e%2e%2fevil.jpg'],
-      ).values.single;
+      final name = _plan(order: ['https://e.test/%2e%2e%2f%2e%2e%2fevil.jpg'])
+          .values
+          .single;
 
       expect(name, isNot(contains('/')));
       expect(name, isNot(contains(r'\')));

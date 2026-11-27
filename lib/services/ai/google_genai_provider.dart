@@ -59,10 +59,10 @@ class GoogleGenAiProvider implements AiProvider {
 
   GoogleGenAiProvider(
     this.config, {
-    http.Client? client,
+    this._client,
     this.firstEventTimeout = const Duration(minutes: 10),
     this.idleTimeout = const Duration(minutes: 2),
-  }) : _client = client;
+  });
 
   /// Which [_ThinkingOff] way each route is on, kept across launches — see
   /// [LearnedStore]. Keyed by the credential as well as the URL and model:
@@ -100,9 +100,8 @@ class GoogleGenAiProvider implements AiProvider {
   /// `…/models/<model>:generateContent` is cut back to its root first — a
   /// path segment only, never a host named `models`.
   String get _base {
-    var base = AiHttp.endpointBase(
-      config.endpoint,
-    ).replaceFirst(RegExp(r'(?<=[^/])/models(/[^/]*)?$'), '');
+    var base = AiHttp.endpointBase(config.endpoint)
+        .replaceFirst(RegExp(r'(?<=[^/])/models(/[^/]*)?$'), '');
     if (!base.contains('/v1')) {
       base = '$base/v1beta';
     }

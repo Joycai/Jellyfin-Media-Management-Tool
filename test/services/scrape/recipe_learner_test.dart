@@ -12,9 +12,8 @@ import 'package:jellyfin_media_management_tool/services/scrape/scrape_prompt.dar
 
 import '../../helpers/ai.dart';
 
-final _fixture = io.File(
-  'test/fixtures/giga_product_7743.html',
-).readAsStringSync();
+final _fixture = io.File('test/fixtures/giga_product_7743.html')
+    .readAsStringSync();
 
 final _pageUrl = Uri.parse(
   'https://www.giga-web.jp/product/index.php?product_id=7743',
@@ -103,9 +102,8 @@ void main() {
       () async {
         final provider = ScriptedChatProvider([_submits(_giga)]);
 
-        final learned = await RecipeLearner(
-          provider,
-        ).learn(document: document, pageUrl: _pageUrl);
+        final learned = await RecipeLearner(provider)
+            .learn(document: document, pageUrl: _pageUrl);
 
         expect(learned, isNotNull);
         expect(learned!.rounds, 1);
@@ -135,9 +133,8 @@ void main() {
           _submits(_giga),
         ]);
 
-        final learned = await RecipeLearner(
-          provider,
-        ).learn(document: document, pageUrl: _pageUrl);
+        final learned = await RecipeLearner(provider)
+            .learn(document: document, pageUrl: _pageUrl);
 
         expect(learned!.rounds, 2);
         final refusal = provider.seen[1].last as ToolResultMessage;
@@ -156,9 +153,8 @@ void main() {
         _submits(_giga),
       ]);
 
-      await RecipeLearner(
-        provider,
-      ).learn(document: document, pageUrl: _pageUrl);
+      await RecipeLearner(provider)
+          .learn(document: document, pageUrl: _pageUrl);
 
       final report = (provider.seen[1].last as ToolResultMessage).content;
       expect(report, contains('SPSF-43'));
@@ -179,9 +175,8 @@ void main() {
         (_) => textTurn('I cannot work this page out.'),
       ]);
 
-      final learned = await RecipeLearner(
-        provider,
-      ).learn(document: document, pageUrl: _pageUrl);
+      final learned = await RecipeLearner(provider)
+          .learn(document: document, pageUrl: _pageUrl);
 
       expect(learned, isNull);
       expect(provider.calls, 3, reason: 'one turn and two reminders');
@@ -190,9 +185,8 @@ void main() {
     test('the model starts from an outline, not the whole page', () async {
       final provider = ScriptedChatProvider([_submits(_giga)]);
 
-      await RecipeLearner(
-        provider,
-      ).learn(document: document, pageUrl: _pageUrl);
+      await RecipeLearner(provider)
+          .learn(document: document, pageUrl: _pageUrl);
 
       final task = (provider.seen.first[1] as UserMessage).content;
       expect(task, contains('Outline of'));
@@ -208,9 +202,8 @@ void main() {
 
     test('does not mutate the document it verifies against', () async {
       final plotBefore = document.querySelector('#story_list2')?.text;
-      await RecipeLearner(
-        ScriptedChatProvider([_submits(_giga)]),
-      ).learn(document: document, pageUrl: _pageUrl);
+      await RecipeLearner(ScriptedChatProvider([_submits(_giga)]))
+          .learn(document: document, pageUrl: _pageUrl);
 
       expect(document.querySelector('#story_list2')?.text, plotBefore);
     });

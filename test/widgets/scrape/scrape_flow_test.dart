@@ -1,6 +1,8 @@
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
 import 'package:file/memory.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/models/file_entry.dart';
@@ -15,6 +17,7 @@ import 'package:jellyfin_media_management_tool/services/task_service.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/scrape/scrape_flow.dart';
 import 'package:jellyfin_media_management_tool/widgets/scrape/scrape_panel.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 /// Enough markup for tier 1 to find a title, and no network anywhere: the

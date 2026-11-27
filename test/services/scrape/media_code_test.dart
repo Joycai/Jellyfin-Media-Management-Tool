@@ -38,9 +38,8 @@ void main() {
 
     group('findMediaCodes', () {
       test('finds every code with where it starts and how it is split', () {
-        final codes = findMediaCodes(
-          'hhd800.com@ABC-123 Bleach 03.mp4',
-        ).toList();
+        final codes = findMediaCodes('hhd800.com@ABC-123 Bleach 03.mp4')
+            .toList();
         expect(codes.map((c) => c.code), ['HHD-800', 'ABC-123', 'BLEACH-03']);
         expect(codes.map((c) => c.start), [0, 11, 19]);
         expect(codes.map((c) => c.separator), ['', '-', ' ']);

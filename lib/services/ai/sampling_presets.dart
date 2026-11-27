@@ -275,8 +275,7 @@ abstract final class SamplingPresets {
         repeatPenalty: 1.1,
       ),
       thinkingControl: ThinkingControl.none,
-      source:
-          'https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct/blob/main/generation_config.json',
+      source: 'https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct/blob/main/generation_config.json',
     ),
     SamplingPreset(
       id: 'qwen2.5',
@@ -289,8 +288,7 @@ abstract final class SamplingPresets {
         repeatPenalty: 1.05,
       ),
       thinkingControl: ThinkingControl.none,
-      source:
-          'https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/generation_config.json',
+      source: 'https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/generation_config.json',
     ),
     SamplingPreset(
       id: 'gemma4',
@@ -340,8 +338,7 @@ abstract final class SamplingPresets {
       pattern: r'mistral-small-3\.[12]',
       nonThinking: const SamplingValues(temperature: 0.15),
       thinkingControl: ThinkingControl.none,
-      source:
-          'https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506',
+      source: 'https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506',
     ),
     SamplingPreset(
       id: 'mistral-nemo',
@@ -357,8 +354,7 @@ abstract final class SamplingPresets {
       pattern: r'llama-?3\.[123]',
       nonThinking: const SamplingValues(temperature: 0.6, topP: 0.9),
       thinkingControl: ThinkingControl.none,
-      source:
-          'https://huggingface.co/unsloth/Llama-3.1-8B-Instruct/raw/main/generation_config.json',
+      source: 'https://huggingface.co/unsloth/Llama-3.1-8B-Instruct/raw/main/generation_config.json',
     ),
     SamplingPreset(
       id: 'glm-4.7-flash',

@@ -11,7 +11,9 @@ import 'package:window_manager/window_manager.dart';
 ///
 /// 做成 [ChangeNotifier] 而不是每个 widget 各自挂 [WindowListener]：监听器是
 /// 全局注册的，挂十个就要在每次窗口事件上跑十遍，而它们要的是同一个答案。
-class WindowStateNotifier extends ChangeNotifier with WindowListener {
+class WindowStateNotifier extends ChangeNotifier {
+  Window? _window;
+  ListenerId? _listenerId;
   bool _focused = true;
   bool _maximized = false;
   bool _fullScreen = false;
@@ -44,22 +46,37 @@ class WindowStateNotifier extends ChangeNotifier with WindowListener {
           defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.linux);
 
+  static Window? _resolveWindow() {
+    try {
+      return WindowManager.instance.getCurrent() ??
+          WindowManager.instance.getAll().firstOrNull;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> attach() async {
     if (_attached || !supported) return;
     _attached = true;
-    windowManager.addListener(this);
+    _window = _resolveWindow();
+    if (_window != null) {
+      _listenerId = _window!.addListener(_onWindowEvent);
+      // 首帧之前把真实状态读回来：从最大化状态恢复会话时，顶栏不应该先画一帧
+      // 圆角再跳成直角。
+      _sync();
+    }
     if (defaultTargetPlatform == TargetPlatform.windows) {
       _captionChannel.setMethodCallHandler(_onCaptionCall);
     }
-    // 首帧之前把真实状态读回来：从最大化状态恢复会话时，顶栏不应该先画一帧
-    // 圆角再跳成直角。
-    await _sync();
   }
 
   @override
   void dispose() {
     if (_attached) {
-      windowManager.removeListener(this);
+      if (_listenerId != null) {
+        _window?.removeListener(_listenerId!);
+        _listenerId = null;
+      }
       if (defaultTargetPlatform == TargetPlatform.windows) {
         _captionChannel.setMethodCallHandler(null);
       }
@@ -82,11 +99,14 @@ class WindowStateNotifier extends ChangeNotifier with WindowListener {
     notifyListeners();
   }
 
-  Future<void> _sync() async {
-    final focused = await windowManager.isFocused();
-    final maximized = await windowManager.isMaximized();
-    final fullScreen = await windowManager.isFullScreen();
-    _set(focused: focused, maximized: maximized, fullScreen: fullScreen);
+  void _sync() {
+    final window = _window;
+    if (window == null) return;
+    _set(
+      focused: window.isFocused,
+      maximized: window.isMaximized,
+      fullScreen: window.isFullScreen,
+    );
   }
 
   void _set({bool? focused, bool? maximized, bool? fullScreen}) {
@@ -100,45 +120,63 @@ class WindowStateNotifier extends ChangeNotifier with WindowListener {
     if (changed) notifyListeners();
   }
 
-  @override
-  void onWindowFocus() => _set(focused: true);
-
-  @override
-  void onWindowBlur() => _set(focused: false);
-
-  @override
-  void onWindowMaximize() => _set(maximized: true);
-
-  @override
-  void onWindowUnmaximize() => _set(maximized: false);
-
-  @override
-  void onWindowEnterFullScreen() => _set(fullScreen: true, maximized: false);
-
-  @override
-  void onWindowLeaveFullScreen() => _set(fullScreen: false);
+  void _onWindowEvent(WindowEvent event) {
+    switch (event) {
+      case WindowFocusedEvent():
+        _set(focused: true);
+      case WindowBlurredEvent():
+        _set(focused: false);
+      case WindowMaximizedEvent():
+        _set(maximized: true);
+      case WindowRestoredEvent():
+        _set(maximized: _window?.isMaximized ?? false);
+      case WindowEnteredFullScreenEvent():
+        _set(fullScreen: true, maximized: false);
+      case WindowExitedFullScreenEvent():
+        _set(fullScreen: false, maximized: _window?.isMaximized ?? false);
+      default:
+        break;
+    }
+  }
 
   /// 还原 / 最大化。双击拖拽区与最大化按钮共用。
   Future<void> toggleMaximize() async {
     if (!supported) return;
-    if (await windowManager.isMaximized()) {
-      await windowManager.unmaximize();
+    final window = _window;
+    if (window == null) return;
+    if (window.isMaximized) {
+      window.unmaximize();
     } else {
-      await windowManager.maximize();
+      window.maximize();
     }
   }
 
-  Future<void> minimize() =>
-      supported ? windowManager.minimize() : Future.value();
+  Future<void> minimize() async {
+    if (!supported) return;
+    _window?.minimize();
+  }
 
-  Future<void> close() => supported ? windowManager.close() : Future.value();
+  Future<void> close() async {
+    if (!supported) return;
+    final window = _window;
+    if (window != null && Window.isCloseSupported()) {
+      window.close();
+    }
+  }
 
   /// 右键拖拽区弹出系统窗口菜单（移动 / 大小 / 最小化 / 关闭）。
-  Future<void> showSystemMenu() =>
-      supported ? windowManager.popUpWindowMenu() : Future.value();
+  Future<void> showSystemMenu(Offset position) async {
+    if (!supported) return;
+    final window = _window;
+    if (window != null && Window.isSystemMenuSupported()) {
+      window.showSystemMenu(position.toNative());
+    }
+  }
 
-  Future<void> startDragging() =>
-      supported ? windowManager.startDragging() : Future.value();
+  Future<void> startDragging() async {
+    if (!supported) return;
+    _window?.startDragging();
+  }
 }
 
 /// 让顶栏之下的任何 widget 都能读到窗口状态。

@@ -28,6 +28,12 @@ jobs:
       - name: Verify agent tooling
         run: python3 -m unittest discover -s scripts/tests
 
+      - name: Install Linux native asset dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev libx11-dev libxi-dev
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:

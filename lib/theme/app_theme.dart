@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'design_tokens.dart';
 
@@ -182,9 +182,8 @@ class AppTheme {
         errorBorder: fieldBorder(t.danger.withValues(alpha: 0.50)),
         focusedErrorBorder: fieldBorder(t.danger.withValues(alpha: 0.70)),
         disabledBorder: fieldBorder(Colors.transparent),
-        errorStyle: text(
-          const TextStyle(fontSize: 11),
-        ).copyWith(color: t.dangerText),
+        errorStyle: text(const TextStyle(fontSize: 11))
+            .copyWith(color: t.dangerText),
       ),
       // 1.4a 按钮：高 32、圆角 8、左右内距 14。
       filledButtonTheme: FilledButtonThemeData(
@@ -337,9 +336,8 @@ class AppTheme {
         backgroundColor: isDark
             ? const Color(0xF016182B)
             : const Color(0xF01A1D29),
-        contentTextStyle: text(
-          AppTypeScale.control,
-        ).copyWith(color: Colors.white),
+        contentTextStyle: text(AppTypeScale.control)
+            .copyWith(color: Colors.white),
         actionTextColor: AppPalette.accentOnDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.field),

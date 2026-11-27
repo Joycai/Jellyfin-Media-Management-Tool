@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/main.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
@@ -8,6 +7,7 @@ import 'package:jellyfin_media_management_tool/services/font_service.dart';
 import 'package:jellyfin_media_management_tool/services/history_service.dart';
 import 'package:jellyfin_media_management_tool/services/settings_service.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/glass_cover.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 void main() {

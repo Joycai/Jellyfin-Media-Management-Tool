@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
 import 'package:file/local.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/models/file_entry.dart';
@@ -13,6 +15,7 @@ import 'package:jellyfin_media_management_tool/services/transfer/file_clipboard.
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/file_browser/file_transfer_flow.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 

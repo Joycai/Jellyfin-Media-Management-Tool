@@ -23,8 +23,8 @@ class TransferController extends ChangeNotifier {
     required this.plan,
     required this.policy,
     this.history,
-    FileSystem fs = const LocalFileSystem(),
-  }) : _fs = fs;
+    this._fs = const LocalFileSystem(),
+  });
 
   TransferStatus _status = TransferStatus.running;
   int _bytesDone = 0;

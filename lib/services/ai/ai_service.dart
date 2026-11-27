@@ -26,9 +26,9 @@ enum ConnectionStatus { unknown, testing, connected, error }
 /// plan. Registered as a `ChangeNotifier` so the assistant panel and the file
 /// table rebuild as analysis progresses.
 class AiService extends ChangeNotifier {
-  /// [workspace] remembers group decisions and preview corrections between
+  /// [_workspace] remembers group decisions and preview corrections between
   /// runs; without one, every run starts from nothing.
-  AiService({OrganizeWorkspace? workspace}) : _workspace = workspace;
+  AiService({this._workspace});
 
   final OrganizeWorkspace? _workspace;
 

@@ -392,8 +392,7 @@ void main() {
             ? http.Response(
                 jsonEncode({
                   'error': {
-                    'message':
-                        'Unrecognized request argument supplied: stream_options',
+                    'message': 'Unrecognized request argument supplied: stream_options',
                   },
                 }),
                 400,

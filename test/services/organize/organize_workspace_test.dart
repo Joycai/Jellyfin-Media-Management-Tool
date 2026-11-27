@@ -155,9 +155,9 @@ void main() {
         CorrectedFile(stamp: _stamp('ep1.mkv'), target: target, isVideo: true),
       ]);
 
-      final json =
-          jsonDecode(fs.file('$_root/overrides.json').readAsStringSync())
-              as Map<String, dynamic>;
+      final json = jsonDecode(
+        fs.file('$_root/overrides.json').readAsStringSync(),
+      ) as Map<String, dynamic>;
       final entries = json['entries'] as Map<String, dynamic>;
       expect(entries.keys, isNot(contains('old-key')));
       expect(entries, hasLength(2));

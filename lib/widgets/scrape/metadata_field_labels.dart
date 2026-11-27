@@ -75,9 +75,9 @@ Object? parseMetadataValue(String field, String text) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return null;
   if (MetadataField.listFields.contains(field)) {
-    return [
-      for (final part in trimmed.split(',')) part.trim(),
-    ].where((s) => s.isNotEmpty).toList();
+    return [for (final part in trimmed.split(',')) part.trim()]
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
   return trimmed;
 }

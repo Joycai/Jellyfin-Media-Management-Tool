@@ -292,9 +292,9 @@ abstract final class MessagesRefusal {
         // `reasoning` in an earlier `reasoning_content`.
         consider(
           translated,
-          RegExp(
-            '${RegExp.escape(name)}(?![a-z_])',
-          ).firstMatch(sentence)?.start,
+          RegExp('${RegExp.escape(name)}(?![a-z_])')
+              .firstMatch(sentence)
+              ?.start,
         );
       }
     }
