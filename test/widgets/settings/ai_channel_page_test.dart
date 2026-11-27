@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/models/ai_channel.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_channel_page.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/settings.dart';
 

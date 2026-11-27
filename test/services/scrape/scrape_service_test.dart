@@ -22,9 +22,8 @@ import '../../helpers/fs.dart';
 const _url = 'https://www.giga-web.jp/product/index.php?product_id=7743';
 
 // `dart:io` is prefixed because `package:file` also exports `File`.
-final _fixture = io.File(
-  'test/fixtures/giga_product_7743.html',
-).readAsStringSync();
+final _fixture = io.File('test/fixtures/giga_product_7743.html')
+    .readAsStringSync();
 
 /// Minimal but valid JPEG-looking payload, large enough to clear the
 /// tracking-pixel guard.
@@ -147,9 +146,8 @@ void main() {
 
     test('is not reached while a recipe already matches', () async {
       final provider = ScriptedChatProvider([submitsGiga()]);
-      final result = await _service(
-        _Site(),
-      ).scrapeUrl(_url, learner: RecipeLearner(provider));
+      final result = await _service(_Site())
+          .scrapeUrl(_url, learner: RecipeLearner(provider));
 
       // The built-in GIGA recipe handles this page, so a healthy site never
       // pays for a model call.
@@ -187,9 +185,8 @@ void main() {
       final provider = ScriptedChatProvider([
         (_) => textTurn('I cannot find a title on this page.'),
       ]);
-      final result = await _service(
-        _Site(),
-      ).scrapeUrl(unknownUrl, learner: RecipeLearner(provider));
+      final result = await _service(_Site())
+          .scrapeUrl(unknownUrl, learner: RecipeLearner(provider));
 
       // One turn, then the two reminders the loop allows before giving up.
       expect(provider.calls, 3);
@@ -342,9 +339,8 @@ void main() {
       'takes the same path as a live fetch, with no network at all',
       () async {
         final site = _Site();
-        final result = await _service(
-          site,
-        ).scrapeHtml(_fixture, sourceUrl: _url);
+        final result = await _service(site)
+            .scrapeHtml(_fixture, sourceUrl: _url);
         expect(site.requests, isEmpty);
         expect(result.scraped.code, 'SPSF-43');
         expect(result.scraped.genres, hasLength(11));

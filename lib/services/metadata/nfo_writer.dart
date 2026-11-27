@@ -253,9 +253,9 @@ class NfoWriter {
     } else if (options.prefixTitleWithCode && code != null && code.isNotEmpty) {
       // Compared with separators removed on both sides, so a title already
       // reading "SPSF-43 …" is not prefixed again with the compact form.
-      if (!_compact(
-        title,
-      ).toLowerCase().startsWith(_compact(code).toLowerCase())) {
+      if (!_compact(title)
+          .toLowerCase()
+          .startsWith(_compact(code).toLowerCase())) {
         title = '$code $title';
       }
     }

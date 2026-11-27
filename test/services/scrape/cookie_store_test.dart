@@ -37,9 +37,8 @@ void main() {
     });
 
     test('reads the age-gate flag as a non-expiring session cookie', () {
-      final ageGate = CookieStore.parseNetscape(
-        _cookiesTxt,
-      ).firstWhere((c) => c.name == 'old_check');
+      final ageGate = CookieStore.parseNetscape(_cookiesTxt)
+          .firstWhere((c) => c.name == 'old_check');
       expect(ageGate.value, 'yes');
       expect(ageGate.expiresAt, 0);
       expect(ageGate.isExpired(DateTime.utc(2099)), isFalse);
@@ -47,9 +46,8 @@ void main() {
     });
 
     test('strips the leading dot and treats it as includeSubdomains', () {
-      final ga = CookieStore.parseNetscape(
-        _cookiesTxt,
-      ).firstWhere((c) => c.name == '_ga');
+      final ga = CookieStore.parseNetscape(_cookiesTxt)
+          .firstWhere((c) => c.name == '_ga');
       expect(ga.domain, 'giga-web.jp');
       expect(ga.includeSubdomains, isTrue);
     });

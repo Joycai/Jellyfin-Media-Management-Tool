@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/shell/app_shell.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/glass_surface.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A glass pane is the cheapest thing that actually builds a `BackdropFilter`.
 Widget _pane() => const AppGlassPane(child: SizedBox.expand());

@@ -7,7 +7,7 @@ detailed subsystem invariants, which are kept current.
 
 ## Getting set up
 
-You need the Flutter SDK (Dart `^3.10.4`). CI builds on the Flutter version pinned in
+You need the Flutter SDK (Dart `^3.14.0`). CI builds on the Flutter version pinned in
 [`.fvmrc`](.fvmrc) (`fvm use` reads it), so that is the version to match if
 something only breaks for you.
 
@@ -30,7 +30,11 @@ Platform notes:
 - **Windows and macOS** bundle libmpv already.
 - **macOS** still resolves `media_kit` through CocoaPods. `macos/Podfile` and
   `macos/Podfile.lock` are checked in and required. The build-time warning
-  about plugins not supporting Swift Package Manager is expected.
+  about plugins not supporting Swift Package Manager is expected. Use
+  [`scripts/sign_macos.sh`](scripts/sign_macos.sh) for local Developer ID
+  signing and notarization; [`.github/workflows/release.yml`](.github/workflows/release.yml)
+  runs it automatically when `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`,
+  `MACOS_SIGN_IDENTITY`, and Apple notarization secrets are configured.
 
 ## The three gates
 

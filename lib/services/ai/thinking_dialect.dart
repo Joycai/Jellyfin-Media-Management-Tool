@@ -121,9 +121,8 @@ enum MessagesThinking {
   /// which generation a Claude model is — the same kind of fact as a
   /// sampling preset's family, not a vendor branch.
   static MessagesThinking forModel(String model) {
-    final match = RegExp(
-      r'claude-(?:[a-z]+-)?(\d+)(?:[-.](\d{1,2})(?!\d))?',
-    ).firstMatch(model.toLowerCase());
+    final match = RegExp(r'claude-(?:[a-z]+-)?(\d+)(?:[-.](\d{1,2})(?!\d))?')
+        .firstMatch(model.toLowerCase());
     if (match == null) return extended;
     final major = int.parse(match.group(1)!);
     final minor = int.tryParse(match.group(2) ?? '') ?? 0;

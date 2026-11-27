@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../theme/design_tokens.dart';
 
@@ -415,10 +415,7 @@ class _AppBackdropState extends State<AppBackdrop> {
 /// 就是靠这个把用它的面板叫起来重画的。
 @immutable
 class BakedBackdrop {
-  const BakedBackdrop._({
-    required Map<double, ui.Image> images,
-    required this.area,
-  }) : _images = images;
+  const BakedBackdrop._({required this._images, required this.area});
 
   final Map<double, ui.Image> _images;
 

@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
+import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -40,9 +43,7 @@ void main() async {
   // ~1024 logical px the center pane collapses and the header overflows.
   // Cap the window at an iPad-class minimum instead of letting it shrink
   // into a broken state.
-  await windowManager.ensureInitialized();
-  await windowManager.setMinimumSize(const Size(1024, 700));
-
+  //
   // Design spec 2.1: ONE 48px bar carries the brand, the section tabs, the
   // search field, the actions AND the window controls — so the OS title bar
   // has to go. Windows and Linux get our own caption buttons (46x48, drawn to
@@ -53,10 +54,15 @@ void main() async {
   // The frame itself stays: `TitleBarStyle.hidden` keeps WS_THICKFRAME /
   // the titled NSWindow, so resize edges, the system shadow and the OS's own
   // rounded corners all still work. That is why `AppShell` does not clip.
-  await windowManager.setTitleBarStyle(
-    TitleBarStyle.hidden,
-    windowButtonVisibility: defaultTargetPlatform == TargetPlatform.macOS,
-  );
+  final window =
+      WindowManager.instance.getCurrent() ??
+      WindowManager.instance.getAll().firstOrNull;
+  if (window != null) {
+    window.minimumSize = const Size(1024, 700).toNative();
+    window.titleBarStyle = TitleBarStyle.hidden;
+    window.isWindowControlButtonsVisible =
+        defaultTargetPlatform == TargetPlatform.macOS;
+  }
 
   // Init the AI profiles service FIRST so its one-time legacy-config.json
   // migration runs before SettingsService writes a config.json without the

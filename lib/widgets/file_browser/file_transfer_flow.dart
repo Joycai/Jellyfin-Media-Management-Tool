@@ -11,7 +11,7 @@ library;
 import 'dart:io' show FileSystemException;
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -78,10 +78,11 @@ Future<void> moveEntriesTo(
   if (entries.isEmpty) return;
   final l10n = AppLocalizations.of(context)!;
   final browser = context.read<FileBrowserService>();
-  final dir = await FilePicker.getDirectoryPath(
+  final uri = await FilePicker.pickDirectory(
     dialogTitle: l10n.moveToTitle,
     initialDirectory: browser.currentDirectory,
   );
+  final dir = uri == null ? null : p.normalize(uri.toFilePath());
   if (dir == null || !context.mounted) return;
   await _startTransfer(
     context,

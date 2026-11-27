@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../theme/design_tokens.dart';
 import '../ui/app_controls.dart';
@@ -81,7 +81,8 @@ class SecondaryTitleBar extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 onPanStart: (_) => window.startDragging(),
                 onDoubleTap: window.toggleMaximize,
-                onSecondaryTap: window.showSystemMenu,
+                onSecondaryTapUp: (details) =>
+                    window.showSystemMenu(details.globalPosition),
               ),
             ),
             Row(

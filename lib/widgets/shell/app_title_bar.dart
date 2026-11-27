@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/design_tokens.dart';
@@ -110,7 +110,8 @@ class AppTitleBar extends StatelessWidget {
                     behavior: HitTestBehavior.opaque,
                     onPanStart: (_) => window.startDragging(),
                     onDoubleTap: window.toggleMaximize,
-                    onSecondaryTap: window.showSystemMenu,
+                    onSecondaryTapUp: (details) =>
+                        window.showSystemMenu(details.globalPosition),
                   ),
                 ),
                 Row(

@@ -77,9 +77,9 @@ void main() {
         expect(first.remaining.single['from'], '/work/c.mkv');
 
         // Manifest still on disk, rewritten with only c.
-        final reread =
-            jsonDecode(fs.file(entry.manifestPath).readAsStringSync())
-                as Map<String, dynamic>;
+        final reread = jsonDecode(
+          fs.file(entry.manifestPath).readAsStringSync(),
+        ) as Map<String, dynamic>;
         expect((reread['moves'] as List).length, 1);
 
         // In-memory entry reflects the rewrite.
@@ -248,9 +248,9 @@ void main() {
       expect(reopened.entries.single.moves, written.moves);
       // The scrape-only keys are omitted when empty, so an older reader sees
       // exactly the document it always did.
-      final raw =
-          jsonDecode(fs.file(written.manifestPath).readAsStringSync())
-              as Map<String, dynamic>;
+      final raw = jsonDecode(
+        fs.file(written.manifestPath).readAsStringSync(),
+      ) as Map<String, dynamic>;
       expect(raw.containsKey('created'), isFalse);
       expect(raw.containsKey('restored'), isFalse);
       expect(raw.containsKey('backupDir'), isFalse);

@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/shell/secondary_title_bar.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The 48px bar every full-page route wears. Its content row only gets its
 /// height from a child, and on macOS there is no `WindowCaptionButtons` to

@@ -64,9 +64,9 @@ void main() {
     expect(off.apply(learned).thinkingOffTried, {LearnedBehaviour.dialectOff});
     expect(off.apply(learned).rejectedFields, {'top_k'});
     expect(
-      const OffRefused(
-        MessagesOff.leastEffort,
-      ).apply(off.apply(learned)).thinkingOffTried,
+      const OffRefused(MessagesOff.leastEffort)
+          .apply(off.apply(learned))
+          .thinkingOffTried,
       {LearnedBehaviour.dialectOff, LearnedBehaviour.leastEffortOff},
     );
     expect(off, isNot(const OffRefused(MessagesOff.leastEffort)));

@@ -8,7 +8,7 @@ These are the detailed coding rules linked from [AGENTS.md](../../AGENTS.md). Re
 
 - **Init order matters.** `AiProfilesService.init()` runs *before* `SettingsService.init()` (it migrates AI keys out of the legacy `config.json`, which `SettingsService` would otherwise rewrite without them). `FontService.init()` + `loadIfDownloaded()` complete before `runApp`, or the first frame flashes the system font.
 - **The OS title bar is hidden**; one 48px bar carries brand, tabs, search, actions and — on Windows/Linux — our own 46x48 caption buttons. Every full-page route therefore needs `SecondaryTitleBar` or the window loses its drag region and buttons. `AppShell` deliberately does not clip (the OS rounds the frameless window).
-- **Window state is read once**, through `WindowStateScope` ([window_state.dart](../../lib/widgets/shell/window_state.dart)) — never attach a `WindowListener` per widget.
+- **Window state is read once**, through `WindowStateScope` ([window_state.dart](../../lib/widgets/shell/window_state.dart)) — never attach a `WindowManager` / `Window` listener per widget.
 - **No app content in the top-right 138px** on Windows (reserved for the Snap Layouts hit area, which currently does not work — backlog B15).
 - **`MediaTable` subscribes narrowly on purpose**: one `context.select` per value, per-row selection watches, column-drag widths local in a `ValueNotifier` until release (cancel commits too). `SettingsService.columnWeights` caches its map so `select`'s `==` holds. Don't turn these into `watch`.
 - Minimum window size is 1024x700 (`window_manager` in `main()`); below it the fixed-width panes overflow.

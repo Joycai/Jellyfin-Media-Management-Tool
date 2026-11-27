@@ -25,9 +25,8 @@ AiConfig _config(
 );
 
 http.Response _stream(List<Map<String, Object?>> events) => http.Response(
-  [
-    for (final e in events) 'event: ${e['type']}\ndata: ${jsonEncode(e)}\n\n',
-  ].join(),
+  [for (final e in events) 'event: ${e['type']}\ndata: ${jsonEncode(e)}\n\n']
+      .join(),
   200,
   headers: const {'content-type': 'text/event-stream'},
 );
@@ -406,33 +405,30 @@ void main() {
     );
   });
 
-  test(
-    'a reasoning model refusing temperature is asked again without it',
-    () async {
-      final bodies = <Map<String, dynamic>>[];
-      await OpenAiResponsesProvider(
-        _config('refuse.example'),
-        client: MockClient((request) async {
-          final body = jsonDecode(request.body) as Map<String, dynamic>;
-          bodies.add(body);
-          return body.containsKey('temperature')
-              ? http.Response(
-                  jsonEncode({
-                    'error': {
-                      'message':
-                          "Unsupported parameter: 'temperature' is not supported "
-                          'with this model.',
-                    },
-                  }),
-                  400,
-                )
-              : _stream([_completed()]);
-        }),
-      ).chat(messages: const [UserMessage('u')], tools: const []);
-      expect(bodies, hasLength(2));
-      expect(bodies.last.containsKey('temperature'), isFalse);
-    },
-  );
+  test('a reasoning model refusing temperature is asked again without it', () async {
+    final bodies = <Map<String, dynamic>>[];
+    await OpenAiResponsesProvider(
+      _config('refuse.example'),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        bodies.add(body);
+        return body.containsKey('temperature')
+            ? http.Response(
+                jsonEncode({
+                  'error': {
+                    'message':
+                        "Unsupported parameter: 'temperature' is not supported "
+                        'with this model.',
+                  },
+                }),
+                400,
+              )
+            : _stream([_completed()]);
+      }),
+    ).chat(messages: const [UserMessage('u')], tools: const []);
+    expect(bodies, hasLength(2));
+    expect(bodies.last.containsKey('temperature'), isFalse);
+  });
 
   group('reasoning', () {
     Future<Map<String, dynamic>> sent(AiConfig config) async {
@@ -921,9 +917,8 @@ void main() {
         const SystemMessage('Call report_greeting with a short greeting.'),
         const UserMessage('Hello!'),
       ];
-      final first = await OpenAiResponsesProvider(
-        config,
-      ).chat(messages: messages, tools: const [tool]);
+      final first = await OpenAiResponsesProvider(config)
+          .chat(messages: messages, tools: const [tool]);
       expect(first.toolCalls, isNotEmpty);
       messages
         ..add(first.toMessage())
@@ -935,9 +930,8 @@ void main() {
           ),
         );
       // The second turn is where a broken pass-back is refused.
-      final second = await OpenAiResponsesProvider(
-        config,
-      ).chat(messages: messages, tools: const [tool]);
+      final second = await OpenAiResponsesProvider(config)
+          .chat(messages: messages, tools: const [tool]);
       expect(second.promptTokens, greaterThan(0));
     },
     skip: Platform.environment['OPENAI_API_KEY'] == null

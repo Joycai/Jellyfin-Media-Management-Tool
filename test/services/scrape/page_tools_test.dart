@@ -5,9 +5,8 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:jellyfin_media_management_tool/services/agent/agent_runtime.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/page_tools.dart';
 
-final _fixture = io.File(
-  'test/fixtures/giga_product_7743.html',
-).readAsStringSync();
+final _fixture = io.File('test/fixtures/giga_product_7743.html')
+    .readAsStringSync();
 
 final _pageUrl = Uri.parse(
   'https://www.giga-web.jp/product/index.php?product_id=7743',

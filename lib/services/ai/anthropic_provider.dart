@@ -44,10 +44,10 @@ class AnthropicProvider implements AiProvider {
 
   AnthropicProvider(
     this.config, {
-    http.Client? client,
+    this._client,
     this.firstEventTimeout = const Duration(minutes: 10),
     this.idleTimeout = const Duration(minutes: 2),
-  }) : _client = client;
+  });
 
   /// The API version this adapter is written against. Pinned: a header that
   /// followed the latest version would change the wire shape under it.
@@ -64,9 +64,8 @@ class AnthropicProvider implements AiProvider {
   /// A pasted full endpoint (`…/v1/messages`) is cut back to its root first
   /// — a path segment only, never a host named `messages`.
   String get _base {
-    final base = AiHttp.endpointBase(
-      config.endpoint,
-    ).replaceFirst(RegExp(r'(?<=[^/])/messages$'), '');
+    final base = AiHttp.endpointBase(config.endpoint)
+        .replaceFirst(RegExp(r'(?<=[^/])/messages$'), '');
     return base.endsWith('/v1') ? base : '$base/v1';
   }
 

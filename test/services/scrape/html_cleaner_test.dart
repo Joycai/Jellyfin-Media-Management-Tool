@@ -3,9 +3,8 @@ import 'dart:io' as io;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/scrape/html_cleaner.dart';
 
-final _fixture = io.File(
-  'test/fixtures/giga_product_7743.html',
-).readAsStringSync();
+final _fixture = io.File('test/fixtures/giga_product_7743.html')
+    .readAsStringSync();
 
 void main() {
   group('HtmlCleaner.clean', () {

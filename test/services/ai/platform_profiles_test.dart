@@ -25,9 +25,8 @@ void main() {
     );
     for (final host in ['dashscope', 'dashscope-intl', 'dashscope-us']) {
       expect(
-        PlatformProfiles.forHost(
-          'https://$host.aliyuncs.com/compatible-mode',
-        )?.id,
+        PlatformProfiles.forHost('https://$host.aliyuncs.com/compatible-mode')
+            ?.id,
         'dashscope',
       );
     }

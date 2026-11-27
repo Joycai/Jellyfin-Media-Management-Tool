@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -10,6 +12,7 @@ import 'package:jellyfin_media_management_tool/services/scrape/image_cache.dart'
 import 'package:jellyfin_media_management_tool/services/scrape/page_fetcher.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/scrape/image_gallery.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Same stand-in bytes the cache tests use: a JPEG header and filler. It never
 /// decodes, so every tile paints its placeholder -- which is fine here, because

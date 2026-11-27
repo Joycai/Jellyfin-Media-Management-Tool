@@ -18,11 +18,10 @@ class HistoryService extends ChangeNotifier {
   final FileSystem _fs;
   final String? _explicitUndoDir;
 
-  /// [fs] and [undoDir] are injected in tests; production callers leave them
+  /// [_fs] and [undoDir] are injected in tests; production callers leave them
   /// at the defaults (real local FS + `<app-support>/undo/`).
-  HistoryService({FileSystem fs = const LocalFileSystem(), String? undoDir})
-    : _fs = fs,
-      _explicitUndoDir = undoDir;
+  HistoryService({this._fs = const LocalFileSystem(), String? undoDir})
+    : _explicitUndoDir = undoDir;
 
   List<HistoryEntry> _entries = [];
   bool _loaded = false;

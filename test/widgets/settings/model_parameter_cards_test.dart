@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_profiles_service.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/model_parameter_cards.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/settings.dart';
 

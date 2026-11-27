@@ -112,9 +112,8 @@ void main() {
       'reads paths in the injected filesystem style, not the host one',
       () async {
         final windows = newWindowsMemoryFs();
-        final result = await MetadataWriter(
-          fs: windows,
-        ).write(baseDir: r'C:\work', nfoFileName: 'a.nfo', nfoXml: _nfo);
+        final result = await MetadataWriter(fs: windows)
+            .write(baseDir: r'C:\work', nfoFileName: 'a.nfo', nfoXml: _nfo);
         expect(result.succeeded, 1);
         expect(windows.file(r'C:\work\a.nfo').existsSync(), isTrue);
       },

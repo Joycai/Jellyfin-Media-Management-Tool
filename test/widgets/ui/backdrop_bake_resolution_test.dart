@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/shell/app_shell.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_backdrop.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// `AppBackdrop` bakes the window gradients into an image and stretches it back
 /// over the window. The stretch factor is the whole game: the gradient is

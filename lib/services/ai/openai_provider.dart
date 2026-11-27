@@ -53,10 +53,10 @@ class OpenAiProvider implements AiProvider {
 
   OpenAiProvider(
     this.config, {
-    http.Client? client,
+    this._client,
     this.firstEventTimeout = const Duration(minutes: 10),
     this.idleTimeout = const Duration(minutes: 2),
-  }) : _client = client;
+  });
 
   /// What each route taught this provider, kept across launches — see
   /// [LearnedStore]. Per route: the JSON mode it last accepted; whether the
@@ -472,9 +472,9 @@ class OpenAiProvider implements AiProvider {
     final kind =
         await (_serverKinds[_root] ?? Future.value(ServerKind.unknown));
     final learned = _learned.of(_cacheKey);
-    final off = _offWays(
-      kind,
-    ).where((w) => !learned.thinkingOffTried.contains(w.name)).firstOrNull;
+    final off = _offWays(kind)
+        .where((w) => !learned.thinkingOffTried.contains(w.name))
+        .firstOrNull;
     final (optional: _, :payload) = _compose(
       messages: messages,
       tools: tools,

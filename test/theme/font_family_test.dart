@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/shell/app_shell.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The font the user picks in Settings has to reach every surface, and the
 /// mono styles have to name a family that exists somewhere.

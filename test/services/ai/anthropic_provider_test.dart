@@ -34,9 +34,9 @@ AiConfig _config(
   topK: topK,
 );
 
-String _sse(List<Map<String, Object?>> events) => [
-  for (final e in events) 'event: ${e['type']}\ndata: ${jsonEncode(e)}\n\n',
-].join();
+String _sse(List<Map<String, Object?>> events) =>
+    [for (final e in events) 'event: ${e['type']}\ndata: ${jsonEncode(e)}\n\n']
+        .join();
 
 http.Response _stream(List<Map<String, Object?>> events) => http.Response(
   _sse(events),
@@ -97,9 +97,8 @@ void main() {
         'https://api.anthropic.com/v1/messages',
       );
       expect(
-        (await sent(
-          'https://dashscope.aliyuncs.com/apps/anthropic/',
-        )).url.toString(),
+        (await sent('https://dashscope.aliyuncs.com/apps/anthropic/')).url
+            .toString(),
         'https://dashscope.aliyuncs.com/apps/anthropic/v1/messages',
       );
       expect(
@@ -120,9 +119,8 @@ void main() {
         'https://dashscope.aliyuncs.com/apps/anthropic/v1/messages',
       );
       expect(
-        (await sent(
-          'https://api.anthropic.com/v1/messages?beta=true',
-        )).url.toString(),
+        (await sent('https://api.anthropic.com/v1/messages?beta=true')).url
+            .toString(),
         'https://api.anthropic.com/v1/messages',
       );
       // A host is not a path segment.
@@ -1096,9 +1094,8 @@ void main() {
                 final body = jsonDecode(request.body) as Map<String, dynamic>;
                 bodies.add(body);
                 if (bodies.length > 8) throw StateError('runaway retries');
-                final field = RegExp(
-                  'top_p|top_k|temperature',
-                ).firstMatch(message)![0]!;
+                final field = RegExp('top_p|top_k|temperature')
+                    .firstMatch(message)![0]!;
                 return body.containsKey(field)
                     ? http.Response(
                         jsonEncode({
@@ -2546,9 +2543,8 @@ void main() {
         const SystemMessage('Call report_greeting with a short greeting.'),
         const UserMessage('Hello!'),
       ];
-      final first = await AnthropicProvider(
-        config,
-      ).chat(messages: messages, tools: const [tool]);
+      final first = await AnthropicProvider(config)
+          .chat(messages: messages, tools: const [tool]);
       expect(first.toolCalls, isNotEmpty);
       messages
         ..add(first.toMessage())
@@ -2560,9 +2556,8 @@ void main() {
           ),
         );
       // The second turn is where a broken pass-back is refused.
-      final second = await AnthropicProvider(
-        config,
-      ).chat(messages: messages, tools: const [tool]);
+      final second = await AnthropicProvider(config)
+          .chat(messages: messages, tools: const [tool]);
       expect(second.promptTokens, greaterThan(0));
     },
     skip: Platform.environment['ANTHROPIC_API_KEY'] == null

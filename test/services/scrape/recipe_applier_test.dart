@@ -10,9 +10,8 @@ import 'package:jellyfin_media_management_tool/services/scrape/recipe_applier.da
 /// Real markup, trimmed. Everything the recipe touches is byte-for-byte what
 /// the site served, including the two things that break naive scrapers: the
 /// duplicated `id` attributes and the folded/expanded copies of the synopsis.
-final _fixture = File(
-  'test/fixtures/giga_product_7743.html',
-).readAsStringSync();
+final _fixture = File('test/fixtures/giga_product_7743.html')
+    .readAsStringSync();
 
 final _pageUrl = Uri.parse(
   'https://www.giga-web.jp/product/index.php?product_id=7743',

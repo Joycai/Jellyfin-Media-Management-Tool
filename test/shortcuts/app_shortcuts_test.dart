@@ -81,9 +81,8 @@ void main() {
     });
 
     test('history avoids bare Cmd+H, which macOS swallows as Hide', () {
-      final history = appShortcuts(
-        isMac: true,
-      ).firstWhere((s) => s.id == AppShortcutId.history);
+      final history = appShortcuts(isMac: true)
+          .firstWhere((s) => s.id == AppShortcutId.history);
       for (final activator in history.activators) {
         final bare =
             activator.trigger == LogicalKeyboardKey.keyH &&
@@ -133,9 +132,8 @@ void main() {
         }, isMac: false),
       );
 
-      final refresh = appShortcuts(
-        isMac: false,
-      ).firstWhere((s) => s.id == AppShortcutId.refresh);
+      final refresh = appShortcuts(isMac: false)
+          .firstWhere((s) => s.id == AppShortcutId.refresh);
       expect(
         refresh.activators.length,
         greaterThan(1),
@@ -155,9 +153,8 @@ void main() {
         buildShortcutBindings({AppShortcutId.refresh: () {}}, isMac: false),
       );
 
-      final settings = appShortcuts(
-        isMac: false,
-      ).firstWhere((s) => s.id == AppShortcutId.settings);
+      final settings = appShortcuts(isMac: false)
+          .firstWhere((s) => s.id == AppShortcutId.settings);
       expect(bound[_sig(settings.primary)], isNull);
       expect(bound, hasLength(2)); // only refresh's F5 + Ctrl+R
     });

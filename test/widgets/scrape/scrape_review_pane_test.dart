@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/models/media_metadata.dart';
@@ -10,6 +12,7 @@ import 'package:jellyfin_media_management_tool/services/scrape/scrape_service.da
 import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/scrape/image_gallery.dart';
 import 'package:jellyfin_media_management_tool/widgets/scrape/scrape_review_pane.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A scrape that conflicts with the NFO on disk on `title`, adds `code`, and
 /// brings a list field — one instance of each merge default.

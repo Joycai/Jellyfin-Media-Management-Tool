@@ -38,9 +38,8 @@ void main() {
       }),
     ]);
 
-    final run = await OrganizeAgent(
-      provider,
-    ).run(folderName: 'Some Show', files: _show);
+    final run = await OrganizeAgent(provider)
+        .run(folderName: 'Some Show', files: _show);
 
     // The run ends on the round that decided the last group — a small model
     // should not spend a turn announcing it is finished.
@@ -73,9 +72,8 @@ void main() {
       _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
     ]);
 
-    await OrganizeAgent(
-      provider,
-    ).run(folderName: 'Some Show', files: _show, titleHint: 'Some Show');
+    await OrganizeAgent(provider)
+        .run(folderName: 'Some Show', files: _show, titleHint: 'Some Show');
 
     final task = (provider.seen.first[1] as UserMessage).content;
     expect(task, contains('g1'));
@@ -99,9 +97,8 @@ void main() {
       _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
     ]);
 
-    final run = await OrganizeAgent(
-      provider,
-    ).run(folderName: 'Some Show', files: _show);
+    final run = await OrganizeAgent(provider)
+        .run(folderName: 'Some Show', files: _show);
 
     expect(_lastResult(provider, 1), contains('mediaType must be'));
     expect(_lastResult(provider, 2), contains('Call list_groups'));
@@ -138,9 +135,8 @@ void main() {
       (_) => textTurn('That is all.'),
     ]);
 
-    final run = await OrganizeAgent(
-      provider,
-    ).run(folderName: 'Media', files: files);
+    final run = await OrganizeAgent(provider)
+        .run(folderName: 'Media', files: files);
 
     // One decision, then a reply and two reminders that went unanswered.
     expect(provider.calls, 4);
@@ -162,9 +158,8 @@ void main() {
       ]),
     ]);
 
-    final run = await OrganizeAgent(
-      provider,
-    ).run(folderName: 'Some Show', files: _show);
+    final run = await OrganizeAgent(provider)
+        .run(folderName: 'Some Show', files: _show);
 
     expect(run.plan.actions, hasLength(3));
     for (final action in run.plan.actions) {
@@ -199,9 +194,8 @@ void main() {
       ]),
     ]);
 
-    final run = await OrganizeAgent(
-      provider,
-    ).run(folderName: 'Some Show', files: _show);
+    final run = await OrganizeAgent(provider)
+        .run(folderName: 'Some Show', files: _show);
 
     expect(_lastResult(provider, 1), contains('into g2'));
     final targets = run.plan.actions.map((a) => a.target);
@@ -230,9 +224,8 @@ void main() {
       ]),
     ]);
 
-    final run = await OrganizeAgent(
-      provider,
-    ).run(folderName: 'Media', files: files);
+    final run = await OrganizeAgent(provider)
+        .run(folderName: 'Media', files: files);
 
     // Applying both would lose one file to the other.
     expect(run.plan.actions, hasLength(2));
@@ -375,9 +368,8 @@ void main() {
           _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
         ]);
 
-        final run = await OrganizeAgent(
-          provider,
-        ).run(folderName: 'Media', files: threeShows, batchSize: 2);
+        final run = await OrganizeAgent(provider)
+            .run(folderName: 'Media', files: threeShows, batchSize: 2);
 
         expect(provider.calls, 2);
         // The second session does not carry the first one's transcript.
@@ -400,9 +392,8 @@ void main() {
         _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
       ]);
 
-      await OrganizeAgent(
-        provider,
-      ).run(folderName: 'Media', files: threeShows, batchSize: 1);
+      await OrganizeAgent(provider)
+          .run(folderName: 'Media', files: threeShows, batchSize: 1);
 
       expect(_lastResult(provider, 2), contains('Shows/Show A'));
     });
@@ -415,9 +406,8 @@ void main() {
         _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
       ]);
 
-      final run = await OrganizeAgent(
-        provider,
-      ).run(folderName: 'Media', files: threeShows, batchSize: 1);
+      final run = await OrganizeAgent(provider)
+          .run(folderName: 'Media', files: threeShows, batchSize: 1);
 
       // Retried once, then given up on; the next batch still ran.
       expect(provider.calls, 4);
@@ -434,9 +424,8 @@ void main() {
         _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
       ]);
 
-      final run = await OrganizeAgent(
-        provider,
-      ).run(folderName: 'Some Show', files: _show);
+      final run = await OrganizeAgent(provider)
+          .run(folderName: 'Some Show', files: _show);
 
       expect(provider.calls, 2);
       expect(run.plan.decidedGroups, 1);
@@ -463,9 +452,8 @@ void main() {
           _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
         ]);
 
-        final run = await OrganizeAgent(
-          provider,
-        ).run(folderName: 'Media', files: threeShows, batchSize: 2);
+        final run = await OrganizeAgent(provider)
+            .run(folderName: 'Media', files: threeShows, batchSize: 2);
 
         // The server may still be generating the first attempt; a rerun
         // would bill a second one beside it.
@@ -484,9 +472,8 @@ void main() {
           _submit({'group': 'g1', 'mediaType': 'series', 'title': 'Some Show'}),
         ]);
 
-        final run = await OrganizeAgent(
-          provider,
-        ).run(folderName: 'Some Show', files: _show);
+        final run = await OrganizeAgent(provider)
+            .run(folderName: 'Some Show', files: _show);
 
         expect(provider.calls, 2, reason: '$status');
         expect(run.plan.decidedGroups, 1, reason: '$status');
@@ -518,9 +505,8 @@ void main() {
         _submit({'group': 'g3', 'mediaType': 'series', 'title': 'Show C'}),
       ]);
 
-      final run = await OrganizeAgent(
-        provider,
-      ).run(folderName: 'Media', files: threeShows, batchSize: 1);
+      final run = await OrganizeAgent(provider)
+          .run(folderName: 'Media', files: threeShows, batchSize: 1);
 
       expect(provider.calls, 5);
       expect(run.plan.failedGroups, 1);
@@ -661,9 +647,8 @@ void main() {
       final provider = ScriptedChatProvider([
         _submit({'group': 'g1', 'mediaType': 'movie', 'title': 'X'}),
       ]);
-      await OrganizeAgent(
-        provider,
-      ).run(folderName: 'Downloads', files: unnamed);
+      await OrganizeAgent(provider)
+          .run(folderName: 'Downloads', files: unnamed);
       expect(
         provider.offeredTools.first,
         isNot(contains('identify_from_frames')),

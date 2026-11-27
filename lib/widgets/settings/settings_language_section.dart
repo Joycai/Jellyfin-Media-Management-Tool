@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -132,9 +132,9 @@ class _LanguageList extends StatelessWidget {
         // Dashed "import .arb" placeholder.
         InkWell(
           borderRadius: BorderRadius.circular(AppRadii.panel),
-          onTap: () => ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.langImportSoon))),
+          onTap: () =>
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(l10n.langImportSoon))),
           child: DottedBorderBox(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 22),

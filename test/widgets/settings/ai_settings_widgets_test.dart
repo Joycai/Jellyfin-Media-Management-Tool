@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations_en.dart';
@@ -8,6 +7,7 @@ import 'package:jellyfin_media_management_tool/services/ai/ai_provider.dart';
 import 'package:jellyfin_media_management_tool/services/ai/platform_profiles.dart';
 import 'package:jellyfin_media_management_tool/widgets/settings/ai_settings_widgets.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/settings.dart';
 

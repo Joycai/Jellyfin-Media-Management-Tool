@@ -83,20 +83,18 @@ void main() {
 
   test('long strings and inline images become notes of their size', () {
     final long = 'x' * (ApiLog.maxString + 1);
-    final redacted =
-        ApiLog.redact({
-              'messages': [
-                {'content': long},
-                {
-                  'image_url': {'url': 'data:image/jpeg;base64,${'A' * 10}'},
-                },
-                {
-                  'inlineData': {'mimeType': 'image/png', 'data': 'B' * 300},
-                },
-              ],
-              'short': 'kept',
-            })
-            as Map;
+    final redacted = ApiLog.redact({
+      'messages': [
+        {'content': long},
+        {
+          'image_url': {'url': 'data:image/jpeg;base64,${'A' * 10}'},
+        },
+        {
+          'inlineData': {'mimeType': 'image/png', 'data': 'B' * 300},
+        },
+      ],
+      'short': 'kept',
+    }) as Map;
     final messages = redacted['messages'] as List;
     expect((messages[0] as Map)['content'], contains('chars omitted'));
     expect(

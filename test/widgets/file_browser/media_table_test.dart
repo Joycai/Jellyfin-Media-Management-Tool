@@ -1,7 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_media_management_tool/l10n/app_localizations.dart';
 import 'package:jellyfin_media_management_tool/services/ai/ai_service.dart';
@@ -12,6 +14,7 @@ import 'package:jellyfin_media_management_tool/theme/app_theme.dart';
 import 'package:jellyfin_media_management_tool/widgets/file_browser/media_columns.dart';
 import 'package:jellyfin_media_management_tool/widgets/file_browser/media_table.dart';
 import 'package:jellyfin_media_management_tool/widgets/ui/app_controls.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 /// Records what the table asks the settings to persist, and counts reads of
@@ -206,9 +209,8 @@ void main() {
     final before = settings.tableBuilds;
 
     final other = Directory.systemTemp.createTempSync('media_table_test2');
-    File(
-      '${other.path}${Platform.pathSeparator}gamma.txt',
-    ).writeAsStringSync('g');
+    File('${other.path}${Platform.pathSeparator}gamma.txt')
+        .writeAsStringSync('g');
     addTearDown(() => other.deleteSync(recursive: true));
 
     await tester.runAsync(() async {

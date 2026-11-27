@@ -42,10 +42,10 @@ class OpenAiResponsesProvider implements AiProvider {
 
   OpenAiResponsesProvider(
     this.config, {
-    http.Client? client,
+    this._client,
     this.firstEventTimeout = const Duration(minutes: 10),
     this.idleTimeout = const Duration(minutes: 2),
-  }) : _client = client;
+  });
 
   static LearnedStore get _learned => LearnedStore.instance;
 
